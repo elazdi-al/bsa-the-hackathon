@@ -21,6 +21,12 @@ export function grouped(text: string) {
   return fraction === undefined ? int : `${int}.${fraction}`;
 }
 
+/** A text field's contents retyped key by key on the numpad: only digits and one dot, decimals capped. A comma typed last is the dot. */
+export function retyped(text: string, decimals: number) {
+  const keys = text.replace(/,$/, ".").replace(/[^\d.]/g, "");
+  return [...keys].reduce((t, key) => press(t, key as Key, decimals) ?? t, "");
+}
+
 /** A computed amount as the numpad would have typed it; empty when it rounds to nothing. */
 export function typed(n: number, decimals: number) {
   const rounded = Number(n.toFixed(decimals));

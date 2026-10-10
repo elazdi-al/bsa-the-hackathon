@@ -1,6 +1,6 @@
 // Numpad amount entry: `node "app/(tabs)/_components/amount.check.mjs"`
 import assert from "node:assert/strict";
-import { grouped, press, quote, typed } from "./amount.ts";
+import { grouped, press, quote, retyped, typed } from "./amount.ts";
 
 const type = (keys, decimals = 2) => [...keys].reduce((t, k) => press(t, k === "<" ? "back" : k, decimals) ?? t, "");
 
@@ -19,6 +19,13 @@ assert.equal(grouped(""), "0");
 assert.equal(grouped("1234.5"), "1,234.5");
 assert.equal(grouped("1000."), "1,000.");
 assert.equal(grouped("0.50"), "0.50");
+
+assert.equal(retyped("ab-1x2", 6), "12", "only digits");
+assert.equal(retyped("1.5.", 6), "1.5", "one dot");
+assert.equal(retyped("1.1234567", 6), "1.123456", "decimals capped");
+assert.equal(retyped("12,345", 6), "12345", "grouping dropped");
+assert.equal(retyped("2,000,", 6), "2000.", "a comma typed last is the dot");
+assert.equal(retyped("00", 6), "0");
 
 assert.equal(typed(80.06, 4), "80.06");
 assert.equal(typed(1 / 3, 2), "0.33");

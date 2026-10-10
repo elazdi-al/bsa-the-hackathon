@@ -4,6 +4,7 @@ import { MotionConfig } from "motion/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { encodeFunctionData, erc20Abi, parseUnits, type Address, type Hex } from "viem";
+import { grouped, retyped } from "@/app/(tabs)/_components/amount";
 import { usd } from "@/app/(tabs)/_components/money";
 import { refreshWallet, useWallet, type WalletSnapshot } from "@/app/(tabs)/_components/wallet";
 import { recipientFor, sendDraft } from "@/app/choose-recipient/data";
@@ -32,7 +33,7 @@ function blocker(snapshot: WalletSnapshot, amount: number): string | undefined {
     if (recovery?.mine) return "You can send once your wallet is restored on this phone.";
     return restoring ? "Your recovery was cancelled, so this phone can't send yet." : "Your wallet moved to another phone, so this one can't send from it.";
   }
-  if (amount > usdc) return `You have ${usd.format(usdc)}.`;
+  if (amount > usdc) return `Only ${usd.format(usdc)} available.`;
 }
 
 /** Swissquote's refusal and its reasons, a known failure in plain words, or the error as is. */
@@ -81,7 +82,7 @@ export function SendReview({ children }: { children: ReactNode }) {
 function Review({ to, address, children }: { to: string; address: Address; children: ReactNode }) {
   const router = useRouter();
   const back = useBack("/choose-recipient");
-  const [amount, setAmount] = useState("25");
+  const [amount, setAmount] = useState("");
   const [phase, setPhase] = useState<Phase>("review");
   const [prepared, setPrepared] = useState<Prepared>();
   const [sent, setSent] = useState<Hex>();
@@ -102,7 +103,7 @@ function Review({ to, address, children }: { to: string; address: Address; child
 
   const valid = AMOUNT.test(amount) && Number(amount) > 0;
   const snapshot = useWallet();
-  // Only while the button can act: a send landing mid-flight would otherwise flash "You have $0.00." under Sending.
+  // Only while the button can act: a send landing mid-flight would otherwise flash "Only $0.00 available." under Sending.
   const blocked = phase === "review" || phase === "confirm" ? blocker(snapshot, Number(amount)) : undefined;
 
   function reset() {
@@ -156,21 +157,24 @@ function Review({ to, address, children }: { to: string; address: Address; child
           <label className="flex items-baseline justify-center text-display tabular-nums">
             <span aria-hidden>$</span>
             <input
-              value={amount}
+              value={amount && grouped(amount)}
               onChange={(e) => {
-                setAmount(e.target.value.replace(",", "."));
+                const next = retyped(e.target.value, 6);
+                if (next === amount) return;
+                setAmount(next);
                 reset();
               }}
               readOnly={phase === "checking" || phase === "sending" || phase === "sent"}
               inputMode="decimal"
               aria-label="Amount in USDC"
-              style={{ width: `${Math.max(amount.length, 1)}ch` }}
+              placeholder="0"
+              style={{ width: `${grouped(amount).length}ch` }}
               className="bg-transparent caret-brand outline-none"
             />
           </label>
           {/* One line tall whatever it says: a blocker that wraps spills into the padding below, so nothing moves. */}
           <p className="mt-2 h-lh text-body text-balance text-muted-foreground tabular-nums">
-            {blocked || `${valid ? Number(amount).toLocaleString("en-US", { maximumFractionDigits: 6 }) : 0} USDC`}
+            {blocked ?? (snapshot.status === "ready" && `${usd.format(snapshot.wallet.usdc)} available`)}
           </p>
         </div>
 
