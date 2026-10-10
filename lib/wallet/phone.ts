@@ -424,6 +424,11 @@ export function createPhone({
     },
 
     finalizeRecovery: () => call<{ transactionHash: Hex }>(`/api/wallets/${requireWallet().address}/recovery`, {}, "PATCH"),
+
+    /** Reports the phone that holds the wallet now as lost or stolen. After the ID check Swissquote locks it; nothing changes on-chain. */
+    async reportLost(identity: Identity): Promise<void> {
+      await call(`/api/wallets/${requireWallet().address}/lock`, { identity });
+    },
   };
 }
 
