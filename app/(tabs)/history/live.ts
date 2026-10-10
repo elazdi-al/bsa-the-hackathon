@@ -9,8 +9,8 @@ const pad = (n: number) => String(n).padStart(2, "0");
 
 /**
  * An on-chain USDC transfer as a History row on the Cash account. Its date and time are this phone's local
- * wall clock, so a send after `npm run warp` still lands under Today, written in the UTC-formatted fields the
- * mock rows use so they read as local time.
+ * wall clock, so a send after `npm run warp` still lands under Today. History formats these fields in UTC, so they
+ * read back as that local time.
  */
 export function transferToTx(transfer: Transfer, wallet: Pick<Wallet, "address" | "skew">): Tx {
   const out = isAddressEqual(transfer.from, wallet.address);
@@ -49,6 +49,5 @@ export function useLiveTxs() {
   useEffect(() => {
     known.current = new Set(txs.map((t) => t.id));
   });
-  // A phone with a wallet lists only its own transfers; the demo rows preview a phone without one.
-  return { txs, real: wallet.status !== "none", arrived: (tx: Tx) => !!known.current && txs.includes(tx) && !known.current.has(tx.id) };
+  return { txs, arrived: (tx: Tx) => !!known.current && txs.includes(tx) && !known.current.has(tx.id) };
 }

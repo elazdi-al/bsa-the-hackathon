@@ -5,14 +5,13 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { CopyButton } from "@/app/transaction-tracking/_components/copy-button";
-import { TransactionSheet } from "@/app/transaction-tracking/_components/transaction-sheet";
 import { CloseIcon, LightningIcon } from "@/components/icons";
 import { Drawer, FloatingSheetContent, FloatingSheetHeader } from "@/components/ui/drawer";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { rowPress, sectionLabel } from "../../_components/list";
 import { blurred, leave, reveal, sharp, snappy } from "../../_components/transitions";
 import { tiles } from "../../home/data";
-import { byDay, filters, fullDate, transactions, type Filter, type Tx } from "../data";
+import { byDay, filters, fullDate, type Filter, type Tx } from "../data";
 import { useLiveTxs } from "../live";
 import { Amount, Glyph, RowBody } from "./tx-row";
 
@@ -36,10 +35,9 @@ export function HistoryList() {
   const [open, setOpen] = useState(false);
   // Kept after close so the sheet's content doesn't vanish mid-exit.
   const [tx, setTx] = useState<Tx | null>(null);
-  const tracked = tx?.kind === "withdrawal";
 
   const live = useLiveTxs();
-  const scoped = [...live.txs, ...(live.real ? [] : transactions)].filter((t) => !account || t.account === account);
+  const scoped = live.txs.filter((t) => !account || t.account === account);
   const shown = scoped.filter(filters[filter].match);
   const groups = byDay(shown);
 
@@ -148,12 +146,11 @@ export function HistoryList() {
           </AnimatePresence>
         </div>
 
-        <Drawer open={open && !tracked} onOpenChange={setOpen}>
+        <Drawer open={open} onOpenChange={setOpen}>
           <FloatingSheetContent>
             <div className="min-h-0 overflow-y-auto px-4 pb-6">{tx && <Sheet tx={tx} />}</div>
           </FloatingSheetContent>
         </Drawer>
-        <TransactionSheet open={open && tracked} onOpenChange={setOpen} />
       </div>
     </MotionConfig>
   );
