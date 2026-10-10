@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import type { Address } from "viem";
+import { RequireWallet } from "@/app/(tabs)/_components/wallet";
 import { recipientFor } from "@/app/choose-recipient/data";
 import { LightningIcon, WalletIcon } from "@/components/icons";
 import { Screen } from "@/components/navigation";
@@ -17,6 +18,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
   return (
     <Screen>
       <main className="flex min-h-dvh flex-col bg-white pt-[env(safe-area-inset-top)] pb-[max(2rem,env(safe-area-inset-bottom))]">
+        <RequireWallet />
         <SendReview to={to} address={shown.address as Address} usdc={addresses.usdc}>
           <section aria-label="Recipient" className="flex items-center gap-4">
             <span aria-hidden className="grid size-11 shrink-0 place-items-center rounded-full bg-secondary text-muted-foreground">

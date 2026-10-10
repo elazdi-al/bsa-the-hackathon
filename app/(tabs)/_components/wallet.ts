@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
 import { formatUnits, isAddressEqual, type Address } from "viem";
 import { ApiError, phone, type Transfer } from "@/lib/wallet/phone";
@@ -138,9 +139,18 @@ export const chainNow = (wallet: Pick<Wallet, "skew">) => Date.now() / 1000 + wa
 /** A chain timestamp in seconds as a moment on this phone's clock, which a warped local chain runs ahead of. */
 export const onPhoneClock = (wallet: Pick<Wallet, "skew">, chainSeconds: number) => new Date((chainSeconds - wallet.skew) * 1000);
 
-/** The address a screen shows: the wallet's once read, the demo one where the phone has none, nothing in between. */
-export const shownAddress = (snapshot: WalletSnapshot, demo: string) =>
-  snapshot.status === "ready" ? snapshot.wallet.address : snapshot.status === "none" ? demo : undefined;
+/** The wallet's address once read. */
+export const shownAddress = (snapshot: WalletSnapshot) => (snapshot.status === "ready" ? snapshot.wallet.address : undefined);
+
+/** Sends a phone with no wallet to onboarding. Every screen that shows the wallet renders one. */
+export function RequireWallet() {
+  const router = useRouter();
+  const none = useWallet().status === "none";
+  useEffect(() => {
+    if (none) router.replace("/onboarding-welcome");
+  }, [none, router]);
+  return null;
+}
 
 /** Removes the wallet from this phone. Navigate away right after; the screens leaving keep showing it until they're gone. */
 export function forgetWallet() {

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { SwissquoteMark } from "@/components/swissquote-mark";
 import { tileLooks } from "./asset-tile";
 
 function AppIcon({ className, children }: { className: string; children: ReactNode }) {
@@ -9,19 +10,9 @@ function AppIcon({ className, children }: { className: string; children: ReactNo
   );
 }
 
-/** Black mark with a small plus. */
+/** Swissquote Plus: Swissquote's own mark. */
 export function PlusAppIcon() {
-  return (
-    <AppIcon className="bg-black">
-      <svg viewBox="0 0 24 24" className="size-6" fill="currentColor" stroke="currentColor" strokeLinecap="round">
-        <path d="M8.2 7.8h7.6M8.2 7.8v7.6" strokeWidth={2.4} fill="none" />
-        <circle cx="8.2" cy="7.8" r="2.5" stroke="none" />
-        <circle cx="15.8" cy="7.8" r="2.1" stroke="none" />
-        <circle cx="8.2" cy="15.6" r="2.3" stroke="none" />
-        <path d="M15.8 13.6v4M13.8 15.6h4" strokeWidth={1.4} fill="none" />
-      </svg>
-    </AppIcon>
-  );
+  return <SwissquoteMark size={32} className="shrink-0" />;
 }
 
 /** Earn mark: light streaks across the Earn account's colour. */

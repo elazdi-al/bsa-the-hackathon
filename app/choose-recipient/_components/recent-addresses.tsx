@@ -4,14 +4,14 @@ import Link from "next/link";
 import { rowPress, sectionLabel } from "@/app/(tabs)/_components/list";
 import { useActivity, useWallet } from "@/app/(tabs)/_components/wallet";
 import { WalletIcon } from "@/components/icons";
-import { RECENT_ADDRESSES, recentSends, reviewHref, shortAddress } from "../data";
+import { recentSends, reviewHref, shortAddress } from "../data";
 
-/** Where a live wallet last sent, once its activity is read; the demo list only in preview, never in place of a real wallet's. */
+/** Where the wallet last sent, once its activity is read. */
 export function RecentAddresses() {
   const snapshot = useWallet();
   const activity = useActivity();
   const recent =
-    snapshot.status === "ready" ? activity && recentSends(activity, snapshot.wallet) : snapshot.status === "none" ? RECENT_ADDRESSES : undefined;
+    snapshot.status === "ready" ? activity && recentSends(activity, snapshot.wallet) : undefined;
   if (!recent?.length) return null;
 
   return (

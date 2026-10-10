@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { type MouseEvent, useEffect, useState } from "react";
 import { blurred, leave, sharp } from "@/app/(tabs)/_components/transitions";
 import { RestoreIcon, WalletIcon } from "@/components/icons";
+import { SwissquoteMark } from "@/components/swissquote-mark";
 import { buttonVariants } from "@/components/ui/button";
 import { phone } from "@/lib/wallet/phone";
 import { GlimmField } from "./glimm-field";
@@ -57,7 +58,7 @@ export function WelcomeFlow() {
 
         <section className="px-8 text-white min-[360px]:px-12">
           <div className="grid size-[42px] place-items-center rounded-[11px] bg-white text-black shadow-[0_1px_2px_rgb(0_0_0/0.06)]">
-            <WalletIcon size={22} />
+            <SwissquoteMark size={28} />
           </div>
           <h1 className="mt-4 text-title text-balance">
             Your money,

@@ -63,7 +63,7 @@ function SettingsRow({ item, onOpen }: { item: Row; onOpen: (root: TrayRoot) => 
 
 /** The member's card: their plan, name and address on the brand blue, like the card in a wallet. It opens Swissquote Plus. */
 function MemberCard() {
-  const address = shownAddress(useWallet(), profile.address);
+  const address = shownAddress(useWallet());
   return (
     <Link
       href="/plus"
@@ -74,7 +74,7 @@ function MemberCard() {
       <span className="min-w-0">
         <span className="block truncate text-heading">{profile.name}</span>
         <span className={cn("block text-body text-white/70 transition-[opacity,visibility] duration-200 ease-out", !address && "invisible opacity-0")}>
-          {shortAddress(address ?? profile.address)}
+          {address ? shortAddress(address) : "0x0000...0000"}
         </span>
       </span>
     </Link>

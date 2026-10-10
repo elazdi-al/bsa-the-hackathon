@@ -19,13 +19,6 @@ import { AssetTile, tileLooks } from "./asset-tile";
 import { MoneyPlaceholder } from "./blur-money";
 import { PromoStack } from "./promo-stack";
 
-// Cash is the wallet's USDC. A phone with no wallet shows the design preview; unknown holds the amount's place.
-const cashWhen: Record<Exclude<WalletSnapshot["status"], "ready">, number | undefined> = {
-  none: tiles.find((t) => t.id === "cash")!.value,
-  missing: 0,
-  loading: undefined,
-  offline: undefined,
-};
 
 /**
  * Home's tiles with Cash read from the wallet; Accounts and the chart share the store, so both change in one commit.
@@ -33,7 +26,8 @@ const cashWhen: Record<Exclude<WalletSnapshot["status"], "ready">, number | unde
  */
 export function useTiles(): Tile[] {
   const wallet = useWallet();
-  const cash = wallet.status === "ready" ? wallet.wallet.usdc : cashWhen[wallet.status];
+  // Cash is the wallet's USDC; until it's read every tile holds its place. A forgotten network's wallet holds nothing.
+  const cash = wallet.status === "ready" ? wallet.wallet.usdc : wallet.status === "missing" ? 0 : undefined;
   return useMemo(() => tiles.map((t) => ({ ...t, value: cash === undefined ? undefined : t.id === "cash" ? cash : t.value })), [cash]);
 }
 
@@ -182,7 +176,7 @@ function WalletAlert({ alert: { kind, Icon, tone, title, line } }: { alert: Aler
 
 /** The account's latest rows: the wallet's own transfers for Cash, mock ones otherwise. Undefined until they're read. */
 function recentActivity(id: TileId, wallet: WalletSnapshot): Tx[] | undefined {
-  if (id !== "cash" || wallet.status === "none") return transactions.filter((t) => t.account === id).slice(0, 4);
+  if (id !== "cash") return transactions.filter((t) => t.account === id).slice(0, 4);
   if (wallet.status === "missing") return [];
   if (wallet.status !== "ready") return undefined;
   return wallet.wallet.activity?.slice(0, 4).map((t) => transferToTx(t, wallet.wallet));
