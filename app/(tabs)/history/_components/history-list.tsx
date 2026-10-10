@@ -13,7 +13,7 @@ import { Money } from "../../_components/money";
 import { blurred, leave, reveal, sharp, snappy } from "../../_components/transitions";
 import { tiles, type TileId } from "../../home/data";
 import { byDay, filters, fullDate, monthSummary, transactions, type Filter, type Tx } from "../data";
-import { Amount, Glyph, RowBody } from "./tx-row";
+import { Amount, RowBody, TxGlyph } from "./tx-row";
 
 const rowClass = `flex min-h-[60px] w-full items-center gap-3 rounded-[18px] px-3 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring ${rowPress}`;
 
@@ -216,7 +216,7 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
 function Sheet({ tx }: { tx: Tx }) {
   return (
     <>
-      <FloatingSheetHeader icon={<Glyph kind={tx.kind} size={54} />} title={tx.title}>
+      <FloatingSheetHeader icon={<TxGlyph kind={tx.kind} size={54} />} title={tx.title}>
         <p className={`mt-1 text-[27.5px] leading-[34px] font-bold tracking-[-0.01em] ${tx.flow === "in" ? "text-positive" : ""}`}>
           <Amount tx={tx} />
         </p>

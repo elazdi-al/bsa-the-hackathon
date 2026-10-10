@@ -1,6 +1,7 @@
 import { BankIcon, BellIcon, CreditCardIcon, CurrencyDollarIcon, EyeSlashIcon, IdentificationCardIcon, LifebuoyIcon, type Icon } from "@phosphor-icons/react";
 import { wallet } from "@/app/coin-breakdown/data";
 import { KEYS, type KeyId } from "@/app/onboarding-secure/data";
+import { ink } from "../_components/glyph";
 
 export const profile = { name: "Thomas A. Anderson", initials: "TA", address: wallet.address };
 
@@ -39,7 +40,7 @@ export const sections: { title: string; rows: Row[] }[] = [
     rows: [
       { kind: "push", label: "Identity verification", Icon: IdentificationCardIcon, color: "#2059f2", href: "/pending-verification", status: "Pending" },
       { kind: "info", label: "Bank account", Icon: BankIcon, color: "#8a52f5", value: "Revolut ••••1342" },
-      { kind: "info", label: "Fuse Card", Icon: CreditCardIcon, color: "#1f1f1f", value: "Virtual Visa" },
+      { kind: "info", label: "Fuse Card", Icon: CreditCardIcon, color: ink, value: "Virtual Visa" },
     ],
   },
   {

@@ -7,29 +7,26 @@ import {
   PlusIcon,
   SparkleIcon,
   type Icon,
+  type IconWeight,
 } from "@phosphor-icons/react";
+import { Glyph, ink } from "../../_components/glyph";
 import { Money } from "../../_components/money";
 import type { Kind, Tx } from "../data";
 
-// One scheme: a coloured glyph on a circle tinted with the same colour.
-const kinds: Record<Kind, { Icon: Icon; glyph: string; tint: string }> = {
-  receive: { Icon: ArrowDownIcon, glyph: "text-[#ef642c]", tint: "bg-[#ef642c]/12" },
-  send: { Icon: PaperPlaneTiltIcon, glyph: "text-[#8a52f5]", tint: "bg-[#8a52f5]/12" },
-  withdrawal: { Icon: BankIcon, glyph: "text-[#8a52f5]", tint: "bg-[#8a52f5]/12" },
-  swap: { Icon: ArrowsClockwiseIcon, glyph: "text-[#2059f2]", tint: "bg-[#2059f2]/12" },
-  reward: { Icon: SparkleIcon, glyph: "text-positive", tint: "bg-positive/12" },
-  deposit: { Icon: BankIcon, glyph: "text-[#ef642c]", tint: "bg-[#ef642c]/12" },
-  card: { Icon: CreditCardIcon, glyph: "text-[#1f1f1f]", tint: "bg-black/[0.06]" },
-  membership: { Icon: PlusIcon, glyph: "text-[#1f1f1f]", tint: "bg-black/[0.06]" },
+// Arrows are drawn bold, as in the quick actions menu; objects are filled.
+const kinds: Record<Kind, { Icon: Icon; color: string; weight?: IconWeight }> = {
+  receive: { Icon: ArrowDownIcon, color: "#ef642c", weight: "bold" },
+  send: { Icon: PaperPlaneTiltIcon, color: "#8a52f5" },
+  withdrawal: { Icon: BankIcon, color: "#8a52f5" },
+  swap: { Icon: ArrowsClockwiseIcon, color: "#2059f2", weight: "bold" },
+  reward: { Icon: SparkleIcon, color: "var(--color-positive)" },
+  deposit: { Icon: BankIcon, color: "#ef642c" },
+  card: { Icon: CreditCardIcon, color: ink },
+  membership: { Icon: PlusIcon, color: ink },
 };
 
-export function Glyph({ kind, size }: { kind: Kind; size: number }) {
-  const { Icon: I, glyph, tint } = kinds[kind];
-  return (
-    <span aria-hidden className={`grid shrink-0 place-items-center rounded-full ${tint} ${glyph}`} style={{ width: size, height: size }}>
-      <I weight={kind === "receive" ? "bold" : "fill"} size={size * 0.5} />
-    </span>
-  );
+export function TxGlyph({ kind, size }: { kind: Kind; size?: number }) {
+  return <Glyph {...kinds[kind]} size={size} />;
 }
 
 const sign = { in: "+", out: "−", swap: "" } as const;
@@ -47,7 +44,7 @@ export function Amount({ tx }: { tx: Tx }) {
 export function RowBody({ tx, when = tx.time }: { tx: Tx; when?: string }) {
   return (
     <>
-      <Glyph kind={tx.kind} size={40} />
+      <TxGlyph kind={tx.kind} />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[15px] leading-5 font-medium">{tx.title}</span>
         <span className="mt-0.5 flex items-center gap-1.5 text-[13px] leading-[18px] text-[#adadad]">

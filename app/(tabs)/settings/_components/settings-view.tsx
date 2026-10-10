@@ -1,6 +1,6 @@
 "use client";
 
-import { CaretRightIcon, SignOutIcon, type Icon } from "@phosphor-icons/react";
+import { CaretRightIcon, SignOutIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
@@ -10,21 +10,13 @@ import { CopyButton } from "@/app/transaction-tracking/_components/copy-button";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerTitle, DrawerTrigger, FloatingSheetContent, FloatingSheetHeader } from "@/components/ui/drawer";
 import { Switch } from "@/components/ui/switch";
+import { Glyph } from "../../_components/glyph";
 import { hairline, rowPress, sectionLabel } from "../../_components/list";
 import { plus, profile, sections, version, type Row, type Status, type TrayRow } from "../data";
 
 // Rows sit 6px inside a 22px card, so their press tint is rounded 16px to stay concentric.
 const card = `rounded-[22px] ${hairline}`;
 const row = "flex min-h-[60px] w-full items-center gap-3 rounded-[16px] px-2.5 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
-
-/** The tinted round glyph; `large` is the 54px of sheet headers. */
-function Glyph({ Icon, color, large }: { Icon: Icon; color: string; large?: boolean }) {
-  return (
-    <span aria-hidden style={{ color }} className={`grid shrink-0 place-items-center rounded-full bg-current/12 ${large ? "size-[54px]" : "size-10"}`}>
-      <Icon weight="fill" size={large ? 26 : 20} />
-    </span>
-  );
-}
 
 const statuses: Record<Status, ReactNode> = {
   Active: (
@@ -98,7 +90,7 @@ function SignOut() {
       <DrawerContent>
         <div className="px-5 pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
           <div className="px-3">
-            <Glyph Icon={SignOutIcon} color="var(--color-negative)" large />
+            <Glyph Icon={SignOutIcon} color="var(--color-negative)" size={54} />
             <DrawerTitle className="mt-4 text-[20px]">Sign out of Fuse?</DrawerTitle>
             <DrawerDescription className="mt-1">Your keys stay safe while you’re away. Sign back in with Apple any time.</DrawerDescription>
           </div>
@@ -182,7 +174,7 @@ export function SettingsView() {
         <FloatingSheetContent>
           {tray && (
             <div className="px-4 pb-6">
-              <FloatingSheetHeader icon={<Glyph Icon={tray.Icon} color={tray.color} large />} title={tray.label}>
+              <FloatingSheetHeader icon={<Glyph Icon={tray.Icon} color={tray.color} size={54} />} title={tray.label}>
                 <p className="mt-1 text-[20px] leading-7 font-semibold tracking-[-0.01em]">{tray.detail}</p>
                 <p className="mt-2 max-w-[300px] font-medium text-pretty text-[#969696]">{tray.about}</p>
               </FloatingSheetHeader>
