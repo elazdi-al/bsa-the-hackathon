@@ -9,7 +9,7 @@ import { Drawer, FloatingSheetContent, FloatingSheetHeader } from "@/components/
 import { Spinner } from "@/components/ui/spinner";
 import { phone } from "@/lib/wallet/phone";
 import { RowBody } from "../../history/_components/tx-row";
-import { dayLabel, transactions, type Tx } from "../../history/data";
+import { dayLabel, type Tx } from "../../history/data";
 import { transferToTx } from "../../history/live";
 import { sectionLabel } from "../../_components/list";
 import { Money } from "../../_components/money";
@@ -19,27 +19,17 @@ import { AssetTile, tileLooks } from "./asset-tile";
 import { MoneyPlaceholder } from "./blur-money";
 import { PromoStack } from "./promo-stack";
 
-// Cash is the wallet's USDC. A phone with no wallet shows the design preview; unknown holds the amount's place.
-const cashWhen: Record<Exclude<WalletSnapshot["status"], "ready">, number | undefined> = {
-  none: tiles.find((t) => t.id === "cash")!.value,
-  missing: 0,
-  loading: undefined,
-  offline: undefined,
-};
 
 /**
  * Home's tiles with Cash read from the wallet; Accounts and the chart share the store, so both change in one commit.
- * Until Cash is known every tile holds, so Home's numbers type in together. A live wallet holds only its USDC, so its
- * other accounts start at zero; their demo values preview a phone without a wallet.
+ * Until Cash is known every tile holds, so Home's numbers type in together. The wallet holds only its USDC, so its
+ * other accounts start at zero.
  */
 export function useTiles(): Tile[] {
   const wallet = useWallet();
-  const cash = wallet.status === "ready" ? wallet.wallet.usdc : cashWhen[wallet.status];
-  const preview = wallet.status === "none";
-  return useMemo(
-    () => tiles.map((t) => ({ ...t, value: cash === undefined ? undefined : t.id === "cash" ? cash : preview ? t.value : 0 })),
-    [cash, preview],
-  );
+  // Cash is the wallet's USDC; until it's read every tile holds its place. A forgotten network's wallet holds nothing.
+  const cash = wallet.status === "ready" ? wallet.wallet.usdc : wallet.status === "missing" ? 0 : undefined;
+  return useMemo(() => tiles.map((t) => ({ ...t, value: cash === undefined ? undefined : t.id === "cash" ? cash : 0 })), [cash]);
 }
 
 /** The Home grid. Tiles without a screen of their own, and the Earn promo, open an account sheet in place. */
@@ -189,10 +179,9 @@ function WalletAlert({ alert: { kind, Icon, tone, title, line } }: { alert: Aler
   );
 }
 
-/** The account's latest rows: mock ones on a phone without a wallet, else the wallet's own transfers, all Cash. Undefined until they're read. */
+/** The account's latest rows: the wallet's own transfers, all Cash. Undefined until they're read. */
 function recentActivity(id: TileId, wallet: WalletSnapshot): Tx[] | undefined {
-  if (wallet.status === "none") return transactions.filter((t) => t.account === id).slice(0, 4);
-  if (id !== "cash" || wallet.status === "missing") return [];
+  if (id !== "cash" || wallet.status === "missing" || wallet.status === "none") return [];
   if (wallet.status !== "ready") return undefined;
   return wallet.wallet.activity?.slice(0, 4).map((t) => transferToTx(t, wallet.wallet));
 }

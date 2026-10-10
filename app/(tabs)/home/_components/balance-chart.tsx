@@ -4,7 +4,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { TrendUpIcon } from "@/components/icons";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { defaultRange, historyFor, ranges, series, totalOf, type Range } from "../data";
+import { BARS, defaultRange, historyFor, ranges, totalOf, type Range } from "../data";
 import { usd } from "../../_components/money";
 import { transferToTx } from "../../history/live";
 import { onPhoneClock, useWallet } from "../../_components/wallet";
@@ -34,20 +34,20 @@ export function BalanceChart() {
   // Client only: the server renders the wallet as loading, so the dates never meet the server's clock.
   const history = useMemo(() => {
     if (total === undefined) return undefined;
-    if (!live) return historyFor(total, Date.now(), wallet.status === "none" ? undefined : () => total);
+    if (!live) return historyFor(total, Date.now(), () => total);
     // A live wallet's balance at a moment: today's, less every transfer since. Until its transfers are read, today's.
     const transfers = (live.activity ?? []).map((t) => ({ ...transferToTx(t, live), at: onPhoneClock(live, t.timestamp).getTime() }));
     return historyFor(total, Date.now(), (time) =>
       transfers.reduce((balance, t) => (t.at > time ? balance - (t.flow === "in" ? t.usd : -t.usd) : balance), total),
     );
-  }, [total, live, wallet.status]);
+  }, [total, live]);
   // Done once Home's numbers are known, not at mount: the wallet's Cash arrives after.
   useEffect(() => {
     if (total !== undefined) markIntroDone();
   }, [total]);
 
   const data = history?.[range];
-  const last = series[range].length - 1;
+  const last = BARS - 1;
   const shown = active ?? last;
   const scrubbing = active !== null;
   // Always the change since the first bar of the range, so releasing a scrub lands on the same meaning. None from zero.
@@ -130,7 +130,7 @@ export function BalanceChart() {
         className="mt-8 flex h-32 touch-pan-y items-end gap-0.5 rounded-sm outline-none select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 md:h-36 md:gap-1 lg:h-56"
       >
         {/* Height, not scaleY: a scaled pill squashes its rounded top. */}
-        {series[range].map((_, i) => (
+        {Array.from({ length: BARS }, (_, i) => (
           <motion.span
             key={i}
             className={`min-h-0.5 flex-1 rounded-full transition-[opacity] duration-100 ${

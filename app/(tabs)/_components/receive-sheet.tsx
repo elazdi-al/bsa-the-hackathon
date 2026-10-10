@@ -3,7 +3,6 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 import { encode } from "uqr";
-import { wallet as mock } from "@/app/coin-breakdown/data";
 import { CheckIcon, CopyIcon, ReceiveIcon, ShareIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHeader } from "@/components/ui/drawer";
@@ -71,7 +70,7 @@ export function ReceiveSheet({ open, onOpenChange, onClosed }: { open: boolean; 
 // Mounted only while the sheet is open, so the wallet store isn't polled from every tab.
 function ReceiveBody() {
   const snapshot = useWallet();
-  const address = shownAddress(snapshot, mock.address);
+  const address = shownAddress(snapshot);
   const [copied, setCopied] = useState(false);
   const [canShare, setCanShare] = useState(false);
 
@@ -100,7 +99,7 @@ function ReceiveBody() {
         <Qr address={address ?? ""} />
       </div>
 
-      <p className={cn("mt-6 max-w-[280px] text-center font-mono text-body text-balance break-all", reveal)}>{address ?? mock.address}</p>
+      <p className={cn("mt-6 max-w-[280px] text-center font-mono text-body text-balance break-all", reveal)}>{address ?? "0x0000000000000000000000000000000000000000"}</p>
       <p className="mt-2 text-center text-body text-muted-foreground">Only send USDC on Base to this address.</p>
 
       <div className="mt-8 flex w-full gap-3 *:flex-1">

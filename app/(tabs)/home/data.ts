@@ -2,19 +2,11 @@ export const ranges = ["1D", "1W", "1M", "6M", "1Y"] as const;
 export type Range = (typeof ranges)[number];
 export const defaultRange: Range = "6M";
 
-// Bar heights in percent of the chart height, 53 bars per range. 6M is traced from the reference.
-export const series: Record<Range, number[]> = {
-  "1D": [46, 67, 60, 63, 76, 76, 75, 85, 86, 83, 86, 84, 86, 74, 73, 76, 72, 57, 64, 56, 61, 55, 39, 43, 48, 42, 41, 39, 46, 47, 39, 41, 53, 48, 49, 56, 63, 65, 81, 79, 86, 92, 80, 86, 93, 93, 92, 87, 99, 81, 84, 81, 83],
-  "1W": [38, 34, 31, 38, 39, 42, 44, 43, 47, 47, 39, 50, 40, 46, 40, 39, 36, 37, 41, 47, 40, 48, 43, 53, 52, 55, 60, 70, 73, 61, 74, 61, 66, 61, 58, 73, 57, 63, 53, 58, 60, 53, 68, 70, 73, 76, 80, 81, 76, 74, 81, 81, 81],
-  "1M": [72, 63, 70, 63, 64, 54, 64, 50, 50, 58, 42, 47, 37, 52, 46, 50, 33, 48, 35, 49, 41, 43, 36, 36, 36, 43, 35, 49, 49, 50, 48, 41, 44, 61, 48, 60, 66, 73, 90, 92, 97, 99, 97, 94, 93, 96, 90, 95, 98, 94, 97, 92, 100],
-  "6M": [2, 28, 31, 7, 15, 13, 7, 20, 26, 35, 43, 57, 63, 60, 34, 16, 16, 19, 13, 15, 12, 22, 13, 29, 29, 27, 10, 25, 34, 30, 16, 10, 28, 35, 46, 71, 67, 64, 72, 75, 72, 75, 75, 83, 84, 87, 93, 94, 93, 93, 94, 99, 100],
-  "1Y": [14, 16, 9, 16, 11, 7, 10, 22, 23, 17, 22, 23, 11, 20, 11, 19, 21, 25, 30, 22, 18, 24, 20, 31, 29, 32, 32, 38, 33, 41, 30, 37, 43, 39, 50, 44, 46, 55, 53, 49, 64, 68, 72, 74, 73, 80, 66, 82, 82, 87, 93, 81, 85],
-};
+/** Bars per range in the balance chart. */
+export const BARS = 53;
 
 const day = 86_400_000;
 const spans: Record<Range, number> = { "1D": day, "1W": 7 * day, "1M": 30 * day, "6M": 182 * day, "1Y": 365 * day };
-// How far the balance swings below the total at the lowest bar, as a fraction of the total.
-const spreads: Record<Range, number> = { "1D": 0.03, "1W": 0.08, "1M": 0.15, "6M": 0.3, "1Y": 0.45 };
 const dateOptions: Record<Range, Intl.DateTimeFormatOptions> = {
   "1D": { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" },
   "1W": { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" },
@@ -25,26 +17,23 @@ const dateOptions: Record<Range, Intl.DateTimeFormatOptions> = {
 
 /**
  * Per range, the balance, height and date label of every bar, ending on `total` at `now` in this phone's time zone.
- * A live wallet passes `balanceAt`, its real balance at a moment; without it the demo's traced shape stands in.
+ * `balanceAt` is the wallet's balance at a moment.
  */
-export function historyFor(total: number, now: number, balanceAt?: (time: number) => number) {
+export function historyFor(total: number, now: number, balanceAt: (time: number) => number) {
+  const last = BARS - 1;
   const entries = ranges.map((r) => {
-    const bars = series[r];
-    const last = bars.length - 1;
     const fmt = new Intl.DateTimeFormat("en-GB", dateOptions[r]);
     const at = (i: number) => now - (spans[r] * (last - i)) / last;
-    // The last bar is exactly the total; in the demo, earlier bars scale with their height.
-    const values = bars.map((h, i) =>
-      i === last ? total : balanceAt ? balanceAt(at(i)) : Math.round(total * (1 + (spreads[r] * (h - bars[last])) / 100) * 100) / 100,
-    );
+    const bars = Array.from({ length: BARS }, (_, i) => i);
+    const values = bars.map((i) => (i === last ? total : balanceAt(at(i))));
     const peak = Math.max(...values);
     return [
       r,
       {
         values,
-        heights: balanceAt ? values.map((v) => (peak > 0 ? (v / peak) * 100 : 0)) : bars,
+        heights: values.map((v) => (peak > 0 ? (v / peak) * 100 : 0)),
         // en-GB abbreviates September as "Sept"; keep every month three letters.
-        dates: bars.map((_, i) => fmt.format(at(i)).replace("Sept", "Sep")),
+        dates: bars.map((i) => fmt.format(at(i)).replace("Sept", "Sep")),
       },
     ] as const;
   });

@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { GridIcon, ImagesIcon, type Icon } from "@/components/icons";
 import { Tabs, TabsContent, TabsIndicator, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useWallet } from "@/app/(tabs)/_components/wallet";
-import { coins, wallet as mock, type CoinId } from "../data";
+import { coins, type CoinId } from "../data";
 import { CoinRow } from "./coin-row";
 import { Recede } from "./motion";
 import { WalletHeader } from "./wallet-header";
@@ -23,8 +23,8 @@ export function CoinsScreen() {
   const [focused, setFocused] = useState<CoinId | null>(null);
   const snapshot = useWallet();
   const live = snapshot.status === "ready" ? snapshot.wallet : undefined;
-  // A live wallet holds only its USDC; the demo portfolio previews a phone without a wallet.
-  const shown = live ? [{ ...coins.find((c) => c.id === "usdc")!, amount: live.usdc, value: live.usdc, stake: undefined }] : coins;
+  // The wallet holds only its USDC.
+  const shown = live ? [{ ...coins.find((c) => c.id === "usdc")!, amount: live.usdc, value: live.usdc, stake: undefined }] : [];
 
   useEffect(() => {
     if (!focused) return;
@@ -42,7 +42,7 @@ export function CoinsScreen() {
       >
         <Tabs value={tab} onValueChange={setTab} className="mx-auto w-full max-w-2xl gap-0">
           <Recede active={focused !== null}>
-            <WalletHeader address={live?.address ?? mock.address} />
+            <WalletHeader address={live?.address} />
             <TabsList
               variant="line"
               aria-label="Wallet sections"

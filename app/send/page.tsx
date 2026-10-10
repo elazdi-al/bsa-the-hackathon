@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { RequireWallet } from "@/app/(tabs)/_components/wallet";
 import { LightningIcon } from "@/components/icons";
 import { Screen } from "@/components/navigation";
 import { SendReview } from "./_components/send-review";
@@ -10,6 +11,7 @@ export default function Page() {
   return (
     <Screen>
       <main className="flex min-h-dvh flex-col bg-white pt-[env(safe-area-inset-top)] pb-[max(2rem,env(safe-area-inset-bottom))]">
+        <RequireWallet />
         <Suspense>
           <SendReview>
             <dl className="mt-6 flex items-center justify-between text-body">

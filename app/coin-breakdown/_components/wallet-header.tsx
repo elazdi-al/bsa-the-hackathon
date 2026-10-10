@@ -3,15 +3,20 @@ import { shortAddress } from "@/app/choose-recipient/data";
 import { CopyButton } from "@/app/transaction-tracking/_components/copy-button";
 import { ClockIcon } from "@/components/icons";
 import { BackButton } from "@/components/ui/back-button";
-export function WalletHeader({ address }: { address: string }) {
+import { cn } from "@/lib/utils";
+
+/** `address` is the wallet's once read; until then its line holds its place. */
+export function WalletHeader({ address }: { address?: string }) {
   return (
     <header className="flex items-center gap-4 px-[22px]">
       <BackButton fallback="/home" />
       <div className="min-w-0 flex-1">
         <h1 className="text-label">Wallet</h1>
-        <CopyButton text={address} label={`Copy address ${address}`}>
-          <span className="text-body text-muted-foreground">{shortAddress(address)}</span>
-        </CopyButton>
+        <div className={cn("transition-[opacity,visibility] duration-200 ease-out", !address && "invisible opacity-0")}>
+          <CopyButton text={address ?? ""} label={`Copy address ${address ?? ""}`}>
+            <span className="text-body text-muted-foreground">{address ? shortAddress(address) : "0x0000...0000"}</span>
+          </CopyButton>
+        </div>
       </div>
       <Link
         href="/history?account=investments"

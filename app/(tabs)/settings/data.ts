@@ -1,10 +1,9 @@
-import { wallet } from "@/app/coin-breakdown/data";
 import { KEYS, type KeyId } from "@/app/onboarding-secure/data";
 import { BellIcon, CoinIcon, HelpIcon, KeyIcon, SignOutIcon, type Icon } from "@/components/icons";
 
 export type { KeyId };
 
-export const profile = { name: "Thomas A. Anderson", address: wallet.address };
+export const profile = { name: "Thomas A. Anderson" };
 
 /** The trays a row can open; each is the root of its own view stack. */
 export type TrayRoot = "keys" | "remove";
