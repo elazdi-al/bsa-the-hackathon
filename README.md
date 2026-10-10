@@ -194,7 +194,7 @@ Run `npm run partner` and `npm run dev` in two terminals. The CLI commands work 
 
 **Live compliance.** Set `COMPLIANCE_MODE=live` with `COMPLIANCE_POLICY_FILE` (a reviewed policy JSON), `COMPLIANCE_RPC_URLS` (chain ID to HTTPS RPC), `COMPLIANCE_SIGNING_PRIVATE_KEY` (a persistent Ed25519 PKCS#8 PEM, separate from every wallet key) and `COMPLIANCE_API_KEY`. `TRM_API_KEY` and `COMPLIANCE_AUDIT_FILE` are optional. Restart after any change.
 
-**Pitch deck.** [public/pitch.html](public/pitch.html) is one self-contained file. Open it in a browser, or visit http://localhost:3000/pitch.html while the app runs. Arrow keys move between slides, N shows speaker notes, O opens the slide picker and P prints to PDF.
+**Pitch deck.** [slides/index.html](slides/index.html) is one HTML file that loads its app screens from `slides/screens/`. Open it in a browser. Arrow keys, Space, a click or a swipe move between slides, F toggles full screen, and printing gives one 16:9 page per slide. With `npm run dev` running, `node slides/capture.ts home onboarding-secure` captures fresh screens.
 
 ## What is mocked and the production path
 
