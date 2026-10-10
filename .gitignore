@@ -46,3 +46,6 @@ next-env.d.ts
 
 # playwright output
 /shots/
+
+# wallet backend databases
+/data/
