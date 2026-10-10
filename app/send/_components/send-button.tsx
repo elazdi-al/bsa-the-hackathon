@@ -15,10 +15,14 @@ const labels: Record<Phase, string> = {
   sent: "Sent",
 };
 
-type Props = { phase: Phase; disabled?: boolean; onPress: () => void };
+/** A payment Swissquote holds isn't sent yet: it's scheduled. */
+const heldLabels: Record<Phase, string> = { ...labels, sending: "Scheduling", sent: "Scheduled" };
 
-export function SendButton({ phase, disabled, onPress }: Props) {
+type Props = { phase: Phase; held?: boolean; disabled?: boolean; onPress: () => void };
+
+export function SendButton({ phase, held, disabled, onPress }: Props) {
   const busy = phase === "checking" || phase === "sending";
+  const label = (held ? heldLabels : labels)[phase];
   return (
     <Button
       onClick={onPress}
@@ -33,11 +37,11 @@ export function SendButton({ phase, disabled, onPress }: Props) {
           {busy && <Spinner aria-hidden className="size-5" />}
           {phase === "confirm" && <FaceIdIcon size={20} />}
           {phase === "sent" && <CheckIcon size={20} />}
-          {labels[phase]}
+          {label}
         </motion.span>
       </AnimatePresence>
       <span className="sr-only" aria-live="polite">
-        {busy || phase === "sent" ? labels[phase] : ""}
+        {busy || phase === "sent" ? label : ""}
       </span>
     </Button>
   );

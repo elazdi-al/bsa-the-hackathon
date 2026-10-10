@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
 import { formatUnits, isAddressEqual, type Address } from "viem";
-import { ApiError, phone, type Transfer } from "@/lib/wallet/phone";
+import { ApiError, phone, type HeldPayment, type Transfer } from "@/lib/wallet/phone";
 
 export type Wallet = {
   address: Address;
@@ -17,6 +17,8 @@ export type Wallet = {
   skew: number;
   /** This phone started a recovery that hasn't handed it the wallet: one still running, or one called off. */
   restoring: boolean;
+  /** Large payments Swissquote holds before they leave, soonest first. */
+  held: HeldPayment[];
   /** USDC in and out, newest first, once a screen asked for it with `useActivity`. */
   activity?: Transfer[];
 };
@@ -63,6 +65,7 @@ async function load() {
         skew: last && Math.abs(last.skew - skew) <= 2 ? last.skew : skew,
         activity: activity ?? last?.activity,
         restoring: !controls && !!device.restoring,
+        held: state.held,
       },
     });
   } catch (error) {
@@ -138,6 +141,10 @@ export const chainNow = (wallet: Pick<Wallet, "skew">) => Date.now() / 1000 + wa
 
 /** A chain timestamp in seconds as a moment on this phone's clock, which a warped local chain runs ahead of. */
 export const onPhoneClock = (wallet: Pick<Wallet, "skew">, chainSeconds: number) => new Date((chainSeconds - wallet.skew) * 1000);
+
+/** A chain timestamp as a day and time on this phone, as in "12 October at 14:03". */
+export const phoneDate = (wallet: Pick<Wallet, "skew">, chainSeconds: number) =>
+  onPhoneClock(wallet, chainSeconds).toLocaleString("en-GB", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
 
 /** The wallet's address once read. */
 export const shownAddress = (snapshot: WalletSnapshot) => (snapshot.status === "ready" ? snapshot.wallet.address : undefined);

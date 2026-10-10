@@ -1,23 +1,22 @@
 "use client";
 
-import { MotionConfig } from "motion/react";
+import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { encodeFunctionData, erc20Abi, parseUnits, type Address, type Hex } from "viem";
+import { encodeFunctionData, erc20Abi, parseUnits, type Address } from "viem";
 import { grouped, retyped } from "@/app/(tabs)/_components/amount";
 import { usd } from "@/app/(tabs)/_components/money";
-import { refreshWallet, useWallet, type WalletSnapshot } from "@/app/(tabs)/_components/wallet";
+import { phoneDate, refreshWallet, useWallet, type WalletSnapshot } from "@/app/(tabs)/_components/wallet";
 import { recipientFor, sendDraft } from "@/app/choose-recipient/data";
-import { WalletIcon } from "@/components/icons";
+import { ClockIcon, WalletIcon } from "@/components/icons";
 import { useBack } from "@/components/navigation";
 import { BackButton } from "@/components/ui/back-button";
-import { ApiError, phone, type Prepared } from "@/lib/wallet/phone";
+import { ApiError, phone, type Prepared, type Sent } from "@/lib/wallet/phone";
+import { blurSwap } from "./motion";
 import { SendButton, type Phase } from "./send-button";
 
 const AMOUNT = /^\d+(\.\d{0,6})?$/;
 const SENT_MS = 700;
-// The demo policy steps up above 1,000 USDC (scripts/local.ts), and this build has no second factor to offer.
-const STEP_UP = "Payments over 1,000 USDC need an extra check this demo doesn't offer.";
 
 /** Why this phone can't send yet, by wallet status. */
 const UNAVAILABLE: Record<Exclude<WalletSnapshot["status"], "ready">, string> = {
@@ -50,8 +49,7 @@ function failure(e: unknown): string[] {
     const expired = /AA32|expired/i.test(String(e.body.detail));
     return [expired ? "This approval expired. Press Continue to check it again." : "Your wallet couldn't make this payment. Check the amount and try again."];
   }
-  const decision = e.body.decision as { status?: string; reasons?: string[] } | undefined;
-  if (decision?.status === "STEP_UP") return [STEP_UP];
+  const decision = e.body.decision as { reasons?: string[] } | undefined;
   return [e.message, ...(decision?.reasons ?? [])];
 }
 
@@ -92,7 +90,7 @@ function Review({ to, address, children }: { to: string; address: Address; child
   const [amount, setAmount] = useState("");
   const [phase, setPhase] = useState<Phase>("review");
   const [prepared, setPrepared] = useState<Prepared>();
-  const [sent, setSent] = useState<Hex>();
+  const [sent, setSent] = useState<Sent>();
   const [error, setError] = useState<string[]>([]);
 
   useEffect(() => sendDraft.set(to), [to]);
@@ -100,10 +98,10 @@ function Review({ to, address, children }: { to: string; address: Address; child
   useEffect(() => {
     if (!sent) return;
     const id = setTimeout(() => {
+      const tracked = new URLSearchParams({ hash: "transactionHash" in sent ? sent.transactionHash : sent.hash, amount, to: address });
+      if ("releaseAt" in sent) tracked.set("leaves", String(sent.releaseAt));
       // Replace, so Back from the tracker can't land on a review that's already sent.
-      router.replace(`/transaction-tracking?${new URLSearchParams({ hash: sent, amount, to: address })}`, {
-        transitionTypes: ["push"],
-      });
+      router.replace(`/transaction-tracking?${tracked}`, { transitionTypes: ["push"] });
     }, SENT_MS);
     return () => clearTimeout(id);
   }, [sent, amount, address, router]);
@@ -112,6 +110,7 @@ function Review({ to, address, children }: { to: string; address: Address; child
   const snapshot = useWallet();
   // Only while the button can act: a send landing mid-flight would otherwise flash "Only $0.00 available." under Sending.
   const blocked = phase === "review" || phase === "confirm" ? blocker(snapshot, Number(amount)) : undefined;
+  const releaseAt = prepared?.releaseAt;
 
   function reset() {
     setPhase("review");
@@ -139,8 +138,7 @@ function Review({ to, address, children }: { to: string; address: Address; child
   async function send() {
     setPhase("sending");
     try {
-      const sent = await phone.approve(prepared!);
-      setSent("transactionHash" in sent ? sent.transactionHash : sent.hash);
+      setSent(await phone.approve(prepared!));
       // Paid, so the chooser must not come back filled in, even if the tracker never opens.
       sendDraft.clear();
       setPhase("sent");
@@ -189,6 +187,17 @@ function Review({ to, address, children }: { to: string; address: Address; child
         {children}
 
         <div className="mt-auto pt-10 md:mt-0">
+          {/* Two lines kept free whatever it says, so the button doesn't move when a large payment's notice comes in. */}
+          <div className="mb-3 flex h-[2lh] items-end justify-center text-center text-caption text-balance text-muted-foreground tabular-nums">
+            <AnimatePresence initial={false}>
+              {releaseAt !== undefined && snapshot.status === "ready" && (
+                <motion.p key="held" {...blurSwap}>
+                  <ClockIcon size={16} className="mr-1 inline-block align-[-3px]" />
+                  Large payment. It leaves on {phoneDate(snapshot.wallet, releaseAt)}, and you can cancel until then.
+                </motion.p>
+              )}
+            </AnimatePresence>
+          </div>
           {error.length > 0 && (
             <div role="alert" className="mb-3 text-center text-caption text-negative">
               {error.map((line) => (
@@ -198,8 +207,7 @@ function Review({ to, address, children }: { to: string; address: Address; child
               ))}
             </div>
           )}
-          {/* Pressing again can't pass a step-up: only a new amount can. */}
-          <SendButton phase={phase} disabled={!valid || blocked !== undefined || error.includes(STEP_UP)} onPress={phase === "confirm" ? send : check} />
+          <SendButton phase={phase} held={releaseAt !== undefined} disabled={!valid || blocked !== undefined} onPress={phase === "confirm" ? send : check} />
         </div>
       </div>
     </MotionConfig>
