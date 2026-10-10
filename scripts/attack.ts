@@ -1,6 +1,6 @@
 // An attacker holds the owner's phone and their email inbox, and tries to take the wallet. Each attempt
-// prints who refused and why, and asserts the refusal. Run by npm run attack <account> and npm run e2e,
-// against npm run local only.
+// prints who stopped it and why, and asserts it. Run by npm run attack <account> and npm run e2e, against
+// npm run local only.
 import assert from "node:assert/strict";
 import { P256 } from "ox";
 import {
@@ -144,7 +144,7 @@ export async function attack({ phone: stolen, homeKey }: { phone: Device; homeKe
   assert.equal((await idCheck).body.refused, "identity", "the ID check is what refuses");
   say("Swissquote", `ID check refused: ${await refused(idCheck, 403)}`);
 
-  console.log("A5. The real Recovery Key, copied from the owner's home, and an ID check passed with a forged ID (mock)");
+  console.log("A5. The real Recovery Key, copied from the owner's home. The mock ID check passes for whoever holds it, as a forged ID might pass a real one");
   const withKey = newPhone();
   const { idOnFile } = await withKey.findRecovery(homeKey);
   await withKey.splitKey(await withKey.createPasskey());

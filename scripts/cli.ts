@@ -371,14 +371,14 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
 
   attack: {
     usage: "attack <account>",
-    about: "An attacker with the account's phone and email inbox tries to take its wallet. Every attempt must be refused.",
+    about: "An attacker with the account's phone and email inbox tries to take its wallet. Every attempt must fail.",
     async run([name]) {
       const { phone, recoveryKey } = loadAccount(name);
       const device = phone.device();
       if (!device?.address) throw new Error(`${name} has no wallet.`);
       if ((await phone.state()).pendingRecovery) throw new Error(`A recovery is pending for ${name}'s wallet. Cancel it first: npm run cancel ${name}.`);
       await attack({ phone: structuredClone(device), homeKey: recoveryKey });
-      console.log(`Every attempt on ${name}'s wallet was refused.`);
+      console.log(`Every attempt on ${name}'s wallet failed.`);
     },
   },
 

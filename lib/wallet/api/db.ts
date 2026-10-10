@@ -50,8 +50,9 @@ function open() {
       const row = db.prepare("select * from owners where wallet = ?").get(wallet) as { client: string; signature: Hex; created_at: number } | undefined;
       return row && { client: row.client, signature: row.signature, createdAt: row.created_at };
     },
-    addClient(client: Client) {
-      db.prepare("insert into clients values (?, ?, ?)").run(client.number, JSON.stringify(client), Date.now());
+    /** False if the client number is taken. */
+    addClient(client: Client): boolean {
+      return db.prepare("insert or ignore into clients values (?, ?, ?)").run(client.number, JSON.stringify(client), Date.now()).changes === 1;
     },
     client(number: string): Client | undefined {
       const row = db.prepare("select kyc from clients where number = ?").get(number) as { kyc: string } | undefined;

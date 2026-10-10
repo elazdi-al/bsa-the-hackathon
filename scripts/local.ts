@@ -177,7 +177,7 @@ Swissquote Wallet is running. Open ${APP_URL}/onboarding-welcome
   npm run finish <account>           finish a recovery after the 48 hours
   npm run cancel <account>           cancel a recovery with the Recovery Key
   npm run warp [hours]               move chain time ahead (default 48)
-  npm run attack <account>           an attacker with the phone and email is refused at every step
+  npm run attack <account>           an attacker with the phone and email is stopped at every step
 
 Ctrl-C stops everything.
 `);

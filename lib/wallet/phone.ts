@@ -300,13 +300,14 @@ export function createPhone({ api = "", partner, authenticator, storage }: { api
      * owner's ID on file. MOCKED: that ID stands in for the owner's own ID card and face, which a real check scans.
      */
     async findRecovery(secret: Hex) {
-      const signature = await privateKeyToAccount(secret).signMessage({ message: findWalletMessage });
+      const at = Math.floor(Date.now() / 1000);
+      const signature = await privateKeyToAccount(secret).signMessage({ message: findWalletMessage(at) });
       return call<{
         address: Address;
         pendingRecovery: { executeAfter: number } | null;
         chainTime: number;
         idOnFile: (Identity & { name: string }) | null;
-      }>(`/api/recovery?${new URLSearchParams({ signature })}`);
+      }>(`/api/recovery?${new URLSearchParams({ signature, at: String(at) })}`);
     },
 
     /**

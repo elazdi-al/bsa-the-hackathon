@@ -17,12 +17,19 @@ export function keepSession(next: SignedIn) {
 
 /** The client this phone is signed in to Swissquote as. Signs in first if it isn't, or if Swissquote forgot its session. */
 export function signedIn(): Promise<SignedIn> {
-  const stored: SignedIn | null = JSON.parse(localStorage.getItem(KEY) ?? "null");
-  signing ??= phone.signIn(stored?.session).then(keepSession, (error: unknown) => {
+  signing ??= phone.signIn(stored()?.session).then(keepSession, (error: unknown) => {
     signing = undefined;
     throw error;
   });
   return signing;
+}
+
+function stored(): SignedIn | null {
+  try {
+    return JSON.parse(localStorage.getItem(KEY) ?? "null");
+  } catch {
+    return null;
+  }
 }
 
 /** The signed-in client, once known. */

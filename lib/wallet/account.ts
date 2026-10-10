@@ -85,5 +85,5 @@ export const bindRecoveryKeyMessage = (signer: Address, recoveryKey: Address) =>
  */
 export const ownershipMessage = (client: string, wallet: Address) => `Wallet ${wallet.toLowerCase()} belongs to Swissquote client ${client}.`;
 
-/** What the recovery key signs to find the wallet it restores. */
-export const findWalletMessage = "Find the Swissquote Wallet this Recovery Key restores.";
+/** What the recovery key signs to find the wallet it restores. `at`, in seconds, keeps a logged signature from working later. */
+export const findWalletMessage = (at: number) => `Find the Swissquote Wallet this Recovery Key restores, at ${at}.`;

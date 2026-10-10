@@ -20,9 +20,10 @@ export const POST = route(async (request: Request) => {
   const b = await bindShares(signer, recoveryKey, binding);
   const config = walletConfig(signer, b.passkey, recoveryKey);
   const wallet = { address: await predictAddress(config), config };
-  const by = await recoverMessageAddress({ message: ownershipMessage(client.number, wallet.address), signature: ownership });
-  if (!isAddressEqual(by, signer)) throw new HttpError(403, "The wallet key did not sign that this wallet is the client's.");
+  const by = await recoverMessageAddress({ message: ownershipMessage(client.number, wallet.address), signature: ownership }).catch(() => undefined);
+  if (!by || !isAddressEqual(by, signer)) throw new HttpError(403, "The wallet key did not sign that this wallet is the client's.");
   store().addWallet(wallet, { client: client.number, signature: ownership });
+  if (store().owner(wallet.address)!.client !== client.number) throw new HttpError(409, "This wallet belongs to another Swissquote client.");
   return Response.json(wallet);
 });
 

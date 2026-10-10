@@ -23,13 +23,13 @@ type Step =
   | { name: "restore"; secret: Hex; id: OnFile }
   | { name: "refused"; reason: keyof typeof REFUSED; retry: Step };
 
+/** MOCKED: the owner's ID on file, standing in for their own ID card and face. */
+type OnFile = Identity & { name: string };
+
 /**
  * Where this phone stands, from the shared wallet store. `answer`: it holds the wallet and someone is recovering it.
  * `wait`: it is the phone recovering. `outside`: no wallet here, or one it neither holds nor is recovering.
  */
-/** MOCKED: the owner's ID on file, standing in for their own ID card and face. */
-type OnFile = Identity & { name: string };
-
 type Standing = { name: "loading" | "home" | "outside" } | { name: "answer" | "wait"; executeAfter: number; skew: number };
 
 function standing(snapshot: WalletSnapshot): Standing {
@@ -50,7 +50,7 @@ const REFUSED = {
   },
   identity: {
     title: "This ID doesn't match",
-    body: "Swissquote compared it with the ID on file for this wallet's owner, and only the owner can recover it. Your wallet is unchanged.",
+    body: "Swissquote compared it with the ID on file for this wallet's owner. Your wallet is unchanged.",
     retry: "Try again",
   },
   unlinked: {
@@ -182,7 +182,9 @@ export function RecoveryFlow() {
       keepSession((await phone.startRecovery(secret, { document: id.document, selfie: id.selfie })).signedIn);
       await refreshWallet();
     } catch (e) {
-      if (e instanceof ApiError && e.body.refused === "identity") setStep({ name: "refused", reason: "identity", retry: { name: "identity", secret, id } });
+      const refused = e instanceof ApiError ? e.body.refused : undefined;
+      if (refused === "identity") setStep({ name: "refused", reason: refused, retry: { name: "identity", secret, id } });
+      else if (refused === "unlinked") setStep({ name: "refused", reason: refused, retry: { name: "key" } });
       else setError(failed);
     }
     setBusy(undefined);

@@ -85,10 +85,11 @@ function MemberCard() {
   );
 }
 
-/** Swissquote holds the wallet key's signed statement that this wallet is the client's, so it vouches for it. */
+/** Swissquote holds the wallet key's signed statement that this wallet belongs to the client signed in on this phone. */
 function Verified() {
   const snapshot = useWallet();
-  const verified = snapshot.status === "ready" && snapshot.wallet.verified;
+  const client = useSignedIn()?.client.number;
+  const verified = snapshot.status === "ready" && !!client && snapshot.wallet.owner === client;
   return (
     <p className={cn("mt-3 flex items-center gap-1.5 px-1 text-caption text-muted-foreground", reveal(verified))}>
       <VerifiedIcon size={16} className="shrink-0 text-positive" />

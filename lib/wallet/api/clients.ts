@@ -32,8 +32,9 @@ const seen = ({ number, name }: Client) => ({ number, name });
 export function signIn(session?: string) {
   const known = session ? store().clientBySession(session) : undefined;
   if (known) return { session: session!, client: seen(known) };
-  const client = mockClient();
-  store().addClient(client);
+  let client = mockClient();
+  // ponytail: seven random digits collide after a few thousand clients; a real bank assigns its numbers.
+  while (!store().addClient(client)) client = mockClient();
   return sessionFor(client);
 }
 
@@ -45,19 +46,23 @@ const ownerOf = (wallet: Address) => {
   return owner && store().client(owner.client);
 };
 
-/** The owner of `wallet` when the document and the face match their KYC record; a refusal that says which didn't, otherwise. */
+/**
+ * The owner of `wallet` when the document and the face both match their KYC record. One refusal for either, so it
+ * never tells a caller which half they got right.
+ */
 export function checkIdentity(wallet: Address, { document, selfie }: z.infer<typeof identity>): Client {
-  const refuse = (message: string) => new HttpError(403, message, { refused: "identity" });
   const client = ownerOf(wallet);
-  if (!client) throw refuse("This wallet isn't linked to a Swissquote client, so there is no ID to check against.");
-  if (document.trim().toUpperCase() !== client.document) throw refuse("This ID document isn't the one on file for the wallet's owner.");
-  if (selfie !== client.face) throw refuse("The selfie doesn't match the face on file for the wallet's owner.");
+  if (!client) throw new HttpError(403, "This wallet isn't linked to a Swissquote client, so there is no ID to check against.", { refused: "unlinked" });
+  if (document.trim().toUpperCase() !== client.document || selfie !== client.face) {
+    throw new HttpError(403, "This ID doesn't match the one on file for the wallet's owner.", { refused: "identity" });
+  }
   return client;
 }
 
 /**
- * MOCKED: the owner's own ID and face, which a real check would scan from the person in front of the phone.
- * Only the Recovery Key's holder gets them, so a demo recovery stays one tap; Swissquote never hands these out.
+ * MOCKED: the owner's own ID and face, which a real check scans from the person in front of the phone. The demo
+ * hands them to the Recovery Key's holder so the owner's recovery stays one tap, which makes this mock check only
+ * as strong as the key. A real Swissquote never sends a KYC record to a phone.
  */
 export function idOnFile(wallet: Address) {
   const client = ownerOf(wallet);

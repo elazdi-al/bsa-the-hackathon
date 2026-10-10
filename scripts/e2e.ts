@@ -76,7 +76,7 @@ for (const [to, amount] of [[SANCTIONED, "1"], [ANNA, "2000"]] as const) {
   console.log(`   ${amount} USDC: ${decision.status}, ${decision.reasons.join(" ")}`);
 }
 
-console.log("5. An attacker with the stolen phone and the email inbox is refused at every step");
+console.log("5. An attacker with the stolen phone and the email inbox is stopped at every step");
 await attack({ phone: structuredClone(phone.device()!), homeKey: recoveryKey.secret });
 
 console.log("6. Lose the phone. New phone: ID check, new passkey and split; the recovery key signs, B and C rebuild the old key on the new phone");
