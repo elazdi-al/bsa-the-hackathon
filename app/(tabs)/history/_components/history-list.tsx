@@ -53,14 +53,15 @@ function Amount({ tx }: { tx: Tx }) {
 const rowClass =
   "flex min-h-[60px] w-full items-center gap-3 rounded-[18px] px-3 py-2 text-left outline-none transition-colors duration-150 ease-out focus-visible:ring-2 focus-visible:ring-fuse-blue active:bg-black/[0.04] [@media(hover:hover)]:hover:bg-black/[0.025]";
 
-function RowBody({ tx }: { tx: Tx }) {
+/** A transaction's glyph, title, subtitle and amount. `when` replaces the time, e.g. with the day outside a dated list. */
+export function RowBody({ tx, when = tx.time }: { tx: Tx; when?: string }) {
   return (
     <>
       <Glyph kind={tx.kind} size={40} />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[15px] leading-5 font-medium">{tx.title}</span>
         <span className="mt-0.5 block truncate text-[13px] leading-[18px] text-[#adadad]">
-          {tx.time} · {tx.detail}
+          {when} · {tx.detail}
           {tx.status === "Pending" && (
             <span className="ml-1.5 rounded-full bg-pending/12 px-1.5 py-px text-[11px] font-medium text-pending">Pending</span>
           )}

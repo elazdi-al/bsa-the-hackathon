@@ -4,7 +4,7 @@ import { XIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion, stagger, type Variants } from "motion/react";
 import Link from "next/link";
 import { useEffect, useReducer, type ReactNode } from "react";
-import { promoInterval, promos, type Promo } from "../data";
+import { promoInterval, promos, type Promo, type TileId } from "../data";
 import { tileSurface } from "./asset-tile";
 import { FuseEarnIcon, FusePlusIcon, GlassesIcon } from "./icons";
 import { blurred, leave, reveal, sharp, smooth } from "../../_components/transitions";
@@ -45,7 +45,7 @@ const layer = {
   exit: { opacity: 0, filter: blurred, scale: 0.98, transition: leave },
 };
 
-export function PromoStack({ className }: { className: string }) {
+export function PromoStack({ className, onOpenAccount }: { className: string; onOpenAccount: (id: TileId) => void }) {
   const [{ cards, index, last }, dispatch] = useReducer(reducer, { cards: promos, index: 0, last: "restore" });
   const current = cards.at(index);
 
@@ -70,7 +70,7 @@ export function PromoStack({ className }: { className: string }) {
                 exit="gone"
                 className="absolute inset-0"
               >
-                <PromoCard promo={current}>
+                <PromoCard promo={current} onOpenAccount={onOpenAccount}>
                   <motion.span variants={part} className="absolute top-5 left-5">
                     {icons[current.id]}
                   </motion.span>
@@ -125,17 +125,15 @@ export function PromoStack({ className }: { className: string }) {
   );
 }
 
-function PromoCard({ promo, children }: { promo: Promo; children: ReactNode }) {
-  return promo.href ? (
-    <Link
-      href={promo.href}
-      transitionTypes={["push"]}
-      aria-label={promo.title.join(" ")}
-      className="absolute inset-0 rounded-[22px] outline-none focus-visible:ring-2 focus-visible:ring-black/20 focus-visible:ring-inset"
-    >
+function PromoCard({ promo, onOpenAccount, children }: { promo: Promo; onOpenAccount: (id: TileId) => void; children: ReactNode }) {
+  const className = "absolute inset-0 rounded-[22px] outline-none focus-visible:ring-2 focus-visible:ring-black/20 focus-visible:ring-inset";
+  return "href" in promo ? (
+    <Link href={promo.href} transitionTypes={["push"]} aria-label={promo.title.join(" ")} className={className}>
       {children}
     </Link>
   ) : (
-    <div className="absolute inset-0">{children}</div>
+    <button type="button" aria-haspopup="dialog" aria-label={promo.title.join(" ")} onClick={() => onOpenAccount(promo.account)} className={className}>
+      {children}
+    </button>
   );
 }

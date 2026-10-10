@@ -5,7 +5,7 @@ import { tileIcons } from "./icons";
 
 export const tileSurface = "rounded-[22px] border border-black/[0.035] bg-surface";
 
-export function AssetTile({ tile, index }: { tile: Tile; index: number }) {
+export function AssetTile({ tile, index, onOpen }: { tile: Tile; index: number; onOpen: () => void }) {
   const Icon = tileIcons[tile.id];
   const body = (
     <>
@@ -16,17 +16,15 @@ export function AssetTile({ tile, index }: { tile: Tile; index: number }) {
       </span>
     </>
   );
-  const className = `flex flex-col p-5 max-[375px]:p-4 ${tileSurface}`;
+  const className = `flex flex-col p-5 text-left outline-none transition-transform duration-150 focus-visible:ring-2 focus-visible:ring-black/20 active:scale-[0.96] max-[375px]:p-4 ${tileSurface}`;
 
-  return tile.href ? (
-    <Link
-      href={tile.href}
-      transitionTypes={["push"]}
-      className={`${className} outline-none transition-transform duration-150 focus-visible:ring-2 focus-visible:ring-black/20 active:scale-[0.96]`}
-    >
+  return "href" in tile ? (
+    <Link href={tile.href} transitionTypes={["push"]} className={className}>
       {body}
     </Link>
   ) : (
-    <div className={className}>{body}</div>
+    <button type="button" aria-haspopup="dialog" onClick={onOpen} className={className}>
+      {body}
+    </button>
   );
 }

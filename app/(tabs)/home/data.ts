@@ -49,20 +49,21 @@ const entries = ranges.map((r) => {
 export const history = Object.fromEntries(entries) as Record<Range, { values: number[]; dates: string[] }>;
 
 export type TileId = "cash" | "investments" | "earn" | "card";
-export type Tile = { id: TileId; label: string; value: number; href?: string };
+/** A tile either pushes its own screen or opens an account sheet that says what the account is. */
+export type Tile = { id: TileId; label: string; value: number } & ({ href: string } | { about: string });
 
 export const tiles: Tile[] = [
-  { id: "cash", label: "Cash", value: 5000 },
+  { id: "cash", label: "Cash", value: 5000, about: "USDC & PYUSD you can spend or send" },
   { id: "investments", label: "Investments", value: 7531, href: "/coin-breakdown" },
-  { id: "earn", label: "Earn", value: 10000 },
-  { id: "card", label: "Card", value: 1000 },
+  { id: "earn", label: "Earn", value: 10000, about: "Earning up to 5.45% APY" },
+  { id: "card", label: "Card", value: 1000, about: "Your Fuse virtual Visa" },
 ];
 
-export type Promo = { id: "fuse-plus" | "earn"; title: [string, string]; href?: string };
+export type Promo = { id: "fuse-plus" | "earn"; title: [string, string] } & ({ href: string } | { account: TileId });
 
 export const promos: Promo[] = [
   { id: "fuse-plus", title: ["Welcome to", "Fuse Plus"], href: "/fuse-plus" },
-  { id: "earn", title: ["Earn up to", "5.45% APY"] },
+  { id: "earn", title: ["Earn up to", "5.45% APY"], account: "earn" },
 ];
 
 export const promoInterval = 3200;
