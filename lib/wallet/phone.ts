@@ -297,7 +297,7 @@ const browserAuthenticator: Authenticator = {
   },
 };
 
-const PASSKEYS = "fuse.wallet.passkeys";
+const PASSKEYS = "swissquote.wallet.passkeys";
 
 /** The simulator's passkey. WebKit refuses real passkeys without an associated domain. The key sits in plain web storage, so this must never ship. */
 export function softwareAuthenticator(storage: Storage, origin: () => string): Authenticator {
