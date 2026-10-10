@@ -2,10 +2,11 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
-import { wallet } from "@/app/coin-breakdown/data";
+import { wallet as mock } from "@/app/coin-breakdown/data";
 import { CheckIcon, CopyIcon, ReceiveIcon, ShareIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHeader } from "@/components/ui/drawer";
+import { useWallet } from "./wallet";
 
 const N = 29;
 const iconSwap = { type: "spring", duration: 0.3, bounce: 0 } as const;
@@ -35,8 +36,8 @@ function Finder({ x, y }: { x: number; y: number }) {
   );
 }
 
-function Qr() {
-  const d = useMemo(() => qrPath(wallet.address), []);
+function Qr({ address }: { address: string }) {
+  const d = useMemo(() => qrPath(address), [address]);
   return (
     <div className="relative size-[200px]">
       <svg viewBox={`0 0 ${N} ${N}`} className="size-full" shapeRendering="crispEdges" fill="currentColor" aria-hidden>
@@ -65,6 +66,8 @@ function IconSwap({ k, children }: { k: string; children: React.ReactNode }) {
 }
 
 export function ReceiveSheet({ open, onOpenChange, onClosed }: { open: boolean; onOpenChange: (o: boolean) => void; onClosed: () => void }) {
+  const wallet = useWallet(open);
+  const address = wallet?.address ?? mock.address;
   const [copied, setCopied] = useState(false);
   const [canShare, setCanShare] = useState(false);
 
@@ -77,7 +80,7 @@ export function ReceiveSheet({ open, onOpenChange, onClosed }: { open: boolean; 
 
   async function copy() {
     try {
-      await navigator.clipboard.writeText(wallet.address);
+      await navigator.clipboard.writeText(address);
       setCopied(true);
     } catch {
       // Clipboard unavailable: no false confirmation.
@@ -97,10 +100,12 @@ export function ReceiveSheet({ open, onOpenChange, onClosed }: { open: boolean; 
         <DrawerHeader title="Receive" />
 
         <div className="flex flex-col items-center overflow-y-auto px-6 pt-6">
-          <Qr />
+          <Qr address={address} />
 
-          <p className="mt-6 max-w-[280px] text-center font-mono text-body text-balance break-all">{wallet.address}</p>
-          <p className="mt-2 text-center text-body text-muted-foreground">Only send Solana (SPL) tokens to this address.</p>
+          <p className="mt-6 max-w-[280px] text-center font-mono text-body text-balance break-all">{address}</p>
+          <p className="mt-2 text-center text-body text-muted-foreground">
+            {wallet ? "Only send USDC on Base to this address." : "Only send Solana (SPL) tokens to this address."}
+          </p>
 
           <div className="mt-8 flex w-full gap-3 *:flex-1">
             <Button onClick={copy}>
@@ -111,7 +116,7 @@ export function ReceiveSheet({ open, onOpenChange, onClosed }: { open: boolean; 
               </span>
             </Button>
             {canShare && (
-              <Button variant="secondary" onClick={() => navigator.share({ title: "My Fuse address", text: wallet.address }).catch(() => {})}>
+              <Button variant="secondary" onClick={() => navigator.share({ title: "My Fuse address", text: address }).catch(() => {})}>
                 <ShareIcon size={20} />
                 Share
               </Button>

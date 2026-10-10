@@ -1,15 +1,9 @@
 import type { Metadata } from "next";
 import { Screen } from "@/components/navigation";
 import { BackButton } from "@/components/ui/back-button";
-import { BridgeLogo } from "./_components/bridge-logo";
-import { IdentityIllustration } from "./_components/identity-illustration";
-import { verification } from "./data";
+import { RecoveryFlow } from "./_components/recovery-flow";
 
-export const metadata: Metadata = { title: "Verification · Fuse" };
-
-// House entrance (the shared `reveal` and `blurred`, in CSS): each block sharpens in; the delay classes stagger them.
-const enter =
-  "transition-[opacity,filter,translate] duration-450 ease-[cubic-bezier(0.23,1,0.32,1)] starting:opacity-0 motion-safe:starting:translate-y-1.5 motion-safe:starting:blur-[8px]";
+export const metadata: Metadata = { title: "Recover your wallet · Fuse" };
 
 export default function Page() {
   return (
@@ -17,35 +11,9 @@ export default function Page() {
       <main className="relative grid min-h-dvh w-full place-items-center overflow-hidden bg-background px-6 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
         {/* Where Fuse Plus keeps its close: the top right of the content column, not the window's corner. */}
         <div className="absolute inset-x-0 top-0 mx-auto flex max-w-md justify-end px-4 pt-[calc(env(safe-area-inset-top)+8px)]">
-          <BackButton kind="close" fallback="/settings" />
+          <BackButton kind="close" fallback="/onboarding-welcome" />
         </div>
-
-        <div className="flex flex-col items-center text-center md:[zoom:1.25]">
-          <div className={enter}>
-            <IdentityIllustration />
-          </div>
-
-          <h1 className={`${enter} mt-10 text-title text-balance delay-[60ms]`}>
-            <span className="mb-1 flex items-center justify-center gap-2">
-              <BridgeLogo className="size-7" />
-              {verification.provider}
-            </span>{" "}
-            <span className="block">{verification.title}</span>
-          </h1>
-
-          <p className={`${enter} mt-3 max-w-[330px] text-body text-pretty text-muted-foreground delay-[120ms]`}>
-            {verification.notice}
-            <br />
-            {verification.followUp}{" "}
-            <a
-              href={`mailto:${verification.supportEmail}`}
-              className="rounded-sm underline decoration-faint underline-offset-2 transition-colors duration-150 hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
-            >
-              {verification.supportEmail}
-            </a>
-            .
-          </p>
-        </div>
+        <RecoveryFlow />
       </main>
     </Screen>
   );

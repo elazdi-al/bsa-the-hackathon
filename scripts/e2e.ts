@@ -5,7 +5,7 @@
 //   npm run e2e
 import assert from "node:assert/strict";
 import { P256, WebAuthnP256 } from "ox";
-import { createWalletClient, erc20Abi, formatUnits, http, numberToHex, parseAbi, parseUnits, type Address, type Hex } from "viem";
+import { createWalletClient, erc20Abi, formatUnits, http, numberToHex, parseAbi, parseUnits, sha256, type Address, type Hex } from "viem";
 import { generatePrivateKey, privateKeyToAccount, privateKeyToAddress } from "viem/accounts";
 import { bindRecoveryKeyMessage } from "../lib/wallet/account.ts";
 import { addresses, chain, publicClient, rpcUrl } from "../lib/wallet/env.ts";
@@ -19,11 +19,12 @@ const SANCTIONED: Address = "0x098B716B8Aaf21512996dC57EB0615e2383E2f96"; // fla
 function softwareAuthenticator(): Authenticator {
   const privateKey = P256.randomPrivateKey();
   const { x, y } = P256.getPublicKey({ privateKey });
+  const prf = sha256(privateKey, "bytes");
   return {
     create: async () => ({ id: "software", passkey: { x: numberToHex(x, { size: 32 }), y: numberToHex(y, { size: 32 }) } }),
     async sign(_id, challenge) {
       const { metadata, payload } = WebAuthnP256.getSignPayload({ challenge, origin: API, rpId: new URL(API).hostname });
-      return { metadata, signature: P256.sign({ payload, privateKey, hash: true }) };
+      return { assertion: { metadata, signature: P256.sign({ payload, privateKey, hash: true }) }, secret: prf };
     },
   };
 }
@@ -57,6 +58,7 @@ const swissquote = createWalletClient({ account: privateKeyToAccount(process.env
 console.log("1. Create: passkey, 2-of-3 Shamir split (A phone, B Swissquote, C partner), recovery key");
 const phone = newPhone();
 await phone.splitKey(await phone.createPasskey());
+assert.ok("sealed" in phone.device()!.share, "Share A is sealed under the passkey's PRF output");
 const recoveryKey = phone.createRecoveryKey();
 const wallet = await phone.register(recoveryKey.address);
 console.log(`   wallet ${wallet}`);
@@ -90,7 +92,7 @@ for (const [to, amount] of [[SANCTIONED, "1"], [ANNA, "2000"]] as const) {
   console.log(`   ${amount} USDC: ${decision.status}, ${decision.reasons.join(" ")}`);
 }
 
-console.log("5. Lose the phone. New phone: ID check, new passkey and split, recovery key signs");
+console.log("5. Lose the phone. New phone: ID check, new passkey and split; the recovery key signs, B and C rebuild the old key on the new phone");
 const newOne = newPhone();
 const identity = { document: "id-card-scan", selfie: "selfie" };
 await newOne.splitKey(await newOne.createPasskey());

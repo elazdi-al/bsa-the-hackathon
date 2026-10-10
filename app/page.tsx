@@ -1,16 +1,16 @@
 import Link from "next/link";
 
 const screens = [
-  { slug: "onboarding-welcome", title: "Onboarding: welcome & Create new wallet", refs: "02-onboarding.mp4 (0–4.5s)" },
+  { slug: "onboarding-welcome", title: "Onboarding: welcome", refs: "02-onboarding.mp4 (0–4.5s)" },
   { slug: "onboarding-secure", title: "Onboarding: secure your wallet", refs: "02-onboarding.mp4 (4.5–24.7s)" },
   { slug: "home", title: "Home", refs: "03, 08, 01" },
   { slug: "history", title: "Transaction history", refs: "—" },
   { slug: "settings", title: "Settings", refs: "—" },
   { slug: "coin-breakdown", title: "Coin breakdown", refs: "11-coin-breakdown.mp4" },
   { slug: "choose-recipient", title: "Address input field", refs: "05-address-input-field.mp4" },
-  { slug: "send-hide-my-wallet", title: "Send with Hide My Wallet", refs: "04-send-hide-my-wallet.mp4" },
+  { slug: "send-hide-my-wallet", title: "Send", refs: "04-send-hide-my-wallet.mp4" },
   { slug: "transaction-tracking", title: "Transaction tracking", refs: "06-transaction-tracking.mp4" },
-  { slug: "pending-verification", title: "Pending verification", refs: "07-pending-verification.mp4" },
+  { slug: "pending-verification", title: "Recover wallet", refs: "07-pending-verification.mp4" },
   { slug: "fuse-plus", title: "Fuse Plus membership", refs: "09-fuse-plus-membership.png" },
 ] as const;
 

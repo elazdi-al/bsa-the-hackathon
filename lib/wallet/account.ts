@@ -7,11 +7,11 @@ export type Passkey = { x: Hex; y: Hex };
 /** A WebAuthn assertion, as returned by ox's WebAuthnP256.sign. */
 export type PasskeyAssertion = Pick<WebAuthnP256.sign.ReturnType, "metadata" | "signature">;
 
-export type Config = { signer: Address; passkey: Passkey; recoveryKey: Address; guardian: Address; rules: Address[] };
+export type Config = { signer: Address; passkey: Passkey; recoveryKey: Address; guardian: Address };
 
 const structs = [
   "struct Passkey { bytes32 x; bytes32 y; }",
-  "struct Config { address signer; Passkey passkey; address recoveryKey; address guardian; address[] rules; }",
+  "struct Config { address signer; Passkey passkey; address recoveryKey; address guardian; }",
 ] as const;
 
 export const accountAbi = parseAbi([

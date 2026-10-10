@@ -30,9 +30,6 @@ export const addresses = {
   get paymaster() {
     return required("PAYMASTER_ADDRESS");
   },
-  get spendingLimitRule() {
-    return required("SPENDING_LIMIT_RULE_ADDRESS");
-  },
   get usdc() {
     return required("USDC_ADDRESS");
   },

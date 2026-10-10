@@ -29,9 +29,7 @@ import * as z from "zod";
 import { getComplianceRuntime } from "@/services/compliance/runtime";
 import { accountAbi, bindRecoveryKeyMessage, factoryAbi, paymasterAbi, type Config, type Passkey } from "../account.ts";
 import { addresses, chain, credentials, partnerUrl, publicClient, rpcUrl } from "../env.ts";
-import { address, passkey, share } from "../schema.ts";
-import { combine, HOLDERS } from "../shamir.ts";
-import { signTicket } from "../tickets.ts";
+import { address, passkey } from "../schema.ts";
 import { store, type Kind, type Wallet } from "./db.ts";
 import { HttpError } from "./http.ts";
 
@@ -52,7 +50,7 @@ const GAS = {
 const SPONSORSHIP_TTL = 120n;
 
 export function walletConfig(signer: Address, passkey: Passkey, recoveryKey: Address): Config {
-  return { signer, passkey, recoveryKey, guardian: swissquote().address, rules: [addresses.spendingLimitRule] };
+  return { signer, passkey, recoveryKey, guardian: swissquote().address };
 }
 
 export const predictAddress = (config: Config) =>
@@ -102,9 +100,12 @@ export async function bindShares(signer: Address, recoveryKey: Address, signatur
 /** Swissquote assists only operations its compliance policy allows; refusing never freezes the wallet itself. */
 export async function assist(wallet: Wallet, callData: Hex) {
   const call = decodeFunctionData({ abi: accountAbi, data: callData });
-  if (call.functionName === "cancelRecovery") return ["You cancel the pending recovery of your wallet."];
   if (call.functionName !== "execute") throw new HttpError(403, "The app can't make this call.");
   const [to, value, data] = call.args;
+  if (isAddressEqual(to, wallet.address)) {
+    if (data === encodeFunctionData({ abi: accountAbi, functionName: "cancelRecovery" })) return ["You cancel the pending recovery of your wallet."];
+    throw new HttpError(403, "The app can't change the account itself.");
+  }
   const requestId = randomUUID();
   const { decision } = await getComplianceRuntime().engine.evaluate(
     { requestId, nonce: requestId, chainId: chain.id, account: wallet.address, calls: [{ to, value: value.toString(), data, operation: "CALL" }] },
@@ -157,9 +158,9 @@ export async function prepare(wallet: Wallet, kind: Kind, callData: Hex) {
   return { hash, userOp: rpc };
 }
 
-export function loadOperation(wallet: Wallet, hash: Hex, kind: Kind) {
+export function loadOperation(wallet: Wallet, hash: Hex, kind?: Kind) {
   const row = store().operation(hash, wallet.address);
-  if (row?.kind !== kind) throw new HttpError(404, "No such operation.");
+  if (!row || (kind && row.kind !== kind)) throw new HttpError(404, "No such operation.");
   return formatUserOperation(row.userOp) as UserOperation<"0.7">;
 }
 
@@ -213,23 +214,4 @@ function revertReason(error: unknown) {
   const reverted = error instanceof BaseError ? error.walk((e) => e instanceof ContractFunctionRevertedError) : undefined;
   if (reverted instanceof ContractFunctionRevertedError && reverted.data) return `${reverted.data.errorName}(${reverted.data.args?.join(", ")})`;
   return error instanceof BaseError ? error.shortMessage : String(error);
-}
-
-/**
- * Swissquote's Share B and the partner's Share C rebuild the wallet key for this one recovery
- * signature, then the key is dropped. The partner checks the recovery key's signature itself.
- */
-export async function signRecovery(wallet: Wallet, hash: Hex, userOp: UserOperation<"0.7">, recoverySignature: Hex): Promise<Hex> {
-  const { signer } = await liveCredentials(wallet);
-  const approval = await signTicket(swissquote(), chain.id, "RecoveryApproval", { wallet: wallet.address, userOpHash: hash });
-  const c = await partner("/recovery", z.object({ share: share(HOLDERS.partner) }), {
-    approval,
-    userOp: formatUserOperationRequest(userOp),
-    signature: recoverySignature,
-  });
-  const b = store().shares.get(signer);
-  if (!b) throw new HttpError(500, "Swissquote holds no Share B for this wallet's key.");
-  const key = privateKeyToAccount(combine(b.share, c.share));
-  if (!isAddressEqual(key.address, signer)) throw new HttpError(500, "Shares B and C do not rebuild this wallet's key.");
-  return key.sign({ hash });
 }

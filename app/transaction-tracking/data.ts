@@ -1,19 +1,33 @@
-export type StepId = "awaiting" | "received" | "payout" | "completed";
+export type StepId = "awaiting" | "received" | "payout" | "signed" | "submitted" | "completed";
 
 export type Row = { label: string; value: string };
+export type Step = { id: StepId; label: string };
 
-export const steps: { id: StepId; label: string }[] = [
-  { id: "awaiting", label: "Awaiting Crypto" },
-  { id: "received", label: "Received Crypto" },
-  { id: "payout", label: "Payout on the way" },
-  { id: "completed", label: "Completed" },
-];
+/** What the tracker shows: the mock bank withdrawal below, or a live send (see live-tracking.tsx). */
+export type Tracked = {
+  title: string;
+  usd: number;
+  amount: string;
+  date: string;
+  steps: Step[];
+  rows: Row[];
+  rail: Row;
+  txHash: string;
+  networkFee: string;
+  feePaidBy: string;
+};
 
-export const withdrawal = {
+export const withdrawal: Tracked & { step: number } = {
   title: "USDC Withdrawal",
   usd: 1508.5,
   amount: "1,508.50 USDC",
   date: "11 March 2025 at 10:07",
+  steps: [
+    { id: "awaiting", label: "Awaiting Crypto" },
+    { id: "received", label: "Received Crypto" },
+    { id: "payout", label: "Payout on the way" },
+    { id: "completed", label: "Completed" },
+  ],
   /** Index into `steps` when the sheet opens. */
   step: 2,
   rows: [
@@ -21,10 +35,18 @@ export const withdrawal = {
     { label: "Account owner", value: "Thomas A. Anderson" },
     { label: "Transfer fee", value: "$8.50" },
   ] satisfies Row[],
-  paymentRail: "ACH Same Day",
+  rail: { label: "Payment rail", value: "ACH Same Day" },
   txHash: "3W4gk9VhQ2nRrT7mXcLp8sYdA5bE1fJu6oZiN4wKq3HtMz5xH",
   networkFee: "Free",
+  feePaidBy: "covered by Fuse⁺",
 };
+
+/** A send from the wallet. Face ID approval resolves once it is on-chain. */
+export const sendSteps: Step[] = [
+  { id: "signed", label: "Signed with Face ID" },
+  { id: "submitted", label: "Sent to Base" },
+  { id: "completed", label: "Completed" },
+];
 
 /** The blurred History list behind the sheet: icon tint, label widths, and whether the amount is incoming (green). */
 export const walletRows: { coin: string; name: number; amount: number; change: "up" | "down" | null }[] = [

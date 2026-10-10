@@ -7,11 +7,13 @@ import { type MouseEvent, useEffect, useState } from "react";
 import { blurred, leave, sharp } from "@/app/(tabs)/_components/transitions";
 import { RestoreIcon, WalletIcon } from "@/components/icons";
 import { buttonVariants } from "@/components/ui/button";
+import { phone } from "@/lib/wallet/phone";
 import { GlimmField } from "./glimm-field";
 import { FuseLogo } from "./glyphs";
 import { WordWheel } from "./word-wheel";
 
-const NEXT_ROUTE = "/onboarding-secure";
+const ROUTES = { create: "/onboarding-secure", recover: "/pending-verification" } as const;
+type Step = "welcome" | keyof typeof ROUTES;
 
 /** The hand-off: content and gradient dissolve to white, and the push waits for both. */
 const handOff = { ...leave, duration: 0.45 };
@@ -20,19 +22,24 @@ const cta = "focus-visible:outline-white";
 
 export function WelcomeFlow() {
   const router = useRouter();
-  const [exiting, setExiting] = useState(false);
+  const [step, setStep] = useState<Step>("welcome");
+  const exiting = step !== "welcome";
 
   useEffect(() => {
-    if (!exiting) return;
-    const id = setTimeout(() => router.push(NEXT_ROUTE), handOff.duration * 1000);
-    return () => clearTimeout(id);
-  }, [exiting, router]);
+    if (phone.hasWallet()) router.replace("/home");
+  }, [router]);
 
-  // Create and Recover both continue on the next screen, so both leave the same way. Modified clicks open it as usual.
-  const exit = (e: MouseEvent) => {
+  useEffect(() => {
+    if (step === "welcome") return;
+    const id = setTimeout(() => router.push(ROUTES[step]), handOff.duration * 1000);
+    return () => clearTimeout(id);
+  }, [step, router]);
+
+  // Create and Recover both leave the same way, each to its own screen. Modified clicks open it as usual.
+  const leaveTo = (to: keyof typeof ROUTES) => (e: MouseEvent) => {
     if (e.metaKey || e.ctrlKey || e.shiftKey) return;
     e.preventDefault();
-    setExiting(true);
+    setStep(to);
   };
 
   return (
@@ -66,11 +73,15 @@ export function WelcomeFlow() {
         </section>
 
         <div className="mt-8 flex flex-col gap-3 px-5 pb-[max(40px,calc(env(safe-area-inset-bottom)+12px))] min-[360px]:px-[30px]">
-          <Link href={NEXT_ROUTE} onClick={exit} className={buttonVariants({ variant: "inverse", size: "lg", className: cta })}>
+          <Link href={ROUTES.create} onClick={leaveTo("create")} className={buttonVariants({ variant: "inverse", size: "lg", className: cta })}>
             <WalletIcon size={20} />
             Create new wallet
           </Link>
-          <Link href={NEXT_ROUTE} onClick={exit} className={buttonVariants({ size: "lg", className: `bg-white/15 text-white hover:bg-white/20 ${cta}` })}>
+          <Link
+            href={ROUTES.recover}
+            onClick={leaveTo("recover")}
+            className={buttonVariants({ size: "lg", className: `bg-white/15 text-white hover:bg-white/20 ${cta}` })}
+          >
             <RestoreIcon size={20} />
             Recover existing wallet
           </Link>

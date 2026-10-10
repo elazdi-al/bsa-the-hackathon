@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { blurred, leave, sharp } from "@/app/(tabs)/_components/transitions";
-import { CheckCircleIcon, ClockIcon, CoinIcon, PayoutIcon, type Icon } from "@/components/icons";
-import { steps, type StepId } from "../data";
+import { CheckCircleIcon, ClockIcon, CoinIcon, FaceIdIcon, PayoutIcon, SendIcon, type Icon } from "@/components/icons";
+import type { Step, StepId } from "../data";
 import { CopyButton } from "./copy-button";
 
 const hidden = { opacity: 0, filter: blurred };
@@ -14,17 +14,19 @@ const icons: Record<StepId, Icon> = {
   awaiting: ClockIcon,
   received: CoinIcon,
   payout: PayoutIcon,
+  signed: FaceIdIcon,
+  submitted: SendIcon,
   completed: CheckCircleIcon,
 };
 
-function tone(index: number, current: number) {
+function tone(steps: Step[], index: number, current: number) {
   if (index !== current) return "text-muted-foreground";
   return index === steps.length - 1 ? "text-positive" : "text-fuse-blue";
 }
 
 /** A step's glyph and label. Stable layout ids let the current one travel between the tracker and the folded row. */
-function StepMark({ index, reverse }: { index: number; reverse?: boolean }) {
-  const { id, label } = steps[index];
+function StepMark({ step, reverse }: { step: Step; reverse?: boolean }) {
+  const { id, label } = step;
   const StepIcon = icons[id];
   return (
     <span className={`flex items-center ${reverse ? "flex-row-reverse gap-1.5" : "gap-3"}`}>
@@ -36,7 +38,9 @@ function StepMark({ index, reverse }: { index: number; reverse?: boolean }) {
   );
 }
 
-export function StatusCard({ tracker, summary, onToggle }: { tracker: Tracker; summary: string; onToggle: () => void }) {
+type Props = { steps: Step[]; tracker: Tracker; summary: string; onToggle: () => void };
+
+export function StatusCard({ steps, tracker, summary, onToggle }: Props) {
   const { step, expanded } = tracker;
 
   return (
@@ -59,8 +63,8 @@ export function StatusCard({ tracker, summary, onToggle }: { tracker: Tracker; s
               </CopyButton>
             </motion.div>
           ) : (
-            <span key="current" className={`pointer-events-none font-medium transition-colors ${tone(step, step)}`}>
-              <StepMark index={step} reverse />
+            <span key="current" className={`pointer-events-none font-medium transition-colors ${tone(steps, step, step)}`}>
+              <StepMark step={steps[step]} reverse />
             </span>
           )}
         </AnimatePresence>
@@ -73,13 +77,13 @@ export function StatusCard({ tracker, summary, onToggle }: { tracker: Tracker; s
             steps.map((s, i) => (
               <motion.li
                 key={s.id}
-                className={`relative flex h-8 items-center transition-colors duration-200 ${tone(i, step)}`}
+                className={`relative flex h-8 items-center transition-colors duration-200 ${tone(steps, i, step)}`}
                 initial={i === step ? false : { ...hidden, y: -12 }}
                 animate={shown}
                 exit={i === step ? undefined : { ...hidden, y: -16, transition: leave }}
               >
                 {i > 0 && <span aria-hidden className="absolute -top-2 left-[7.5px] h-4 w-px bg-faint/50" />}
-                <StepMark index={i} />
+                <StepMark step={s} />
                 {i === step && <span className="sr-only"> (current)</span>}
               </motion.li>
             ))}

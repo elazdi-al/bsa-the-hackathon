@@ -17,6 +17,7 @@ const authenticator = {
     hasResidentKey: true,
     hasUserVerification: true,
     isUserVerified: true,
+    hasPrf: true,
     automaticPresenceSimulation: true,
   },
 };
@@ -24,14 +25,14 @@ const authenticator = {
 const browser = await chromium.launch();
 const errors = [];
 
-async function open() {
+async function open(options = authenticator.options) {
   const context = await browser.newContext({ viewport: { width: 393, height: 852 }, hasTouch: true });
   const page = await context.newPage();
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
   const cdp = await context.newCDPSession(page);
   await cdp.send("WebAuthn.enable");
-  const { authenticatorId } = await cdp.send("WebAuthn.addVirtualAuthenticator", authenticator);
+  const { authenticatorId } = await cdp.send("WebAuthn.addVirtualAuthenticator", { options });
   await page.goto(new URL("/onboarding-secure", base).href);
   await button(page, "Create Passkey").waitFor();
   return { page, cdp, authenticatorId };
@@ -40,7 +41,7 @@ async function open() {
 const device = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("fuse.wallet.device") ?? "null"));
 const button = (page, name) => page.getByRole("button", { name });
 const alertOf = (page) => page.getByRole("alert").filter({ hasText: /\S/ });
-const shortAddress = (address) => `${address.slice(0, 4)}...${address.slice(-4)}`;
+const shortAddress = (address) => `${address.slice(0, 6)}...${address.slice(-4)}`;
 const isRegistration = (r) => new URL(r.url()).pathname === "/api/wallets" && r.request().method() === "POST";
 
 {
@@ -56,6 +57,7 @@ const isRegistration = (r) => new URL(r.url()).pathname === "/api/wallets" && r.
   const split = await device(page);
   assert.equal(split.credentialId, credentialId, "the phone keeps the authenticator's credential");
   assert.equal(split.share.x, 1, "the phone keeps Share A");
+  assert.ok(split.share.sealed, "Share A is sealed under the passkey's PRF output");
 
   await page.evaluate(() => {
     navigator.canShare = () => true;
@@ -102,7 +104,8 @@ const isRegistration = (r) => new URL(r.url()).pathname === "/api/wallets" && r.
 }
 
 {
-  const { page, cdp, authenticatorId } = await open();
+  // Chrome's virtual PRF authenticator stays unusable after a failed verification, so this block uses a plain one.
+  const { page, cdp, authenticatorId } = await open({ ...authenticator.options, hasPrf: false });
   // Without Face ID the ceremony fails at once with the NotAllowedError a user cancel produces.
   await cdp.send("WebAuthn.setUserVerified", { authenticatorId, isUserVerified: false });
   await button(page, "Create Passkey").click();

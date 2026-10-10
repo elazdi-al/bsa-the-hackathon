@@ -1,6 +1,6 @@
 import { wallet } from "@/app/coin-breakdown/data";
 import { KEYS, type KeyId } from "@/app/onboarding-secure/data";
-import { BankIcon, BellIcon, CardIcon, CoinIcon, EyeSlashIcon, HelpIcon, IdCardIcon, KeyIcon, SignOutIcon, type Icon } from "@/components/icons";
+import { BankIcon, BellIcon, CardIcon, CoinIcon, HelpIcon, KeyIcon, SignOutIcon, type Icon } from "@/components/icons";
 
 export type { KeyId };
 
@@ -42,7 +42,6 @@ export const sections: { title?: string; rows: Row[] }[] = [
   {
     rows: [
       { kind: "tray", opens: "keys", label: "Keys", Icon: KeyIcon, status: "All active" },
-      { kind: "push", label: "Identity verification", Icon: IdCardIcon, href: "/pending-verification", status: "Pending" },
       { kind: "info", label: "Bank account", Icon: BankIcon, value: "Revolut ••••1342" },
       { kind: "info", label: "Fuse Card", Icon: CardIcon, value: "Virtual Visa" },
     ],
@@ -50,7 +49,6 @@ export const sections: { title?: string; rows: Row[] }[] = [
   {
     title: "Preferences",
     rows: [
-      { kind: "switch", label: "Hide My Wallet by default", detail: "Send from a fresh address", Icon: EyeSlashIcon, on: false },
       { kind: "switch", label: "Notifications", Icon: BellIcon, on: true },
       { kind: "info", label: "Currency", Icon: CoinIcon, value: "USD" },
     ],

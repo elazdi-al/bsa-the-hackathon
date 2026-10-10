@@ -1,7 +1,7 @@
-import { BankIcon } from "@/components/icons";
+import { BankIcon, type Icon } from "@/components/icons";
 
-/** USDC coin with the bank badge that marks a bank payout. */
-export function UsdcCoin() {
+/** USDC coin with a badge: the bank marks a bank payout. */
+export function UsdcCoin({ Badge = BankIcon }: { Badge?: Icon }) {
   return (
     <div className="relative size-[54px]">
       <svg viewBox="0 0 32 32" aria-hidden className="size-full">
@@ -15,7 +15,7 @@ export function UsdcCoin() {
         </g>
       </svg>
       <span className="absolute -top-1 left-[34px] grid size-6 place-items-center rounded-full bg-secondary ring-3 ring-background">
-        <BankIcon size={16} />
+        <Badge size={16} />
       </span>
     </div>
   );

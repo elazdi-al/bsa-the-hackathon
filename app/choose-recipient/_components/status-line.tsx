@@ -49,7 +49,7 @@ function describe(status: Status) {
     case "notFound":
       return {
         icon: <WarningIcon size={16} className="text-negative" />,
-        text: "Handle not found",
+        text: "Name not found",
       };
   }
 }
