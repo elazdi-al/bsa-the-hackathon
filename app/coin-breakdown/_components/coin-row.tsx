@@ -1,4 +1,5 @@
 import { AnimatePresence, motion, stagger, type Variants } from "motion/react";
+import { Money } from "@/app/(tabs)/_components/money";
 import { blurred, leave, reveal, sharp, snappy } from "@/app/(tabs)/_components/transitions";
 import { availableShare, stakedTotal, type Coin } from "../data";
 import { CoinLogo } from "./coin-logos";
@@ -7,8 +8,8 @@ import { Recede } from "./motion";
 type RowState = "idle" | "open" | "receded";
 
 const amount = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
-const signedUsd = (n: number) => `${n < 0 ? "-" : "+"}${usd.format(Math.abs(n))}`;
+// The house light-grey cents, a step darker so they keep their contrast on this screen's grey.
+const cents = "text-black/[0.12]";
 
 export function CoinRow({ coin, state, onToggle }: { coin: Coin; state: RowState; onToggle: () => void }) {
   const open = state === "open";
@@ -32,10 +33,13 @@ export function CoinRow({ coin, state, onToggle }: { coin: Coin; state: RowState
             </span>
           </span>
           <span className="shrink-0 text-right text-[15px] font-medium tabular-nums">
-            <span className="block leading-[22px]">{usd.format(coin.value)}</span>
+            <span className="block leading-[22px]">
+              <Money value={coin.value} centsClassName={cents} />
+            </span>
             {coin.change !== undefined && (
               <span className={`mt-0.5 block leading-5 ${coin.change < 0 ? "text-negative" : "text-positive"}`}>
-                {signedUsd(coin.change)}
+                {coin.change < 0 ? "−" : "+"}
+                <Money value={Math.abs(coin.change)} centsClassName={cents} />
               </span>
             )}
           </span>
