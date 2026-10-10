@@ -164,7 +164,6 @@ export function HistoryList() {
   // Kept after close so the sheet's content doesn't vanish mid-exit.
   const [tx, setTx] = useState<Tx | null>(null);
   const [sent, setSent] = useState<Tx | null>(null);
-  // A withdrawal opens its live tracker; everything else, the detail sheet.
   const tracked = tx?.kind === "withdrawal";
 
   // Before paint, so the list never jumps. The params go once read: a refresh or Back must not send it twice.
