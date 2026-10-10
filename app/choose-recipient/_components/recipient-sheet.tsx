@@ -30,9 +30,12 @@ export function RecipientSheet({ open, onOpenChange, onClosed }: Props) {
           if (!isOpen) onClosed();
         }}
       >
+        {/* Continue pushes the review with the sheet still up. Named, the sheet and its dim dissolve above the
+            outgoing page; in the page's root snapshot that page's own snapshot would paint over them. */}
         <DrawerContent
           aria-describedby={undefined}
-          className="h-[calc(100dvh-env(safe-area-inset-top)-12px)] pb-[env(safe-area-inset-bottom)] tracking-[-0.05em] sm:h-auto sm:pb-5"
+          overlayClassName="[view-transition-name:recipient-overlay]"
+          className="h-[calc(100dvh-env(safe-area-inset-top)-12px)] pb-[env(safe-area-inset-bottom)] tracking-[-0.05em] [view-transition-name:recipient-sheet] sm:h-auto sm:pb-5"
         >
           <header className="relative flex h-11 shrink-0 items-center justify-center">
             <DrawerTitle className="tracking-[-0.03em]">Choose recipient</DrawerTitle>
