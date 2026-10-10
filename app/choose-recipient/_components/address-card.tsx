@@ -75,7 +75,7 @@ export function AddressCard() {
               animate="shown"
               exit="hidden"
               whileTap={{ scale: 0.96 }}
-              className="relative grid size-5 shrink-0 place-items-center rounded-full bg-faint text-background after:absolute after:-inset-3 focus-visible:outline-2 focus-visible:outline-fuse-blue"
+              className="relative grid size-5 shrink-0 place-items-center rounded-full bg-faint text-background after:absolute after:-inset-3 focus-visible:outline-2 focus-visible:outline-ring"
             >
               <CloseIcon size={16} />
             </motion.button>

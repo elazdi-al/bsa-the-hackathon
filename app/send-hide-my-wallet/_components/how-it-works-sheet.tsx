@@ -9,7 +9,7 @@ export function HowItWorksSheet() {
       <DrawerTrigger asChild>
         <button
           type="button"
-          className="relative flex items-center gap-1 rounded-sm text-body text-muted-foreground outline-offset-2 outline-fuse-blue transition-opacity after:absolute after:-inset-x-2 after:-inset-y-3 focus-visible:outline-2 active:opacity-60"
+          className="relative flex items-center gap-1 rounded-sm text-body text-muted-foreground outline-offset-2 outline-ring transition-opacity after:absolute after:-inset-x-2 after:-inset-y-3 focus-visible:outline-2 active:opacity-60"
         >
           How it works
           <HelpIcon size={16} />

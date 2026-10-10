@@ -39,7 +39,7 @@ export default function Page() {
             {verification.followUp}{" "}
             <a
               href={`mailto:${verification.supportEmail}`}
-              className="rounded-sm underline decoration-faint underline-offset-2 transition-colors duration-150 hover:text-foreground focus-visible:outline-2 focus-visible:outline-fuse-blue"
+              className="rounded-sm underline decoration-faint underline-offset-2 transition-colors duration-150 hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
             >
               {verification.supportEmail}
             </a>

@@ -47,7 +47,7 @@ export function StatusCard({ tracker, summary, onToggle }: { tracker: Tracker; s
           onClick={onToggle}
           aria-expanded={expanded}
           aria-controls="status-steps"
-          className="text-muted-foreground outline-none transition-transform duration-150 ease-out active:scale-[0.96] after:absolute after:-inset-x-4 after:inset-y-0 after:rounded-2xl focus-visible:after:ring-2 focus-visible:after:ring-fuse-blue"
+          className="text-muted-foreground outline-none transition-transform duration-150 ease-out active:scale-[0.96] after:absolute after:-inset-x-4 after:inset-y-0 after:rounded-2xl focus-visible:after:ring-2 focus-visible:after:ring-ring"
         >
           Status<span className="sr-only">: {steps[step].label}</span>
         </button>

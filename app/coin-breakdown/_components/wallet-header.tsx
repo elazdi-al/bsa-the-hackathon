@@ -20,7 +20,7 @@ export function WalletHeader() {
         replace
         transitionTypes={["pop"]}
         aria-label="History"
-        className="-mr-2.5 grid size-11 place-items-center rounded-full text-muted-foreground outline-none transition-transform duration-150 ease-out focus-visible:ring-2 focus-visible:ring-fuse-blue active:scale-[0.96]"
+        className="-mr-2.5 grid size-11 place-items-center rounded-full text-muted-foreground outline-none transition-transform duration-150 ease-out focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.96]"
       >
         <ClockIcon size={24} />
       </Link>

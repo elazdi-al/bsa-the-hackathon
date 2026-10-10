@@ -15,7 +15,7 @@ export function RecentAddresses() {
             <Link
               href={reviewHref(address)}
               transitionTypes={["push"]}
-              className={`flex min-h-16 items-center gap-4 rounded-2xl px-3 py-2.5 focus-visible:outline-2 focus-visible:outline-fuse-blue ${rowPress}`}
+              className={`flex min-h-16 items-center gap-4 rounded-2xl px-3 py-2.5 focus-visible:outline-2 focus-visible:outline-ring ${rowPress}`}
             >
               <span className="grid size-11 shrink-0 place-items-center rounded-full bg-secondary text-muted-foreground">
                 <WalletIcon />

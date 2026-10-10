@@ -21,7 +21,7 @@ export function CoinRow({ coin, state, onToggle }: { coin: Coin; state: RowState
           aria-expanded={open}
           aria-controls={panelId}
           onClick={onToggle}
-          className="flex w-full items-center gap-4 rounded-[18px] px-3 py-[15px] text-left outline-none transition-colors duration-150 ease-out focus-visible:ring-2 focus-visible:ring-fuse-blue active:bg-black/[0.04] [@media(hover:hover)]:hover:bg-black/[0.025]"
+          className="flex w-full items-center gap-4 rounded-[18px] px-3 py-[15px] text-left outline-none transition-colors duration-150 ease-out focus-visible:ring-2 focus-visible:ring-ring active:bg-black/[0.04] [@media(hover:hover)]:hover:bg-black/[0.025]"
         >
           <CoinAvatar coin={coin} open={open} />
           <span className="min-w-0 flex-1">
