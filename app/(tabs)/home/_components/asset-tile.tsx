@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { CardIcon, ChartIcon, CoinIcon, PercentIcon, type Icon } from "@/components/icons";
 import type { Tile, TileId } from "../data";
-import { BlurMoney } from "./blur-money";
+import { IntroMoney } from "./blur-money";
 
 /**
  * Each account's colour and glyph, shared by its tile and its sheet so the sheet reads as the tile opened.
@@ -23,7 +23,7 @@ export function AssetTile({ tile, index, onOpen }: { tile: Tile; index: number; 
       <Icon size={32} />
       <span className="mt-auto pt-2 text-label">{tile.label}</span>
       <span className="text-heading max-[375px]:text-label max-[375px]:font-bold">
-        <BlurMoney value={tile.value} delay={0.05 + index * 0.08} step={0.035} />
+        <IntroMoney value={tile.value} delay={0.05 + index * 0.08} step={0.035} />
       </span>
     </>
   );

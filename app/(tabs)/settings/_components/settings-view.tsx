@@ -8,7 +8,9 @@ import { ChevronRightIcon, ShieldIcon, SignOutIcon, type Icon } from "@/componen
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Tray, TrayActions, TrayHeader } from "@/components/ui/tray";
+import { cn } from "@/lib/utils";
 import { rowPress } from "../../_components/list";
+import { forgetWallet, useWallet } from "../../_components/wallet";
 import { keys, profile, sections, version, type KeyId, type Row, type TrayRoot } from "../data";
 
 type View = { name: TrayRoot } | { name: "key"; id: KeyId };
@@ -49,9 +51,9 @@ function SettingsRow({ item, onOpen }: { item: Row; onOpen: (root: TrayRoot) => 
           {body}
         </Link>
       );
-    case "mail":
+    case "link":
       return (
-        <a href={item.href} className={`${row} ${rowPress}`}>
+        <a href={item.href} target="_blank" rel="noreferrer" className={`${row} ${rowPress}`}>
           {body}
         </a>
       );
@@ -66,7 +68,10 @@ function SettingsRow({ item, onOpen }: { item: Row; onOpen: (root: TrayRoot) => 
 }
 
 /** The member's card: their plan, name and address on the brand blue, like the card in a wallet. It opens Swissquote Plus. */
-function MemberCard() {
+function MemberCard({ removed }: { removed: boolean }) {
+  const snapshot = useWallet();
+  // The demo address in preview (no wallet on this phone); otherwise the wallet's own, once read.
+  const address = removed ? undefined : snapshot.status === "ready" ? snapshot.wallet.address : snapshot.status === "none" ? profile.address : undefined;
   return (
     <Link
       href="/plus"
@@ -76,7 +81,9 @@ function MemberCard() {
       <span className="text-label">Swissquote Plus</span>
       <span className="min-w-0">
         <span className="block truncate text-heading">{profile.name}</span>
-        <span className="block text-body text-white/70">{shortAddress(profile.address)}</span>
+        <span className={cn("block text-body text-white/70 transition-[opacity,visibility] duration-200 ease-out", !address && "invisible opacity-0")}>
+          {shortAddress(address ?? profile.address)}
+        </span>
       </span>
     </Link>
   );
@@ -90,8 +97,7 @@ function Hero({ Icon, color }: { Icon: Icon; color: string }) {
   );
 }
 
-function TrayBody({ view, push, close }: { view: View; push: (next: View) => void; close: () => void }) {
-  const router = useRouter();
+function TrayBody({ view, push, close, remove }: { view: View; push: (next: View) => void; close: () => void; remove: () => void }) {
   switch (view.name) {
     case "keys":
       return (
@@ -142,24 +148,20 @@ function TrayBody({ view, push, close }: { view: View; push: (next: View) => voi
         </>
       );
     }
-    case "signout":
+    case "remove":
       return (
         <>
           <TrayHeader
             icon={<Hero Icon={SignOutIcon} color="var(--color-negative)" />}
-            title="Sign out of Fuse?"
-            description="Your keys stay safe while you’re away. Sign back in with Swissquote any time."
+            title="Remove your wallet from this phone?"
+            description="Your money stays in your wallet on Base. To use it on this phone again, you’ll recover it with your Recovery Key after a 48-hour hold."
           />
           <TrayActions>
             <Button variant="secondary" size="lg" className="h-12" onClick={close}>
               Cancel
             </Button>
-            <Button
-              size="lg"
-              onClick={() => router.replace("/onboarding-welcome", { transitionTypes: ["pop"] })}
-              className="h-12 bg-negative hover:bg-negative/85"
-            >
-              Sign out
+            <Button size="lg" onClick={remove} className="h-12 bg-negative hover:bg-negative/85">
+              Remove
             </Button>
           </TrayActions>
         </>
@@ -168,7 +170,9 @@ function TrayBody({ view, push, close }: { view: View; push: (next: View) => voi
 }
 
 export function SettingsView() {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [removed, setRemoved] = useState(false);
   // Outlives `open` until the close animation ends, so the tray doesn't empty mid-exit.
   const [stack, setStack] = useState<View[]>([]);
   const view = stack.at(-1);
@@ -178,9 +182,16 @@ export function SettingsView() {
     setOpen(true);
   }
 
+  function remove() {
+    // Forgetting leaves the store at "none", which the card would show as the demo address while the screen leaves.
+    setRemoved(true);
+    forgetWallet();
+    router.replace("/onboarding-welcome", { transitionTypes: ["pop"] });
+  }
+
   return (
     <div className="mt-6 max-w-xl lg:grid lg:max-w-none lg:grid-cols-[20rem_minmax(0,1fr)] lg:items-start lg:gap-12">
-      <MemberCard />
+      <MemberCard removed={removed} />
 
       <div>
         {sections.map((rows, i) => (
@@ -200,7 +211,7 @@ export function SettingsView() {
         onBack={stack.length > 1 ? () => setStack((s) => s.slice(0, -1)) : undefined}
         onClosed={() => setStack([])}
       >
-        {view && <TrayBody view={view} push={(next) => setStack((s) => [...s, next])} close={() => setOpen(false)} />}
+        {view && <TrayBody view={view} push={(next) => setStack((s) => [...s, next])} close={() => setOpen(false)} remove={remove} />}
       </Tray>
     </div>
   );

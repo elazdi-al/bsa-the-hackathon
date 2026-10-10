@@ -7,14 +7,14 @@ export type { KeyId };
 export const profile = { name: "Thomas A. Anderson", address: wallet.address };
 
 /** The trays a row can open; each is the root of its own view stack. */
-export type TrayRoot = "keys" | "signout";
+export type TrayRoot = "keys" | "remove";
 
 /** What pressing a row does. `info` rows don't press, so they get no chevron. */
 type Behaviour =
   | { kind: "info"; value: string }
   | { kind: "tray"; opens: TrayRoot }
   | { kind: "push"; href: string }
-  | { kind: "mail"; href: string }
+  | { kind: "link"; href: string }
   | { kind: "switch"; on: boolean };
 
 export type Row = Behaviour & { label: string; detail?: string; Icon: Icon; destructive?: boolean };
@@ -44,8 +44,8 @@ export const sections: Row[][] = [
     { kind: "info", label: "Currency", Icon: CoinIcon, value: "USD" },
   ],
   [
-    { kind: "mail", label: "Help & support", Icon: HelpIcon, href: "https://www.swissquote.com/en-ch/private/help" },
-    { kind: "tray", opens: "signout", label: "Sign out", Icon: SignOutIcon, destructive: true },
+    { kind: "link", label: "Help & support", Icon: HelpIcon, href: "https://www.swissquote.com/en-ch/private/help" },
+    { kind: "tray", opens: "remove", label: "Remove from this phone", Icon: SignOutIcon, destructive: true },
   ],
 ];
 

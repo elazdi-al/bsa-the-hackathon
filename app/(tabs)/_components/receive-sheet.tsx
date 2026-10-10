@@ -6,6 +6,7 @@ import { wallet as mock } from "@/app/coin-breakdown/data";
 import { CheckIcon, CopyIcon, ReceiveIcon, ShareIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHeader } from "@/components/ui/drawer";
+import { cn } from "@/lib/utils";
 import { useWallet } from "./wallet";
 
 const N = 29;
@@ -66,8 +67,28 @@ function IconSwap({ k, children }: { k: string; children: React.ReactNode }) {
 }
 
 export function ReceiveSheet({ open, onOpenChange, onClosed }: { open: boolean; onOpenChange: (o: boolean) => void; onClosed: () => void }) {
-  const wallet = useWallet(open);
-  const address = wallet?.address ?? mock.address;
+  return (
+    <Drawer open={open} onOpenChange={onOpenChange}>
+      <DrawerContent
+        aria-describedby={undefined}
+        onCloseAutoFocus={(e) => {
+          e.preventDefault();
+          onClosed();
+        }}
+        className="pb-[max(24px,env(safe-area-inset-bottom))] sm:pb-6"
+      >
+        <DrawerHeader title="Receive" />
+        <ReceiveBody />
+      </DrawerContent>
+    </Drawer>
+  );
+}
+
+// Mounted only while the sheet is open, so the wallet store isn't polled from every tab.
+function ReceiveBody() {
+  const snapshot = useWallet();
+  // The demo address in preview (no wallet on this phone); otherwise only the wallet's own, once read.
+  const address = snapshot.status === "ready" ? snapshot.wallet.address : snapshot.status === "none" ? mock.address : undefined;
   const [copied, setCopied] = useState(false);
   const [canShare, setCanShare] = useState(false);
 
@@ -80,50 +101,44 @@ export function ReceiveSheet({ open, onOpenChange, onClosed }: { open: boolean; 
 
   async function copy() {
     try {
-      await navigator.clipboard.writeText(address);
+      await navigator.clipboard.writeText(address!);
       setCopied(true);
     } catch {
       // Clipboard unavailable: no false confirmation.
     }
   }
 
+  // Until the address is read, the QR and the address hold their space, blank.
+  const reveal = cn("transition-[opacity,visibility] duration-200 ease-out", !address && "invisible opacity-0");
+
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent
-        aria-describedby={undefined}
-        onCloseAutoFocus={(e) => {
-          e.preventDefault();
-          onClosed();
-        }}
-        className="pb-[max(24px,env(safe-area-inset-bottom))] sm:pb-6"
-      >
-        <DrawerHeader title="Receive" />
+    <div className="flex flex-col items-center overflow-y-auto px-6 pt-6">
+      <div className={reveal}>
+        <Qr address={address ?? ""} />
+      </div>
 
-        <div className="flex flex-col items-center overflow-y-auto px-6 pt-6">
-          <Qr address={address} />
+      <p className={cn("mt-6 max-w-[280px] text-center font-mono text-body text-balance break-all", reveal)}>{address ?? mock.address}</p>
+      <p className="mt-2 text-center text-body text-muted-foreground">Only send USDC on Base to this address.</p>
 
-          <p className="mt-6 max-w-[280px] text-center font-mono text-body text-balance break-all">{address}</p>
-          <p className="mt-2 text-center text-body text-muted-foreground">
-            {wallet ? "Only send USDC on Base to this address." : "Only send Solana (SPL) tokens to this address."}
-          </p>
-
-          <div className="mt-8 flex w-full gap-3 *:flex-1">
-            <Button onClick={copy}>
-              <IconSwap k={copied ? "check" : "copy"}>{copied ? <CheckIcon size={20} /> : <CopyIcon size={20} />}</IconSwap>
-              {copied ? "Copied" : "Copy address"}
-              <span className="sr-only" aria-live="polite">
-                {copied ? "Address copied" : ""}
-              </span>
-            </Button>
-            {canShare && (
-              <Button variant="secondary" onClick={() => navigator.share({ title: "My Swissquote Wallet address", text: address }).catch(() => {})}>
-                <ShareIcon size={20} />
-                Share
-              </Button>
-            )}
-          </div>
-        </div>
-      </DrawerContent>
-    </Drawer>
+      <div className="mt-8 flex w-full gap-3 *:flex-1">
+        <Button onClick={copy} disabled={!address}>
+          <IconSwap k={copied ? "check" : "copy"}>{copied ? <CheckIcon size={20} /> : <CopyIcon size={20} />}</IconSwap>
+          {copied ? "Copied" : "Copy address"}
+          <span className="sr-only" aria-live="polite">
+            {copied ? "Address copied" : ""}
+          </span>
+        </Button>
+        {canShare && (
+          <Button
+            variant="secondary"
+            disabled={!address}
+            onClick={() => navigator.share({ title: "My Swissquote Wallet address", text: address }).catch(() => {})}
+          >
+            <ShareIcon size={20} />
+            Share
+          </Button>
+        )}
+      </div>
+    </div>
   );
 }

@@ -1,13 +1,13 @@
 "use client";
 
 import { motion, useReducedMotion } from "motion/react";
-import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { TrendUpIcon } from "@/components/icons";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { balance, defaultRange, history, ranges, series, type Range } from "../data";
+import { defaultRange, historyFor, ranges, series, totalOf, type Range } from "../data";
 import { usd } from "../../_components/money";
-import { RollingMoney } from "../../_components/rolling-money";
-import { BlurMoney, markIntroDone, wasIntroDone } from "./blur-money";
+import { useTiles } from "./accounts";
+import { IntroMoney, markIntroDone, wasIntroDone } from "./blur-money";
 import { smooth, snappy } from "../../_components/transitions";
 
 const cents = "text-[0.74em]";
@@ -22,21 +22,24 @@ export function BalanceChart() {
   // Index of the bar being scrubbed, or null when showing the total.
   const [active, setActive] = useState<number | null>(null);
   const pointer = useRef<{ id: number; touch: boolean; bar?: number } | null>(null);
-  const [rolled, setRolled] = useState(false);
   const chart = useRef<HTMLDivElement>(null);
   // The layout's MotionConfig stills transforms only; bars grow by height, so they are stilled here.
   const still = useReducedMotion();
 
-  useEffect(markIntroDone, []);
+  const total = totalOf(useTiles());
+  // Client only: the server renders the wallet as loading, so the dates never meet the server's clock.
+  const history = useMemo(() => (total === undefined ? undefined : historyFor(total, Date.now())), [total]);
+  // Done once Home's numbers are known, not at mount: the wallet's Cash arrives after.
+  useEffect(() => {
+    if (total !== undefined) markIntroDone();
+  }, [total]);
 
-  const { values, dates } = history[range];
-  const last = values.length - 1;
+  const data = history?.[range];
+  const last = series[range].length - 1;
   const shown = active ?? last;
   const scrubbing = active !== null;
-  // Once scrubbed, the rolling amount keeps the number so a release rolls back to the total instead of swapping layers.
-  if (scrubbing && !rolled) setRolled(true);
   // Always the change since the first bar of the range, so releasing a scrub lands on the same meaning.
-  const change = ((values[shown] - values[0]) / values[0]) * 100;
+  const change = data ? ((data.values[shown] - data.values[0]) / data.values[0]) * 100 : 0;
   const up = change >= 0;
 
   function scrubTo(e: PointerEvent) {
@@ -57,6 +60,7 @@ export function BalanceChart() {
   }
 
   function onKeyDown(e: KeyboardEvent) {
+    if (!data) return;
     const next = {
       ArrowLeft: shown - 1,
       ArrowRight: shown + 1,
@@ -74,10 +78,10 @@ export function BalanceChart() {
       {/* Label and change meet on the balance's centre line, so neither slides when the label becomes a date or the range changes. */}
       <div className="mt-8 grid grid-cols-2 items-center gap-1.5 text-body tabular-nums">
         <h2 id="total-balance" className="justify-self-end whitespace-nowrap text-muted-foreground">
-          {scrubbing ? <span aria-hidden>{dates[shown]}</span> : "Total balance"}
+          {scrubbing ? <span aria-hidden>{data?.dates[shown]}</span> : "Total balance"}
         </h2>
         {/* A quarter turn makes the up-right arrow the down-right one, so crossing zero turns it instead of swapping glyphs. */}
-        <p className={`flex items-center gap-0.5 justify-self-start font-semibold transition-[color] duration-200 ease-out ${up ? "text-positive" : "text-negative"}`}>
+        <p className={`flex items-center gap-0.5 justify-self-start font-semibold transition-[color] duration-200 ease-out ${up ? "text-positive" : "text-negative"} ${data ? "" : "invisible"}`}>
           <motion.span aria-hidden className="flex" initial={false} animate={{ rotate: up ? 0 : 90 }} transition={snappy}>
             <TrendUpIcon size={16} />
           </motion.span>
@@ -86,14 +90,8 @@ export function BalanceChart() {
         </p>
       </div>
 
-      {/* BlurMoney types the total in; from the first scrub on, the rolling amount in the same cell owns the number. */}
       <p className="mt-2 grid justify-items-center text-display">
-        <span className={`col-start-1 row-start-1 ${rolled ? "invisible" : ""}`}>
-          <BlurMoney value={balance.total} delay={0.2} step={0.065} centsClassName={cents} />
-        </span>
-        <span className={`col-start-1 row-start-1 ${rolled ? "" : "invisible"}`}>
-          <RollingMoney value={values[shown]} centsClassName={cents} />
-        </span>
+        <IntroMoney value={data?.values[shown]} delay={0.2} step={0.065} centsClassName={cents} />
       </p>
 
       <div
@@ -104,9 +102,9 @@ export function BalanceChart() {
         aria-valuemin={0}
         aria-valuemax={last}
         aria-valuenow={shown}
-        aria-valuetext={`${dates[shown]}, ${usd.format(values[shown])}`}
+        aria-valuetext={data && `${data.dates[shown]}, ${usd.format(data.values[shown])}`}
         onPointerDown={(e) => {
-          if (pointer.current !== null || (e.pointerType === "mouse" && e.button !== 0)) return;
+          if (!data || pointer.current !== null || (e.pointerType === "mouse" && e.button !== 0)) return;
           pointer.current = { id: e.pointerId, touch: e.pointerType === "touch" };
           e.currentTarget.setPointerCapture(e.pointerId);
           scrubTo(e);
@@ -127,7 +125,7 @@ export function BalanceChart() {
               i === active ? "bg-brand" : "bg-linear-to-b from-brand/45 to-brand/10"
             } ${active !== null && i > active ? "opacity-20" : ""}`}
             initial={revisit ? false : { height: "0%" }}
-            animate={{ height: `${height}%` }}
+            animate={{ height: data ? `${height}%` : "0%" }}
             transition={still ? { duration: 0 } : { ...smooth, delay: startDelay + i * (switched ? 0.004 : 0.007) }}
           />
         ))}

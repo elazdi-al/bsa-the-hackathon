@@ -1,16 +1,26 @@
+"use client";
+
 import Link from "next/link";
 import { rowPress, sectionLabel } from "@/app/(tabs)/_components/list";
+import { useActivity, useWallet } from "@/app/(tabs)/_components/wallet";
 import { WalletIcon } from "@/components/icons";
-import { RECENT_ADDRESSES, reviewHref, shortAddress } from "../data";
+import { RECENT_ADDRESSES, recentSends, reviewHref, shortAddress } from "../data";
 
+/** Where a live wallet last sent, once its activity is read; the demo list only in preview, never in place of a real wallet's. */
 export function RecentAddresses() {
+  const snapshot = useWallet();
+  const activity = useActivity();
+  const recent =
+    snapshot.status === "ready" ? activity && recentSends(activity, snapshot.wallet.address) : snapshot.status === "none" ? RECENT_ADDRESSES : undefined;
+  if (!recent?.length) return null;
+
   return (
     <section aria-labelledby="recent-title" className="mt-8 px-3">
       <h2 id="recent-title" className={`px-3 ${sectionLabel}`}>
         Recent
       </h2>
       <ul>
-        {RECENT_ADDRESSES.map(({ address, note }) => (
+        {recent.map(({ address, note }) => (
           <li key={address}>
             <Link
               href={reviewHref(address)}

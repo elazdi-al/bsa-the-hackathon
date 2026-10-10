@@ -1,8 +1,28 @@
+import { formatUnits, isAddressEqual, type Address } from "viem";
+import type { Transfer } from "@/lib/wallet/phone";
+
 export type RecentAddress = { address: string; note: string };
 
 export const RECENT_ADDRESSES: RecentAddress[] = [
   { address: "0x8C3f6a1D2e9B4c7A05d6E1f2B3a4C5d6E7f8A9b0", note: "No previous sends" },
 ];
+
+const sentUsd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", trailingZeroDisplay: "stripIfInteger" });
+const sentOn = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
+
+/** The last three addresses `wallet` paid, newest first, each with its latest send. `transfers` is newest first. */
+export function recentSends(transfers: Transfer[], wallet: Address): RecentAddress[] {
+  const latest = new Map<string, Transfer>();
+  for (const t of transfers) {
+    if (latest.size === 3) break;
+    if (isAddressEqual(t.from, wallet) && !latest.has(t.to.toLowerCase())) latest.set(t.to.toLowerCase(), t);
+  }
+  return [...latest.values()].map((t) => ({
+    address: t.to,
+    // en-GB abbreviates September as "Sept"; keep every month three letters.
+    note: `Sent ${sentUsd.format(Number(formatUnits(BigInt(t.value), 6)))} · ${sentOn.format(t.timestamp * 1000).replace("Sept", "Sep")}`,
+  }));
+}
 
 /** Mock ENS. */
 const HANDLES: Record<string, string> = {
@@ -39,7 +59,7 @@ export function recipientFor(to: string): { name: string; detail: string; addres
   if (recent) return { name: shortAddress(recent.address), detail: recent.note, address: to };
   const resolution = looksLikeRecipient(to) ? lookupRecipient(to) : null;
   if (resolution?.kind !== "resolved") return null;
-  if (resolution.address === to) return { name: shortAddress(to), detail: "No previous sends", address: to };
+  if (resolution.address === to) return { name: shortAddress(to), detail: "Address on Base", address: to };
   return { name: to, detail: shortAddress(resolution.address), address: resolution.address };
 }
 

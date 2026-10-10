@@ -1,27 +1,61 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { FaceIdIcon, WarningIcon } from "@/components/icons";
+import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
+import { FaceIdIcon, PhoneIcon, RestoreIcon, WarningIcon, type Icon } from "@/components/icons";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Drawer, FloatingSheetContent, FloatingSheetHeader } from "@/components/ui/drawer";
 import { Spinner } from "@/components/ui/spinner";
 import { phone } from "@/lib/wallet/phone";
 import { RowBody } from "../../history/_components/tx-row";
-import { dayLabel, transactions } from "../../history/data";
+import { dayLabel, transactions, type Tx } from "../../history/data";
+import { transferToTx } from "../../history/live";
 import { sectionLabel } from "../../_components/list";
 import { Money } from "../../_components/money";
-import { useWallet } from "../../_components/wallet";
+import { forgetWallet, refreshWallet, useActivity, useWallet, type WalletSnapshot } from "../../_components/wallet";
 import { tiles, type Tile, type TileId } from "../data";
 import { AssetTile, tileLooks } from "./asset-tile";
+import { MoneyPlaceholder } from "./blur-money";
 import { PromoStack } from "./promo-stack";
+
+// Cash is the wallet's USDC. A phone with no wallet shows the design preview; unknown holds the amount's place.
+const cashWhen: Record<Exclude<WalletSnapshot["status"], "ready">, number | undefined> = {
+  none: tiles.find((t) => t.id === "cash")!.value,
+  missing: 0,
+  loading: undefined,
+  offline: undefined,
+};
+
+/**
+ * The wallet as Home shows it. Removing it from Home leaves for the welcome screen, so until Home is gone it keeps
+ * showing that wallet instead of repainting as the design preview on its way out.
+ */
+function useHomeWallet(): WalletSnapshot {
+  const live = useWallet();
+  const [shown, setShown] = useState(live);
+  const removed = live.status === "none" && shown.status !== "none" && shown.status !== "loading";
+  if (live !== shown && !removed) setShown(live);
+  return shown;
+}
+
+/**
+ * Home's tiles with Cash read from the wallet; Accounts and the chart share the store, so both change in one commit.
+ * Until Cash is known every tile holds, so Home's numbers type in together.
+ */
+export function useTiles(): Tile[] {
+  const wallet = useHomeWallet();
+  const cash = wallet.status === "ready" ? wallet.wallet.usdc : cashWhen[wallet.status];
+  return useMemo(() => tiles.map((t) => ({ ...t, value: cash === undefined ? undefined : t.id === "cash" ? cash : t.value })), [cash]);
+}
 
 /** The Home grid. Tiles without a screen of their own, and the Earn promo, open an account sheet in place. */
 export function Accounts() {
-  const [version, setVersion] = useState(0);
-  const wallet = useWallet(version);
-  // Cash is the wallet's USDC; the other tiles stay mocked.
-  const shown = wallet ? tiles.map((t) => (t.id === "cash" ? { ...t, value: wallet.usdc } : t)) : tiles;
+  const wallet = useHomeWallet();
+  const shown = useTiles();
+  // Read while Home shows, so the Cash sheet opens on its transfers.
+  useActivity();
+  const alert = alertFor(wallet);
   const [open, setOpen] = useState(false);
   // Kept after close so the sheet's content doesn't vanish mid-exit.
   const [id, setId] = useState<TileId>("cash");
@@ -33,7 +67,15 @@ export function Accounts() {
   return (
     <>
       <div className="mt-6 flex flex-col gap-3 lg:mt-10">
-        {wallet?.recovering && <RecoveryAlert onCancelled={() => setVersion((v) => v + 1)} />}
+        {alert ? (
+          <WalletAlert key={alert.kind} alert={alert} />
+        ) : (
+          wallet.status === "offline" && (
+            <p role="status" className="text-caption text-muted-foreground">
+              Can&apos;t reach Swissquote. Your balance updates when it&apos;s back.
+            </p>
+          )
+        )}
         <section aria-label="Accounts" className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-2">
           {shown.map((tile, i) => (
             <AssetTile key={tile.id} tile={tile} index={i} onOpen={() => show(tile.id)} />
@@ -45,7 +87,7 @@ export function Accounts() {
       <Drawer open={open} onOpenChange={setOpen}>
         <FloatingSheetContent>
           <div className="min-h-0 overflow-y-auto px-4 pb-4">
-            <AccountSheet tile={shown.find((t) => t.id === id)!} />
+            <AccountSheet tile={shown.find((t) => t.id === id)!} wallet={wallet} />
           </div>
         </FloatingSheetContent>
       </Drawer>
@@ -53,7 +95,52 @@ export function Accounts() {
   );
 }
 
-function RecoveryAlert({ onCancelled }: { onCancelled: () => void }) {
+const restoreDate = (executeAfter: number) =>
+  new Date(executeAfter * 1000).toLocaleString("en-GB", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+
+type Alert = { kind: "recovering" | "restoring" | "moved" | "missing"; Icon: Icon; tone: string; title: string; line: string };
+
+/** What Home has to say about the wallet itself, if anything. */
+function alertFor(wallet: WalletSnapshot): Alert | undefined {
+  if (wallet.status === "missing")
+    return {
+      kind: "missing",
+      Icon: WarningIcon,
+      tone: "text-pending",
+      title: "Swissquote can’t find this wallet",
+      line: "The network it lived on was reset.",
+    };
+  if (wallet.status !== "ready") return undefined;
+  const { controls, recovery } = wallet.wallet;
+  if (controls)
+    return recovery && !recovery.mine
+      ? {
+          kind: "recovering",
+          Icon: WarningIcon,
+          tone: "text-pending",
+          title: "Someone started recovering your wallet",
+          line: `If it wasn’t you, cancel it before ${restoreDate(recovery.executeAfter)}.`,
+        }
+      : undefined;
+  return recovery?.mine
+    ? {
+        kind: "restoring",
+        Icon: RestoreIcon,
+        tone: "text-purple",
+        title: "Your wallet is being restored",
+        line: `It completes on ${restoreDate(recovery.executeAfter)}, and this phone can send once it does.`,
+      }
+    : {
+        kind: "moved",
+        Icon: PhoneIcon,
+        tone: "text-muted-foreground",
+        title: "Your wallet moved to another phone",
+        line: "It was recovered on another phone, so this one can’t send from it any more.",
+      };
+}
+
+function WalletAlert({ alert: { kind, Icon, tone, title, line } }: { alert: Alert }) {
+  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -61,32 +148,54 @@ function RecoveryAlert({ onCancelled }: { onCancelled: () => void }) {
     setBusy(true);
     setFailed(false);
     const ok = await phone.cancelRecovery().then(() => true, () => false);
+    if (ok) await refreshWallet();
     setBusy(false);
-    if (ok) onCancelled();
-    else setFailed(true);
+    setFailed(!ok);
+  };
+
+  const remove = () => {
+    forgetWallet();
+    router.replace("/onboarding-welcome");
   };
 
   return (
     <section role="alert" className="flex gap-3 rounded-[22px] bg-secondary p-4">
-      <WarningIcon className="shrink-0 text-pending" />
+      <Icon className={`shrink-0 ${tone}`} />
       <div className="min-w-0 flex-1">
-        <h2 className="text-label">Someone started recovering your wallet</h2>
-        <p className="mt-1 text-body text-pretty text-muted-foreground">
-          If it wasn&apos;t you, cancel it before the 48-hour hold ends. Your wallet stays on this phone.
-        </p>
+        <h2 className="text-label">{title}</h2>
+        <p className="mt-1 text-body text-pretty text-muted-foreground">{line}</p>
         {failed && <p className="mt-2 text-caption text-negative">The recovery wasn&apos;t cancelled. Try again.</p>}
-        <Button size="sm" onClick={cancel} disabled={busy} aria-busy={busy} className="mt-3">
-          {busy ? <Spinner aria-hidden /> : <FaceIdIcon size={16} />}
-          Cancel recovery
-        </Button>
+        {kind === "recovering" ? (
+          <Button size="sm" onClick={cancel} disabled={busy} aria-busy={busy} className="mt-3">
+            {busy ? <Spinner aria-hidden /> : <FaceIdIcon size={16} />}
+            Cancel recovery
+          </Button>
+        ) : kind === "restoring" ? (
+          <Link href="/recover" transitionTypes={["push"]} className={buttonVariants({ size: "sm", className: "mt-3" })}>
+            View progress
+          </Link>
+        ) : (
+          <Button size="sm" onClick={remove} className="mt-3">
+            Remove from this phone
+          </Button>
+        )}
       </div>
     </section>
   );
 }
 
-function AccountSheet({ tile }: { tile: Tile }) {
+/** The account's latest rows: the wallet's own transfers for Cash, mock ones otherwise. Undefined until they're read. */
+function recentActivity(id: TileId, wallet: WalletSnapshot): Tx[] | undefined {
+  if (id !== "cash" || wallet.status === "none") return transactions.filter((t) => t.account === id).slice(0, 4);
+  if (wallet.status === "missing") return [];
+  if (wallet.status !== "ready") return undefined;
+  const { activity, address } = wallet.wallet;
+  return activity?.slice(0, 4).map((t) => transferToTx(t, address));
+}
+
+function AccountSheet({ tile, wallet }: { tile: Tile; wallet: WalletSnapshot }) {
   const { Icon, fill } = tileLooks[tile.id];
-  const activity = transactions.filter((t) => t.account === tile.id).slice(0, 4);
+  const activity = recentActivity(tile.id, wallet);
 
   return (
     <>
@@ -98,21 +207,20 @@ function AccountSheet({ tile }: { tile: Tile }) {
         }
         title={tile.label}
       >
-        <p className="mt-1 text-amount">
-          <Money value={tile.value} />
-        </p>
+        <p className="mt-1 text-amount">{tile.value === undefined ? <MoneyPlaceholder /> : <Money value={tile.value} />}</p>
         {"about" in tile && <p className="mt-1 text-body text-pretty text-muted-foreground">{tile.about}</p>}
       </FloatingSheetHeader>
 
       <section aria-label="Recent activity" className="mt-8">
         <h3 className={sectionLabel}>Recent activity</h3>
         <ul>
-          {activity.map((t) => (
+          {activity?.map((t) => (
             <li key={t.id} className="flex min-h-[68px] items-center gap-4 py-3">
               <RowBody tx={t} when={dayLabel(t.date)} />
             </li>
           ))}
         </ul>
+        {activity?.length === 0 && <p className="py-3 text-body text-muted-foreground">No activity yet</p>}
       </section>
 
       <Link
