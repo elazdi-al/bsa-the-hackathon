@@ -3,9 +3,10 @@
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useReducer, useRef } from "react";
+import type { Hex } from "viem";
 import { blurred, sharp, smooth } from "@/app/(tabs)/_components/transitions";
-import { phone } from "@/lib/wallet/phone";
-import { FAILED, KEYS, RECOVERY_FILE, SETUP } from "../data";
+import { phone, RECOVERY_FILE } from "@/lib/wallet/phone";
+import { FAILED, KEYS, SETUP } from "../data";
 import { flowReducer, initialFlow, keyState, pendingTimer, toneOf, type Keys } from "../flow";
 import { CreateButton } from "./create-button";
 import { GlimmBackdrop } from "./glimm-backdrop";
@@ -21,7 +22,7 @@ const entrance = (delay: number) => ({
 });
 
 /** Hands the Recovery Key to the share sheet, or downloads it where files can't be shared. */
-function saveRecoveryKey(secret: string): Promise<void> {
+function saveRecoveryKey(secret: Hex): Promise<void> {
   const file = new File([RECOVERY_FILE.text(secret)], RECOVERY_FILE.name, { type: "text/plain" });
   if (navigator.canShare?.({ files: [file] })) return navigator.share({ files: [file] });
   const url = URL.createObjectURL(file);

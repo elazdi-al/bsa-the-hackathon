@@ -307,6 +307,13 @@ function rebuild(first: Share, second: Share, signer: Address): Hex {
   return key;
 }
 
+/** The Recovery Key file the client keeps at home. `readRecoveryKey` reads it back. */
+export const RECOVERY_FILE = {
+  name: "Swissquote Wallet Recovery Key.txt",
+  text: (secret: Hex) =>
+    `Swissquote Wallet Recovery Key\n\n${secret}\n\nIf you lose your phone, this key restores your wallet on a new one, after Swissquote checks your ID and a 48-hour hold you can cancel. Keep it safe at home, not on your phone. Swissquote will never ask you to send it.`,
+};
+
 /** The recovery key inside a saved Recovery Key file, or undefined if it holds none. */
 export const readRecoveryKey = (text: string) => text.match(/0x[0-9a-fA-F]{64}/)?.[0] as Hex | undefined;
 

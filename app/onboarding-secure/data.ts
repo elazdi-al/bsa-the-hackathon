@@ -57,12 +57,6 @@ export const HOLDERS: readonly { name: string; Icon: Icon }[] = [
   { name: "Independent service", Icon: CloudIcon },
 ];
 
-export const RECOVERY_FILE = {
-  name: "Swissquote Wallet Recovery Key.txt",
-  text: (secret: string) =>
-    `Swissquote Wallet Recovery Key\n\n${secret}\n\nThis key restores your wallet if you lose your phone. Keep it safe at home, not on your phone. Swissquote will never ask you to send it.`,
-};
-
 /** The setup row's copy by status. Setup only idles after a failed registration; the ready body is the wallet's address. */
 export const SETUP = {
   working: { title: "Setting up your wallet", body: "Your wallet is registering the public side of your three keys." },
