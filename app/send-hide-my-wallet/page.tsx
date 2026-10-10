@@ -18,7 +18,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
   return (
     <Screen>
       <main className="flex min-h-dvh flex-col bg-white pt-[env(safe-area-inset-top)] pb-[max(2rem,env(safe-area-inset-bottom))]">
-        <header className="mx-auto flex h-14 w-full max-w-md shrink-0 items-center gap-3 px-[30px]">
+        <header className="mx-auto mt-4 flex h-10 w-full max-w-md shrink-0 items-center gap-3 px-[30px]">
           <BackButton fallback="/choose-recipient" />
           <h1 className="text-[17px] leading-[22px] font-semibold">Send</h1>
         </header>
