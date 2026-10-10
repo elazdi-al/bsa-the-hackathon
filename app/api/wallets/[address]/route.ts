@@ -1,5 +1,6 @@
 import { erc20Abi, type Address } from "viem";
 import { route } from "@/lib/wallet/api/http.ts";
+import { lockOn } from "@/lib/wallet/api/locks.ts";
 import { liveCredentials, requireWallet } from "@/lib/wallet/api/operations.ts";
 import { addresses, chainNow, isDeployed, pendingRecovery, publicClient } from "@/lib/wallet/env.ts";
 
@@ -15,6 +16,7 @@ export const GET = route(async (_request: Request, ctx: RouteContext<"/api/walle
   return Response.json({
     address: wallet.address,
     ...credentials,
+    locked: !!(await lockOn(wallet, credentials)),
     usdc: usdc.toString(),
     pendingRecovery: pending && { signer: pending.signer, executeAfter: pending.executeAfter },
     chainTime,

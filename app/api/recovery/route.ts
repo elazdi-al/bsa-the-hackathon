@@ -1,19 +1,14 @@
 import { encodeFunctionData } from "viem";
 import * as z from "zod";
 import { accountAbi } from "@/lib/wallet/account.ts";
+import { checkIdentity } from "@/lib/wallet/api/clients.ts";
 import { store } from "@/lib/wallet/api/db.ts";
 import { HttpError, parse, route } from "@/lib/wallet/api/http.ts";
 import { bindShares, prepare } from "@/lib/wallet/api/operations.ts";
 import { chainNow, pendingRecovery } from "@/lib/wallet/env.ts";
-import { address, signature } from "@/lib/wallet/schema.ts";
+import { address, identity, signature } from "@/lib/wallet/schema.ts";
 
-const body = z.object({
-  recoveryKey: address,
-  signer: address,
-  signature,
-  // MOCKED: the ID document scan and liveness selfie Swissquote matches against its KYC record.
-  identity: z.object({ document: z.string().min(1), selfie: z.string().min(1) }),
-});
+const body = z.object({ recoveryKey: address, signer: address, signature, identity });
 
 /**
  * Lost phone, step one. The new phone split a new key with Swissquote and the partner and bound it
@@ -24,6 +19,7 @@ export const POST = route(async (request: Request) => {
   const input = await parse(request, body);
   const wallet = store().walletByRecoveryKey(input.recoveryKey);
   if (!wallet) throw new HttpError(404, "No wallet uses this recovery key.");
+  checkIdentity(wallet.address, input.identity);
   if (await pendingRecovery(wallet.address)) throw new HttpError(409, "A recovery is already pending.");
   const b = await bindShares(input.signer, input.recoveryKey, input.signature);
   const callData = encodeFunctionData({ abi: accountAbi, functionName: "initiateRecovery", args: [input.signer, b.passkey] });
