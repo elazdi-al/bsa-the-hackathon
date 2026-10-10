@@ -43,7 +43,7 @@ export function AddressCard() {
       onClick={(event) => {
         if (!(event.target as Element).closest("button")) inputRef.current?.focus();
       }}
-      className="mx-[15px] mt-[10px] rounded-[22px] border bg-[#fbfbfb] px-4 pt-[17px] pb-4 transition-[scale,background-color] duration-200 ease-out not-has-[button:active]:active:scale-[1.01] not-has-[button:active]:active:bg-white"
+      className="mx-[15px] mt-[10px] rounded-[22px] border bg-surface px-4 pt-[17px] pb-4 transition-[scale,background-color,border-color] duration-200 ease-out not-has-[button:active]:active:scale-[1.01] not-has-[button:active]:active:bg-white has-[input:focus]:border-fuse-blue/40 has-[input:focus]:bg-white"
     >
       <div className="flex h-[22px] items-center gap-3">
         <input
@@ -74,7 +74,8 @@ export function AddressCard() {
               initial="hidden"
               animate="shown"
               exit="hidden"
-              className="relative mb-1 grid size-4 place-items-center rounded-full text-[#d4d4d4] after:absolute after:-inset-3.5 focus-visible:outline-2 focus-visible:outline-fuse-blue"
+              whileTap={{ scale: 0.96 }}
+              className="relative mb-1 grid size-4 place-items-center rounded-full text-black/20 after:absolute after:-inset-3.5 focus-visible:outline-2 focus-visible:outline-fuse-blue"
             >
               <XCircleIcon weight="fill" size={19} />
             </motion.button>
@@ -89,7 +90,7 @@ export function AddressCard() {
           Continue
         </Button>
         <Button type="button" size="sm" variant="secondary" onClick={paste} className="gap-1.5">
-          <FileIcon weight="bold" size={14} />
+          <FileIcon weight="fill" size={14} />
           Paste
         </Button>
       </div>

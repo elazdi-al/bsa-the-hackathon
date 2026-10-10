@@ -91,7 +91,7 @@ export function BottomBar() {
                 transitionTypes={[transitionFor(pathname, href)]}
                 aria-current={active ? "page" : undefined}
                 aria-label={label}
-                className={`${navIcon} transition-[color,scale] duration-150 active:scale-[0.96] ${active ? "text-black" : "text-[#a8a8a8] hover:text-[#8a8a8a]"}`}
+                className={`${navIcon} transition-[color,scale] duration-150 active:scale-[0.96] ${active ? "text-black" : "text-black/35 hover:text-black/45"}`}
               >
                 <Icon weight="fill" size={25} />
               </Link>
@@ -123,8 +123,8 @@ export function BottomBar() {
             onClick={close}
             className="fixed inset-0 bg-white/90"
             initial={{ opacity: 0 }}
-            animate={{ opacity: 1, transition: { duration: 0.25 } }}
-            exit={{ opacity: 0, transition: { duration: 0.2, delay: 0.05 } }}
+            animate={{ opacity: 1, transition: snappy }}
+            exit={{ opacity: 0, transition: { ...leave, delay: 0.05 } }}
           />
         )}
       </AnimatePresence>

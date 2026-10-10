@@ -1,4 +1,4 @@
-import { CheckCircleIcon, ScanSmileyIcon } from "@phosphor-icons/react";
+import { CheckIcon, ScanSmileyIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion, stagger, type Variants } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { hideMyWalletWords } from "../data";
@@ -70,7 +70,7 @@ export function SendButton({ hidden, phase, onSend }: Props) {
           )}
           {phase === "sent" && (
             <span className="flex items-center gap-2">
-              <CheckCircleIcon aria-hidden weight="fill" className="size-5" />
+              <CheckIcon aria-hidden weight="bold" className="size-[18px]" />
               Sent
             </span>
           )}

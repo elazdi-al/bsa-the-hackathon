@@ -2,12 +2,12 @@
 
 import { MotionConfig } from "motion/react";
 import { useState } from "react";
+import { snappy } from "@/app/(tabs)/_components/transitions";
 import { useBack } from "@/components/navigation";
 import { BackButton } from "@/components/ui/back-button";
 import { Drawer, DrawerClose, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { sendDraft } from "../data";
 import { AddressCard } from "./address-card";
-import { swapSpring } from "./motion";
 import { RecentAddresses } from "./recent-addresses";
 
 type Props = {
@@ -19,7 +19,7 @@ type Props = {
 
 export function RecipientSheet({ open, onOpenChange, onClosed }: Props) {
   return (
-    <MotionConfig reducedMotion="user" transition={swapSpring}>
+    <MotionConfig reducedMotion="user" transition={snappy}>
       <Drawer
         open={open}
         onOpenChange={(isOpen) => {

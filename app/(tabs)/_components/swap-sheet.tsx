@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { BackButton } from "@/components/ui/back-button";
 import { Drawer, DrawerClose, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { Spinner } from "@/components/ui/spinner";
+import { blurred, leave, sharp, snappy } from "./transitions";
 
 type Side = "sol" | "usdc";
 const held = (id: CoinId) => coins.find((c) => c.id === id)!;
@@ -21,7 +22,8 @@ const info: Record<Side, { symbol: string; balance: number; price: number }> = {
 };
 
 const fmt = (n: number, max = 2) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: max });
-const swapIn = { initial: { opacity: 0, scale: 0.25, filter: "blur(4px)" }, animate: { opacity: 1, scale: 1, filter: "blur(0px)" }, exit: { opacity: 0, scale: 0.25, filter: "blur(4px)" }, transition: { type: "spring", duration: 0.3, bounce: 0 } } as const;
+// The label cross-fades through blur, like the Send button's.
+const labelSwap = { initial: { opacity: 0, filter: blurred }, animate: { opacity: 1, filter: sharp, transition: snappy }, exit: { opacity: 0, filter: blurred, transition: leave } };
 
 function Token({ side }: { side: Side }) {
   return (
@@ -34,7 +36,7 @@ function Token({ side }: { side: Side }) {
   );
 }
 
-const card = "rounded-[24px] border border-black/[0.06] bg-[#f7f7f7] p-4";
+const card = "rounded-[24px] border border-black/[0.06] bg-surface p-4 transition-[border-color,background-color] duration-150 ease-out";
 
 export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onOpenChange: (o: boolean) => void; onClosed: () => void }) {
   const [from, setFrom] = useState<Side>("sol");
@@ -96,7 +98,7 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
         </header>
 
         <div className="overflow-y-auto px-5 pt-3">
-          <section className={card} aria-label="From">
+          <section className={`${card} has-[input:focus]:border-fuse-blue/40 has-[input:focus]:bg-white`} aria-label="From">
             <div className="flex items-center justify-between text-[14px] text-black/40">
               <span>From</span>
               <span className="flex items-center gap-2">
@@ -106,7 +108,7 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
                 <button
                   type="button"
                   onClick={() => setText(String(info[from].balance))}
-                  className="grid h-6 place-items-center rounded-full bg-black/[0.06] px-2.5 text-[12px] font-semibold text-black outline-none transition-[scale,background-color] duration-150 ease-out relative after:absolute after:-inset-x-2 after:-inset-y-2.5 hover:bg-black/10 focus-visible:ring-2 focus-visible:ring-black/20 active:scale-[0.96]"
+                  className="grid h-6 place-items-center rounded-full bg-black/[0.06] px-2.5 text-[12px] font-semibold text-black outline-none transition-[scale,background-color] duration-150 ease-out relative after:absolute after:-inset-x-2 after:-inset-y-2.5 hover:bg-black/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:scale-[0.96]"
                 >
                   Max
                 </button>
@@ -121,7 +123,7 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
                 value={text}
                 disabled={phase !== "idle"}
                 onChange={(e) => /^\d*\.?\d*$/.test(e.target.value) && setText(e.target.value)}
-                className={`min-w-0 flex-1 bg-transparent text-[34px] leading-10 font-bold tracking-[-0.03em] tabular-nums outline-none placeholder:text-black/20 ${over ? "text-[#e5484d]" : ""}`}
+                className={`min-w-0 flex-1 bg-transparent text-[34px] leading-10 font-bold tracking-[-0.03em] tabular-nums outline-none placeholder:text-black/20 ${over ? "text-negative" : ""}`}
               />
               <Token side={from} />
             </div>
@@ -135,8 +137,8 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
               disabled={phase !== "idle"}
               animate={{ rotate: flips * 180 }}
               whileTap={{ scale: 0.96 }}
-              transition={{ type: "spring", duration: 0.3, bounce: 0 }}
-              className="grid size-11 place-items-center rounded-full border-4 border-white bg-black text-white outline-none focus-visible:ring-2 focus-visible:ring-black/20 disabled:opacity-35"
+              transition={snappy}
+              className="grid size-11 place-items-center rounded-full border-4 border-white bg-black text-white outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-35"
             >
               <ArrowsDownUpIcon size={18} weight="bold" />
             </motion.button>
@@ -174,7 +176,7 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
                   </sup>
                   <span className="sr-only"> Plus</span>
                 </span>{" "}
-                <span className="text-[#30b256]">Covered</span>
+                <span className="text-positive">Covered</span>
               </dd>
             </div>
           </dl>
@@ -184,10 +186,10 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
             onClick={submit}
             disabled={disabled || phase !== "idle"}
             aria-busy={phase === "busy"}
-            className={`mt-5 h-14 w-full ${phase !== "idle" ? "disabled:opacity-100" : ""} ${phase === "done" ? "bg-[#30b256] hover:bg-[#30b256]" : ""}`}
+            className={`mt-5 h-14 w-full ${phase !== "idle" ? "disabled:opacity-100" : ""} ${phase === "done" ? "bg-positive hover:bg-positive" : ""}`}
           >
             <AnimatePresence initial={false} mode="popLayout">
-              <motion.span key={label} className="flex items-center gap-2" {...swapIn}>
+              <motion.span key={label} className="flex items-center gap-2" {...labelSwap}>
                 {phase === "busy" && <Spinner className="size-5" />}
                 {phase === "done" && <CheckIcon size={20} weight="bold" />}
                 {label}

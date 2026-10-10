@@ -40,7 +40,7 @@ function Qr() {
   const d = useMemo(() => qrPath(wallet.address), []);
   return (
     <div className="relative size-[200px]">
-      <svg viewBox={`0 0 ${N} ${N}`} className="size-full" shapeRendering="crispEdges" fill="#0a0a0a" aria-hidden>
+      <svg viewBox={`0 0 ${N} ${N}`} className="size-full" shapeRendering="crispEdges" fill="currentColor" aria-hidden>
         <path d={d} />
         <Finder x={0} y={0} />
         <Finder x={N - 7} y={0} />
@@ -105,7 +105,7 @@ export function ReceiveSheet({ open, onOpenChange, onClosed }: { open: boolean; 
         </header>
 
         <div className="flex flex-col items-center overflow-y-auto px-5 pt-3">
-          <div className="rounded-[28px] border border-black/[0.06] bg-[#f7f7f7] p-4">
+          <div className="rounded-[28px] border border-black/[0.06] bg-surface p-4">
             <div className="rounded-2xl bg-white p-3">
               <Qr />
             </div>

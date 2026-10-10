@@ -18,9 +18,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
   return (
     <Screen>
       <main className="flex min-h-dvh flex-col bg-white pt-[env(safe-area-inset-top)] pb-[max(2rem,env(safe-area-inset-bottom))]">
-        <header className="relative flex h-14 shrink-0 items-center justify-center px-4">
-          <BackButton fallback="/choose-recipient" className="absolute left-3.5" />
-          <h1 className="text-[17px] font-semibold">Send</h1>
+        <header className="mx-auto flex h-14 w-full max-w-md shrink-0 items-center gap-3 px-[30px]">
+          <BackButton fallback="/choose-recipient" />
+          <h1 className="text-[17px] leading-[22px] font-semibold">Send</h1>
         </header>
 
         <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-[30px] md:justify-center">
@@ -35,7 +35,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
           <section aria-label="Recipient" className="flex items-center gap-3">
             <span
               aria-hidden
-              className="grid size-[42px] shrink-0 place-items-center rounded-full bg-[#e8e6e7] text-[23px] shadow-[inset_0_0_0_1px_rgb(0_0_0/0.03)]"
+              className="grid size-[42px] shrink-0 place-items-center rounded-full bg-black/[0.09] text-[23px] shadow-[inset_0_0_0_1px_rgb(0_0_0/0.03)]"
             >
               {shown.avatar ?? <CardholderIcon weight="fill" size={20} />}
             </span>
@@ -50,7 +50,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
             ) : null}
           </section>
 
-          <hr className="mt-6 h-px border-0 bg-[repeating-linear-gradient(90deg,#e4e4e4_0_8px,transparent_8px_17px)]" />
+          <hr className="mt-6 h-px border-0 bg-[repeating-linear-gradient(90deg,rgb(0_0_0/0.1)_0_8px,transparent_8px_17px)]" />
 
           <dl className="flex items-center justify-between pt-3 text-[15px] leading-5 tracking-[-0.24px]">
             <dt className="text-black/35">Onchain fees</dt>

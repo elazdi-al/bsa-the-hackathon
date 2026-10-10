@@ -42,12 +42,12 @@ function describe(status: Status) {
       };
     case "resolved":
       return {
-        icon: <SealCheckIcon weight="fill" size={16} className="text-[#34c759]" />,
+        icon: <SealCheckIcon weight="fill" size={16} className="text-positive" />,
         text: shortAddress(status.address),
       };
     case "notFound":
       return {
-        icon: <SealWarningIcon weight="fill" size={16} className="text-[#ff3b30]" />,
+        icon: <SealWarningIcon weight="fill" size={16} className="text-negative" />,
         text: "Handle not found",
       };
   }
