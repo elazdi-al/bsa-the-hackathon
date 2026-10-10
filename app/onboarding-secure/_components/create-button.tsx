@@ -1,10 +1,11 @@
 import { AnimatePresence, motion } from "motion/react";
+import type { MouseEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import type { Icon } from "@/components/icons";
 import { blurSwap } from "./motion";
 
-type Props = { label: string; Icon?: Icon; accent?: string; busy: boolean; error?: string; onPress: () => void };
+type Props = { label: string; Icon?: Icon; accent?: string; busy: boolean; error?: string; onPress: (event: MouseEvent) => void };
 
 export function CreateButton({ label, Icon, accent, busy, error, onPress }: Props) {
   return (

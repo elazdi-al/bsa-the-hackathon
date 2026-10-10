@@ -164,7 +164,8 @@ export function SecureFlow() {
                       Icon={CheckIcon}
                       accent={current.accent}
                       busy={false}
-                      onPress={() => confirmSaved(step.keys)}
+                      // Without a share sheet the file saves at once, so the second click of a double click lands here.
+                      onPress={(event) => event.detail < 2 && confirmSaved(step.keys)}
                     />
                   ) : (
                     <CreateButton

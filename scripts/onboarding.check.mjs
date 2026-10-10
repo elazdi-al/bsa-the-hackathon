@@ -79,7 +79,8 @@ const secretOf = async (download) => (await readFile(await download.path(), "utf
   let registrations = 0;
   page.on("request", (r) => new URL(r.url()).pathname === "/api/wallets" && r.method() === "POST" && registrations++);
   await page.route("**/api/wallets", (r) => (r.request().method() === "POST" ? r.abort() : r.continue()));
-  const [download] = await Promise.all([page.waitForEvent("download"), button(page, "Save Recovery Key").click()]);
+  // A double click: without a share sheet the file saves at once, and its second click must not confirm.
+  const [download] = await Promise.all([page.waitForEvent("download"), button(page, "Save Recovery Key").dblclick()]);
   assert.equal(download.suggestedFilename(), "Swissquote Wallet Recovery Key.txt");
   const secret = await secretOf(download);
   assert.ok(secret, "the file holds the recovery key");
