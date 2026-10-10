@@ -105,8 +105,9 @@ export function ReceiveSheet({ open, onOpenChange, onClosed }: { open: boolean; 
         </header>
 
         <div className="flex flex-col items-center overflow-y-auto px-5 pt-3">
-          <div className="rounded-[28px] border border-black/[0.06] bg-surface p-4">
-            <div className="rounded-2xl bg-white p-3">
+          {/* Home's tile surface; the white plate is 28 - 1 - 16 = 11px round so the corners stay concentric. */}
+          <div className="rounded-[28px] border border-black/[0.035] bg-surface p-4">
+            <div className="rounded-[11px] bg-white p-3">
               <Qr />
             </div>
           </div>
