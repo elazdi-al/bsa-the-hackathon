@@ -1,8 +1,9 @@
 "use client";
 
 import { AnimatePresence, MotionConfig, motion, type Variants } from "motion/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
+import type { Hex } from "viem";
 import { Money } from "@/app/(tabs)/_components/money";
 import { LightningIcon, type Icon } from "@/components/icons";
 import { useBack } from "@/components/navigation";
@@ -69,9 +70,13 @@ export function TransactionSheet({
 
 /**
  * A direct visit to /transaction-tracking: the sheet is up on arrival and closing it leaves the screen.
+ * With `hash`, `amount` and `to` it tracks that send; without, the mock USDC withdrawal.
  * A live send has nothing to go back to (its review is spent), so it closes to Home.
  */
-export function TransactionRoute({ live }: { live?: Live }) {
+export function TransactionRoute() {
+  const params = useSearchParams();
+  const [hash, amount, to] = [params.get("hash"), params.get("amount"), params.get("to")];
+  const live = hash !== null && amount !== null && to !== null ? { hash: hash as Hex, amount, to } : undefined;
   const router = useRouter();
   const back = useBack("/history");
   const [open, setOpen] = useState(true);

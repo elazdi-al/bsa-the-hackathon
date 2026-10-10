@@ -7,6 +7,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "ios": "CAPACITOR=1 next build && cap sync ios",
+    "ios:sim": "NEXT_PUBLIC_SOFTWARE_PASSKEY=1 npm run ios",
+    "ios:open": "cap open ios",
     "typecheck": "next typegen && tsc --noEmit",
     "prelocal": "node -e \"process.versions.node.localeCompare('22.18',undefined,{numeric:true})<0&&(console.error('Node 22.18 or later is needed, found '+process.version+'. Get it at https://nodejs.org'),process.exit(1))\"",
     "local": "node scripts/local.ts",
@@ -30,6 +33,8 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
+    "@capacitor/core": "~8.5.3",
+    "@capacitor/ios": "~8.5.3",
     "@noble/curves": "^2.4.0",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.4.0",
@@ -47,6 +52,7 @@
     "zod": "4.6.5"
   },
   "devDependencies": {
+    "@capacitor/cli": "~8.5.3",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^24.19.2",
     "@types/react": "^19",

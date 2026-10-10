@@ -198,6 +198,22 @@ Run `npm run partner` and `npm run dev` in two terminals. The CLI commands work 
 
 **Pitch deck.** [slides/index.html](slides/index.html) is one HTML file that loads its app screens from `slides/screens/`. Open it in a browser. Arrow keys, Space, a click or a swipe move between slides, F toggles full screen, and printing gives one 16:9 page per slide. With `npm run dev` running, `node slides/capture.ts home onboarding-secure` captures fresh screens.
 
+### Run it on iOS
+
+The iOS app bundles the screens and the phone's code, so Swissquote's server never serves the code that sits next to Share A. The app calls the API at http://localhost:3000, which the iOS Simulator reaches on your Mac. You need Xcode.
+
+Run `npm run local` in one terminal. In a second terminal:
+
+```bash
+npm run ios        # static export into out/, copied into ios/
+npm run ios:sim    # the same, with a software passkey
+npm run ios:open   # opens the project in Xcode
+```
+
+In Xcode, pick an iPhone simulator and press Run. With `PORT=3200 npm run local`, build with `NEXT_PUBLIC_API_URL=http://localhost:3200 npm run ios`.
+
+`npm run ios` is the real-passkey build. Real passkeys need an associated domain, and an app on `localhost` cannot have one, so WebKit refuses them. `npm run ios:sim` builds for the simulator with a software passkey kept in the web view's storage instead. It is for the simulator only and must never ship.
+
 ## What is mocked and the production path
 
 Real in this build: the Shamir split with verified shares, passkeys verified on-chain, the ERC-4337 account and factory, Swissquote's paymaster, the 48-hour on-chain delay, the independent service as a separate process with its own storage, and the compliance engine.

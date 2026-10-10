@@ -1,12 +1,13 @@
 "use client";
 
 import { MotionConfig } from "motion/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { encodeFunctionData, erc20Abi, parseUnits, type Address, type Hex } from "viem";
 import { usd } from "@/app/(tabs)/_components/money";
 import { refreshWallet, useWallet, type WalletSnapshot } from "@/app/(tabs)/_components/wallet";
-import { sendDraft } from "@/app/choose-recipient/data";
+import { recipientFor, sendDraft } from "@/app/choose-recipient/data";
+import { WalletIcon } from "@/components/icons";
 import { useBack } from "@/components/navigation";
 import { BackButton } from "@/components/ui/back-button";
 import { ApiError, phone, type Prepared } from "@/lib/wallet/phone";
@@ -50,8 +51,34 @@ function failure(e: unknown): string[] {
   return [e.message, ...(decision?.reasons ?? [])];
 }
 
+export function SendReview({ children }: { children: ReactNode }) {
+  const to = useSearchParams().get("to");
+  const shown = to === null ? null : recipientFor(to);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!shown) router.replace("/choose-recipient");
+  }, [shown, router]);
+
+  if (to === null || !shown) return null;
+  return (
+    <Review to={to} address={shown.address as Address}>
+      <section aria-label="Recipient" className="flex items-center gap-4">
+        <span aria-hidden className="grid size-11 shrink-0 place-items-center rounded-full bg-secondary text-muted-foreground">
+          <WalletIcon />
+        </span>
+        <p className="min-w-0 flex-1">
+          <span className="block truncate text-label">{shown.name}</span>
+          <span className="block truncate text-body text-muted-foreground">{shown.detail}</span>
+        </p>
+      </section>
+      {children}
+    </Review>
+  );
+}
+
 /** Continue asks Swissquote to sponsor the transfer; Send is Face ID approving exactly that operation. */
-export function SendReview({ to, address, usdc, children }: { to: string; address: Address; usdc: Address; children: ReactNode }) {
+function Review({ to, address, children }: { to: string; address: Address; children: ReactNode }) {
   const router = useRouter();
   const back = useBack("/choose-recipient");
   const [amount, setAmount] = useState("25");
@@ -90,7 +117,7 @@ export function SendReview({ to, address, usdc, children }: { to: string; addres
     try {
       setPrepared(
         await phone.prepare({
-          to: usdc,
+          to: (await phone.config()).usdc,
           data: encodeFunctionData({ abi: erc20Abi, functionName: "transfer", args: [address, parseUnits(amount, 6)] }),
         }),
       );

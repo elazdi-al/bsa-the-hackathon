@@ -2,8 +2,8 @@
 // wallet key from A and Swissquote's B, then keeps the key in memory only: for three hours at
 // most, and never past the app closing. It builds every call itself, and before Face ID signs it
 // checks that Swissquote's operation carries that call, is sponsored, and hashes to what it signs.
-import { WebAuthnP256 } from "ox";
-import { bytesToHex, encodeFunctionData, erc20Abi, hexToBytes, isAddressEqual, numberToHex, parseUnits, type Address, type Hex } from "viem";
+import { P256, WebAuthnP256 } from "ox";
+import { bytesToHex, encodeFunctionData, erc20Abi, hexToBytes, isAddressEqual, numberToHex, parseUnits, sha256, type Address, type Hex } from "viem";
 import { formatUserOperation, getUserOperationHash, type RpcUserOperation } from "viem/account-abstraction";
 import { generatePrivateKey, privateKeyToAccount, privateKeyToAddress } from "viem/accounts";
 import {
@@ -170,6 +170,7 @@ export function createPhone({ api = "", partner, authenticator, storage }: { api
     forgetKey,
     prepare,
     approve,
+    config: getConfig,
     hasWallet: () => !!device()?.address,
     async state(): Promise<WalletState> {
       const d = requireWallet();
@@ -333,10 +334,40 @@ const browserAuthenticator: Authenticator = {
   },
 };
 
+/** A passkey in software, for phones simulated in Node and the iOS Simulator build. */
+export function softwareAuthenticator(privateKey: Hex, origin: string): Authenticator {
+  const { x, y } = P256.getPublicKey({ privateKey });
+  const prf = sha256(privateKey, "bytes");
+  return {
+    create: async () => ({ id: "software", passkey: { x: numberToHex(x, { size: 32 }), y: numberToHex(y, { size: 32 }) } }),
+    async sign(_id, challenge) {
+      // The API checks rpId against the hostname it is reached at, so both follow the API's origin.
+      const { metadata, payload } = WebAuthnP256.getSignPayload({ challenge, origin, rpId: new URL(origin).hostname });
+      return { assertion: { metadata, signature: P256.sign({ payload, privateKey, hash: true }) }, secret: prf };
+    },
+  };
+}
+
+const PASSKEY = "swissquote.wallet.passkey";
+
+// WebKit refuses real passkeys to an app without an associated domain, so the Simulator build keeps
+// one in plain web storage. That build must never ship.
+function simulatorPasskey() {
+  let key = localStorage.getItem(PASSKEY) as Hex | null;
+  if (!key) localStorage.setItem(PASSKEY, (key = P256.randomPrivateKey()));
+  return softwareAuthenticator(key, process.env.NEXT_PUBLIC_API_URL || location.origin);
+}
+
+const simulatorAuthenticator: Authenticator = {
+  create: (name) => simulatorPasskey().create(name),
+  sign: (id, challenge) => simulatorPasskey().sign(id, challenge),
+};
+
 /** The app's phone. Storage is read lazily, so server rendering can import this module. */
 export const phone = createPhone({
+  api: process.env.NEXT_PUBLIC_API_URL ?? "",
   partner: process.env.NEXT_PUBLIC_PARTNER_URL ?? "http://localhost:4002",
-  authenticator: browserAuthenticator,
+  authenticator: process.env.NEXT_PUBLIC_SOFTWARE_PASSKEY === "1" ? simulatorAuthenticator : browserAuthenticator,
   storage: {
     getItem: (key) => localStorage.getItem(key),
     setItem: (key, value) => localStorage.setItem(key, value),

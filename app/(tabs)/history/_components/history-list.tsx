@@ -2,6 +2,7 @@
 
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { CopyButton } from "@/app/transaction-tracking/_components/copy-button";
 import { TransactionSheet } from "@/app/transaction-tracking/_components/transaction-sheet";
@@ -10,7 +11,7 @@ import { Drawer, FloatingSheetContent, FloatingSheetHeader } from "@/components/
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { rowPress, sectionLabel } from "../../_components/list";
 import { blurred, leave, reveal, sharp, snappy } from "../../_components/transitions";
-import { tiles, type TileId } from "../../home/data";
+import { tiles } from "../../home/data";
 import { byDay, filters, fullDate, transactions, type Filter, type Tx } from "../data";
 import { useLiveTxs } from "../live";
 import { Amount, Glyph, RowBody } from "./tx-row";
@@ -28,7 +29,9 @@ const arrive = {
 // The session's first History visit staggers its rows in; revisits just show them.
 let introPlayed = false;
 
-export function HistoryList({ account }: { account?: TileId }) {
+export function HistoryList() {
+  const scope = tiles.find((t) => t.id === useSearchParams().get("account"));
+  const account = scope?.id;
   const [filter, setFilter] = useState<Filter>("all");
   const [open, setOpen] = useState(false);
   // Kept after close so the sheet's content doesn't vanish mid-exit.
@@ -39,7 +42,6 @@ export function HistoryList({ account }: { account?: TileId }) {
   const scoped = [...live.txs, ...(live.real ? [] : transactions)].filter((t) => !account || t.account === account);
   const shown = scoped.filter(filters[filter].match);
   const groups = byDay(shown);
-  const scope = tiles.find((t) => t.id === account);
 
   const [intro] = useState(() => !introPlayed);
   // motion reads `initial` only on mount, so entrances belong to the first render: whatever a filter change mounts later
