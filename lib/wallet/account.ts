@@ -24,6 +24,10 @@ export const accountAbi = parseAbi([
   "function passkey() view returns (bytes32 x, bytes32 y)",
   "function recoveryKey() view returns (address)",
   "function pendingRecovery() view returns (address signer, Passkey passkey, uint48 executeAfter)",
+  "error Unauthorized()",
+  "error RecoveryPending()",
+  "error NoRecoveryPending()",
+  "error RecoveryNotReady(uint48 executeAfter)",
 ]);
 
 export const factoryAbi = parseAbi([

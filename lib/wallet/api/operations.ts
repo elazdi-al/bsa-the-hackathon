@@ -233,6 +233,6 @@ export function callAccount(wallet: Address, functionName: "cancelRecovery" | "f
 
 function revertReason(error: unknown) {
   const reverted = error instanceof BaseError ? error.walk((e) => e instanceof ContractFunctionRevertedError) : undefined;
-  if (reverted instanceof ContractFunctionRevertedError && reverted.data) return `${reverted.data.errorName}(${reverted.data.args?.join(", ")})`;
+  if (reverted instanceof ContractFunctionRevertedError && reverted.data) return `${reverted.data.errorName}(${(reverted.data.args ?? []).join(", ")})`;
   return error instanceof BaseError ? error.shortMessage : String(error);
 }

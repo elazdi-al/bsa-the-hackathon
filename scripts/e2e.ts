@@ -1,6 +1,7 @@
 // The protocol end to end against `npm run local`, with phones simulated in Node through the
-// app's own phone module: create a wallet, send, get refused, lose the phone, cancel recoveries
-// both ways, recover after the 48-hour delay and send from the new phone.
+// app's own phone module: create a wallet signed in to Swissquote, send, get refused, refuse an attacker
+// with the stolen phone and email, lose the phone, cancel recoveries both ways, recover after the 48-hour
+// delay and send from the new phone.
 //
 //   npm run e2e
 import assert from "node:assert/strict";
@@ -9,6 +10,7 @@ import { generatePrivateKey, privateKeyToAccount, privateKeyToAddress } from "vi
 import { bindRecoveryKeyMessage, ownershipMessage } from "../lib/wallet/account.ts";
 import { addresses, publicClient } from "../lib/wallet/env.ts";
 import { ApiError } from "../lib/wallet/phone.ts";
+import { attack } from "./attack.ts";
 import { APP, mintUsdc, newPhone } from "./software-phone.ts";
 
 const ANNA = privateKeyToAddress(generatePrivateKey());
@@ -74,7 +76,10 @@ for (const [to, amount] of [[SANCTIONED, "1"], [ANNA, "2000"]] as const) {
   console.log(`   ${amount} USDC: ${decision.status}, ${decision.reasons.join(" ")}`);
 }
 
-console.log("5. Lose the phone. New phone: ID check, new passkey and split; the recovery key signs, B and C rebuild the old key on the new phone");
+console.log("5. An attacker with the stolen phone and the email inbox is refused at every step");
+await attack({ phone: structuredClone(phone.device()!), homeKey: recoveryKey.secret });
+
+console.log("6. Lose the phone. New phone: ID check, new passkey and split; the recovery key signs, B and C rebuild the old key on the new phone");
 const newOne = newPhone();
 // MOCKED: the owner's ID on file stands in for their own ID card and face.
 const { idOnFile } = await newOne.findRecovery(recoveryKey.secret);
@@ -88,16 +93,16 @@ const now = Number((await publicClient.getBlock()).timestamp);
 assert.ok(started.executeAfter >= now + 48 * 3600 - 5, "the delay is 48 hours");
 console.log(`   recovery pending until ${new Date(started.executeAfter * 1000).toISOString()}`);
 
-console.log("6. The old phone cancels it from the app (passkey + key)");
+console.log("7. The old phone cancels it from the app (passkey + key)");
 await phone.cancelRecovery();
 assert.equal((await phone.state()).pendingRecovery, null);
 
-console.log("7. Started again, Swissquote cancels it for the client as guardian");
+console.log("8. Started again, Swissquote cancels it for the client as guardian");
 await newOne.startRecovery(recoveryKey.secret, identity);
 await newOne.cancelRecoveryWithSwissquote(recoveryKey.secret);
 assert.equal((await newOne.state()).pendingRecovery, null);
 
-console.log("8. Started again: finalizing before 48 hours fails, after it succeeds");
+console.log("9. Started again: finalizing before 48 hours fails, after it succeeds");
 await newOne.startRecovery(recoveryKey.secret, identity);
 await refused(newOne.finalizeRecovery(), 409);
 await publicClient.request({ method: "evm_increaseTime", params: [numberToHex(48 * 3600)] } as never);
@@ -107,7 +112,7 @@ const state = await newOne.state();
 assert.equal(state.signer, newOne.device()!.signer);
 assert.equal(state.address, wallet);
 
-console.log("9. New phone sends 5 USDC from the same address; the old phone's credentials are dead");
+console.log("10. New phone sends 5 USDC from the same address; the old phone's credentials are dead");
 await newOne.sendUsdc(ANNA, "5");
 await refused(phone.sendUsdc(ANNA, "1"), 422);
 console.log(`   Anna has ${formatUnits(await usdcOf(ANNA), 6)} USDC, the wallet ${formatUnits(await usdcOf(wallet), 6)} USDC`);

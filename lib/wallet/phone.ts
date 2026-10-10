@@ -337,7 +337,7 @@ async function seal(share: Share, secret: Uint8Array | undefined, signer: Addres
   return { x: share.x, iv: bytesToHex(iv), sealed: bytesToHex(new Uint8Array(sealed)) };
 }
 
-async function unseal(stored: StoredShare, secret: Uint8Array | undefined, signer: Address): Promise<Share> {
+export async function unseal(stored: StoredShare, secret: Uint8Array | undefined, signer: Address): Promise<Share> {
   if ("y" in stored) return stored;
   if (!secret) throw new Error("Face ID did not unlock Share A.");
   const params = { name: "AES-GCM", iv: bytes(stored.iv), additionalData: aad(signer) };

@@ -22,6 +22,7 @@ import { foundry } from "viem/chains";
 import { ownershipMessage } from "../lib/wallet/account.ts";
 import { addresses, chain, credentials, partnerUrl, pendingRecovery, publicClient } from "../lib/wallet/env.ts";
 import { ApiError, readRecoveryKey, RECOVERY_FILE, type Device, type SignedIn } from "../lib/wallet/phone.ts";
+import { attack } from "./attack.ts";
 import { APP, mintUsdc, newPhone } from "./software-phone.ts";
 
 /** `signedIn`: the Swissquote client the account's phone is signed in as (mocked). */
@@ -365,6 +366,19 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
           "",
         ),
       );
+    },
+  },
+
+  attack: {
+    usage: "attack <account>",
+    about: "An attacker with the account's phone and email inbox tries to take its wallet. Every attempt must be refused.",
+    async run([name]) {
+      const { phone, recoveryKey } = loadAccount(name);
+      const device = phone.device();
+      if (!device?.address) throw new Error(`${name} has no wallet.`);
+      if ((await phone.state()).pendingRecovery) throw new Error(`A recovery is pending for ${name}'s wallet. Cancel it first: npm run cancel ${name}.`);
+      await attack({ phone: structuredClone(device), homeKey: recoveryKey });
+      console.log(`Every attempt on ${name}'s wallet was refused.`);
     },
   },
 
