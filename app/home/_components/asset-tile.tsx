@@ -11,12 +11,12 @@ export function AssetTile({ tile, index }: { tile: Tile; index: number }) {
     <>
       <Icon />
       <span className="mt-auto text-[14px] leading-[18px] text-[#adadad]">{tile.label}</span>
-      <span className="mt-1 text-[18px] leading-[22px] font-bold tracking-[-0.01em]">
+      <span className="mt-1 text-[18px] leading-[22px] font-bold tracking-[-0.01em] max-[375px]:text-[16px]">
         <BlurMoney value={tile.value} delay={0.05 + index * 0.08} step={0.035} />
       </span>
     </>
   );
-  const className = `flex flex-col p-5 ${tileSurface}`;
+  const className = `flex flex-col p-5 max-[375px]:p-4 ${tileSurface}`;
 
   return tile.href ? (
     <Link

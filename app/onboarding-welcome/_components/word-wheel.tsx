@@ -18,7 +18,7 @@ export function WordWheel() {
   }, []);
 
   return (
-    <div className="relative flex-1">
+    <div className="relative min-h-[280px] flex-1 overflow-hidden">
       <p className="sr-only">{WORDS.map((w) => w.label).join(", ")}</p>
       <div aria-hidden className="absolute inset-x-0 top-[52px] bottom-0">
         <AnimatePresence initial={false}>
@@ -30,7 +30,7 @@ export function WordWheel() {
             return (
               <motion.div
                 key={index}
-                className="absolute inset-x-12 top-1/2 -mt-[36.5px] flex h-[73px] items-center gap-3.5 will-change-transform"
+                className="absolute inset-x-8 top-1/2 -mt-[36.5px] flex h-[73px] items-center gap-3.5 will-change-transform min-[360px]:inset-x-12"
                 initial={{ y: -3 * ROW, opacity: 0, filter: "blur(4px)" }}
                 animate={{
                   y: slot * ROW,

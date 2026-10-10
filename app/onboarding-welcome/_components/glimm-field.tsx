@@ -11,18 +11,19 @@ const CORE = accentPair("#0030F0", "#0A70F8");
 
 /**
  * The welcome gradient: a cyan-to-blue Glimm field rising from the bottom, with a deeper blue
- * core under the buttons. CSS masks only shape the falloff into white.
+ * core under the buttons. CSS masks only shape the falloff into white. The minimum heights keep the
+ * phone proportions on short screens, where 60% of the page would fade out behind the white copy.
  */
 export function GlimmField() {
   return (
     <>
       <GlimmLayer
         palette={FIELD}
-        className="h-[60%] [mask-image:radial-gradient(120%_100%_at_50%_100%,#000_70%,rgb(0_0_0/0.55)_82%,transparent_95%)]"
+        className="h-[60%] min-h-[512px] [mask-image:radial-gradient(120%_100%_at_50%_100%,#000_70%,rgb(0_0_0/0.55)_82%,transparent_95%)]"
       />
       <GlimmLayer
         palette={CORE}
-        className="h-[34%] [mask-image:radial-gradient(75%_100%_at_50%_100%,#000_30%,transparent_100%)]"
+        className="h-[34%] min-h-[290px] [mask-image:radial-gradient(75%_100%_at_50%_100%,#000_30%,transparent_100%)]"
       />
     </>
   );

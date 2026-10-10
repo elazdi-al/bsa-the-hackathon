@@ -1,10 +1,10 @@
 import { walletRows } from "../data";
 
-/** A blurred, dimmed impression of the wallet the sheet was opened from. */
+/** A blurred impression of the wallet the sheet was opened from. */
 export function WalletBackdrop() {
   return (
     <div aria-hidden className="absolute inset-0 bg-white">
-      <div className="scale-110 px-5 pt-[calc(env(safe-area-inset-top)_+_28px)] blur-[14px]">
+      <div className="mx-auto max-w-md scale-110 px-5 pt-[calc(env(safe-area-inset-top)_+_28px)] blur-[14px]">
         <div className="flex items-center gap-3">
           <span className="size-9 rounded-xl bg-[#d9d9de]" />
           <span className="h-4 w-24 rounded-full bg-[#c9c9cf]" />
@@ -29,7 +29,6 @@ export function WalletBackdrop() {
           ))}
         </ul>
       </div>
-      <div className="absolute inset-0 bg-black/30" />
     </div>
   );
 }

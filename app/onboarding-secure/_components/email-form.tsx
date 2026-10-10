@@ -1,7 +1,8 @@
 import { ArrowRightIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "motion/react";
 import { useRef, useState, type FormEvent } from "react";
-import { Spinner } from "./icons";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { iconSwap } from "./motion";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -47,21 +48,22 @@ export function EmailForm({ sending, onSubmit, onFocusChange }: Props) {
         onBlur={() => onFocusChange(false)}
         className="min-w-0 flex-1 bg-transparent text-[17px] text-black caret-[#0a84ff] outline-none placeholder:text-black/40"
       />
-      <button
+      <Button
         type="submit"
+        size="icon"
         aria-label="Send code"
         aria-busy={sending}
         disabled={!valid || sending}
-        className={`relative grid h-9 w-12 shrink-0 place-items-center rounded-full text-white transition-[background-color,scale] duration-200 ease-out after:absolute after:-inset-1 active:scale-[0.96] ${
-          valid ? "bg-black" : "bg-black/[0.17]"
+        className={`relative grid h-9 w-12 place-items-center after:absolute after:-inset-1 disabled:opacity-100 ${
+          valid ? "" : "bg-black/[0.17]"
         }`}
       >
         <AnimatePresence initial={false}>
           <motion.span key={sending ? "spin" : "arrow"} {...iconSwap} className="col-start-1 row-start-1">
-            {sending ? <Spinner size={16} /> : <ArrowRightIcon size={18} weight="fill" />}
+            {sending ? <Spinner aria-hidden /> : <ArrowRightIcon size={18} weight="fill" />}
           </motion.span>
         </AnimatePresence>
-      </button>
+      </Button>
     </form>
   );
 }

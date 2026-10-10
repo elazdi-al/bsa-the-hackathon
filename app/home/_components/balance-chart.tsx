@@ -2,19 +2,28 @@
 
 import { ArrowSquareUpRightIcon } from "@phosphor-icons/react";
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { balance, defaultRange, ranges, series, type Range } from "../data";
 import { BlurMoney } from "./blur-money";
 import { smooth, snappy } from "./transitions";
-
-const chartHeight = 88;
-const dot = 2 / chartHeight;
 
 export function BalanceChart() {
   const [range, setRange] = useState<Range>(defaultRange);
   // The first rise waits for the balance to start typing; later range switches respond at once.
   const [switched, setSwitched] = useState(false);
   const startDelay = switched ? 0 : 0.35;
+
+  // The chart height changes per breakpoint, so the 2px floor of a bar is measured, not assumed.
+  const chart = useRef<HTMLDivElement>(null);
+  const [dot, setDot] = useState<number>();
+
+  useEffect(() => {
+    const el = chart.current!;
+    const observer = new ResizeObserver(() => setDot(2 / el.clientHeight));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <section aria-labelledby="total-balance">
@@ -34,35 +43,38 @@ export function BalanceChart() {
       </p>
 
       <div
+        ref={chart}
         role="img"
         aria-label={`Balance history, ${range}`}
-        className="mt-4 flex items-end justify-between"
-        style={{ height: chartHeight }}
+        className="mt-4 flex h-22 items-end justify-between md:h-28 lg:h-44"
       >
-        {series[range].map((height, i) => (
-          <motion.span
-            key={i}
-            className="h-full w-0.5 origin-bottom rounded-full bg-[#dcdcdc]"
-            initial={{ scaleY: dot }}
-            animate={{ scaleY: Math.max(height / 100, dot) }}
-            transition={{ ...smooth, delay: startDelay + i * (switched ? 0.004 : 0.007) }}
-          />
-        ))}
+        {dot !== undefined &&
+          series[range].map((height, i) => (
+            <motion.span
+              key={i}
+              className="h-full w-0.5 origin-bottom rounded-full bg-[#dcdcdc] md:w-1"
+              initial={{ scaleY: dot }}
+              animate={{ scaleY: Math.max(height / 100, dot) }}
+              transition={{ ...smooth, delay: startDelay + i * (switched ? 0.004 : 0.007) }}
+            />
+          ))}
       </div>
 
-      <div role="group" aria-label="Chart range" className="mt-1 flex justify-center">
+      <ToggleGroup
+        aria-label="Chart range"
+        value={[range]}
+        onValueChange={([next]) => {
+          if (!next) return;
+          setRange(next as Range);
+          setSwitched(true);
+        }}
+        className="mx-auto mt-1 gap-0"
+      >
         {ranges.map((r) => (
-          <button
+          <ToggleGroupItem
             key={r}
-            type="button"
-            aria-pressed={r === range}
-            onClick={() => {
-              setRange(r);
-              setSwitched(true);
-            }}
-            className={`relative grid h-11 w-12 place-items-center rounded-full text-[13px] font-semibold transition-[color,scale] duration-150 outline-none focus-visible:ring-2 focus-visible:ring-black/20 focus-visible:ring-inset active:scale-[0.96] ${
-              r === range ? "text-black" : "text-[#bcbcbc]"
-            }`}
+            value={r}
+            className="relative h-11 w-12 rounded-full text-[13px] font-semibold text-[#bcbcbc] transition-[color,scale] duration-150 hover:bg-transparent hover:text-[#bcbcbc] focus-visible:ring-2 focus-visible:ring-black/20 focus-visible:ring-inset active:scale-[0.96] aria-pressed:bg-transparent aria-pressed:text-black"
           >
             {r === range && (
               <motion.span
@@ -72,9 +84,9 @@ export function BalanceChart() {
               />
             )}
             <span className="relative z-10">{r}</span>
-          </button>
+          </ToggleGroupItem>
         ))}
-      </div>
+      </ToggleGroup>
     </section>
   );
 }

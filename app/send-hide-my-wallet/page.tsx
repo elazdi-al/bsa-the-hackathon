@@ -1,24 +1,28 @@
 import { CaretLeftIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { HideMyWallet } from "./_components/hide-my-wallet";
 import { recipient, transfer } from "./data";
 
 export default function Page() {
   return (
-    <main className="relative mx-auto flex min-h-dvh w-full max-w-[430px] flex-col overflow-hidden bg-white pt-[env(safe-area-inset-top)] pb-[max(2rem,env(safe-area-inset-bottom))]">
-      <header className="relative flex h-14 items-center justify-center px-4">
-        <Link
-          href="/choose-recipient"
+    <main className="flex min-h-dvh flex-col bg-white pt-[env(safe-area-inset-top)] pb-[max(2rem,env(safe-area-inset-bottom))]">
+      <header className="relative flex h-14 shrink-0 items-center justify-center px-4">
+        <Button
+          nativeButton={false}
+          render={<Link href="/choose-recipient" />}
           aria-label="Back"
-          className="absolute left-4 grid size-10 place-items-center rounded-full bg-black/[0.05] outline-offset-2 outline-fuse-blue transition-transform duration-150 ease-out focus-visible:outline-2 active:scale-[0.96]"
+          variant="secondary"
+          size="icon"
+          className="absolute left-4 size-10"
         >
           <CaretLeftIcon aria-hidden weight="bold" className="size-[18px]" />
-        </Link>
+        </Button>
         <h1 className="text-[17px] font-semibold">Send</h1>
       </header>
 
-      <div className="flex flex-1 flex-col px-[30px]">
-        <div className="pt-16 pb-[84px] text-center">
+      <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-[30px] md:justify-center">
+        <div className="pt-16 pb-[84px] text-center md:pt-0">
           <p className="text-[48px] leading-[56px] font-bold tracking-[-0.035em] tabular-nums">
             {transfer.amount.whole}
             <span className="text-black/25">{transfer.amount.cents}</span>
@@ -58,7 +62,7 @@ export default function Page() {
           </dd>
         </dl>
 
-        <div className="mt-auto pt-10">
+        <div className="mt-auto pt-10 md:mt-0">
           <HideMyWallet />
         </div>
       </div>

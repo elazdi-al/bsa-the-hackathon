@@ -1,7 +1,7 @@
-import { motion } from "motion/react";
+import { REGEXP_ONLY_DIGITS } from "input-otp";
 import { useEffect, useRef, useState } from "react";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { CODE_LENGTH, RESEND_SECONDS } from "../data";
-import { snap } from "./motion";
 
 type Props = {
   verifying: boolean;
@@ -30,82 +30,37 @@ function Resend() {
   );
 }
 
-/** One native one-time-code input, drawn as six slots. Any six digits pass the mock check. */
+/** Any six digits pass the mock check. */
 export function CodeEntry({ verifying, onComplete, onFocusChange }: Props) {
   const [code, setCode] = useState("");
-  const [focused, setFocused] = useState(false);
   const input = useRef<HTMLInputElement>(null);
-
-  const focus = (next: boolean) => {
-    setFocused(next);
-    onFocusChange(next);
-  };
-
-  const change = (value: string) => {
-    const digits = value.replace(/\D/g, "").slice(0, CODE_LENGTH);
-    setCode(digits);
-    if (digits.length === CODE_LENGTH) {
-      input.current?.blur();
-      onComplete();
-    }
-  };
 
   return (
     <>
       <Resend />
-      <div className="relative mt-[60px] -mx-4 grid grid-cols-6 gap-1.5">
-        {Array.from({ length: CODE_LENGTH }, (_, i) => {
-          const digit = code[i];
-          const current = focused && !verifying && i === code.length;
-          return (
-            <div
-              key={i}
-              className={`grid h-[52px] place-items-center rounded-xl text-[22px] font-medium tabular-nums transition-[box-shadow,color] duration-200 ${
-                digit
-                  ? verifying
-                    ? "text-black/35"
-                    : "text-black"
-                  : current
-                    ? "shadow-[inset_0_0_0_1.5px_rgb(0_0_0/0.1)]"
-                    : "shadow-[inset_0_0_0_1px_rgb(0_0_0/0.04)]"
-              }`}
-            >
-              {digit ? (
-                <motion.span
-                  initial={{ opacity: 0, filter: "blur(4px)", y: 4 }}
-                  animate={{ opacity: 1, filter: "blur(0px)", y: 0 }}
-                  transition={snap}
-                >
-                  {digit}
-                </motion.span>
-              ) : (
-                current && (
-                  <motion.span
-                    animate={{ opacity: [1, 1, 0, 0] }}
-                    transition={{ duration: 1, times: [0, 0.5, 0.5, 1], repeat: Infinity, ease: "linear" }}
-                    className="h-6 w-[2px] rounded-full bg-[#0a84ff]"
-                  />
-                )
-              )}
-            </div>
-          );
-        })}
-        <input
-          ref={input}
-          autoFocus
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          pattern="\d*"
-          maxLength={CODE_LENGTH}
-          aria-label="6-digit code"
-          value={code}
-          readOnly={verifying}
-          onChange={(e) => change(e.target.value)}
-          onFocus={() => focus(true)}
-          onBlur={() => focus(false)}
-          className="absolute inset-0 opacity-0"
-        />
-      </div>
+      <InputOTP
+        ref={input}
+        maxLength={CODE_LENGTH}
+        pattern={REGEXP_ONLY_DIGITS}
+        value={code}
+        onChange={setCode}
+        onComplete={() => {
+          input.current?.blur();
+          onComplete();
+        }}
+        autoFocus
+        aria-label="6-digit code"
+        readOnly={verifying}
+        onFocus={() => onFocusChange(true)}
+        onBlur={() => onFocusChange(false)}
+        containerClassName="mt-[60px] -mx-4"
+      >
+        <InputOTPGroup>
+          {Array.from({ length: CODE_LENGTH }, (_, i) => (
+            <InputOTPSlot key={i} index={i} className={verifying ? "text-black/35" : undefined} />
+          ))}
+        </InputOTPGroup>
+      </InputOTP>
     </>
   );
 }

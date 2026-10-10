@@ -27,26 +27,27 @@ Extracted material lives next to the originals:
 - `references/sheets/<name>.jpg` is a 4x4 contact sheet spread evenly across each clip.
 - Higher precision on demand: `ffmpeg -ss <t> -i references/<name>.mp4 -frames:v 1 out.png` gives a full-resolution frame at any timestamp.
 
-The references are product-film shots. Phones are cropped, zoomed, and in two cases (07, 09) tilted in 3D. The app renders every screen flat as a real mobile web page, with no device mock: no bezel, no fake status bar, no Dynamic Island. Each route is a single mobile column (max 430px wide, full height) centred on desktop. Reproducing the UI, its data and its motion is the job.
+The references are product-film shots. Phones are cropped, zoomed, and in two cases (07, 09) tilted in 3D. The app renders every screen flat as a real responsive web page, with no device mock: no bezel, no fake status bar, no Dynamic Island. Reproducing the UI, its data and its motion is the job, not the iOS system UI around it.
 
 ## App map
 
 The references describe one coherent product. Reading them together gives this flow.
 
-1. **Onboarding.** A white welcome screen cycles through what Fuse does (Save, Earn, Spend, Invest, Pay) above a living blue gradient and the line "Your money, upgraded". Continue with Apple opens the native Sign in with Apple sheet. Face ID confirms. The app then floods blue and walks the user through three keys that secure a self-custodial wallet. Each key owns a colour: Device Key is blue, 2FA Key is orange, Recovery Key is purple. The Recovery Key asks for an email and a 6-digit code. A final white step sets the wallet up and confirms "Your wallet is ready!".
+1. **Onboarding.** A white welcome screen cycles through what Fuse does (Save, Earn, Spend, Invest, Pay) above a living blue gradient and the line "Your money, upgraded". Continue with Apple signs in (the button itself shows progress). The app then floods blue and walks the user through three keys that secure a self-custodial wallet. Each key owns a colour: Device Key is blue, 2FA Key is orange, Recovery Key is purple. The Recovery Key asks for an email and a 6-digit code. A final white step sets the wallet up and confirms "Your wallet is ready!".
 2. **Home (Wallet).** Total balance with a 24h change badge, a bar chart with a range picker, and a 2x2 grid of asset tiles: Cash, Investments, Earn, Card. A promo tile in the grid cycles Fuse Plus and Earn promos and can be dismissed. The bottom bar holds Home, History, Settings and a black "+" FAB. The FAB expands into Receive, Send and Swap.
 3. **Coins.** The wallet has Dashboard, Coins and NFTs tabs. Coins lists holdings. Tapping a coin isolates it and reveals its Available / Staked / Earned breakdown.
 4. **Send.** Choose recipient accepts a Solana address or a .sol handle, resolves it live, and lists recent addresses. The send review shows the destination wallet, covers onchain fees for Fuse Plus members, and offers Hide My Wallet, which morphs the primary button.
 5. **Off-ramp.** A USDC withdrawal to a bank account is tracked in a sheet with a four-step status that collapses into a single Completed row. Details expand on demand.
-6. **Verification.** While Bridge verifies identity, a glass lens wanders over an ID illustration.
+6. **Verification.** While Bridge verifies identity, a magnifier lens wanders over an ID illustration.
 7. **Fuse Plus.** A dark welcome screen lists the membership benefits. The physical/virtual Fuse cards come in white and black with an embossed Fuse mark.
 
 ## Design language
 
 ### Layout and chrome
 
-- Design size is 393x852pt (iPhone 15 Pro). Every route is one mobile column: full width on phones, at most 430px wide and centred on desktop against the light grey of the films (`#f5f5f5`).
-- No device chrome is drawn. The system moments in the references (Face ID in the Dynamic Island, the iOS keyboard and number pad) become in-app equivalents: a centred Face ID HUD, and native inputs with the right `inputMode`.
+- Design size is 393x852pt (iPhone 15 Pro), but every route is responsive from 320px phones to desktop. Page backgrounds go full-bleed; content sits in a centred container sized per screen (a `max-w-md` column for flows, a two-column dashboard on desktop Home). Short and landscape screens scroll rather than overlap.
+- No device chrome and no Apple system UI is drawn. The system moments in the references (the Sign in with Apple sheet, Face ID in the Dynamic Island, the iOS keyboard and number pad) are not rebuilt: progress shows in the button that started it, and inputs are native with the right `inputMode`.
+- Surfaces are flat: no liquid glass, frosted panels, specular highlights or gloss gradients. Depth comes from hairline borders and flat overlays.
 - Safe areas come from `env(safe-area-inset-*)` (the viewport uses `viewport-fit=cover`).
 
 ### Type
@@ -67,7 +68,7 @@ The references describe one coherent product. Reading them together gives this f
 
 ### Icons
 
-Phosphor icons, `fill` or `duotone` weight (`@phosphor-icons/react`). Brand marks (Fuse logo, Apple, Visa, Bridge, Solana, USDC, PayPal USD, Jito, Jupiter, Tensor) are inline SVG drawn to match the references, since Phosphor does not ship them.
+Phosphor icons, `fill` or `duotone` weight (`@phosphor-icons/react`). Brand marks (Fuse logo, Visa, Bridge, Solana, USDC, PayPal USD, Jito, Jupiter, Tensor) are inline SVG drawn to match the references, since Phosphor does not ship them. The Apple mark is the official logo, not a redraw. Apple's Face ID mark is not reproduced; biometric steps use Phosphor's ScanSmiley.
 
 ### Motion
 
@@ -78,7 +79,7 @@ The motion language is consistent across all references and is what makes the pr
 - **Springs, short and critically damped.** Nothing bounces visibly. Sheets, expanding rows and height changes use springs. Small state changes run in 150 to 300ms.
 - **Stagger.** Lists, menu items, chart bars and tiles stagger in tens of milliseconds.
 - **Physical controls.** The toggle knob stretches while pressed and settles with a spring. Buttons press down slightly.
-- **Background recession.** When a layer opens (FAB menu, coin breakdown, sheets) the content behind it blurs and washes out instead of dimming to black.
+- **Background recession.** When a layer opens the content behind it recedes: the coin breakdown blurs the rest of the list, the FAB menu lays a flat white wash over the screen, and drawers lay a flat grey overlay.
 - Everything respects `prefers-reduced-motion`.
 
 ## Screens
@@ -93,7 +94,7 @@ Reference: `02-onboarding.mp4`, 0 to 4.5s.
 
 **Motion.** The word wheel auto-advances roughly every 0.5 to 0.7s, rolling up with blur on the outgoing and incoming words. The gradient breathes slowly.
 
-**Sign in with Apple (1.0 to 4.5s).** Tapping Continue with Apple dims the screen to near-black and slides up the system sheet: header "Sign in with Apple" with a close button, the Fuse app icon, "Sign in to Fuse (development) using your Apple Account.", an account row with avatar "Volodymyr Huhuiev / Your account", and a blue "Sign In" button. Tapping Sign In swaps the button for a Face ID glyph. A Face ID HUD (rounded dark square) shows the green Face ID animation and check (in the film this happens in the Dynamic Island). The sheet shows a spinner "Signing in…", then a blue check "Done". The word wheel keeps rotating under the dim layer. The sheet slides down, the dim lifts, and the welcome screen returns. The flow then hands off to `/onboarding-secure`.
+**Sign in with Apple (1.0 to 4.5s).** The film shows the iOS system sheet and Face ID. The app does not rebuild them. Continue with Apple (official Apple mark) turns into a busy "Signing in" button with a spinner, then the screen blurs out and hands off to `/onboarding-secure`.
 
 ### 2. Onboarding: secure your wallet (`/onboarding-secure`)
 
@@ -101,13 +102,13 @@ Reference: `02-onboarding.mp4`, 4.5 to 24.7s.
 
 **Entry (4.5 to 5.0s).** A blue band sweeps over the whole screen (Glimm) until it is fully saturated blue/cyan. A small white "Secure / your wallet" label sits top-left with a close button top-right.
 
-**Device Key (5.0 to 8.0s).** The gradient recedes to the upper half and fades into white. Bottom content: blue scan icon, "Device Key" title, grey body "Your Device Key is protected by biometric verification — encrypted and stored on your phone.", and the pending steps below in light grey ("2FA Key", "Recovery Key"). Black pill "Create Device Key". Tap: label becomes a spinner plus "Creating Device Key", and the Face ID HUD confirms with a check.
+**Device Key (5.0 to 8.0s).** The gradient recedes to the upper half and fades into white. Bottom content: blue scan icon, "Device Key" title, grey body "Your Device Key is protected by biometric verification — encrypted and stored on your phone.", and the pending steps below in light grey ("2FA Key", "Recovery Key"). Black pill "Create Device Key". Tap: label becomes a spinner plus "Creating Device Key".
 
 **2FA Key (8.0 to 10.5s).** The gradient sweeps to orange/yellow. Device Key collapses into a completed grey row at the top of the list. New active step: orange cloud icon, "2FA Key", body "Your 2FA Key adds a second layer of protection — encrypted and stored in iCloud.". CTA "Create 2FA Key" with cloud icon, then "Creating 2FA Key".
 
 **Recovery Key (10.5 to 18.5s).** The gradient sweeps to violet. Active step: purple envelope icon, "Recovery Key", body "Your Recovery Key helps you regain access to Fuse if you lose your phone.". An email field "Enter your email" with a circular arrow button. Focusing it lifts the content above the keyboard; the gradient fades to white. Typing `vova@sqds.io` (QuickType suggests an address) enables the arrow button (grey to black). Submitting swaps the body to "We've sent you a 6-digit code to vova@sqds.io", a "Resend (30s)" pill counting down, and a six-slot code row (native numeric input). Digits `1 3 4 9 6 5` fill in one by one with a caret. On completion the keyboard drops and the violet gradient briefly returns.
 
-**Setup (18.5 to 24.7s).** Screen goes white. All three keys appear as completed grey rows. A new row with a spinner ring reads "Setting up your wallet / Hold tight while we're getting your wallet ready.". The Face ID HUD confirms once more. The spinner becomes a green dot and the copy becomes "Your wallet is ready! / You now have safe place for your money.".
+**Setup (18.5 to 24.7s).** Screen goes white. All three keys appear as completed grey rows. A new row with a spinner ring reads "Setting up your wallet / Hold tight while we're getting your wallet ready.". The spinner becomes a green dot and the copy becomes "Your wallet is ready! / You now have safe place for your money.".
 
 ### 3. Home (`/home`)
 
@@ -142,7 +143,7 @@ Reference: `11-coin-breakdown.mp4`.
 
 Reference: `05-address-input-field.mp4`.
 
-**Layout.** A modal sheet over a grey backdrop, rounded top corners near the top of the screen. Title "Choose recipient" centred, scan icon (four corners) top-right. An elevated white input card with a soft shadow: placeholder "Address or .sol handle", helper "Enter Solana address or .sol handle", a disabled grey "Continue" pill and a "Paste" pill with a document icon. Below: "Recent addresses" and one row with a wallet icon, `ECmf...iNd6`, "No previous sends".
+**Layout.** A drawer over a grey overlay, rounded top corners near the top of the screen (floating and content-sized from tablet up). Title "Choose recipient" centred, scan icon (four corners) top-right. A near-white input card with a hairline border: placeholder "Address or .sol handle", helper "Enter Solana address or .sol handle", a disabled grey "Continue" pill and a "Paste" pill with a document icon. Below: "Recent addresses" and one row with a wallet icon, `ECmf...iNd6`, "No previous sends".
 
 **Motion.** Focus shows a blue caret. Typing `toly` → `toly.s` → `toly.sol` reveals a grey clear button. The helper line swaps through blur to a spinning blue gear "Resolving...", then to a green check with `86xC...2MMY`. Continue turns black and enabled at the same moment.
 
@@ -152,13 +153,13 @@ Reference: `04-send-hide-my-wallet.mp4` (120fps, toggle physics worth stepping f
 
 **Layout.** Destination row: avatar (orange basketball on grey), "Solana wallet" / "Ledger", "4 sends" pill. Dashed divider. "Onchain fees" left in grey, "Fuse⁺ Covered" right with "Covered" in green. Empty space. Bottom: blue half-filled shield, "Send with Hide My Wallet" / "How it works? ⓘ", and a toggle. Full-width pill CTA with a scan glyph.
 
-**Motion.** Toggle on: the knob stretches into a wide pill while travelling, the track fills Fuse blue, the CTA background cross-fades black to blue and its label grows from "Send" to "Send with Hide My Wallet" (button width is fixed, new words blur in). Toggle off reverses it: track back to grey, CTA to black, the extra words blur out.
+**Motion.** Toggle on: the knob stretches while pressed and slides across, the track fills Fuse blue, the CTA background cross-fades black to blue and its label grows from "Send" to "Send with Hide My Wallet" (button width is fixed, new words blur in). Toggle off reverses it: track back to grey, CTA to black, the extra words blur out.
 
 ### 7. Transaction tracking (`/transaction-tracking`)
 
 Reference: `06-transaction-tracking.mp4`.
 
-**Layout.** A floating rounded sheet (light grey) over a blurred, darkened app. Close × top-right. USDC coin with a small bank badge, "USDC Withdrawal", `1,508.50 USDC`, "11 March 2025 at 10:07". Status container: "Status" with "Copy details ⧉" and a vertical four-step tracker: Awaiting Crypto (done), Received Crypto (done), Payout on the way (active, blue), Completed (pending). Rows: To `Revolut ••••1342`, Account owner name `Thomas A. Anderson`, Transfer fee `$8.50`. "Show details" button.
+**Layout.** A floating rounded drawer (light grey) over a blurred, darkened app. Close × top-right. USDC coin with a small bank badge, "USDC Withdrawal", `1,508.50 USDC`, "11 March 2025 at 10:07". Status container: "Status" with "Copy details ⧉" and a vertical four-step tracker: Awaiting Crypto (done), Received Crypto (done), Payout on the way (active, blue), Completed (pending). Rows: To `Revolut ••••1342`, Account owner name `Thomas A. Anderson`, Transfer fee `$8.50`. "Show details" button.
 
 **Motion.** The active step advances to Completed. The tracker collapses upward into a single "Status · Completed ✓" row in green and the sheet shrinks with a spring, anchored to the bottom. "Show details" expands extra rows after a dashed divider: Payment rail `ACH Same Day`, Onchain transaction `3W4g...z5xH ⧉`, Network fee `⚡ Free` in green. The label becomes "Hide details" and collapsing reverses it.
 
@@ -168,7 +169,7 @@ Reference: `07-pending-verification.mp4` (tilted in the film; build flat).
 
 **Layout.** Light grey screen. Illustration: a grey ID photo card with a portrait silhouette, a second frame offset behind it. Below: Bridge logo and "Bridge", "is verifying your identity" (about 20pt semibold), grey centred body "Verification can take up to 3 business days. If you haven't received a response after this time, contact support@bridge.xyz.".
 
-**Motion.** A glass magnifier lens (clear disc, thin bright rim, inner shadow, refraction of what is under it) drifts around the ID card on a smooth closed loop, about 4.5s per cycle, passing top-right, top-left, centre and bottom-right.
+**Motion.** A flat magnifier lens (solid disc, hairline rim, the card magnified inside) drifts around the ID card on a smooth closed loop, about 4.5s per cycle, passing top-right, top-left, centre and bottom-right.
 
 ### 9. Fuse Plus membership (`/fuse-plus`)
 
@@ -186,8 +187,8 @@ A divider, then a dashed-square icon and "More features are coming soon".
 
 ## Implementation conventions
 
-- **Stack.** Next.js 16.4 App Router, React 19, TypeScript strict, Tailwind CSS v4, `motion` (`motion/react`), `@phosphor-icons/react` (fill / duotone), `glimm` (onboarding gradients). This Next.js version differs from older training data; read `node_modules/next/dist/docs/` before relying on an API.
-- **Ownership.** Each screen lives entirely in `app/<route>/`: `page.tsx`, a `_components/` folder, and a `data.ts` holding the mock data copied from the reference. Shared code is only `app/globals.css` and `app/layout.tsx`.
-- **Behaviour.** Interactions are real (tap, type, toggle, dismiss). Asynchronous steps the references show (handle resolution, status progress, Face ID) are simulated with mock delays.
+- **Stack.** Next.js 16.4 App Router, React 19, TypeScript strict, Tailwind CSS v4, `motion` (`motion/react`), `@phosphor-icons/react` (fill / duotone), `glimm` (onboarding gradients), shadcn/ui on Base UI (`@base-ui/react`) for components, and Emil Kowalski's `vaul` for drawers. This Next.js version differs from older training data; read `node_modules/next/dist/docs/` before relying on an API.
+- **Ownership.** Each screen lives entirely in `app/<route>/`: `page.tsx`, a `_components/` folder, and a `data.ts` holding the mock data copied from the reference. Shared code is only `app/globals.css` (Fuse palette mapped onto shadcn tokens), `app/layout.tsx`, and `components/ui/` (shadcn components restyled to Fuse: Button, Drawer, Switch, Tabs, ToggleGroup, InputOTP, Spinner).
+- **Behaviour.** Interactions are real (tap, type, toggle, dismiss). Asynchronous steps the references show (sign-in, key creation, handle resolution, status progress) are simulated with mock delays.
 - **Navigation.** Routes link to each other where the flow implies it: onboarding ends on `/home`, the FAB's Send opens `/choose-recipient`, Continue leads to `/send-hide-my-wallet`, the Fuse Plus promo opens `/fuse-plus`.
-- **Checking.** `node scripts/shot.mjs <route> <out.png>` screenshots a route in a 393x852 mobile viewport against the running dev server, with `--step` actions and `--frames/--interval` bursts for motion. Screenshots go to `shots/` (git-ignored).
+- **Checking.** `node scripts/shot.mjs <route> <out.png>` screenshots a route against the running dev server (393x852 unless `--size <w>x<h>`), with `--step` actions and `--frames/--interval` bursts for motion. Screenshots go to `shots/` (git-ignored).

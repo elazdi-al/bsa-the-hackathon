@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { XIcon } from "@phosphor-icons/react";
 import { MotionConfig, motion } from "motion/react";
+import { Button } from "@/components/ui/button";
 import { Benefits } from "./benefits";
 import { GlowPlus } from "./glow-plus";
 import { rise, sequence } from "./motion";
@@ -14,18 +15,18 @@ export function Welcome() {
         initial="hidden"
         animate="shown"
         variants={sequence}
-        className="flex min-h-dvh flex-col px-4 pt-[env(safe-area-inset-top)] pb-[calc(env(safe-area-inset-bottom)+16px)]"
+        className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-4 pt-[env(safe-area-inset-top)] pb-[calc(env(safe-area-inset-bottom)+16px)] md:justify-center md:py-12"
       >
         <motion.div variants={rise} className="-mr-1.5 flex justify-end pt-2">
-          <Link
-            href="/home"
+          <Button
+            nativeButton={false}
+            render={<Link href="/home" />}
             aria-label="Close"
-            className="group grid size-11 place-items-center rounded-full outline-offset-2 focus-visible:outline-2 focus-visible:outline-white"
+            size="icon-sm"
+            className="relative bg-white/10 text-white/70 after:absolute after:-inset-1.5 hover:bg-white/15"
           >
-            <span className="grid size-8 place-items-center rounded-full bg-white/10 text-white/70 transition-[scale,background-color] duration-150 ease-out group-hover:bg-white/15 group-active:scale-[0.96]">
-              <XIcon size={15} weight="bold" aria-hidden />
-            </span>
-          </Link>
+            <XIcon size={15} weight="bold" aria-hidden />
+          </Button>
         </motion.div>
 
         <GlowPlus />
@@ -45,13 +46,10 @@ export function Welcome() {
 
         <Benefits />
 
-        <motion.div variants={rise} className="mt-auto pt-6">
-          <Link
-            href="/home"
-            className="flex h-14 items-center justify-center rounded-full bg-white text-[17px] font-semibold text-black outline-offset-2 transition-[scale,background-color] duration-150 ease-out hover:bg-white/90 focus-visible:outline-2 focus-visible:outline-white active:scale-[0.96]"
-          >
+        <motion.div variants={rise} className="mt-auto pt-6 md:mt-0 md:pt-8">
+          <Button nativeButton={false} render={<Link href="/home" />} variant="inverse" size="lg" className="w-full">
             Continue
-          </Link>
+          </Button>
         </motion.div>
       </motion.div>
     </MotionConfig>

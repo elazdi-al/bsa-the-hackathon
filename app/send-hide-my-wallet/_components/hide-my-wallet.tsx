@@ -1,10 +1,9 @@
 "use client";
 
-import { WarningCircleIcon } from "@phosphor-icons/react";
 import { MotionConfig } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useState } from "react";
-import { GlassSwitch } from "./glass-switch";
+import { Switch } from "@/components/ui/switch";
 import { HowItWorksSheet } from "./how-it-works-sheet";
 import { ShieldLeftHalf } from "./icons";
 import { SendButton, type Phase } from "./send-button";
@@ -17,7 +16,6 @@ export function HideMyWallet() {
   const titleId = useId();
   const [hidden, setHidden] = useState(false);
   const [phase, setPhase] = useState<Phase>("review");
-  const [sheetOpen, setSheetOpen] = useState(false);
 
   useEffect(() => {
     if (phase === "review") return;
@@ -36,27 +34,18 @@ export function HideMyWallet() {
           <p id={titleId}>
             <span className="font-medium">Send with</span> Hide My Wallet
           </p>
-          <button
-            type="button"
-            aria-haspopup="dialog"
-            onClick={() => setSheetOpen(true)}
-            className="relative flex items-center gap-1 rounded-sm text-black/35 outline-offset-2 outline-fuse-blue transition-opacity after:absolute after:-inset-x-2 after:-inset-y-3 focus-visible:outline-2 active:opacity-60"
-          >
-            How it works?
-            <WarningCircleIcon aria-hidden weight="duotone" className="size-4" />
-          </button>
+          <HowItWorksSheet />
         </div>
-        <GlassSwitch
+        <Switch
           checked={hidden}
           onCheckedChange={setHidden}
           disabled={phase !== "review"}
-          labelledBy={titleId}
+          aria-labelledby={titleId}
         />
       </div>
       <div className="mt-[26px]">
         <SendButton hidden={hidden} phase={phase} onSend={() => setPhase("sending")} />
       </div>
-      <HowItWorksSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
     </MotionConfig>
   );
 }

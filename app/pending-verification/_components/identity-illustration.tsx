@@ -42,7 +42,7 @@ export function IdentityIllustration() {
     <div className="relative">
       <IdCard />
       <motion.div
-        className="absolute top-1/2 left-1/2 size-[120px] -translate-1/2 overflow-hidden rounded-full bg-linear-to-b from-[#eeeeee] to-[#e6e6e6] after:absolute after:inset-0 after:rounded-full after:shadow-[inset_0_0_0_1.25px_rgb(0_0_0/0.18),inset_0_0_0_2.25px_rgb(255_255_255/0.55),inset_0_-10px_18px_-8px_rgb(0_0_0/0.06)]"
+        className="absolute top-1/2 left-1/2 size-[120px] -translate-1/2 overflow-hidden rounded-full bg-[#f2f2f2] shadow-[0_0_0_1.5px_rgb(0_0_0/0.14)]"
         style={{ x, y }}
         animate={reduceMotion ? undefined : { x: stops.map((s) => s.x), y: stops.map((s) => s.y) }}
         transition={loop}

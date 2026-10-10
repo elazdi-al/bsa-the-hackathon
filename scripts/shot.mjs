@@ -1,8 +1,9 @@
-// Screenshot a route in a 393x852 mobile viewport, optionally after scripted steps, optionally as a timed frame burst.
+// Screenshot a route in a mobile viewport (393x852 unless --size), optionally after scripted steps, optionally as a timed frame burst.
 //
 //   node scripts/shot.mjs <route> <out.png> [options]
 //
 //   --scale <n>                  deviceScaleFactor (default 2)
+//   --size <w>x<h>               viewport (default 393x852)
 //   --step <action>              repeatable, run in order after load:
 //                                  wait:<ms> | click:<selector> | hover:<selector>
 //                                  type:<selector>:<text> | press:<key> | tap:<x>,<y>
@@ -18,11 +19,12 @@ if (!route || !out) {
   process.exit(1);
 }
 
-const opts = { scale: 2, steps: [], frames: 0, interval: 100, base: "http://localhost:3000" };
+const opts = { scale: 2, size: "393x852", steps: [], frames: 0, interval: 100, base: "http://localhost:3000" };
 for (let i = 2; i < argv.length; i += 2) {
   const [flag, value] = [argv[i], argv[i + 1]];
   if (flag === "--step") opts.steps.push(value);
   else if (flag === "--scale") opts.scale = Number(value);
+  else if (flag === "--size") opts.size = value;
   else if (flag === "--frames") opts.frames = Number(value);
   else if (flag === "--interval") opts.interval = Number(value);
   else if (flag === "--base") opts.base = value;
@@ -30,7 +32,8 @@ for (let i = 2; i < argv.length; i += 2) {
 }
 
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 393, height: 852 }, deviceScaleFactor: opts.scale, hasTouch: true });
+const [width, height] = opts.size.split("x").map(Number);
+const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: opts.scale, hasTouch: true });
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 page.on("console", (m) => m.type() === "error" && errors.push(m.text()));

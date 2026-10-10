@@ -104,7 +104,7 @@ function Breakdown({ id, coin }: { id: string; coin: Coin }) {
       initial="hidden"
       animate="shown"
       exit="gone"
-      className="absolute inset-x-0 top-full z-10 pt-[3px] pr-[22px] pl-20 text-[15px] font-medium"
+      className="absolute inset-x-0 top-full z-10 pt-[3px] pr-[22px] pl-20 text-[15px] font-medium max-[375px]:pl-14"
     >
       <motion.div variants={bar} className="flex h-1 gap-1">
         <span className="rounded-full bg-[#2676d9]" style={{ width: `${availableShare(coin) * 100}%` }} />

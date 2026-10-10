@@ -2,8 +2,10 @@
 
 import { LightningIcon, XIcon } from "@phosphor-icons/react";
 import { AnimatePresence, MotionConfig, motion, type Variants } from "motion/react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
+import { Button } from "@/components/ui/button";
+import { Drawer, DrawerClose, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { steps, withdrawal } from "../data";
 import { CopyButton } from "./copy-button";
 import { leave, settle, sharp, swap } from "./motion";
@@ -22,14 +24,16 @@ const row: Variants = {
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <motion.div variants={row} className="flex items-center justify-between gap-4 py-[7px]">
+    <motion.div variants={row} className="flex flex-wrap items-center justify-between gap-x-4 py-[7px]">
       <dt className="text-[#909090]">{label}</dt>
-      <dd className="font-medium">{children}</dd>
+      <dd className="ml-auto font-medium">{children}</dd>
     </motion.div>
   );
 }
 
 export function TransactionSheet() {
+  const router = useRouter();
+  const [open, setOpen] = useState(true);
   const [tracker, setTracker] = useState<Tracker>({ step: withdrawal.step, expanded: true });
   const [detailsOpen, setDetailsOpen] = useState(false);
 
@@ -52,104 +56,120 @@ export function TransactionSheet() {
 
   return (
     <MotionConfig reducedMotion="user" transition={settle}>
-      <motion.section
-        aria-labelledby="withdrawal-title"
-        initial={{ y: "110%" }}
-        animate={{ y: 0 }}
-        className="absolute inset-x-5 bottom-[max(20px,calc(env(safe-area-inset-bottom)_+_6px))] isolate px-4 pb-[13px] text-[13.5px] leading-5"
+      <Drawer
+        open={open}
+        onOpenChange={setOpen}
+        onAnimationEnd={(isOpen) => {
+          if (!isOpen) router.push("/home");
+        }}
       >
-        {/* The surface carries the height spring; content only translates, so text never stretches. */}
-        <motion.div layout aria-hidden className="absolute inset-0 -z-10 bg-[#f2f2f2]" style={{ borderRadius: 34 }} />
-        <motion.header layout="position" className="relative flex flex-col items-center pt-[47px] text-center">
-          <Link
-            href="/home"
-            aria-label="Close"
-            className="absolute top-[13px] -right-[3px] grid size-11 place-items-center rounded-full text-[#afafaf] transition-transform duration-150 ease-out outline-none focus-visible:ring-2 focus-visible:ring-[#1171ee] active:scale-[0.96]"
-          >
-            <XIcon size={20} weight="bold" />
-          </Link>
-          <UsdcCoin />
-          <h1 id="withdrawal-title" className="mt-3 font-medium text-[#a5a5a5]">
-            {withdrawal.title}
-          </h1>
-          <p className="mt-1 text-[27.5px] leading-[34px] font-bold tracking-[-0.01em] tabular-nums">{withdrawal.amount}</p>
-          <p className="mt-1 font-medium text-[#969696]">{withdrawal.date}</p>
-        </motion.header>
-
-        <StatusCard
-          tracker={tracker}
-          summary={summary}
-          onToggle={() => setTracker((t) => ({ ...t, expanded: !t.expanded }))}
-        />
-
-        <motion.dl layout="position" className="mt-2 px-4">
-          {withdrawal.rows.map((r) => (
-            <Row key={r.label} label={r.label}>
-              {r.value}
-            </Row>
-          ))}
-        </motion.dl>
-
-        <AnimatePresence initial={false} mode="popLayout" anchorY="bottom">
-          {detailsOpen && (
-            <motion.div
-              key="more"
-              id="more-details"
-              layout="position"
-              variants={more}
-              initial="hidden"
-              animate="shown"
-              exit="hidden"
-              className="px-4 pt-3"
-            >
-              <hr className="h-px border-0 bg-[repeating-linear-gradient(90deg,#d4d4d4_0_8px,transparent_8px_16px)]" />
-              <dl className="mt-2">
-                <Row label="Payment rail">{withdrawal.paymentRail}</Row>
-                <Row label="Onchain transaction">
-                  <CopyButton text={withdrawal.txHash} label="Copy onchain transaction">
-                    {withdrawal.txHash.slice(0, 4)}...{withdrawal.txHash.slice(-4)}
-                  </CopyButton>
-                </Row>
-                <Row label="Network fee">
-                  <span className="flex items-center gap-1.5 text-[#30d158]">
-                    <LightningIcon size={15} weight="fill" />
-                    {withdrawal.networkFee}
-                  </span>
-                </Row>
-              </dl>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <motion.button
-          layout="position"
-          type="button"
-          onClick={() => setDetailsOpen((open) => !open)}
-          aria-expanded={detailsOpen}
-          aria-controls="more-details"
-          whileTap={{ scale: 0.96 }}
-          className="flex h-11 w-full items-center justify-center gap-1 rounded-full font-medium outline-none focus-visible:ring-2 focus-visible:ring-[#1171ee]"
+        {/* The shared handle sits outside the layout animation and would jump when the tracker folds, so the header draws its own. */}
+        <DrawerContent
+          aria-describedby={undefined}
+          handle={false}
+          className="inset-x-5 bottom-(--gap) max-h-[calc(100dvh-env(safe-area-inset-top)-12px-var(--gap))] bg-transparent text-[13.5px] leading-5 [--gap:max(20px,calc(env(safe-area-inset-bottom)+6px))] [--initial-transform:calc(100%+var(--gap))] sm:[--gap:1rem]"
         >
-          <span className="grid justify-items-end">
-            {(["Show", "Hide"] as const).map((word) => {
-              const visible = (word === "Hide") === detailsOpen;
-              return (
-                <motion.span
-                  key={word}
-                  aria-hidden={!visible}
-                  className="col-start-1 row-start-1"
-                  initial={false}
-                  animate={visible ? sharp : { opacity: 0, filter: "blur(3px)", y: word === "Show" ? -8 : 8 }}
-                  transition={swap}
+          {/* The surface carries the height spring, so the drawer box stays transparent; content only translates, so text never stretches. */}
+          <motion.div layout aria-hidden className="absolute inset-0 -z-10 bg-[#f2f2f2]" style={{ borderRadius: 34 }} />
+          {/* Layout-animated so its clip box follows the surface instead of cutting the header off mid-fold. */}
+          <motion.div layout layoutScroll className="min-h-0 overflow-y-auto px-4 pb-[13px]">
+            <motion.header layout="position" className="relative flex flex-col items-center pt-[47px] text-center">
+              <span aria-hidden className="absolute top-2.5 h-[5px] w-9 rounded-full bg-black/10" />
+              <DrawerClose asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Close"
+                  className="absolute top-[13px] -right-[3px] text-[#afafaf]"
                 >
-                  {word}
-                </motion.span>
-              );
-            })}
-          </span>
-          details
-        </motion.button>
-      </motion.section>
+                  <XIcon size={20} weight="bold" />
+                </Button>
+              </DrawerClose>
+              <UsdcCoin />
+              <DrawerTitle className="mt-3 text-[13.5px] font-medium tracking-normal text-[#a5a5a5]">
+                {withdrawal.title}
+              </DrawerTitle>
+              <p className="mt-1 text-[27.5px] leading-[34px] font-bold tracking-[-0.01em] tabular-nums">
+                {withdrawal.amount}
+              </p>
+              <p className="mt-1 font-medium text-[#969696]">{withdrawal.date}</p>
+            </motion.header>
+
+            <StatusCard
+              tracker={tracker}
+              summary={summary}
+              onToggle={() => setTracker((t) => ({ ...t, expanded: !t.expanded }))}
+            />
+
+            <motion.dl layout="position" className="mt-2 px-4">
+              {withdrawal.rows.map((r) => (
+                <Row key={r.label} label={r.label}>
+                  {r.value}
+                </Row>
+              ))}
+            </motion.dl>
+
+            <AnimatePresence initial={false} mode="popLayout" anchorY="bottom">
+              {detailsOpen && (
+                <motion.div
+                  key="more"
+                  id="more-details"
+                  layout="position"
+                  variants={more}
+                  initial="hidden"
+                  animate="shown"
+                  exit="hidden"
+                  className="px-4 pt-3"
+                >
+                  <hr className="h-px border-0 bg-[repeating-linear-gradient(90deg,#d4d4d4_0_8px,transparent_8px_16px)]" />
+                  <dl className="mt-2">
+                    <Row label="Payment rail">{withdrawal.paymentRail}</Row>
+                    <Row label="Onchain transaction">
+                      <CopyButton text={withdrawal.txHash} label="Copy onchain transaction">
+                        {withdrawal.txHash.slice(0, 4)}...{withdrawal.txHash.slice(-4)}
+                      </CopyButton>
+                    </Row>
+                    <Row label="Network fee">
+                      <span className="flex items-center gap-1.5 text-[#30d158]">
+                        <LightningIcon size={15} weight="fill" />
+                        {withdrawal.networkFee}
+                      </span>
+                    </Row>
+                  </dl>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <Button
+              variant="ghost"
+              render={<motion.button layout="position" />}
+              onClick={() => setDetailsOpen((open) => !open)}
+              aria-expanded={detailsOpen}
+              aria-controls="more-details"
+              className="h-11 w-full gap-1 text-[13.5px]"
+            >
+              <span className="grid justify-items-end">
+                {(["Show", "Hide"] as const).map((word) => {
+                  const visible = (word === "Hide") === detailsOpen;
+                  return (
+                    <motion.span
+                      key={word}
+                      aria-hidden={!visible}
+                      className="col-start-1 row-start-1"
+                      initial={false}
+                      animate={visible ? sharp : { opacity: 0, filter: "blur(3px)", y: word === "Show" ? -8 : 8 }}
+                      transition={swap}
+                    >
+                      {word}
+                    </motion.span>
+                  );
+                })}
+              </span>
+              details
+            </Button>
+          </motion.div>
+        </DrawerContent>
+      </Drawer>
     </MotionConfig>
   );
 }

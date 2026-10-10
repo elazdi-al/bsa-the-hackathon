@@ -161,10 +161,11 @@ export function GlimmBackdrop({ tone, visible }: { tone: Tone; visible: boolean 
 
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0">
-      {/* The shader leaves a faint halo across the whole canvas; the mask cuts it so the band ends in white. */}
+      {/* The shader leaves a faint halo across the whole canvas; the mask cuts it so the band ends in white.
+          On phones the cut lands 324px above the bottom at any height, where the bottom-aligned list starts at 393x852. */}
       <canvas
         ref={restCanvas}
-        className="absolute inset-0 size-full [mask-image:linear-gradient(to_bottom,black_40%,transparent_62%)]"
+        className="absolute inset-0 h-[calc((100svh-324px)/0.62)] w-full sm:h-[50svh] [mask-image:linear-gradient(to_bottom,black_40%,transparent_62%)]"
       />
       <canvas ref={sweepCanvas} className="absolute inset-0 size-full" />
     </div>

@@ -1,3 +1,5 @@
+import { CloudIcon, EnvelopeIcon, ScanSmileyIcon, type Icon } from "@phosphor-icons/react";
+
 export type KeyId = "device" | "twofa" | "recovery";
 
 /** The colour the top gradient takes while a step is active. `white` is the final setup screen. */
@@ -7,6 +9,7 @@ export type WalletKey = {
   id: KeyId;
   title: string;
   body: string;
+  Icon: Icon;
   /** Accent of the step icon while the step is active. */
   accent: string;
   cta?: { idle: string; busy: string };
@@ -17,6 +20,7 @@ export const KEYS: readonly WalletKey[] = [
     id: "device",
     title: "Device Key",
     body: "Your Device Key is protected by biometric verification — encrypted and stored on your phone.",
+    Icon: ScanSmileyIcon,
     accent: "#0a84ff",
     cta: { idle: "Create Device Key", busy: "Creating Device Key" },
   },
@@ -24,6 +28,7 @@ export const KEYS: readonly WalletKey[] = [
     id: "twofa",
     title: "2FA Key",
     body: "Your 2FA Key adds a second layer of protection — encrypted and stored in iCloud.",
+    Icon: CloudIcon,
     accent: "#ff5a1f",
     cta: { idle: "Create 2FA Key", busy: "Creating 2FA Key" },
   },
@@ -31,6 +36,7 @@ export const KEYS: readonly WalletKey[] = [
     id: "recovery",
     title: "Recovery Key",
     body: "Your Recovery Key helps you regain access to Fuse if you lose your phone.",
+    Icon: EnvelopeIcon,
     accent: "#a945e8",
   },
 ];

@@ -5,7 +5,7 @@ export const metadata: Metadata = { title: "Secure your wallet · Fuse" };
 
 export default function Page() {
   return (
-    <main className="relative mx-auto flex min-h-dvh w-full max-w-[430px] flex-col overflow-hidden bg-white">
+    <main className="relative flex min-h-dvh w-full flex-col overflow-hidden bg-white">
       <SecureFlow />
     </main>
   );

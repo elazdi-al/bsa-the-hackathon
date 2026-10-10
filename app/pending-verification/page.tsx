@@ -10,7 +10,7 @@ const enter =
 
 export default function Page() {
   return (
-    <main className="relative mx-auto grid min-h-dvh w-full max-w-[430px] place-items-center overflow-hidden bg-[#f2f2f2] px-6 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+    <main className="relative grid min-h-dvh w-full place-items-center overflow-hidden bg-[#f2f2f2] px-6 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
       <Link
         href="/home"
         aria-label="Close"
@@ -19,7 +19,7 @@ export default function Page() {
         <XCircleIcon weight="fill" size={30} />
       </Link>
 
-      <div className="flex flex-col items-center text-center">
+      <div className="flex flex-col items-center text-center md:[zoom:1.25]">
         <div className={enter}>
           <IdentityIllustration />
         </div>

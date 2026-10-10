@@ -2,7 +2,6 @@ import { CheckCircleIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "motion/react";
 import type { ReactNode, Ref } from "react";
 import { CODE_SENT, SETUP, type WalletKey } from "../data";
-import { KeyIcon } from "./icons";
 import { blurSwap, glide, iconSwap, snap } from "./motion";
 
 type KeyItemProps = {
@@ -31,7 +30,7 @@ export function KeyItem({ ref, item, active, sentTo, children }: KeyItemProps) {
         {active ? (
           <motion.div key="active" {...blurSwap} className="pt-[30px] pb-6">
             <span className="block" style={{ color: item.accent }}>
-              <KeyIcon id={item.id} size={26} />
+              <item.Icon weight="fill" size={26} aria-hidden />
             </span>
             <h2 className="mt-4 text-[28px] leading-[34px] font-bold tracking-[-0.02em] text-black">{item.title}</h2>
             <AnimatePresence mode="popLayout" initial={false}>
@@ -53,7 +52,7 @@ export function KeyItem({ ref, item, active, sentTo, children }: KeyItemProps) {
           </motion.div>
         ) : (
           <motion.div key="row" {...blurSwap} className="flex h-11 items-center gap-3">
-            <KeyIcon id={item.id} size={22} className="text-black/[0.18]" />
+            <item.Icon weight="fill" size={22} aria-hidden className="text-black/[0.18]" />
             <span className="text-[17px] font-semibold text-black/40">{item.title}</span>
           </motion.div>
         )}

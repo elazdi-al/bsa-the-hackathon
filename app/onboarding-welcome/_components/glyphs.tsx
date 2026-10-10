@@ -14,38 +14,10 @@ export function FuseLogo(props: GlyphProps) {
   );
 }
 
-/** Apple's Face ID mark: corner brackets around a face. */
-export function FaceIdGlyph(props: GlyphProps) {
+export function AppleLogo(props: GlyphProps) {
   return (
-    <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden {...props}>
-      <path d="M4 20v-8a8 8 0 0 1 8-8h8M44 4h8a8 8 0 0 1 8 8v8M60 44v8a8 8 0 0 1-8 8h-8M20 60h-8a8 8 0 0 1-8-8v-8" />
-      <path d="M22 22v5M42 22v5M32 22v12h-3M23 43q9 7 18 0" />
-    </svg>
-  );
-}
-
-/** Face ID success: the face inside a closed ring. */
-export function FaceMatchGlyph(props: GlyphProps) {
-  return (
-    <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden {...props}>
-      <circle cx={32} cy={32} r={28} />
-      <path d="M24 25v5M40 25v5M32 26v10h-3M23 42q9 7 18 0" />
-    </svg>
-  );
-}
-
-/** Illustrated stand-in for the Apple Account photo. */
-export function AccountAvatar(props: GlyphProps) {
-  return (
-    <svg viewBox="0 0 40 40" aria-hidden {...props}>
-      <rect width={40} height={40} fill="#D6D6DB" />
-      <path d="M5 40c1.5-8 7.5-11.5 15-11.5S33.5 32 35 40Z" fill="#EBCBD5" />
-      <path d="M14.5 29.5 20 35l5.5-5.5" fill="none" stroke="#2B2B30" strokeWidth={2} />
-      <rect x={17} y={23} width={6} height={7} fill="#BD8B70" />
-      <ellipse cx={20} cy={19.5} rx={7} ry={8} fill="#D6A383" />
-      <path d="M13 20c0 6 3 9.5 7 9.5s7-3.5 7-9.5c-1 2-3 3-7 3s-6-1-7-3Z" fill="#5A4234" />
-      <path d="M12.5 15.5c0-6.5 3.5-10 7.5-10s7.5 3.5 7.5 10Z" fill="#B42B3F" />
-      <rect x={12} y={13.5} width={16} height={3.5} rx={1.75} fill="#97202F" />
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden {...props}>
+      <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701" />
     </svg>
   );
 }

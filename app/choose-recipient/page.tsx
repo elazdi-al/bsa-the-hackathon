@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "Choose recipient · Fuse" };
 
 export default function Page() {
   return (
-    <main className="relative mx-auto min-h-dvh w-full max-w-[430px] overflow-hidden bg-[#c5c5c5]">
+    <main className="min-h-dvh bg-white">
       <RecipientSheet>
         <AddressCard />
         <RecentAddresses />

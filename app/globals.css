@@ -1,17 +1,80 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
 @theme {
   --color-fuse-blue: #0a4ef7;
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
+  --animate-caret-blink: caret-blink 1s steps(1) infinite;
+
+  @keyframes caret-blink {
+    50% {
+      opacity: 0;
+    }
+  }
 }
 
-html {
-  -webkit-font-smoothing: antialiased;
-  text-rendering: geometricPrecision;
+@theme inline {
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-body {
-  background: #f5f5f5;
-  color: #000;
-  font-family: var(--font-sans);
+/* shadcn tokens mapped onto the Fuse palette: black ink, near-white greys, Fuse blue focus. */
+:root {
+  --background: #fff;
+  --foreground: #000;
+  --card: #fafafa;
+  --card-foreground: #000;
+  --popover: #fff;
+  --popover-foreground: #000;
+  --primary: #000;
+  --primary-foreground: #fff;
+  --secondary: #f4f4f4;
+  --secondary-foreground: #000;
+  --muted: #f4f4f4;
+  --muted-foreground: rgb(0 0 0 / 0.4);
+  --accent: #f4f4f4;
+  --accent-foreground: #000;
+  --destructive: #ff3b30;
+  --border: rgb(0 0 0 / 0.06);
+  --input: rgb(0 0 0 / 0.08);
+  --ring: var(--color-fuse-blue);
+  --radius: 0.875rem;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring;
+  }
+  html {
+    @apply font-sans;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: geometricPrecision;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
 }

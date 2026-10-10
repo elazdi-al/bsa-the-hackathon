@@ -5,10 +5,6 @@ export type Step =
   | { name: "recovery"; status: "email" | "sending" | "code" | "verifying"; email: string }
   | { name: "setup"; status: "working" | "ready" };
 
-export type FaceId = "hidden" | "scanning" | "success";
-
-export type FlowState = { step: Step; faceId: FaceId };
-
 export type FlowAction =
   | { type: "create" }
   | { type: "created" }
@@ -16,66 +12,45 @@ export type FlowAction =
   | { type: "codeSent" }
   | { type: "verify" }
   | { type: "verified" }
-  | { type: "scanFace" }
-  | { type: "faceRecognised" }
-  | { type: "dismissFaceId" };
+  | { type: "walletReady" };
 
-export const initialFlow: FlowState = { step: { name: "device", status: "idle" }, faceId: "hidden" };
+export const initialFlow: Step = { name: "device", status: "idle" };
 
-export function flowReducer(state: FlowState, action: FlowAction): FlowState {
-  const { step } = state;
+export function flowReducer(step: Step, action: FlowAction): Step {
   switch (action.type) {
     case "create":
-      if (step.name === "device" && step.status === "idle")
-        return { step: { name: "device", status: "creating" }, faceId: "scanning" };
-      if (step.name === "twofa" && step.status === "idle")
-        return { ...state, step: { name: "twofa", status: "creating" } };
-      return state;
+      if ((step.name === "device" || step.name === "twofa") && step.status === "idle")
+        return { name: step.name, status: "creating" };
+      return step;
     case "created":
-      if (step.name === "device" && step.status === "creating")
-        return { step: { name: "twofa", status: "idle" }, faceId: "success" };
-      if (step.name === "twofa" && step.status === "creating")
-        return { ...state, step: { name: "recovery", status: "email", email: "" } };
-      return state;
+      if (step.name === "device" && step.status === "creating") return { name: "twofa", status: "idle" };
+      if (step.name === "twofa" && step.status === "creating") return { name: "recovery", status: "email", email: "" };
+      return step;
     case "sendCode":
-      if (step.name === "recovery" && step.status === "email")
-        return { ...state, step: { ...step, status: "sending", email: action.email } };
-      return state;
+      if (step.name === "recovery" && step.status === "email") return { ...step, status: "sending", email: action.email };
+      return step;
     case "codeSent":
-      if (step.name === "recovery" && step.status === "sending") return { ...state, step: { ...step, status: "code" } };
-      return state;
+      if (step.name === "recovery" && step.status === "sending") return { ...step, status: "code" };
+      return step;
     case "verify":
-      if (step.name === "recovery" && step.status === "code")
-        return { ...state, step: { ...step, status: "verifying" } };
-      return state;
+      if (step.name === "recovery" && step.status === "code") return { ...step, status: "verifying" };
+      return step;
     case "verified":
-      if (step.name === "recovery" && step.status === "verifying")
-        return { ...state, step: { name: "setup", status: "working" } };
-      return state;
-    case "scanFace":
-      return step.name === "setup" && state.faceId === "hidden" ? { ...state, faceId: "scanning" } : state;
-    case "faceRecognised":
-      return state.faceId === "scanning" ? { ...state, faceId: "success" } : state;
-    case "dismissFaceId":
-      if (state.faceId !== "success") return state;
-      // In setup, the confirmed scan is what makes the wallet ready.
-      return step.name === "setup"
-        ? { step: { name: "setup", status: "ready" }, faceId: "hidden" }
-        : { ...state, faceId: "hidden" };
+      if (step.name === "recovery" && step.status === "verifying") return { name: "setup", status: "working" };
+      return step;
+    case "walletReady":
+      if (step.name === "setup" && step.status === "working") return { name: "setup", status: "ready" };
+      return step;
   }
 }
 
 /** The mock latency of whatever the flow is currently waiting on. */
-export function pendingTimer({ step, faceId }: FlowState): { ms: number; action: FlowAction } | null {
-  if (faceId === "success") return { ms: 900, action: { type: "dismissFaceId" } };
+export function pendingTimer(step: Step): { ms: number; action: FlowAction } | null {
   if ((step.name === "device" || step.name === "twofa") && step.status === "creating")
     return { ms: step.name === "device" ? 1300 : 1500, action: { type: "created" } };
   if (step.name === "recovery" && step.status === "sending") return { ms: 1200, action: { type: "codeSent" } };
   if (step.name === "recovery" && step.status === "verifying") return { ms: 1000, action: { type: "verified" } };
-  if (step.name === "setup" && step.status === "working")
-    return faceId === "hidden"
-      ? { ms: 1100, action: { type: "scanFace" } }
-      : { ms: 1300, action: { type: "faceRecognised" } };
+  if (step.name === "setup" && step.status === "working") return { ms: 2400, action: { type: "walletReady" } };
   return null;
 }
 

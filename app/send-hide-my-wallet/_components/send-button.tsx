@@ -1,8 +1,8 @@
-import { CheckCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, ScanSmileyIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion, stagger, type Variants } from "motion/react";
+import { Button } from "@/components/ui/button";
 import { hideMyWalletWords } from "../data";
-import { FaceId } from "./icons";
-import { blurSwap, easeOut, springs } from "./motion";
+import { blurSwap, easeOut, labelSpring } from "./motion";
 
 export type Phase = "review" | "sending" | "sent";
 
@@ -20,11 +20,11 @@ type Props = { hidden: boolean; phase: Phase; onSend: () => void };
 
 export function SendButton({ hidden, phase, onSend }: Props) {
   return (
-    <button
-      type="button"
-      onClick={phase === "review" ? onSend : undefined}
-      aria-disabled={phase !== "review"}
-      className="relative block h-12 w-full rounded-full bg-black text-[16px] font-medium tracking-[-0.3px] text-white outline-offset-2 outline-fuse-blue transition-transform duration-150 ease-out select-none focus-visible:outline-2 active:scale-[0.96] aria-disabled:active:scale-100"
+    <Button
+      onClick={onSend}
+      disabled={phase !== "review"}
+      focusableWhenDisabled
+      className="relative w-full tracking-[-0.3px] aria-disabled:active:scale-100"
     >
       <span
         aria-hidden
@@ -38,8 +38,8 @@ export function SendButton({ hidden, phase, onSend }: Props) {
         >
           {phase === "review" && (
             <>
-              <motion.span layout="position" transition={springs.label} className="flex items-center gap-2">
-                <FaceId className="size-4" />
+              <motion.span layout="position" transition={labelSpring} className="flex items-center gap-2">
+                <ScanSmileyIcon aria-hidden weight="bold" className="size-[18px]" />
                 Send
               </motion.span>
               <AnimatePresence mode="popLayout" initial={false}>
@@ -79,6 +79,6 @@ export function SendButton({ hidden, phase, onSend }: Props) {
       <span className="sr-only" aria-live="polite">
         {phase === "sending" ? "Sending" : phase === "sent" ? "Sent" : ""}
       </span>
-    </button>
+    </Button>
   );
 }

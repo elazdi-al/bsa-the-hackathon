@@ -2,8 +2,6 @@ import type { Transition, Variants } from "motion/react";
 
 /** Default for small state changes on this screen (set on MotionConfig). */
 export const swapSpring: Transition = { type: "spring", duration: 0.3, bounce: 0 };
-export const sheetSpring: Transition = { type: "spring", duration: 0.5, bounce: 0 };
-export const pressSpring: Transition = { type: "spring", duration: 0.2, bounce: 0 };
 
 /** Exits are quicker than enters, so the outgoing state never lingers. */
 const quickExit: Transition = { duration: 0.12, ease: "easeOut" };

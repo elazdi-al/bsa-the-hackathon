@@ -5,7 +5,8 @@ import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { RESOLVE_DELAY_MS, lookupRecipient, looksLikeRecipient, type Resolution } from "../data";
-import { iconPop, pressSpring } from "./motion";
+import { Button } from "@/components/ui/button";
+import { iconPop } from "./motion";
 import { StatusLine, type Status } from "./status-line";
 
 const STATUS_ID = "recipient-status";
@@ -32,19 +33,21 @@ export function AddressCard() {
   }
 
   return (
-    <motion.form
+    // The whole card focuses the input; pressing one of its buttons leaves the card still.
+    <form
       onSubmit={(event) => {
         event.preventDefault();
         if (resolved) router.push("/send-hide-my-wallet");
       }}
-      onTap={() => inputRef.current?.focus()}
-      whileTap={{ scale: 1.01, backgroundColor: "#ffffff" }}
-      transition={pressSpring}
-      className="mx-[15px] mt-[10px] rounded-[22px] bg-[#fbfbfb] px-4 pt-[17px] pb-4 shadow-[0_12px_32px_-8px_rgb(0_0_0/0.12),0_0_28px_rgb(0_0_0/0.05)]"
+      onClick={(event) => {
+        if (!(event.target as Element).closest("button")) inputRef.current?.focus();
+      }}
+      className="mx-[15px] mt-[10px] rounded-[22px] border bg-[#fbfbfb] px-4 pt-[17px] pb-4 transition-[scale,background-color] duration-200 ease-out not-has-[button:active]:active:scale-[1.01] not-has-[button:active]:active:bg-white"
     >
       <div className="flex h-[22px] items-center gap-3">
         <input
           ref={inputRef}
+          data-vaul-no-drag
           value={value}
           onChange={(event) => setValue(event.target.value)}
           aria-label="Address or .sol handle"
@@ -66,7 +69,6 @@ export function AddressCard() {
               type="button"
               aria-label="Clear"
               onClick={clear}
-              propagate={{ tap: false }}
               variants={iconPop}
               initial="hidden"
               animate="shown"
@@ -81,28 +83,16 @@ export function AddressCard() {
 
       <StatusLine id={STATUS_ID} status={status} />
 
-      <div className="mt-[11px] flex gap-2">
-        <motion.button
-          type="submit"
-          disabled={!resolved}
-          whileTap={{ scale: 0.96 }}
-          propagate={{ tap: false }}
-          className="h-[34px] rounded-full bg-black px-5 text-[14px] font-medium tracking-[-0.035em] text-white transition-colors duration-200 ease-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuse-blue disabled:bg-[#a7a7a7]"
-        >
+      <div className="mt-[11px] flex gap-2 tracking-[-0.035em]">
+        <Button type="submit" size="sm" disabled={!resolved}>
           Continue
-        </motion.button>
-        <motion.button
-          type="button"
-          onClick={paste}
-          whileTap={{ scale: 0.96 }}
-          propagate={{ tap: false }}
-          className="flex h-[34px] items-center gap-1.5 rounded-full bg-[#f4f4f4] px-5 text-[14px] font-medium tracking-[-0.035em] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuse-blue"
-        >
+        </Button>
+        <Button type="button" size="sm" variant="secondary" onClick={paste} className="gap-1.5">
           <FileIcon weight="bold" size={14} />
           Paste
-        </motion.button>
+        </Button>
       </div>
-    </motion.form>
+    </form>
   );
 }
 

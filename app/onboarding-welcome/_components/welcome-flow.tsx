@@ -1,70 +1,47 @@
 "use client";
 
-import { AppleLogoIcon, ArrowCounterClockwiseIcon } from "@phosphor-icons/react";
+import { ArrowCounterClockwiseIcon } from "@phosphor-icons/react";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
-import { AppleSheet, SHEET_STATUS, type SheetStep } from "./apple-sheet";
-import { FaceIdHud, type HudGlyph } from "./face-id-hud";
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { GlimmField } from "./glimm-field";
-import { FuseLogo } from "./glyphs";
-import { fade } from "./motion";
+import { AppleLogo, FuseLogo } from "./glyphs";
+import { blurSwap, fade } from "./motion";
 import { WordWheel } from "./word-wheel";
 
-type Step = "welcome" | SheetStep | "closing" | "leaving";
+type Step = "welcome" | "signing" | "leaving";
 
 const NEXT_ROUTE = "/onboarding-secure";
 
-/** Steps that advance on their own after a mock delay (ms). */
-const AUTO: Partial<Record<Step, [next: Step, after: number]>> = {
-  "face-id": ["scanning", 300],
-  scanning: ["matched", 600],
-  matched: ["signing", 500],
-  signing: ["done", 450],
-  done: ["closing", 600],
-  closing: ["leaving", 500],
-};
-
-const HUD: Partial<Record<Step, HudGlyph>> = { "face-id": "scan", scanning: "spin", matched: "match" };
-
-const isSheetStep = (step: Step): step is SheetStep => step === "prompt" || step in SHEET_STATUS;
-
-const pill =
-  "flex h-[55px] w-full items-center justify-center gap-2 rounded-full text-[15px] font-semibold tracking-[-0.01em] transition-transform duration-150 ease-out active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white";
+const cta = "text-[15px] tracking-[-0.01em] focus-visible:outline-white";
 
 export function WelcomeFlow() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("welcome");
+  const busy = step !== "welcome";
 
   useEffect(() => {
-    if (step === "leaving") {
-      const id = setTimeout(() => router.push(NEXT_ROUTE), 300);
-      return () => clearTimeout(id);
-    }
-    const auto = AUTO[step];
-    if (!auto) return;
-    const id = setTimeout(() => setStep(auto[0]), auto[1]);
+    if (step === "welcome") return;
+    const id = step === "signing" ? setTimeout(() => setStep("leaving"), 1200) : setTimeout(() => router.push(NEXT_ROUTE), 300);
     return () => clearTimeout(id);
   }, [step, router]);
-
-  const close = useCallback(() => setStep("welcome"), []);
-  const signIn = useCallback(() => setStep("face-id"), []);
-  const hud = HUD[step];
 
   return (
     <MotionConfig reducedMotion="user">
       <GlimmField />
 
       <motion.div
-        inert={step !== "welcome"}
-        className="relative flex min-h-dvh flex-col"
+        inert={step === "leaving"}
+        className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col"
         animate={step === "leaving" ? { opacity: 0, filter: "blur(8px)", y: 16 } : { opacity: 1, filter: "blur(0px)", y: 0 }}
         transition={fade}
       >
         <WordWheel />
 
-        <section className="px-12 text-white">
+        <section className="px-8 text-white min-[360px]:px-12">
           <div className="grid size-[42px] place-items-center rounded-[11px] bg-white text-black shadow-[0_1px_2px_rgb(0_0_0/0.06)]">
             <FuseLogo className="size-[17px]" />
           </div>
@@ -80,27 +57,31 @@ export function WelcomeFlow() {
           </p>
         </section>
 
-        <div className="mt-8 flex flex-col gap-3 px-[30px] pb-[max(40px,calc(env(safe-area-inset-bottom)+12px))]">
-          <button type="button" onClick={() => setStep("prompt")} className={`${pill} bg-white text-black shadow-[0_1px_3px_rgb(0_0_0/0.08)]`}>
-            <AppleLogoIcon weight="fill" size={17} className="-mt-px" />
-            Continue with Apple
-          </button>
-          <Link href={NEXT_ROUTE} className={`${pill} bg-white/15 text-white shadow-[inset_0_0_0_1px_rgb(255_255_255/0.18)]`}>
+        <div className="mt-8 flex flex-col gap-3 px-5 pb-[max(40px,calc(env(safe-area-inset-bottom)+12px))] min-[360px]:px-[30px]">
+          <Button
+            variant="inverse"
+            size="lg"
+            disabled={busy}
+            focusableWhenDisabled
+            aria-busy={busy}
+            onClick={() => setStep("signing")}
+            className={`grid place-items-center ${cta}`}
+          >
+            <AnimatePresence initial={false}>
+              <motion.span key={busy ? "busy" : "idle"} {...blurSwap} className="col-start-1 row-start-1 flex items-center gap-2">
+                {busy ? <Spinner aria-hidden className="size-[17px]" /> : <AppleLogo className="-mt-px size-[17px]" />}
+                {busy ? "Signing in" : "Continue with Apple"}
+              </motion.span>
+            </AnimatePresence>
+          </Button>
+          <Button nativeButton={false} render={<Link href={NEXT_ROUTE} />} size="lg" className={`bg-white/15 text-white hover:bg-white/20 ${cta}`}>
             <span className="grid size-4 place-items-center rounded-[4px] bg-white text-[#1B7DF6]">
               <ArrowCounterClockwiseIcon weight="fill" size={11} />
             </span>
             Recover existing wallet
-          </Link>
+          </Button>
         </div>
       </motion.div>
-
-      <AnimatePresence>
-        {isSheetStep(step) && (
-          <motion.div key="dim" aria-hidden className="absolute inset-0 z-10 bg-black/80" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={fade} />
-        )}
-        {isSheetStep(step) && <AppleSheet key="sheet" step={step} onClose={close} onSignIn={signIn} />}
-        {hud && <FaceIdHud key="hud" glyph={hud} />}
-      </AnimatePresence>
     </MotionConfig>
   );
 }
