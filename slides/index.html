@@ -3,73 +3,1051 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fuse · Shamir transactions and recovery</title>
+<title>Swissquote Wallet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&display=swap">
 <style>
-:root{--ink:#17202d;--grey:#798392;--blue:#0866ff;--orange:#cf7047;--purple:#8b59ce;--ease:cubic-bezier(.23,1,.32,1)}
-*{box-sizing:border-box;margin:0}html,body{height:100%;overflow:hidden;background:#111827}body{font-family:Inter,-apple-system,BlinkMacSystemFont,system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;print-color-adjust:exact;-webkit-print-color-adjust:exact}
-.slide{display:none;position:absolute;top:50%;left:50%;width:1920px;height:1080px;padding:0 128px;contain:strict;background:#fff;transform:translate(-50%,-50%) scale(var(--scale,1))}.slide.current{display:block}h1{position:absolute;top:225px;left:128px;right:128px;font-size:112px;line-height:1.13;letter-spacing:-.045em;font-weight:600;max-width:1650px}.visual{position:absolute;top:535px;left:128px;right:128px}.caption{position:absolute;top:820px;left:128px;right:128px;font-size:38px;line-height:1.4;letter-spacing:-.02em;color:var(--grey)}.slide:not(:has(.visual)) .caption{top:600px}.row{display:flex;align-items:center;gap:80px}.row>strong{font-size:62px;line-height:1.2;letter-spacing:-.035em;font-weight:500}.share{display:flex;flex-direction:column;align-items:center;gap:25px;min-width:250px}.share b{display:grid;place-items:center;width:140px;height:140px;border:2px solid currentColor;border-radius:50%;font-size:65px;font-weight:500;color:var(--blue)}.share span{font-size:30px;color:var(--grey)}.share.b b{color:var(--orange)}.share.c b{color:var(--purple)}.symbol{font-size:50px;font-weight:400;color:#b4becd}.blue-text{color:var(--blue)}.purple-text{color:var(--purple)}.hours{font-size:200px;font-weight:600;line-height:1;letter-spacing:-.065em;color:var(--blue)}.hours span{font-size:60px;letter-spacing:-.035em;font-weight:500}.speaker-notes{display:none}footer{position:absolute;bottom:42px;left:128px;right:128px;display:flex;justify-content:space-between;font-size:21px;color:var(--grey)}.brand{font-weight:500}.slide-number{visibility:hidden}
-.controls{position:fixed;bottom:14px;right:18px;z-index:10;display:flex;gap:6px;align-items:center;color:#c9cfdf;font-size:12px;background:#101829ed;border:1px solid #ffffff20;border-radius:99px;padding:5px 8px;opacity:0;transition:opacity 180ms}.controls:hover,.controls:focus-within{opacity:1}.controls button{border:0;border-radius:99px;color:inherit;background:transparent;cursor:pointer;font:inherit;padding:7px 10px}.controls button:hover,.controls button:focus-visible{background:#ffffff20;outline:2px solid #8dd0ff;outline-offset:1px}.controls button:disabled{opacity:.3;cursor:default}.controls output{min-width:46px;text-align:center}.notes-panel{position:fixed;bottom:68px;left:20px;z-index:12;background:#101829f5;color:#eaf0ff;border:1px solid #ffffff25;border-radius:18px;padding:24px;max-width:620px;max-height:45vh;overflow:auto;font-size:17px;line-height:1.55;box-shadow:0 10px 60px #0005}.notes-panel h2{font-size:13px;text-transform:uppercase;letter-spacing:.1em;color:#92baff;margin-bottom:10px}.notes-panel[hidden]{display:none}
-@keyframes enter{from{opacity:0;translate:0 16px}}.animate .current .visual{animation:enter 450ms var(--ease) both}@media(prefers-reduced-motion:reduce){.animate .current .visual{animation:none}}@page{size:1920px 1080px;margin:0}@media print{html,body{height:auto;overflow:visible;background:none}.slide{display:block;position:relative;top:0;left:0;transform:none;break-after:page}.slide:last-of-type{break-after:auto}.controls,.notes-panel{display:none!important}.slide-number{visibility:visible}.animate .slide .visual{animation:none}}
+  /* App Store style: Inter, black headlines over grey subheads, blue gradient cover, grey cents. */
+  :root {
+    --ink: #000;
+    --grey: #949494;
+    --secondary: #6e6e73;
+    --cents: #dcdcdc;
+    --surface: #fafafa;
+    --fill: #f2f2f4;
+    --line: rgb(0 0 0 / 0.06);
+    --positive: #30b256;
+    --warning: #f29d0a;
+    --negative: #ff3b30;
+    /* One colour per party, the same on every slide. */
+    --phone: #0a84ff;
+    --swissquote: #ff5a1f;
+    --partner: #a945e8;
+    --home: #00a67e;
+    --blue: linear-gradient(118deg, #0151ff 0%, #0151ff 34%, #1685ff 50%, #3fc8ff 64%, #8dd0ff 80%, #e8f4ff 94%, #fdfeff 100%);
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  }
 
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; overflow: hidden; background: #000; }
+  body {
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
 
-.device-icon{display:block;width:180px;height:183px;flex:none;color:var(--blue);fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}.share.b .device-icon{color:var(--orange)}.share.c .device-icon{color:var(--purple)}.device-icon .device-badge{fill:#fff;stroke-width:2}.device-icon text{font-family:Inter,system-ui,sans-serif;font-size:28px;font-weight:600;text-anchor:middle;dominant-baseline:middle;fill:currentColor;stroke:none}.credentials{display:grid;gap:28px}.credentials strong{font-size:54px;font-weight:500;letter-spacing:-.03em}.new-device{gap:65px}
+  /* Every slide is authored at 1920×1080 and scaled to fit the window. */
+  .slide {
+    display: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 1920px;
+    height: 1080px;
+    padding: 120px 128px;
+    /* Clips like overflow: hidden, and keeps print from paginating the phones that bleed off the edge. */
+    contain: strict;
+    background: #fff;
+    transform: translate(-50%, -50%) scale(var(--scale, 1));
+  }
+  .slide.current { display: block; }
+  .slide.blue { background: var(--blue); color: #fff; }
+
+  h1 {
+    max-width: 1100px;
+    font-size: 120px;
+    line-height: 1;
+    font-weight: 500;
+    letter-spacing: -0.045em;
+    text-wrap: balance;
+  }
+  .sub {
+    max-width: 920px;
+    margin-top: 36px;
+    font-size: 64px;
+    line-height: 1.1;
+    font-weight: 500;
+    letter-spacing: -0.035em;
+    color: var(--grey);
+    text-wrap: pretty;
+  }
+  h1.display { max-width: none; font-size: 156px; line-height: 0.96; letter-spacing: -0.05em; }
+  .display + .sub { max-width: 1520px; }
+  .blue .sub { font-size: 44px; letter-spacing: -0.02em; color: rgb(255 255 255 / 0.72); }
+  .cents { color: var(--cents); }
+
+  /* Content slides: a smaller headline leaves the canvas to the diagram. */
+  .content h1 { max-width: 1664px; font-size: 88px; letter-spacing: -0.04em; }
+  .content .sub { max-width: 1500px; margin-top: 24px; font-size: 40px; line-height: 1.2; letter-spacing: -0.02em; }
+  .content.with-phone h1, .content.with-phone .sub { max-width: 1000px; }
+
+  /* Bonus topics wear a pill in the top-right corner. */
+  .tag {
+    position: absolute;
+    top: 52px;
+    left: 128px;
+    padding: 10px 22px;
+    border-radius: 99px;
+    background: var(--fill);
+    font-size: 26px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--secondary);
+  }
+
+  /* Icons: the app's duotone set, recoloured through currentColor. */
+  .i { display: block; width: 1em; height: 1em; fill: currentColor; flex: none; }
+
+  /* Phone: one --w sets the size. Inside the screen 1em is one iPhone point (393 × 852). */
+  .phone {
+    --w: 560px;
+    --pt: calc(var(--w) * 0.932 / 393);
+    position: absolute;
+    width: var(--w);
+    border: calc(var(--w) * 0.009) solid transparent;
+    padding: calc(var(--w) * 0.025);
+    border-radius: calc(55 * var(--pt) + var(--w) * 0.034);
+    background:
+      linear-gradient(#050505 0 0) padding-box,
+      linear-gradient(140deg, #f4f4f4, #a2a2a2 24%, #ececec 50%, #8e8e8e 78%, #d6d6d6) border-box;
+    box-shadow: 0 60px 120px -40px rgb(0 0 0 / 0.3), 0 12px 24px -12px rgb(0 0 0 / 0.12);
+  }
+  .with-phone .phone { --w: 520px; left: 1240px; top: 132px; }
+  .screen {
+    position: relative;
+    height: calc(852 * var(--pt));
+    border-radius: calc(55 * var(--pt));
+    overflow: hidden;
+    background: #fff;
+    color: #000;
+    font-size: var(--pt);
+  }
+  .screen > img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .status {
+    position: absolute;
+    inset: 0 0 auto;
+    height: 59em;
+    display: grid;
+    grid-template-columns: 1fr 126em 1fr;
+    align-items: center;
+    justify-items: center;
+  }
+  .status b { font-size: 17em; font-weight: 600; letter-spacing: -0.01em; }
+  .status i { width: 126em; height: 37em; border-radius: 99em; background: #000; }
+  .status svg { width: 74em; height: 13em; fill: currentColor; }
+  .status.light { color: #fff; }
+  .screen::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: 8em;
+    width: 134em;
+    height: 5em;
+    margin-left: -67em;
+    border-radius: 99em;
+    background: #000;
+  }
+
+  /* Cover phone, leaning back like the App Store hero. */
+  .tilt { transform: perspective(2600px) rotateX(16deg) rotateY(-14deg) rotateZ(14deg); }
+
+  /* Tiles, as on the app's home screen. */
+  .tiles {
+    position: absolute;
+    left: 128px;
+    right: 128px;
+    bottom: 120px;
+    display: grid;
+    grid-template-columns: repeat(var(--cols, 3), 1fr);
+    gap: 32px;
+  }
+  .tile {
+    min-height: 340px;
+    padding: 44px;
+    display: flex;
+    flex-direction: column;
+    border-radius: 48px;
+    background: var(--surface);
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+  .icon {
+    display: grid;
+    place-items: center;
+    width: 88px;
+    height: 88px;
+    border-radius: 26px;
+    background: linear-gradient(color-mix(in srgb, var(--c) 72%, #fff), var(--c));
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.3), 0 8px 20px -8px var(--c);
+    color: #fff;
+    font-size: 48px;
+    --icon-duo: 0.55;
+  }
+  .tile h2 { margin-top: auto; padding-top: 40px; font-size: 48px; font-weight: 600; letter-spacing: -0.035em; }
+  .tile p { min-height: calc(var(--lines, 0) * 1.25em); margin-top: 10px; font-size: 30px; line-height: 1.25; font-weight: 500; letter-spacing: -0.02em; color: var(--grey); text-wrap: pretty; }
+  .tile .big { margin-bottom: auto; font-size: 128px; line-height: 1; font-weight: 600; letter-spacing: -0.055em; font-variant-numeric: tabular-nums; }
+  .tile .big small { font-size: 0.45em; letter-spacing: -0.03em; }
+
+  /* Rows: an icon, a bold label and a grey line. Lists of places, checks and gates. */
+  .rows { display: grid; gap: 22px; }
+  .row { display: grid; grid-template-columns: 72px 1fr; column-gap: 28px; align-items: center; }
+  .row .icon { width: 72px; height: 72px; border-radius: 22px; font-size: 40px; }
+  .row b { display: block; font-size: 36px; line-height: 1.15; font-weight: 600; letter-spacing: -0.03em; }
+  .row > div > span { display: block; margin-top: 4px; font-size: 28px; line-height: 1.25; font-weight: 500; letter-spacing: -0.015em; color: var(--secondary); text-wrap: pretty; }
+
+  /* Numbered steps joined by a line: payment and recovery flows. */
+  .steps { display: grid; gap: 30px; }
+  .step { position: relative; display: grid; grid-template-columns: 72px 1fr; column-gap: 32px; align-items: start; }
+  .step::before {
+    content: attr(data-n);
+    display: grid;
+    place-items: center;
+    width: 72px;
+    height: 72px;
+    border-radius: 99px;
+    background: var(--c, var(--ink));
+    color: #fff;
+    font-size: 32px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .step:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    left: 35px;
+    top: 80px;
+    bottom: -22px;
+    width: 2px;
+    border-radius: 2px;
+    background: #e5e5ea;
+  }
+  .step b { display: block; padding-top: 12px; font-size: 38px; line-height: 1.15; font-weight: 600; letter-spacing: -0.03em; }
+  .step span { display: block; margin-top: 6px; font-size: 28px; line-height: 1.3; font-weight: 500; letter-spacing: -0.015em; color: var(--secondary); text-wrap: pretty; }
+  .steps.when .step { grid-template-columns: 150px 1fr; }
+  .steps.when .step::before { width: 150px; border-radius: 99px; font-size: 28px; letter-spacing: -0.01em; }
+  .steps.when .step:not(:last-child)::after { left: 74px; }
+
+  /* Party badge: a share letter or an icon on the party's colour. */
+  .badge {
+    display: grid;
+    place-items: center;
+    width: 72px;
+    height: 72px;
+    border-radius: 22px;
+    background: var(--c);
+    color: #fff;
+    font-size: 36px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+
+  /* Problem: the client leaves with a withdrawal, for twelve words on paper. */
+  .leave { position: absolute; left: 128px; right: 128px; bottom: 120px; display: grid; grid-template-columns: 460px 1fr 620px; align-items: stretch; }
+  .leave .tile { min-height: 380px; }
+  .exit-arrow { align-self: center; padding: 0 36px; text-align: center; }
+  .exit-arrow b { display: block; font-size: 40px; font-weight: 600; letter-spacing: -0.03em; }
+  .exit-arrow span { display: block; margin-top: 14px; font-size: 28px; font-weight: 500; color: var(--secondary); }
+  .exit-arrow svg { display: block; width: 100%; height: 40px; margin-top: 18px; }
+  .seed { min-height: 380px; padding: 40px 44px; border-radius: 48px; background: #1c1c1e; color: #fff; }
+  .seed h2 { font-size: 36px; font-weight: 600; letter-spacing: -0.03em; }
+  .seed ol { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px 18px; margin-top: 26px; padding: 0; list-style: none; counter-reset: word; }
+  .seed li { counter-increment: word; display: flex; align-items: center; gap: 12px; font-size: 22px; font-weight: 600; color: rgb(255 255 255 / 0.4); font-variant-numeric: tabular-nums; }
+  .seed li::before { content: counter(word); width: 28px; text-align: right; }
+  .seed li::after { content: ""; flex: 1; height: 18px; border-radius: 6px; background: rgb(255 255 255 / 0.16); }
+  .seed p { display: grid; gap: 4px; margin-top: 28px; font-size: 26px; font-weight: 500; color: rgb(255 255 255 / 0.75); }
+
+  /* Custody model: shares, any two, wallet key + passkey = an accepted payment. */
+  .equation { position: absolute; left: 128px; right: 128px; top: 450px; display: flex; align-items: stretch; gap: 22px; }
+  .shares { display: grid; gap: 18px; width: 470px; flex: none; }
+  .share { display: grid; grid-template-columns: 72px 1fr; column-gap: 22px; align-items: center; padding: 18px; border-radius: 40px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+  .share b { display: block; font-size: 32px; font-weight: 600; letter-spacing: -0.025em; }
+  .share > div > span { display: block; margin-top: 2px; font-size: 24px; font-weight: 500; color: var(--secondary); }
+  .brace { flex: none; display: block; width: 150px; height: 360px; overflow: visible; }
+  .brace text { font-size: 24px; font-weight: 600; fill: var(--secondary); }
+  .term { flex: 1; min-height: 300px; padding: 32px; display: flex; flex-direction: column; border-radius: 44px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+  .term .icon { width: 72px; height: 72px; border-radius: 22px; font-size: 40px; }
+  .term b { margin-top: auto; padding-top: 24px; font-size: 38px; font-weight: 600; letter-spacing: -0.03em; }
+  .term > span:last-child { margin-top: 8px; font-size: 26px; line-height: 1.25; font-weight: 500; color: var(--secondary); text-wrap: pretty; }
+  .term.result { background: #000; color: #fff; box-shadow: none; }
+  .term.result > span:last-child { color: rgb(255 255 255 / 0.7); }
+  .op { flex: none; align-self: center; font-size: 64px; font-weight: 500; color: #c7c7cc; }
+
+  /* Comparison grid: five models and ours, four questions. */
+  .compare { position: absolute; left: 128px; right: 128px; top: 262px; display: grid; grid-template-columns: 1fr repeat(4, 208px); }
+  .compare > * { display: flex; align-items: center; min-height: 96px; padding: 0 20px; border-top: 1px solid #ececf0; }
+  .compare .head { min-height: 72px; border-top: 0; justify-content: center; text-align: center; font-size: 24px; line-height: 1.15; font-weight: 600; color: var(--secondary); }
+  .compare .head:first-child { justify-content: flex-start; }
+  .compare .model { flex-direction: column; align-items: flex-start; justify-content: center; padding-left: 28px; }
+  .compare .model b { font-size: 32px; font-weight: 600; letter-spacing: -0.025em; }
+  .compare .model span { margin-top: 4px; font-size: 24px; font-weight: 500; color: var(--secondary); }
+  .compare .mark { justify-content: center; font-size: 44px; }
+  .compare .ours { border-top: 0; background: color-mix(in srgb, var(--phone) 8%, #fff); }
+  .compare .ours.model { border-radius: 32px 0 0 32px; }
+  .compare .ours:last-child { border-radius: 0 32px 32px 0; }
+  .yes { color: var(--positive); }
+  .part { color: var(--warning); }
+  .no { color: #d1d1d6; }
+  .legend { position: absolute; left: 156px; bottom: 76px; display: flex; gap: 40px; font-size: 24px; font-weight: 500; color: var(--secondary); }
+  .legend span { display: flex; align-items: center; gap: 10px; }
+  .legend .i { font-size: 30px; }
+
+  /* Threat model table. */
+  .threats { position: absolute; left: 128px; right: 128px; top: 330px; display: grid; grid-template-columns: 470px 240px 490px 1fr; }
+  .threats > * { display: flex; flex-direction: column; justify-content: center; min-height: 96px; padding: 10px 24px 10px 0; border-top: 1px solid #ececf0; font-size: 28px; line-height: 1.25; font-weight: 500; letter-spacing: -0.015em; text-wrap: pretty; }
+  .threats .head { min-height: 56px; border-top: 0; font-size: 24px; font-weight: 600; color: var(--secondary); }
+  .threats .who { font-size: 32px; font-weight: 600; letter-spacing: -0.025em; }
+  .threats .why { color: var(--secondary); }
+  .threats .yes, .threats .no, .threats .part { font-weight: 600; }
+  .threats .no { color: var(--positive); }
+
+  /* Architecture diagram, drawn in SVG so it stays sharp. */
+  .arch { position: absolute; left: 128px; top: 312px; width: 1664px; height: 700px; overflow: visible; font-family: inherit; }
+  .arch .box { fill: var(--surface); stroke: #e5e5ea; stroke-width: 2; }
+  .arch .part { fill: #fff; stroke: #e5e5ea; stroke-width: 2; }
+  .arch .mock { fill: #fff; stroke: #aeaeb2; stroke-width: 2.5; stroke-dasharray: 10 8; }
+  .arch .title { font-size: 34px; font-weight: 600; letter-spacing: -0.025em; fill: #000; }
+  .arch .label { font-size: 25px; font-weight: 500; letter-spacing: -0.01em; fill: #000; }
+  .arch .note { font-size: 23px; font-weight: 500; fill: var(--secondary); }
+  .arch .wire { fill: none; stroke: #000; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+  .arch .wire.soft { stroke: #8e8e93; stroke-dasharray: 2 10; }
+  .arch .wire-label { font-size: 23px; font-weight: 600; fill: #000; }
+  .arch .halo { paint-order: stroke; stroke: #fff; stroke-width: 14px; stroke-linejoin: round; }
+
+  /* Amount bands for payment size. */
+  .bands { display: grid; gap: 20px; }
+  .band { display: grid; grid-template-columns: 390px 1fr; align-items: center; column-gap: 32px; padding: 30px 36px; border-radius: 40px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+  .band strong { font-size: 40px; line-height: 1.1; font-weight: 600; letter-spacing: -0.035em; font-variant-numeric: tabular-nums; }
+  .band strong small { display: block; margin-top: 6px; font-size: 24px; letter-spacing: -0.01em; color: var(--secondary); }
+  .band p { display: flex; align-items: center; gap: 18px; font-size: 30px; line-height: 1.25; font-weight: 500; letter-spacing: -0.015em; text-wrap: pretty; }
+  .band p .i { font-size: 44px; }
+
+  /* Compliance pipeline. */
+  .pipeline { display: grid; gap: 14px; }
+  .check { display: grid; grid-template-columns: 56px 300px 1fr; align-items: center; column-gap: 22px; padding: 18px 28px; border-radius: 32px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+  .check .i { font-size: 44px; color: var(--positive); }
+  .check b { font-size: 32px; font-weight: 600; letter-spacing: -0.025em; }
+  .check span { font-size: 26px; font-weight: 500; color: var(--secondary); }
+  .quote { margin-top: 26px; padding: 26px 32px; border-radius: 32px; background: #000; color: #fff; font-size: 30px; font-weight: 500; letter-spacing: -0.015em; }
+  .quote small { display: block; margin-bottom: 8px; font-size: 22px; font-weight: 600; color: rgb(255 255 255 / 0.6); }
+
+  /* Business case arithmetic, one line. */
+  .math { position: absolute; left: 128px; right: 128px; bottom: 136px; display: flex; align-items: center; gap: 28px; padding: 36px 48px; border-radius: 48px; background: #000; color: #fff; font-size: 44px; font-weight: 600; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+  .math small { margin-right: 12px; font-size: 26px; font-weight: 600; letter-spacing: 0; color: rgb(255 255 255 / 0.6); }
+  .math i { font-style: normal; color: rgb(255 255 255 / 0.45); }
+  .math strong { margin-left: auto; font-weight: 600; }
+  .source { position: absolute; left: 128px; bottom: 64px; font-size: 22px; font-weight: 500; color: var(--secondary); }
+
+  /* Big number, like the balance on the app's home screen. */
+  .number { position: absolute; left: 128px; bottom: 96px; }
+  .number p { display: flex; align-items: center; gap: 20px; font-size: 40px; font-weight: 500; letter-spacing: -0.02em; color: var(--grey); }
+  .chip { padding: 8px 18px; border-radius: 99px; background: rgb(48 178 86 / 0.12); color: var(--positive); font-size: 32px; }
+  .number strong { display: block; margin-left: -0.04em; font-size: 340px; line-height: 1; font-weight: 600; letter-spacing: -0.06em; font-variant-numeric: tabular-nums; }
+
+  /* Gates a thief meets, left to right. */
+  .gates { position: absolute; left: 128px; right: 128px; bottom: 120px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 24px; }
+  .gate { padding: 36px 32px 40px; display: flex; flex-direction: column; border-radius: 44px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+  .gate .n { font-size: 24px; font-weight: 600; color: var(--secondary); font-variant-numeric: tabular-nums; }
+  .gate h2 { min-height: 2.2em; margin-top: 14px; font-size: 38px; line-height: 1.1; font-weight: 600; letter-spacing: -0.03em; text-wrap: balance; }
+  .gate .stop { margin-top: 64px; display: flex; align-items: center; gap: 10px; font-size: 26px; font-weight: 600; color: var(--negative); }
+  .gate .stop .i { font-size: 36px; }
+  .gate p { min-height: 3.75em; margin-top: 10px; font-size: 27px; line-height: 1.25; font-weight: 500; color: var(--secondary); text-wrap: pretty; }
+
+  /* Exit without Swissquote: a left-to-right flow. */
+  .flow { position: absolute; left: 128px; right: 128px; bottom: 120px; display: grid; grid-template-columns: 1fr 48px 1fr 48px 1fr 48px 1fr; align-items: center; gap: 12px; }
+  .flow .tile { min-height: 0; padding: 40px 36px; }
+  .flow .tile h2 { font-size: 36px; line-height: 1.1; }
+  .flow .tile p { font-size: 28px; }
+  .flow .tile.gone { background: #fff; box-shadow: inset 0 0 0 2px #e5e5ea; }
+  .flow .tile.gone .icon { --c: #aeaeb2; box-shadow: none; }
+  .flow > .i { justify-self: center; font-size: 44px; color: #c7c7cc; }
+
+  /* Real and mocked, side by side. */
+  .ledger { position: absolute; left: 128px; right: 128px; top: 330px; display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+  .ledger section { padding: 44px 48px; border-radius: 48px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+  .ledger section.mocked { background: #fff; box-shadow: none; outline: 2.5px dashed #aeaeb2; outline-offset: -2.5px; }
+  .ledger h2 { display: flex; align-items: center; gap: 16px; font-size: 44px; font-weight: 600; letter-spacing: -0.035em; }
+  .ledger h2 .i { font-size: 48px; }
+  .ledger ul { margin-top: 28px; padding: 0; list-style: none; display: grid; gap: 18px; }
+  .ledger li { font-size: 29px; line-height: 1.25; font-weight: 500; letter-spacing: -0.015em; }
+  .ledger li span { color: var(--secondary); }
+
+  /* Speaker notes: hidden until N, never printed. */
+  .notes { display: none; }
+  #notes {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    z-index: 1;
+    width: min(1100px, calc(100vw - 48px));
+    padding: 20px 28px 22px;
+    border-radius: 24px;
+    background: rgb(20 20 22 / 0.88);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    color: #fff;
+    font-size: 20px;
+    line-height: 1.45;
+    text-wrap: pretty;
+    translate: -50% 0;
+    box-shadow: 0 20px 40px -12px rgb(0 0 0 / 0.5);
+  }
+  #notes small { display: block; margin-bottom: 6px; font-size: 14px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: rgb(255 255 255 / 0.55); font-variant-numeric: tabular-nums; }
+  #notes[hidden] { display: none; }
+
+  /* Content enters in reading order: headline, subhead, visual. Never on first load. */
+  @keyframes enter { from { opacity: 0; translate: 0 24px; filter: blur(8px); } }
+  .animate .current :is(h1, .sub, .visual) { animation: enter 600ms var(--ease-out) both; }
+  .animate .current .sub { animation-delay: 60ms; }
+  .animate .current .visual { animation-delay: 120ms; }
+  /* Sequences that read as steps arrive one after another. */
+  .animate .current .stagger > * { animation: enter 600ms var(--ease-out) both; }
+  .animate .current .stagger > :nth-child(2) { animation-delay: 180ms; }
+  .animate .current .stagger > :nth-child(3) { animation-delay: 240ms; }
+  .animate .current .stagger > :nth-child(4) { animation-delay: 300ms; }
+  .animate .current .stagger > :nth-child(5) { animation-delay: 360ms; }
+  .animate .current .stagger > :nth-child(6) { animation-delay: 420ms; }
+  .animate .current .stagger > :nth-child(7) { animation-delay: 480ms; }
+  .animate .current .stagger > :nth-child(1) { animation-delay: 120ms; }
+  @media (prefers-reduced-motion: reduce) {
+    @keyframes enter { from { opacity: 0; } }
+  }
+
+  /* Print or save as PDF: one 16:9 page per slide. */
+  @page { size: 1920px 1080px; margin: 0; }
+  @media print {
+    html, body { height: auto; overflow: visible; background: none; }
+    .slide { display: block; position: relative; top: 0; left: 0; transform: none; break-after: page; }
+    #notes { display: none; }
+  }
 </style>
 </head>
 <body>
-<section class="slide" aria-label="Recover after losing a phone."><h1>Recover after losing a phone.</h1><p class="caption">Keep the same wallet.</p><aside class="speaker-notes">The smart account is a contract, with an address that stays the same when its signer and passkey change. The Wallet Key is a signing key, not the account itself. We explain the design choices and then the setup and recovery steps. This is a prototype, with mocked bank identity verification.</aside></section>
+<!--
+  Layouts: cover and closing (.slide.blue), statement (h1.display), tiles (.tiles), content (.slide.content),
+  content with a phone on the right (.content.with-phone). Each slide ends with <aside class="notes">, shown with N.
+  App screens are 393×852 captures in screens/, made by capture.ts.
+-->
+<svg width="0" height="0" style="position: absolute;" aria-hidden="true">
+  <symbol id="status-icons" viewBox="0 0 74 13">
+    <rect y="8" width="3" height="4.5" rx="1"/><rect x="5" y="5.5" width="3" height="7" rx="1"/><rect x="10" y="3" width="3" height="9.5" rx="1"/><rect x="15" y=".5" width="3" height="12" rx="1"/>
+    <path transform="translate(24 .5)" d="M8 0a12 12 0 0 1 8 3.1l-1.4 1.5A10 10 0 0 0 8 2 10 10 0 0 0 1.4 4.6L0 3.1A12 12 0 0 1 8 0Zm0 4a8 8 0 0 1 5.3 2l-1.4 1.6A6 6 0 0 0 8 6a6 6 0 0 0-3.9 1.6L2.7 6A8 8 0 0 1 8 4Zm0 4c1 0 1.9.4 2.6 1L8 12 5.4 9C6.1 8.4 7 8 8 8Z"/>
+    <g transform="translate(46 0)"><rect x=".5" y=".5" width="24" height="12" rx="3.8" fill="none" stroke="currentColor" stroke-opacity=".35"/><rect x="2" y="2" width="21" height="9" rx="2.4"/><path d="M26 4.5v4c.8-.3 1.5-1.1 1.5-2s-.7-1.7-1.5-2Z" opacity=".4"/></g>
+  </symbol>
+  <!-- The app's duotone icons (components/icons.tsx), rendered to static SVG. -->
+  <symbol id="i-face-id" viewBox="0 0 24 24"><g style="opacity:var(--icon-duo, 0.62)"><path d="M3.5 8.5v-2a3 3 0 0 1 3-3h2M15.5 3.5h2a3 3 0 0 1 3 3v2M20.5 15.5v2a3 3 0 0 1-3 3h-2M8.5 20.5h-2a3 3 0 0 1-3-3v-2" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"></path></g><path d="M9 9v1.5M15 9v1.5M9 15c1.7 1.4 4.3 1.4 6 0" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"></path></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><g style="opacity:var(--icon-duo, 0.62)"><path d="M9.25 2H14.75A3.5 3.5 0 0 1 18.25 5.5V18.5A3.5 3.5 0 0 1 14.75 22H9.25A3.5 3.5 0 0 1 5.75 18.5V5.5A3.5 3.5 0 0 1 9.25 2Z" fill-rule="evenodd" stroke-linejoin="round"></path></g><path d="M9.5 4.5H14.5A1.25 1.25 0 0 1 15.75 5.75V18.25A1.25 1.25 0 0 1 14.5 19.5H9.5A1.25 1.25 0 0 1 8.25 18.25V5.75A1.25 1.25 0 0 1 9.5 4.5Z" fill-rule="evenodd" stroke-linejoin="round"></path></symbol>
+  <symbol id="i-bank" viewBox="0 0 24 24"><g style="opacity:var(--icon-duo, 0.62)"><path d="M6 12.5H6.5A1.5 1.5 0 0 1 8 14V19A1.5 1.5 0 0 1 6.5 20.5H6A1.5 1.5 0 0 1 4.5 19V14A1.5 1.5 0 0 1 6 12.5ZM11.75 12.5H12.25A1.5 1.5 0 0 1 13.75 14V19A1.5 1.5 0 0 1 12.25 20.5H11.75A1.5 1.5 0 0 1 10.25 19V14A1.5 1.5 0 0 1 11.75 12.5ZM17.5 12.5H18A1.5 1.5 0 0 1 19.5 14V19A1.5 1.5 0 0 1 18 20.5H17.5A1.5 1.5 0 0 1 16 19V14A1.5 1.5 0 0 1 17.5 12.5Z" fill-rule="evenodd" stroke-linejoin="round"></path></g><path d="M4.75 10.5Q3 10.5 4.38 9.43L10.62 4.57Q12 3.5 13.38 4.57L19.62 9.43Q21 10.5 19.25 10.5Z" fill-rule="evenodd" stroke-linejoin="round"></path></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><g style="opacity:var(--icon-duo, 0.62)"><path d="M11 3.75Q11 3 10.25 3L7 3Q4.5 3 4.5 5.5L4.5 7.25Q4.5 11.5 7.61 16.04L10.15 19.76Q11 21 11 19.5Z" fill-rule="evenodd" stroke-linejoin="round"></path></g><path d="M13 3.75Q13 3 13.75 3L17 3Q19.5 3 19.5 5.5L19.5 7.25Q19.5 11.5 16.39 16.04L13.85 19.76Q13 21 13 19.5Z" fill-rule="evenodd" stroke-linejoin="round"></path></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><g style="opacity:var(--icon-duo, 0.62)"><path d="M14.75 9.25 20.25 3.75M17.5 6.5 20 9" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"></path></g><path d="M3 15.5A5.5 5.5 0 1 0 14 15.5A5.5 5.5 0 1 0 3 15.5ZM6.5 15.5A2 2 0 1 0 10.5 15.5A2 2 0 1 0 6.5 15.5Z" fill-rule="evenodd" stroke-linejoin="round"></path></symbol>
+  <symbol id="i-id-card" viewBox="0 0 24 24"><mask id="m-id-card" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24"><rect width="24" height="24" fill="#fff"></rect><g color="#000" fill="#000"><path d="M6 12A2.5 2.5 0 1 0 11 12A2.5 2.5 0 1 0 6 12Z" fill-rule="evenodd" stroke="currentColor" stroke-width="4" stroke-linejoin="round"></path><path d="M14 10.25h3.5M14 13.75h2" fill="none" stroke="currentColor" stroke-width="6.75" stroke-linecap="round" stroke-linejoin="round"></path></g></mask><g style="opacity:var(--icon-duo, 0.62)" mask="url(#m-id-card)"><path d="M6.5 5H17.5A4 4 0 0 1 21.5 9V15A4 4 0 0 1 17.5 19H6.5A4 4 0 0 1 2.5 15V9A4 4 0 0 1 6.5 5Z" fill-rule="evenodd" stroke-linejoin="round"></path></g><path d="M6 12A2.5 2.5 0 1 0 11 12A2.5 2.5 0 1 0 6 12Z" fill-rule="evenodd" stroke-linejoin="round"></path><path d="M14 10.25h3.5M14 13.75h2" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"></path></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><g style="opacity:var(--icon-duo, 0.62)"><path d="M10.25 20.25h3.5" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"></path></g><path d="M12 3c-3.6 0-6.5 2.9-6.5 6.5v2.3c0 .6-.2 1.2-.6 1.7l-1 1.3c-.7.9-.1 2.2 1.1 2.2h14c1.2 0 1.8-1.3 1.1-2.2l-1-1.3c-.4-.5-.6-1.1-.6-1.7V9.5C18.5 5.9 15.6 3 12 3Z" fill-rule="evenodd" stroke-linejoin="round"></path></symbol>
+  <symbol id="i-warning" viewBox="0 0 24 24"><mask id="m-warning" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24"><rect width="24" height="24" fill="#fff"></rect><g color="#000" fill="#000"><path d="M10.5 16.5A1.5 1.5 0 1 0 13.5 16.5A1.5 1.5 0 1 0 10.5 16.5Z" fill-rule="evenodd" stroke="currentColor" stroke-width="4" stroke-linejoin="round"></path><path d="M12 7v5.5" fill="none" stroke="currentColor" stroke-width="6.75" stroke-linecap="round" stroke-linejoin="round"></path></g></mask><g style="opacity:var(--icon-duo, 0.62)" mask="url(#m-warning)"><path d="M2.75 12A9.25 9.25 0 1 0 21.25 12A9.25 9.25 0 1 0 2.75 12Z" fill-rule="evenodd" stroke-linejoin="round"></path></g><path d="M10.5 16.5A1.5 1.5 0 1 0 13.5 16.5A1.5 1.5 0 1 0 10.5 16.5Z" fill-rule="evenodd" stroke-linejoin="round"></path><path d="M12 7v5.5" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"></path></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><mask id="m-check" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24"><rect width="24" height="24" fill="#fff"></rect><g color="#000" fill="#000"><path d="M8 12.25 10.75 15 16 9.5" fill="none" stroke="currentColor" stroke-width="6.75" stroke-linecap="round" stroke-linejoin="round"></path></g></mask><g style="opacity:var(--icon-duo, 0.62)" mask="url(#m-check)"><path d="M2.75 12A9.25 9.25 0 1 0 21.25 12A9.25 9.25 0 1 0 2.75 12Z" fill-rule="evenodd" stroke-linejoin="round"></path></g><path d="M8 12.25 10.75 15 16 9.5" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"></path></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><mask id="m-clock" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24"><rect width="24" height="24" fill="#fff"></rect><g color="#000" fill="#000"><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="6.75" stroke-linecap="round" stroke-linejoin="round"></path></g></mask><g style="opacity:var(--icon-duo, 0.62)" mask="url(#m-clock)"><path d="M2.75 12A9.25 9.25 0 1 0 21.25 12A9.25 9.25 0 1 0 2.75 12Z" fill-rule="evenodd" stroke-linejoin="round"></path></g><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"></path></symbol>
+  <symbol id="i-lightning" viewBox="0 0 24 24"><g style="opacity:var(--icon-duo, 0.62)"><path d="M8.89 3.59Q9.5 2.5 10.75 2.5L15.75 2.5Q17 2.5 16.5 3.65L14 9.35Q13.5 10.5 12.25 10.5L6.25 10.5Q5 10.5 5.61 9.41Z" fill-rule="evenodd" stroke-linejoin="round"></path></g><path d="M8.93 13.75Q9 12.5 10.25 12.5L17.75 12.5Q19 12.5 18.05 13.31L9.45 20.69Q8.5 21.5 8.57 20.25Z" fill-rule="evenodd" stroke-linejoin="round"></path></symbol>
+  <symbol id="i-coins" viewBox="0 0 24 24"><g style="opacity:var(--icon-duo, 0.62)"><path d="M3.5 7A8.5 4 0 1 0 20.5 7A8.5 4 0 1 0 3.5 7Z" fill-rule="evenodd" stroke-linejoin="round"></path></g><path d="M3.5 10.52V12A8.5 4 0 0 0 20.5 12V10.52A10.5 6 0 0 1 3.5 10.52ZM3.5 15.52V17A8.5 4 0 0 0 20.5 17V15.52A10.5 6 0 0 1 3.5 15.52Z" fill-rule="evenodd" stroke-linejoin="round"></path></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><g style="opacity:var(--icon-duo, 0.62)"><path d="M6.25 7.5Q5 7.5 6.16 7.04L13.84 3.96Q15 3.5 15.44 4.67L16.06 6.33Q16.5 7.5 15.25 7.5Z" fill-rule="evenodd" stroke-linejoin="round"></path></g><path d="M6.5 9.5H17.5A3.5 3.5 0 0 1 21 13V17.5A3.5 3.5 0 0 1 17.5 21H6.5A3.5 3.5 0 0 1 3 17.5V13A3.5 3.5 0 0 1 6.5 9.5ZM14.75 15.25A1.5 1.5 0 1 0 17.75 15.25A1.5 1.5 0 1 0 14.75 15.25Z" fill-rule="evenodd" stroke-linejoin="round"></path></symbol>
+  <symbol id="i-restore" viewBox="0 0 24 24"><g style="opacity:var(--icon-duo, 0.62)"><path d="M5.66 10.69A6.75 6.75 0 1 0 15.87 7.47" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"></path></g><path d="M9.04 6.94Q8 6.25 9.04 5.56L11.46 3.94Q12.5 3.25 12.5 4.5L12.5 8Q12.5 9.25 11.46 8.56Z" fill-rule="evenodd" stroke-linejoin="round"></path></symbol>
+  <symbol id="i-verified" viewBox="0 0 24 24"><mask id="m-verified" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24"><rect width="24" height="24" fill="#fff"></rect><g color="#000" fill="#000"><path d="M8.25 12.25 10.75 14.75 15.75 9.5" fill="none" stroke="currentColor" stroke-width="6.75" stroke-linecap="round" stroke-linejoin="round"></path></g></mask><g style="opacity:var(--icon-duo, 0.62)" mask="url(#m-verified)"><path d="M10.68 3.4Q12 2.25 13.32 3.4L13.65 3.69Q14.97 4.84 16.71 4.96L17.15 4.99Q18.89 5.11 19.01 6.85L19.04 7.29Q19.16 9.03 20.31 10.35L20.6 10.68Q21.75 12 20.6 13.32L20.31 13.65Q19.16 14.97 19.04 16.71L19.01 17.15Q18.89 18.89 17.15 19.01L16.71 19.04Q14.97 19.16 13.65 20.31L13.32 20.6Q12 21.75 10.68 20.6L10.35 20.31Q9.03 19.16 7.29 19.04L6.85 19.01Q5.11 18.89 4.99 17.15L4.96 16.71Q4.84 14.97 3.69 13.65L3.4 13.32Q2.25 12 3.4 10.68L3.69 10.35Q4.84 9.03 4.96 7.29L4.99 6.85Q5.11 5.11 6.85 4.99L7.29 4.96Q9.03 4.84 10.35 3.69Z" fill-rule="evenodd" stroke-linejoin="round"></path></g><path d="M8.25 12.25 10.75 14.75 15.75 9.5" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"></path></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><mask id="m-send" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24"><rect width="24" height="24" fill="#fff"></rect><g color="#000" fill="#000"><path d="M10.81 12.4Q12 12 11.6 13.19L9.4 19.81Q9 21 8.44 19.88L7.45 17.89Q7 17 6.11 16.55L4.12 15.56Q3 15 4.19 14.6Z" fill-rule="evenodd" stroke="currentColor" stroke-width="4" stroke-linejoin="round"></path></g></mask><g style="opacity:var(--icon-duo, 0.62)" mask="url(#m-send)"><path d="M5 11A8 8 0 1 0 21 11A8 8 0 1 0 5 11Z" fill-rule="evenodd" stroke-linejoin="round"></path></g><path d="M10.81 12.4Q12 12 11.6 13.19L9.4 19.81Q9 21 8.44 19.88L7.45 17.89Q7 17 6.11 16.55L4.12 15.56Q3 15 4.19 14.6Z" fill-rule="evenodd" stroke-linejoin="round"></path></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><g style="opacity:var(--icon-duo, 0.62)"><path d="M13.5 6.75A3.75 3.75 0 1 0 21 6.75A3.75 3.75 0 1 0 13.5 6.75ZM3 17.25A3.75 3.75 0 1 0 10.5 17.25A3.75 3.75 0 1 0 3 17.25Z" fill-rule="evenodd" stroke-linejoin="round"></path></g><path d="M3 6.75A3.75 3.75 0 1 0 10.5 6.75A3.75 3.75 0 1 0 3 6.75ZM13.5 17.25A3.75 3.75 0 1 0 21 17.25A3.75 3.75 0 1 0 13.5 17.25Z" fill-rule="evenodd" stroke-linejoin="round"></path></symbol>
+  <symbol id="i-sparkle" viewBox="0 0 24 24"><g style="opacity:var(--icon-duo, 0.62)"><path d="M18.23 13.39Q17.71 12.85 18.45 12.73L20.94 12.31Q21.68 12.19 21.45 12.9L20.76 15.01Q20.53 15.73 20 15.19ZM11.65 17.67Q12 17 12.35 17.67L13.51 19.91Q13.86 20.57 13.11 20.57L10.89 20.57Q10.14 20.57 10.49 19.91ZM5.55 12.73Q6.29 12.85 5.77 13.39L4 15.19Q3.47 15.73 3.24 15.01L2.55 12.9Q2.32 12.19 3.06 12.31ZM8.36 5.4Q8.47 6.15 7.8 5.81L5.54 4.68Q4.87 4.35 5.48 3.91L7.27 2.6Q7.88 2.16 7.99 2.91ZM16.2 5.81Q15.53 6.15 15.64 5.4L16.01 2.91Q16.12 2.16 16.73 2.6L18.52 3.91Q19.13 4.35 18.46 4.68Z" fill-rule="evenodd" stroke-linejoin="round"></path></g><path d="M11.36 5.33Q12 4.25 12.64 5.33L13.57 6.89Q14.2 7.97 15.42 8.24L17.2 8.64Q18.42 8.91 17.59 9.85L16.39 11.22Q15.57 12.16 15.68 13.4L15.85 15.22Q15.97 16.46 14.82 15.97L13.15 15.24Q12 14.75 10.85 15.24L9.18 15.97Q8.03 16.46 8.15 15.22L8.32 13.4Q8.43 12.16 7.61 11.22L6.41 9.85Q5.58 8.91 6.8 8.64L8.58 8.24Q9.8 7.97 10.43 6.89Z" fill-rule="evenodd" stroke-linejoin="round"></path></symbol>
+  <symbol id="i-receipt" viewBox="0 0 24 24"><g style="opacity:var(--icon-duo, 0.62)"><path d="M4 4.5h16" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"></path></g><path d="M6 9.5Q6 8 7.5 8L16.5 8Q18 8 18 9.5L18 20.4Q18 21 17.55 20.6L16.45 19.65Q16 19.25 15.55 19.65L14.45 20.6Q14 21 13.55 20.6L12.45 19.65Q12 19.25 11.55 19.65L10.45 20.6Q10 21 9.55 20.6L8.45 19.65Q8 19.25 7.55 19.65L6.45 20.6Q6 21 6 20.4ZM10 10.75H14A1.25 1.25 0 0 1 15.25 12V12A1.25 1.25 0 0 1 14 13.25H10A1.25 1.25 0 0 1 8.75 12V12A1.25 1.25 0 0 1 10 10.75ZM10 14.75H11.5A1.25 1.25 0 0 1 12.75 16V16A1.25 1.25 0 0 1 11.5 17.25H10A1.25 1.25 0 0 1 8.75 16V16A1.25 1.25 0 0 1 10 14.75Z" fill-rule="evenodd" stroke-linejoin="round"></path></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><g style="opacity:var(--icon-duo, 0.62)"><path d="M4.75 13H5.75A1.75 1.75 0 0 1 7.5 14.75V18.75A1.75 1.75 0 0 1 5.75 20.5H4.75A1.75 1.75 0 0 1 3 18.75V14.75A1.75 1.75 0 0 1 4.75 13ZM11.5 9H12.5A1.75 1.75 0 0 1 14.25 10.75V18.75A1.75 1.75 0 0 1 12.5 20.5H11.5A1.75 1.75 0 0 1 9.75 18.75V10.75A1.75 1.75 0 0 1 11.5 9Z" fill-rule="evenodd" stroke-linejoin="round"></path></g><path d="M18.25 4H19.25A1.75 1.75 0 0 1 21 5.75V18.75A1.75 1.75 0 0 1 19.25 20.5H18.25A1.75 1.75 0 0 1 16.5 18.75V5.75A1.75 1.75 0 0 1 18.25 4Z" fill-rule="evenodd" stroke-linejoin="round"></path></symbol>
+  <symbol id="i-swap" viewBox="0 0 24 24"><g style="opacity:var(--icon-duo, 0.62)"><path d="M20 16.5H4.5m4-3.75-3.75 3.75 3.75 3.75" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"></path></g><path d="M4 7.5h15.5m-4-3.75 3.75 3.75-3.75 3.75" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"></path></symbol>
+  <symbol id="i-percent" viewBox="0 0 24 24"><g style="opacity:var(--icon-duo, 0.62)"><path d="M4 7.25A3.25 3.25 0 1 0 10.5 7.25A3.25 3.25 0 1 0 4 7.25ZM13.5 16.75A3.25 3.25 0 1 0 20 16.75A3.25 3.25 0 1 0 13.5 16.75Z" fill-rule="evenodd" stroke-linejoin="round"></path></g><path d="M5.5 18.5 18.5 5.5" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"></path></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><mask id="m-cloud" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24"><rect width="24" height="24" fill="#fff"></rect><g color="#000" fill="#000"><path d="M7.25 12H16.75A4.25 4.25 0 0 1 21 16.25V16.25A4.25 4.25 0 0 1 16.75 20.5H7.25A4.25 4.25 0 0 1 3 16.25V16.25A4.25 4.25 0 0 1 7.25 12Z" fill-rule="evenodd" stroke="currentColor" stroke-width="4" stroke-linejoin="round"></path><path d="M11 12A4.5 4.5 0 1 0 20 12A4.5 4.5 0 1 0 11 12Z" fill-rule="evenodd" stroke="currentColor" stroke-width="4" stroke-linejoin="round"></path></g></mask><g style="opacity:var(--icon-duo, 0.62)" mask="url(#m-cloud)"><path d="M4 10.5A5.5 5.5 0 1 0 15 10.5A5.5 5.5 0 1 0 4 10.5Z" fill-rule="evenodd" stroke-linejoin="round"></path></g><path d="M7.25 12H16.75A4.25 4.25 0 0 1 21 16.25V16.25A4.25 4.25 0 0 1 16.75 20.5H7.25A4.25 4.25 0 0 1 3 16.25V16.25A4.25 4.25 0 0 1 7.25 12Z" fill-rule="evenodd" stroke-linejoin="round"></path><path d="M11 12A4.5 4.5 0 1 0 20 12A4.5 4.5 0 1 0 11 12Z" fill-rule="evenodd" stroke-linejoin="round"></path></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><g style="opacity:var(--icon-duo, 0.62)"><path d="M6.5 5H17.5A4 4 0 0 1 21.5 9V15A4 4 0 0 1 17.5 19H6.5A4 4 0 0 1 2.5 15V9A4 4 0 0 1 6.5 5Z"/></g><path d="M6.5 9.5 12 13.25 17.5 9.5" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-cross" viewBox="0 0 24 24"><g style="opacity:var(--icon-duo, 0.62)"><path d="M2.75 12A9.25 9.25 0 1 0 21.25 12A9.25 9.25 0 1 0 2.75 12Z"/></g><path d="M9 9l6 6m0-6-6 6" fill="none" stroke="#fff" stroke-width="2.75" stroke-linecap="round"/></symbol>
+  <symbol id="i-yes" viewBox="0 0 24 24"><path d="M2.75 12A9.25 9.25 0 1 0 21.25 12A9.25 9.25 0 1 0 2.75 12Z"/><path d="M8 12.25 10.75 15 16 9.5" fill="none" stroke="#fff" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-part" viewBox="0 0 24 24"><path d="M12 2.75A9.25 9.25 0 0 1 12 21.25Z"/><path d="M12 4.13A7.87 7.87 0 1 0 12 19.87A7.87 7.87 0 1 0 12 4.13Z" fill="none" stroke="currentColor" stroke-width="2.75"/></symbol>
+  <symbol id="i-no" viewBox="0 0 24 24"><path d="M2.75 12A9.25 9.25 0 1 0 21.25 12A9.25 9.25 0 1 0 2.75 12Z"/><path d="M9 9l6 6m0-6-6 6" fill="none" stroke="#fff" stroke-width="2.75" stroke-linecap="round"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
 
-<section class="slide" aria-label="Split one key into three shares."><h1>Split one key into three shares.</h1><div class="visual"><div class="row"><div class="share "><svg class="device-icon" viewBox="0 0 185 188" aria-hidden="true"><rect x="44" y="8" width="92" height="158" rx="17"/><path d="M76 24h28M81 148h18"/><circle class="device-badge" cx="151" cy="155" r="26"/><text x="151" y="156">A</text></svg><span>Phone</span></div><div class="share b"><svg class="device-icon" viewBox="0 0 185 188" aria-hidden="true"><rect x="20" y="22" width="140" height="40" rx="9"/><rect x="20" y="74" width="140" height="40" rx="9"/><rect x="20" y="126" width="140" height="40" rx="9"/><path d="M39 42h3M39 94h3M39 146h3M114 42h25M114 94h25M114 146h25"/><circle class="device-badge" cx="151" cy="155" r="26"/><text x="151" y="156">B</text></svg><span>Swissquote</span></div><div class="share c"><svg class="device-icon" viewBox="0 0 185 188" aria-hidden="true"><rect x="20" y="22" width="140" height="40" rx="9"/><rect x="20" y="74" width="140" height="40" rx="9"/><rect x="20" y="126" width="140" height="40" rx="9"/><path d="M39 42h3M39 94h3M39 146h3M114 42h25M114 94h25M114 146h25"/><circle class="device-badge" cx="151" cy="155" r="26"/><text x="151" y="156">C</text></svg><span>Independent service</span></div></div></div><p class="caption">Any two rebuild the key.</p><aside class="speaker-notes">Shamir uses a degree-one polynomial over the secp256k1 scalar field. Its value at zero is the Wallet Key. The shares occupy positions one, two, and three. Any two valid distinct shares reconstruct it. Feldman commitments let holders verify that a share belongs to the split. This is reconstruction followed by ECDSA signing, not distributed threshold ECDSA. The services verify shares against commitments. The partner URL is pinned in the app build so Swissquote cannot redirect C to itself. The Wallet Key signs the Recovery Key binding, checked by both holders. The account records the signer, passkey, Recovery Key, and Swissquote guardian. Share A is encrypted with WebAuthn PRF when available; this prototype falls back to unsealed storage without PRF. The factory predicts the account address before its first on-chain operation.</aside></section>
+<!-- 1 · Cover -->
+<section class="slide blue" aria-label="Cover">
+  <h1 class="display">Your keys.<br>Our protection.</h1>
+  <p class="sub">Swissquote Wallet · BSA Hackathon 2026</p>
+  <div class="phone tilt visual" style="--w: 600px; left: 1140px; top: 150px;" aria-hidden="true">
+    <div class="screen">
+      <img src="screens/home.png" alt="">
+      <div class="status"><b>9:41</b><i></i><svg><use href="#status-icons"/></svg></div>
+    </div>
+  </div>
+  <aside class="notes">Swissquote Wallet is a self-custody wallet that lives inside the Swissquote app. The client holds the keys. Swissquote screens each payment, pays the network fee and helps recover a lost phone, but it can never spend the funds.</aside>
+</section>
 
-<section class="slide" aria-label="Normal signing uses A + B."><h1>Normal signing uses A + B.</h1><div class="visual"><div class="row"><div class="share "><svg class="device-icon" viewBox="0 0 185 188" aria-hidden="true"><rect x="44" y="8" width="92" height="158" rx="17"/><path d="M76 24h28M81 148h18"/><circle class="device-badge" cx="151" cy="155" r="26"/><text x="151" y="156">A</text></svg><span>Phone</span></div><span class="symbol">+</span><div class="share b"><svg class="device-icon" viewBox="0 0 185 188" aria-hidden="true"><rect x="20" y="22" width="140" height="40" rx="9"/><rect x="20" y="74" width="140" height="40" rx="9"/><rect x="20" y="126" width="140" height="40" rx="9"/><path d="M39 42h3M39 94h3M39 146h3M114 42h25M114 94h25M114 146h25"/><circle class="device-badge" cx="151" cy="155" r="26"/><text x="151" y="156">B</text></svg><span>Swissquote</span></div></div></div><p class="caption">Reconstruct the Wallet Key on the phone.</p><aside class="speaker-notes">Shamir uses a degree-one polynomial over the secp256k1 scalar field. Its value at zero is the Wallet Key. The shares occupy positions one, two, and three. Any two valid distinct shares reconstruct it. Feldman commitments let holders verify that a share belongs to the split. This is reconstruction followed by ECDSA signing, not distributed threshold ECDSA. The passkey approval required for payment follows on the next slide. A alone cannot reconstruct the Wallet Key.</aside></section>
+<!-- 2 · Problem -->
+<section class="slide" aria-label="Problem">
+  <h1 style="max-width: 1500px;">Self-custody today means leaving Swissquote.</h1>
+  <p class="sub">For twelve words on paper.</p>
+  <div class="leave visual" aria-hidden="true">
+    <div class="tile" style="--c: var(--swissquote);">
+      <span class="icon"><svg class="i"><use href="#i-bank"/></svg></span>
+      <h2>Swissquote account</h2>
+      <p>Crypto the bank can see, screen and trade.</p>
+    </div>
+    <div class="exit-arrow">
+      <b>USD 15 per USDC withdrawal</b>
+      <svg viewBox="0 0 400 40" preserveAspectRatio="none"><path d="M4 20H392M376 6l16 14-16 14" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>
+      <span>Then Swissquote sees nothing.</span>
+    </div>
+    <div class="seed">
+      <h2>Seed phrase</h2>
+      <ol><li></li><li></li><li></li><li></li><li></li><li></li><li></li><li></li><li></li><li></li><li></li><li></li></ol>
+      <p><span>Lost: funds gone.</span><span>Photographed: funds stolen.</span></p>
+    </div>
+  </div>
+  <aside class="notes">A client who wants their own keys today has to whitelist an external address, prove they own it and pay 10 to 15 dollars per withdrawal. From then on Swissquote sees nothing. And the wallet they move to hangs on twelve words on paper: lose them and the funds are gone, photograph them and the funds are stolen.</aside>
+</section>
 
-<section class="slide" aria-label="The two servers can rebuild it too."><h1>The two servers can rebuild it too.</h1><div class="visual"><div class="row"><div class="share b"><svg class="device-icon" viewBox="0 0 185 188" aria-hidden="true"><rect x="20" y="22" width="140" height="40" rx="9"/><rect x="20" y="74" width="140" height="40" rx="9"/><rect x="20" y="126" width="140" height="40" rx="9"/><path d="M39 42h3M39 94h3M39 146h3M114 42h25M114 94h25M114 146h25"/><circle class="device-badge" cx="151" cy="155" r="26"/><text x="151" y="156">B</text></svg><span>Swissquote</span></div><span class="symbol">+</span><div class="share c"><svg class="device-icon" viewBox="0 0 185 188" aria-hidden="true"><rect x="20" y="22" width="140" height="40" rx="9"/><rect x="20" y="74" width="140" height="40" rx="9"/><rect x="20" y="126" width="140" height="40" rx="9"/><path d="M39 42h3M39 94h3M39 146h3M114 42h25M114 94h25M114 146h25"/><circle class="device-badge" cx="151" cy="155" r="26"/><text x="151" y="156">C</text></svg><span>Independent service</span></div></div></div><aside class="speaker-notes">Shamir enables lost-phone recovery but does not prevent B+C collusion. The contract needs a separate user-controlled approval. The next slide explains the normal payment path and how the passkey supplies it.</aside></section>
+<!-- 3 · Product and story -->
+<section class="slide" aria-label="Product">
+  <h1 style="max-width: 1500px;">Self-custody, inside the Swissquote app.</h1>
+  <p class="sub" style="max-width: 1500px; font-size: 44px; letter-spacing: -0.02em;">You hold the keys. Swissquote screens, pays the fee and helps you recover.</p>
+  <div class="tiles visual stagger" style="--cols: 4; --lines: 3;">
+    <div class="tile" style="--c: var(--phone);">
+      <span class="icon"><svg class="i"><use href="#i-face-id"/></svg></span>
+      <h2>Create</h2>
+      <p>Face ID and a Recovery Key. No seed phrase.</p>
+    </div>
+    <div class="tile" style="--c: var(--ink);">
+      <span class="icon"><svg class="i"><use href="#i-send"/></svg></span>
+      <h2>Pay</h2>
+      <p>Face ID approves. Swissquote screens and pays the fee.</p>
+    </div>
+    <div class="tile" style="--c: var(--negative);">
+      <span class="icon"><svg class="i"><use href="#i-phone"/></svg></span>
+      <h2>Lose</h2>
+      <p>A thief gets a locked phone. Nothing moves.</p>
+    </div>
+    <div class="tile" style="--c: var(--home);">
+      <span class="icon"><svg class="i"><use href="#i-restore"/></svg></span>
+      <h2>Recover</h2>
+      <p>Recovery Key, ID check, 48 hours. Same address, same funds.</p>
+    </div>
+  </div>
+  <aside class="notes">The demo follows one client through four steps: create a wallet, pay, lose the phone, recover. Every step runs against a real smart account on a chain. The parts that need a real bank, like the ID check, are mocked and labelled.</aside>
+</section>
 
-<section class="slide" aria-label="Every payment needs your passkey."><h1>Every payment needs your passkey.</h1><div class="visual"><div class="row"><strong>Wallet Key</strong><span class="symbol">+</span><strong class="blue-text">Passkey</strong></div></div><p class="caption">The account verifies both signatures.</p><aside class="speaker-notes">Normal mode checks the Wallet Key ECDSA signature and a WebAuthn assertion from the registered passkey over the same UserOperation hash. The phone verifies the operation before signing. On a cache miss, Swissquote verifies the assertion before releasing B. The key can remain in memory for at most three hours. The backend submits through EntryPoint v0.7 using a paymaster for sponsorship; there is no separate external bundler. B+C alone cannot satisfy the passkey check.</aside></section>
+<!-- 4 · Custody model -->
+<section class="slide content" aria-label="Custody model">
+  <h1>One wallet key, split three ways.</h1>
+  <p class="sub">Any two shares rebuild it on your phone. The account also demands your passkey.</p>
+  <div class="equation visual" aria-hidden="true">
+    <div class="shares">
+      <div class="share" style="--c: var(--phone);"><span class="badge">A</span><div><b>Your phone</b><span>Sealed by your passkey</span></div></div>
+      <div class="share" style="--c: var(--swissquote);"><span class="badge">B</span><div><b>Swissquote</b><span>Released after your Face ID</span></div></div>
+      <div class="share" style="--c: var(--partner);"><span class="badge">C</span><div><b>Independent service</b><span>Released to recover, or in exit mode</span></div></div>
+    </div>
+    <svg class="brace" viewBox="0 0 150 360">
+      <path d="M4 6C20 6 22 10 22 34V150C22 170 28 180 40 180C28 180 22 190 22 210V326C22 350 20 354 4 354M52 180H140M128 168l12 12-12 12" fill="none" stroke="#c7c7cc" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="96" y="162" text-anchor="middle">any two</text>
+    </svg>
+    <div class="term" style="--c: var(--ink);">
+      <span class="icon"><svg class="i"><use href="#i-key"/></svg></span>
+      <b>Wallet key</b>
+      <span>Rebuilt on your phone. In memory for 3 hours at most.</span>
+    </div>
+    <span class="op">+</span>
+    <div class="term" style="--c: var(--phone);">
+      <span class="icon"><svg class="i"><use href="#i-face-id"/></svg></span>
+      <b>Passkey</b>
+      <span>Face ID on your phone. Signs every payment.</span>
+    </div>
+    <span class="op">=</span>
+    <div class="term result" style="--c: var(--positive);">
+      <span class="icon"><svg class="i"><use href="#i-check"/></svg></span>
+      <b>Payment</b>
+      <span>The account checks both signatures on chain.</span>
+    </div>
+  </div>
+  <aside class="notes">The wallet key is split 2-of-3 with Shamir: Share A on the phone, sealed so only Face ID opens it, B at Swissquote, C at an independent service. Any two rebuild the key on the phone, which keeps it in memory for three hours at most. The key alone moves nothing: the ERC-4337 account also checks a passkey signature on every payment, so Swissquote and the independent service together still cannot move funds.</aside>
+</section>
 
-<section class="slide" aria-label="Recovery must work without the old passkey."><h1>Recovery must work without<br>the old passkey.</h1><p class="caption">A recovery request alone is not proof.</p><aside class="speaker-notes">Allowing B+C alone to replace the signer and passkey would bypass the payment protection. An impostor requesting recovery presents the same authorization problem. We cannot require the old passkey in the lost-device case, so we introduce a separate Recovery Key.</aside></section>
+<!-- 5 · Why this model -->
+<section class="slide content" aria-label="Why this model">
+  <h1>Five models. Each misses something.</h1>
+  <div class="compare visual">
+    <div class="head">Model</div>
+    <div class="head">Only you can move funds</div>
+    <div class="head">Help after a lost phone</div>
+    <div class="head">Stolen backup not enough</div>
+    <div class="head">No seed phrase</div>
 
-<section class="slide" aria-label="Use a separate Recovery Key."><h1>Use a separate Recovery Key.</h1><p class="caption">Create it during setup. Save it offline.</p><aside class="speaker-notes">The Recovery Key is independent of Share C. Its public address is registered with the account and share holders; the private key stays with the user, normally saved away from the phone. A Wallet Key signature binds the Recovery Key to the shares. Both services verify recovery authorization, and the account verifies the two signatures. Identity verification is mocked in this build, so the secret signature is an essential part of the demonstrated protection. It is not another Shamir share. The Wallet Key signs its binding to the holders, and its public address is registered with the smart account.</aside></section>
+    <div class="model"><b>Custodial account</b><span>Simple, but the bank moves the funds. That is custody.</span></div>
+    <div class="mark no"><svg class="i"><use href="#i-no"/></svg></div>
+    <div class="mark yes"><svg class="i"><use href="#i-yes"/></svg></div>
+    <div class="mark part"><svg class="i"><use href="#i-part"/></svg></div>
+    <div class="mark yes"><svg class="i"><use href="#i-yes"/></svg></div>
 
-<section class="slide" aria-label="It authorizes new credentials."><h1>It authorizes new credentials.</h1><p class="caption">Servers or impostors need that secret to recover.</p><aside class="speaker-notes">The Recovery Key is independent of Share C. Its public address is registered with the account and share holders; the private key stays with the user, normally saved away from the phone. A Wallet Key signature binds the Recovery Key to the shares. Both services verify recovery authorization, and the account verifies the two signatures. Identity verification is mocked in this build, so the secret signature is an essential part of the demonstrated protection. The Recovery Key signs the exact replacement signer and passkey, not an unspecified request.</aside></section>
+    <div class="model"><b>Seed phrase</b><span>Full control, no help. The paper is the wallet.</span></div>
+    <div class="mark yes"><svg class="i"><use href="#i-yes"/></svg></div>
+    <div class="mark no"><svg class="i"><use href="#i-no"/></svg></div>
+    <div class="mark no"><svg class="i"><use href="#i-no"/></svg></div>
+    <div class="mark no"><svg class="i"><use href="#i-no"/></svg></div>
 
-<section class="slide" aria-label="Prepare the new phone."><h1>Prepare the new phone.</h1><div class="visual"><div class="row new-device"><svg class="device-icon" viewBox="0 0 185 188" aria-hidden="true"><rect x="44" y="8" width="92" height="158" rx="17"/><path d="M76 24h28M81 148h18"/></svg><div class="credentials"><strong>New passkey</strong><strong>New Wallet Key</strong></div></div></div><p class="caption">Split the new key into fresh A, B, C.</p><aside class="speaker-notes">The replacement key is bound to the existing Recovery Key. Swissquote prepares the recovery operation naming the new signer and passkey. After checking the Recovery Key signature, it releases old B and a five-minute signed approval ticket. The independent service checks the ticket, operation hash, recovery-only call, and bound Recovery Key signature before releasing old C. The new phone reconstructs the old key once to sign initiateRecovery. The account records the replacement credentials and the deadline. The old key from recovery is not added to the normal signing cache.</aside></section>
+    <div class="model"><b>MPC, 2-of-3</b><span>No full key, but any two holders sign without you.</span></div>
+    <div class="mark no"><svg class="i"><use href="#i-no"/></svg></div>
+    <div class="mark yes"><svg class="i"><use href="#i-yes"/></svg></div>
+    <div class="mark yes"><svg class="i"><use href="#i-yes"/></svg></div>
+    <div class="mark yes"><svg class="i"><use href="#i-yes"/></svg></div>
 
-<section class="slide" aria-label="Release old B and C after approval."><h1>Release old B and C after approval.</h1><div class="visual"><div class="row"><div class="share b"><svg class="device-icon" viewBox="0 0 185 188" aria-hidden="true"><rect x="20" y="22" width="140" height="40" rx="9"/><rect x="20" y="74" width="140" height="40" rx="9"/><rect x="20" y="126" width="140" height="40" rx="9"/><path d="M39 42h3M39 94h3M39 146h3M114 42h25M114 94h25M114 146h25"/><circle class="device-badge" cx="151" cy="155" r="26"/><text x="151" y="156">B</text></svg><span>Swissquote</span></div><span class="symbol">+</span><div class="share c"><svg class="device-icon" viewBox="0 0 185 188" aria-hidden="true"><rect x="20" y="22" width="140" height="40" rx="9"/><rect x="20" y="74" width="140" height="40" rx="9"/><rect x="20" y="126" width="140" height="40" rx="9"/><path d="M39 42h3M39 94h3M39 146h3M114 42h25M114 94h25M114 146h25"/><circle class="device-badge" cx="151" cy="155" r="26"/><text x="151" y="156">C</text></svg><span>Independent service</span></div><span class="symbol" aria-hidden="true">→</span><div class="share"><svg class="device-icon" viewBox="0 0 185 188" aria-hidden="true"><rect x="44" y="8" width="92" height="158" rx="17"/><path d="M76 24h28M81 148h18"/></svg><span>New phone</span></div></div></div><p class="caption">The new phone rebuilds the old Wallet Key.</p><aside class="speaker-notes">The replacement key is bound to the existing Recovery Key. Swissquote prepares the recovery operation naming the new signer and passkey. After checking the Recovery Key signature, it releases old B and a five-minute signed approval ticket. The independent service checks the ticket, operation hash, recovery-only call, and bound Recovery Key signature before releasing old C. The new phone reconstructs the old key once to sign initiateRecovery. The account records the replacement credentials and the deadline. The old key from recovery is not added to the normal signing cache.</aside></section>
+    <div class="model"><b>Passkey-only smart account</b><span>Face ID simple. The cloud account syncing it is the key.</span></div>
+    <div class="mark yes"><svg class="i"><use href="#i-yes"/></svg></div>
+    <div class="mark part"><svg class="i"><use href="#i-part"/></svg></div>
+    <div class="mark no"><svg class="i"><use href="#i-no"/></svg></div>
+    <div class="mark yes"><svg class="i"><use href="#i-yes"/></svg></div>
 
-<section class="slide" aria-label="The account checks both signatures."><h1>The account checks both signatures.</h1><div class="visual"><div class="row"><strong>Old Wallet Key</strong><span class="symbol">+</span><strong class="purple-text">Recovery Key</strong></div></div><p class="caption">This starts recovery, not a payment.</p><aside class="speaker-notes">The replacement key is bound to the existing Recovery Key. Swissquote prepares the recovery operation naming the new signer and passkey. After checking the Recovery Key signature, it releases old B and a five-minute signed approval ticket. The independent service checks the ticket, operation hash, recovery-only call, and bound Recovery Key signature before releasing old C. The new phone reconstructs the old key once to sign initiateRecovery. The account records the replacement credentials and the deadline. The old key from recovery is not added to the normal signing cache. Recovery mode is limited to the direct initiateRecovery call, so these signatures cannot authorize a token transfer.</aside></section>
+    <div class="model"><b>Shamir backup, SLIP-39</b><span>Safer paper, but enough shares take everything at once.</span></div>
+    <div class="mark yes"><svg class="i"><use href="#i-yes"/></svg></div>
+    <div class="mark no"><svg class="i"><use href="#i-no"/></svg></div>
+    <div class="mark part"><svg class="i"><use href="#i-part"/></svg></div>
+    <div class="mark no"><svg class="i"><use href="#i-no"/></svg></div>
 
-<section class="slide" aria-label="The Recovery Key could be stolen."><h1>The Recovery Key could be stolen.</h1><p class="caption">A thief could request recovery.</p><aside class="speaker-notes">Possession of the secret can authorize an assisted recovery attempt when the services are available. The Recovery Key alone cannot directly spend funds, because the old Wallet Key signature and service assistance are still needed. The waiting period provides a chance to detect and cancel fraudulent recovery, not a guarantee of prevention.</aside></section>
+    <div class="model ours"><b>Swissquote Wallet</b><span>Shamir 2-of-3, a passkey on chain, recovery you can cancel.</span></div>
+    <div class="mark yes ours"><svg class="i"><use href="#i-yes"/></svg></div>
+    <div class="mark yes ours"><svg class="i"><use href="#i-yes"/></svg></div>
+    <div class="mark yes ours"><svg class="i"><use href="#i-yes"/></svg></div>
+    <div class="mark yes ours"><svg class="i"><use href="#i-yes"/></svg></div>
+  </div>
+  <div class="legend visual" aria-hidden="true">
+    <span class="yes"><svg class="i"><use href="#i-yes"/></svg><b style="color: var(--secondary); font-weight: 500;">Yes</b></span>
+    <span class="part"><svg class="i"><use href="#i-part"/></svg><b style="color: var(--secondary); font-weight: 500;">Partly</b></span>
+    <span class="no"><svg class="i"><use href="#i-no"/></svg><b style="color: var(--secondary); font-weight: 500;">No</b></span>
+  </div>
+  <aside class="notes">Of the five common models, custody is simple but it is the bank's wallet, and seed phrases or split paper backups leave the client alone with paper. In a 2-of-3 MPC wallet any two holders can sign without the client, and a passkey-only wallet is only as safe as the cloud account that syncs the passkey. Ours keeps the bank out of spending even with a partner, needs no seed phrase, only a key file at home, and turns a stolen backup into a 48-hour recovery the client can cancel.</aside>
+</section>
 
-<section class="slide" aria-label="Recovery waits before taking effect."><h1>Recovery waits before taking effect.</h1><div class="visual"><div class="hours">48 <span>hours</span></div></div><p class="caption">Cancel from the old phone or through Swissquote.</p><aside class="speaker-notes">The contract sets its deadline to block.timestamp plus 48 hours. Changing the browser clock does not shorten it. The old phone cancels using normal authorization. Swissquote can cancel directly as guardian; its app endpoint requires a Recovery Key-signed request. A second recovery initiation is rejected while one is pending. Cancellation remains possible after the deadline if finalization has not happened. Effective detection and notification are needed in production; production alerts are not implemented.</aside></section>
+<!-- 6 · Threat model -->
+<section class="slide content" aria-label="Threat model">
+  <h1>Swissquote can’t move your funds. Not even with the independent service.</h1>
+  <div class="threats visual">
+    <div class="head">Who</div><div class="head">Steal funds?</div><div class="head">Lock you out?</div><div class="head">Why</div>
 
-<section class="slide" aria-label="Replace the signer and passkey."><h1>Replace the signer and passkey.</h1><p class="caption">Same wallet address. No assets moved.</p><aside class="speaker-notes">Anyone can call finalization after the deadline, but only the recorded replacement is installed. The new phone uses its new A and Swissquote's new B for normal signing. The same account continues to hold the assets; ordinary transactions during the wait can still change its balances. Both services must remain available for the implemented recovery flow. Losing the Recovery Key as well removes this recovery authorization path.</aside></section>
+    <div class="who">Swissquote alone</div>
+    <div class="no">No</div>
+    <div>Can refuse help or cancel recoveries; exit mode if it’s gone.</div>
+    <div class="why">One share. Never the passkey.</div>
 
-<nav class="controls" aria-label="Presentation controls"><button type="button" id="previous" aria-label="Previous slide">←</button><output id="position" aria-live="polite"></output><button type="button" id="next" aria-label="Next slide">→</button><button type="button" id="notes-toggle" aria-label="Toggle speaker notes" aria-pressed="false">Notes</button><button type="button" id="fullscreen" aria-label="Toggle fullscreen">Full screen</button></nav>
-<aside class="notes-panel" id="notes-panel" aria-label="Speaker notes" hidden><h2>Speaker notes</h2><p id="notes-copy"></p></aside>
+    <div class="who">Independent service alone</div>
+    <div class="no">No</div>
+    <div>It can refuse Share C, blocking recovery.</div>
+    <div class="why">One share. Released only to recover, or in exit mode.</div>
+
+    <div class="who">Both together</div>
+    <div class="no">No</div>
+    <div>Yes, by both refusing.</div>
+    <div class="why">They rebuild the key, not the passkey or Recovery Key.</div>
+
+    <div class="who">Thief with phone and email</div>
+    <div class="no">No</div>
+    <div>No</div>
+    <div class="why">Share A stays sealed. There is no email reset.</div>
+
+    <div class="who">Thief with your Recovery Key</div>
+    <div class="part">Only if you miss 48 hours</div>
+    <div>Can cancel your recoveries.</div>
+    <div class="why">ID check against your KYC record, then 48 hours to cancel.</div>
+
+    <div class="who">Thief who unlocks your phone</div>
+    <div class="part">Within limits</div>
+    <div>Can cancel your recovery while they hold it.</div>
+    <div class="why">Main residual risk. Over 1,000 USDC waits 24 hours.</div>
+  </div>
+  <aside class="notes">No single party can move funds, and neither can Swissquote together with the independent service: payments need the passkey, and recovery needs the Recovery Key plus 48 hours anyone can see. Lock-out is possible if both services refuse to help, and if Swissquote disappears, exit mode covers it. The honest residual risk is a thief who can unlock the phone: they can spend within the limits until the client recovers, which is why anything over 1,000 USDC waits a day.</aside>
+</section>
+
+<!-- 7 · Architecture -->
+<section class="slide content" aria-label="Architecture">
+  <h1>Architecture</h1>
+  <p class="sub">Solid parts run for real in the demo. Dashed parts are mocked.</p>
+  <svg class="arch visual" viewBox="0 0 1664 700" role="img" aria-label="Phone, Swissquote, independent service and chain, and what talks to what">
+    <path class="wire soft" d="M210 70V22H1482V70"/>
+    <text class="wire-label halo" x="846" y="30" text-anchor="middle">Exit mode only: the phone submits directly</text>
+
+    <rect class="box" x="0" y="70" width="420" height="378" rx="40"/>
+    <text class="title" x="36" y="124">Phone</text>
+    <text class="note" x="36" y="158">The Swissquote app</text>
+    <rect class="part" x="24" y="182" width="372" height="52" rx="16"/><text class="label" x="48" y="217">Passkey, behind Face ID</text>
+    <rect class="part" x="24" y="244" width="372" height="52" rx="16"/><text class="label" x="48" y="279">Share A, sealed by it</text>
+    <rect class="part" x="24" y="306" width="372" height="52" rx="16"/><text class="label" x="48" y="341">Wallet key, 3 h in memory</text>
+    <rect class="mock" x="24" y="368" width="372" height="52" rx="16"/><text class="label" x="48" y="403">Bank sign-in session</text>
+
+    <rect class="box" x="0" y="508" width="420" height="190" rx="40"/>
+    <text class="title" x="36" y="562">Recovery Key file</text>
+    <text class="note" x="36" y="596">At home.</text>
+    <text class="note" x="36" y="628">It starts or cancels a recovery.</text>
+    <path class="wire" d="M210 508V460M198 474l12-14 12 14"/>
+
+    <rect class="box" x="640" y="70" width="440" height="378" rx="40"/>
+    <text class="title" x="676" y="124">Swissquote</text>
+    <text class="note" x="676" y="158">Wallet API</text>
+    <rect class="part" x="664" y="182" width="392" height="52" rx="16"/><text class="label" x="688" y="217">Compliance engine</text>
+    <rect class="part" x="664" y="244" width="392" height="52" rx="16"/><text class="label" x="688" y="279">Paymaster signer, submitter</text>
+    <rect class="mock" x="664" y="306" width="392" height="52" rx="16"/><text class="label" x="688" y="341">Share B vault (HSM)</text>
+    <rect class="mock" x="664" y="368" width="392" height="52" rx="16"/><text class="label" x="688" y="403">KYC record, ID check</text>
+
+    <rect class="box" x="640" y="508" width="440" height="190" rx="40"/>
+    <text class="title" x="676" y="562">Independent service</text>
+    <text class="note" x="676" y="596">Own process, own database</text>
+    <rect class="mock" x="664" y="618" width="392" height="52" rx="16"/><text class="label" x="688" y="653">Share C vault (HSM)</text>
+
+    <rect class="box" x="1300" y="70" width="364" height="628" rx="40"/>
+    <text class="title" x="1336" y="124">Chain</text>
+    <text class="note" x="1336" y="158">Local anvil chain</text>
+    <rect class="part" x="1324" y="182" width="316" height="52" rx="16"/><text class="label" x="1348" y="217">Smart account</text>
+    <rect class="part" x="1324" y="244" width="316" height="52" rx="16"/><text class="label" x="1348" y="279">EntryPoint v0.7</text>
+    <rect class="part" x="1324" y="306" width="316" height="52" rx="16"/><text class="label" x="1348" y="341">Account factory</text>
+    <rect class="part" x="1324" y="368" width="316" height="52" rx="16"/><text class="label" x="1348" y="403">Paymaster</text>
+    <rect class="part" x="1324" y="430" width="316" height="52" rx="16"/><text class="label" x="1348" y="465">USDC (test token)</text>
+    <text class="note" x="1336" y="604">Passkey and 48-hour</text>
+    <text class="note" x="1336" y="636">delay enforced here</text>
+
+    <path class="wire" d="M432 250H628M444 236l-12 14 12 14M616 236l12 14-12 14"/>
+    <text class="wire-label" x="530" y="226" text-anchor="middle">Operations</text>
+    <text class="note" x="530" y="290" text-anchor="middle">Share B after</text>
+    <text class="note" x="530" y="318" text-anchor="middle">Face ID</text>
+
+    <path class="wire" d="M1092 250H1288M1276 236l12 14-12 14"/>
+    <text class="wire-label" x="1190" y="226" text-anchor="middle">Submits</text>
+    <text class="note" x="1190" y="290" text-anchor="middle">and pays gas</text>
+
+    <path class="wire" d="M432 400H530V644H628M444 386l-12 14 12 14M616 630l12 14-12 14"/>
+    <text class="wire-label halo" x="546" y="488">Share C, direct</text>
+
+    <path class="wire" d="M1000 456V504M988 492l12 12 12-12"/>
+    <text class="wire-label" x="1016" y="488">Recovery Key check</text>
+
+    <path class="wire" d="M1092 610H1288M1276 596l12 14-12 14"/>
+    <text class="wire-label" x="1190" y="586" text-anchor="middle">Reads accounts</text>
+  </svg>
+  <aside class="notes">Four parts. The phone holds the passkey and Share A and rebuilds the key in memory; Swissquote screens every payment, sponsors and submits every operation and holds Share B; the independent service is its own process and database holding Share C, which the phone sends it directly. The chain enforces the passkey and the 48-hour delay, and the dashed parts, the HSMs, the bank sign-in and the ID check, are mocked.</aside>
+</section>
+
+<!-- 8 · Create -->
+<section class="slide content with-phone" aria-label="Create">
+  <h1>Create: every key is born on your phone.</h1>
+  <p class="sub">Inside the signed-in Swissquote app.</p>
+  <div class="rows visual stagger" style="position: absolute; left: 128px; top: 408px; width: 1040px; gap: 14px;">
+    <div class="row" style="--c: var(--phone);"><span class="icon"><svg class="i"><use href="#i-face-id"/></svg></span><div><b>Passkey</b><span>Made by your phone, unlocked by Face ID.</span></div></div>
+    <div class="row" style="--c: var(--ink);"><span class="icon"><svg class="i"><use href="#i-key"/></svg></span><div><b>Wallet key, split 2-of-3</b><span>Share A stays on your phone, sealed by the passkey.</span></div></div>
+    <div class="row" style="--c: var(--swissquote);"><span class="badge">B</span><div><b>Share B to Swissquote</b><span>Checked against the key’s public commitments.</span></div></div>
+    <div class="row" style="--c: var(--partner);"><span class="badge">C</span><div><b>Share C to the independent service</b><span>Sent directly. Swissquote never sees it.</span></div></div>
+    <div class="row" style="--c: var(--home);"><span class="icon"><svg class="i"><use href="#i-restore"/></svg></span><div><b>Recovery Key</b><span>A file you keep at home. Only its address leaves.</span></div></div>
+    <div class="row" style="--c: var(--positive);"><span class="icon"><svg class="i"><use href="#i-verified"/></svg></span><div><b>Ownership statement</b><span>The wallet key signs that it belongs to you, as on your KYC record.</span></div></div>
+  </div>
+  <div class="phone visual" aria-hidden="true">
+    <div class="screen">
+      <img src="screens/onboarding-split.png" alt="">
+      <div class="status"><b>9:41</b><i></i><svg><use href="#status-icons"/></svg></div>
+    </div>
+  </div>
+  <aside class="notes">The client opens the wallet inside the signed-in Swissquote app, so it is tied to their existing identity from the first second. Face ID creates the passkey, the phone makes the wallet key and splits it: A stays sealed on the phone, B goes to Swissquote, C goes straight to the independent service. The Recovery Key is saved as a file for home, and the wallet key signs a statement that this wallet belongs to this client.</aside>
+</section>
+
+<!-- 9 · Pay -->
+<section class="slide content with-phone" aria-label="Pay">
+  <h1>Pay: Face ID, verified on chain.</h1>
+  <p class="sub">Two signatures on every payment.</p>
+  <div class="steps visual stagger" style="position: absolute; left: 128px; top: 420px; width: 1040px;">
+    <div class="step" data-n="1"><div><b>Your phone builds the payment</b><span>Swissquote screens and sponsors it. The phone checks nothing changed.</span></div></div>
+    <div class="step" data-n="2" style="--c: var(--phone);"><div><b>Face ID signs with your passkey</b><span>It signs this exact payment, nothing else.</span></div></div>
+    <div class="step" data-n="3"><div><b>Your wallet key signs too</b><span>From memory, or rebuilt from Shares A and B. Swissquote releases B only after Face ID.</span></div></div>
+    <div class="step" data-n="4" style="--c: var(--positive);"><div><b>The account checks both on chain</b><span>Swissquote submits it and pays the fee.</span></div></div>
+  </div>
+  <div class="phone visual" aria-hidden="true">
+    <div class="screen">
+      <img src="screens/send.png" alt="">
+      <div class="status"><b>9:41</b><i></i><svg><use href="#status-icons"/></svg></div>
+    </div>
+  </div>
+  <aside class="notes">To pay, the phone builds the call, Swissquote screens and sponsors it, and the phone checks Swissquote returned exactly that call before asking for Face ID. Face ID signs with the passkey, and the wallet key signs too, from memory or rebuilt from A and B. The smart account verifies both signatures on chain, so a payment without the client's face is rejected by the chain itself, not by our server.</aside>
+</section>
+
+<!-- 10 · Large payments -->
+<section class="slide content with-phone" aria-label="Large payments">
+  <h1>Bigger payments wait a day.</h1>
+  <p class="sub">Time to cancel if it wasn’t you.</p>
+  <div class="bands visual stagger" style="position: absolute; left: 128px; top: 400px; width: 1040px;">
+    <div class="band">
+      <strong>Up to 1,000<small>USDC</small></strong>
+      <p><svg class="i yes"><use href="#i-face-id"/></svg>One Face ID. Sent at once.</p>
+    </div>
+    <div class="band">
+      <strong>Over 1,000<small>USDC</small></strong>
+      <p><svg class="i part"><use href="#i-clock"/></svg>Approve once. It leaves 24 hours later. Cancel until then.</p>
+    </div>
+    <div class="band">
+      <strong>Over 5,000<small>USDC a day, or 10,000 at once</small></strong>
+      <p><svg class="i" style="color: var(--negative);"><use href="#i-no"/></svg>Refused.</p>
+    </div>
+  </div>
+  <div class="phone visual" aria-hidden="true">
+    <div class="screen">
+      <img src="screens/send-large.png" alt="">
+      <div class="status"><b>9:41</b><i></i><svg><use href="#status-icons"/></svg></div>
+    </div>
+  </div>
+  <aside class="notes">Small payments, up to 1,000 USDC, go with one Face ID. Above that the client approves once and the payment leaves 24 hours later, so a thief who gets past Face ID is held to small payments under the daily limit, and the client has a day to cancel anything larger. Anything over the daily 5,000 or the 10,000 per-payment cap is refused.</aside>
+</section>
+
+<!-- 11 · Know what you sign -->
+<section class="slide content with-phone" aria-label="Know what you sign">
+  <span class="tag">Bonus · Compliant dApps</span>
+  <h1>Know what you sign.</h1>
+  <p class="sub">Swissquote checks every payment before it sponsors it, then says what it does in plain words.</p>
+  <div class="visual" style="position: absolute; left: 128px; top: 430px; width: 1040px;">
+    <div class="pipeline stagger">
+      <div class="check"><svg class="i"><use href="#i-check"/></svg><b>Decode</b><span>Only reviewed functions and finite approvals.</span></div>
+      <div class="check"><svg class="i"><use href="#i-check"/></svg><b>Allowlist, limits</b><span>Approved contracts and tokens only.</span></div>
+      <div class="check"><svg class="i"><use href="#i-check"/></svg><b>Sanctions</b><span>Every address the call touches.</span></div>
+      <div class="check"><svg class="i"><use href="#i-check"/></svg><b>Simulation</b><span>The balance changes match your intent.</span></div>
+    </div>
+    <p class="quote"><small>Swissquote’s reading, signed and logged</small>“Send 20 USDC to 0x4BA4…c6B1.”</p>
+  </div>
+  <div class="phone visual" style="top: 64px;" aria-hidden="true">
+    <div class="screen">
+      <img src="screens/send-refused-sanctioned.png" alt="">
+      <div class="status"><b>9:41</b><i></i><svg><use href="#status-icons"/></svg></div>
+    </div>
+  </div>
+  <aside class="notes">Before Swissquote sponsors a payment, its policy engine decodes the call, checks the allowlist and limits, screens every address and simulates the balance changes, then signs a decision with a plain-language reading into a hash-chained audit log. Here a payment to a sanctioned address is refused with the reason; that stops Swissquote's help, never the wallet. In the local demo, screening and simulation use fixtures; live mode calls TRM Labs and simulates on the chain.</aside>
+</section>
+
+<!-- 12 · Gasless -->
+<section class="slide content" aria-label="Gasless">
+  <span class="tag">Bonus · Gasless</span>
+  <h1>No gas token. Swissquote pays.</h1>
+  <p class="sub">Its ERC-4337 paymaster covers the network fee.</p>
+  <div class="number visual">
+    <p>Network fee <span class="chip">Paid by Swissquote</span></p>
+    <strong>$0<span class="cents">.00</span></strong>
+  </div>
+  <div class="rows visual stagger" style="position: absolute; right: 128px; bottom: 120px; width: 760px;">
+    <div class="row" style="--c: var(--positive);"><span class="icon"><svg class="i"><use href="#i-verified"/></svg></span><div><b>Only what its policy allows</b><span>Screened payments, recovery and cancel.</span></div></div>
+    <div class="row" style="--c: var(--swissquote);"><span class="icon"><svg class="i"><use href="#i-bank"/></svg></span><div><b>Only its own clients</b><span>Wallets registered to a verified client.</span></div></div>
+    <div class="row" style="--c: var(--ink);"><span class="icon"><svg class="i"><use href="#i-receipt"/></svg></span><div><b>One operation, two minutes</b><span>Each sponsorship signs one exact operation.</span></div></div>
+    <div class="row" style="--c: var(--phone);"><span class="icon"><svg class="i"><use href="#i-lightning"/></svg></span><div><b>Fixed gas limits</b><span>No operation can burn more than set.</span></div></div>
+  </div>
+  <aside class="notes">Outside exit mode the client never needs ETH: Swissquote's paymaster pays every fee and the client sees zero. Abuse is bounded because Swissquote signs a sponsorship only for a screened operation from a registered client wallet, for that one exact operation, valid for two minutes and with fixed gas limits.</aside>
+</section>
+
+<!-- 13 · Lost phone -->
+<section class="slide content with-phone" aria-label="Lost phone">
+  <h1>Lost phone: same wallet in 48 hours.</h1>
+  <p class="sub">You, Swissquote and the independent service.</p>
+  <div class="steps when visual stagger" style="position: absolute; left: 128px; top: 420px; width: 1040px;">
+    <div class="step" data-n="Minute 0" style="--c: var(--home);"><div><b>New phone, Recovery Key, ID check</b><span>Your ID must match your KYC record.</span></div></div>
+    <div class="step" data-n="Minute 1" style="--c: var(--ink);"><div><b>B and C go to the new phone, once</b><span>Each checks your Recovery Key signed the request. The phone starts the recovery on chain.</span></div></div>
+    <div class="step" data-n="48 hours" style="--c: var(--warning);"><div><b>Anyone can see it. You can cancel it.</b><span>From your old phone, or through Swissquote.</span></div></div>
+    <div class="step" data-n="Done" style="--c: var(--positive);"><div><b>Same address, same funds</b><span>Anyone can finish it. New passkey, new key.</span></div></div>
+  </div>
+  <div class="phone visual" aria-hidden="true">
+    <div class="screen">
+      <img src="screens/recover-hold.png" alt="">
+      <div class="status"><b>9:41</b><i></i><svg><use href="#status-icons"/></svg></div>
+    </div>
+  </div>
+  <aside class="notes">On a new phone the client loads the Recovery Key from home and passes an ID check matched to their KYC record. Swissquote and the independent service each verify the Recovery Key signed this exact recovery and release B and C to the new phone, which rebuilds the old key once to start the 48-hour recovery on chain. The old phone or Swissquote can cancel during the hold; after it anyone can finish, and the wallet keeps its address and its funds.</aside>
+</section>
+
+<!-- 14 · Attacker -->
+<section class="slide content" aria-label="Attacker">
+  <span class="tag">Bonus · Attacker refused</span>
+  <h1>A thief with your phone and email gets nothing.</h1>
+  <p class="sub">Refused at every gate.</p>
+  <div class="gates visual stagger">
+    <div class="gate"><span class="n">1</span><h2>Open the wallet</h2><span class="stop"><svg class="i"><use href="#i-cross"/></svg>Refused</span><p>No Face ID, so Share A stays sealed.</p></div>
+    <div class="gate"><span class="n">2</span><h2>Reset it by email</h2><span class="stop"><svg class="i"><use href="#i-cross"/></svg>Refused</span><p>There is no email reset.</p></div>
+    <div class="gate"><span class="n">3</span><h2>Forge a Recovery Key</h2><span class="stop"><svg class="i"><use href="#i-cross"/></svg>Refused</span><p>Both share holders check it against your wallet.</p></div>
+    <div class="gate"><span class="n">4</span><h2>Show their own ID</h2><span class="stop"><svg class="i"><use href="#i-cross"/></svg>Refused</span><p>It doesn’t match your KYC record.</p></div>
+    <div class="gate"><span class="n">5</span><h2>Recover it anyway</h2><span class="stop"><svg class="i"><use href="#i-cross"/></svg>Cancelled</span><p>48 hours for you to cancel through Swissquote.</p></div>
+  </div>
+  <aside class="notes">Our demo scripts an attacker who stole the phone and the email account. Without Face ID, Share A stays sealed and no payment can be signed. There is no email reset to abuse, a forged Recovery Key is refused by both share holders, their own ID doesn't match the client's KYC record, and even a recovery that did start waits 48 hours, in public, for the client to cancel through Swissquote.</aside>
+</section>
+
+<!-- 15 · Exit without Swissquote -->
+<section class="slide content" aria-label="Exit without Swissquote">
+  <h1>If Swissquote disappears, your funds don’t.</h1>
+  <p class="sub">Your phone and the independent service get them out.</p>
+  <div class="flow visual stagger" style="--lines: 3;">
+    <div class="tile gone" style="--c: var(--swissquote);">
+      <span class="icon"><svg class="i"><use href="#i-bank"/></svg></span>
+      <h2>Swissquote gone</h2>
+      <p>Offline for 30 days.</p>
+    </div>
+    <svg class="i"><use href="#i-next"/></svg>
+    <div class="tile" style="--c: var(--partner);">
+      <span class="icon"><svg class="i"><use href="#i-shield"/></svg></span>
+      <h2>Exit mode opens</h2>
+      <p>Run by the independent service. No Swissquote server needed.</p>
+    </div>
+    <svg class="i"><use href="#i-next"/></svg>
+    <div class="tile" style="--c: var(--phone);">
+      <span class="icon"><svg class="i"><use href="#i-face-id"/></svg></span>
+      <h2>Face ID approves</h2>
+      <p>A payment that pays its own gas. Share C is released for it.</p>
+    </div>
+    <svg class="i"><use href="#i-next"/></svg>
+    <div class="tile" style="--c: var(--positive);">
+      <span class="icon"><svg class="i"><use href="#i-send"/></svg></span>
+      <h2>Funds out</h2>
+      <p>The phone rebuilds the key from A and C and submits it itself.</p>
+    </div>
+  </div>
+  <aside class="notes">The brief asks what happens if Swissquote's services are gone for good. After 30 days without Swissquote, the independent service opens exit mode: when the client's passkey approves an operation that pays its own gas, it releases Share C. The phone rebuilds the key from A and C, signs with Face ID and the key, and submits straight to the chain, with no Swissquote server in the path.</aside>
+</section>
+
+<!-- 16 · Legal -->
+<section class="slide content" aria-label="Legal">
+  <h1>Assistance, not custody. Ownership signed at creation.</h1>
+  <p class="sub">Our reading of Swiss law, for counsel to confirm.</p>
+  <div class="tiles visual stagger" style="--lines: 5;">
+    <div class="tile" style="--c: var(--swissquote);">
+      <span class="icon"><svg class="i"><use href="#i-bank"/></svg></span>
+      <h2>Custody</h2>
+      <p>Swissquote can’t move funds, even with the independent service. It can withhold help and cancel a recovery, which we argue is assistance.</p>
+    </div>
+    <div class="tile" style="--c: var(--positive);">
+      <span class="icon"><svg class="i"><use href="#i-verified"/></svg></span>
+      <h2>Travel Rule</h2>
+      <p>At creation the wallet key signs a statement naming the client. Automatic ownership evidence, for FINMA and counsel to accept.</p>
+    </div>
+    <div class="tile" style="--c: var(--phone);">
+      <span class="icon"><svg class="i"><use href="#i-send"/></svg></span>
+      <h2>Sending institution</h2>
+      <p>The client signs; the account sends. Swissquote screens, sponsors and submits, but never holds or orders funds. We argue it isn’t the sender.</p>
+    </div>
+  </div>
+  <aside class="notes">Custody turns on who can move the funds: Swissquote can't, alone or with the independent service; it can only withhold help or cancel a recovery, which we argue is assistance, still under AML rules, hence the screening. For the Travel Rule, the wallet is created inside the signed-in app and its key signs a statement naming the client, so ownership evidence exists from the first second, without a test transfer. When the client pays a third party, the client signs and the account sends, so we argue Swissquote is not the sending institution, an open question for counsel.</aside>
+</section>
+
+<!-- 17 · Business case -->
+<section class="slide content" aria-label="Business case">
+  <h1>Keep the client. Keep the trading.</h1>
+  <p class="sub">Today a client pays to leave. With the wallet, the assets stay one tap from trading.</p>
+  <div class="tiles visual stagger" style="top: 380px; bottom: auto;">
+    <div class="tile">
+      <span class="big">1.22<small> M</small></span>
+      <p>Swissquote accounts on 30 June 2026. Each could open a wallet.</p>
+    </div>
+    <div class="tile">
+      <span class="big"><small>USD </small>15</span>
+      <p>Paid today to move USDC out. Then Swissquote loses sight of it.</p>
+    </div>
+    <div class="tile">
+      <span class="big">1<small> %</small></span>
+      <p>Standard crypto trading fee when wallet funds trade in the app.</p>
+    </div>
+  </div>
+  <div class="math visual">
+    <small>Illustration</small>
+    <span>2% of accounts</span><i>×</i><span>CHF 5,000 a year</span><i>×</i><span>1%</span><i>=</i><strong>CHF 1.2 M a year</strong>
+  </div>
+  <p class="source">Sources: Swissquote H1 2026 results; Swissquote crypto pricing, October 2026. The 2% and CHF 5,000 are our assumptions.</p>
+  <aside class="notes">Swissquote has 1.22 million accounts and 96 billion francs in client assets, yet a self-custody client today pays 15 dollars to take USDC out and Swissquote never sees it again. With the wallet the assets stay one tap from trading at the standard 1 percent fee: 2 percent of accounts trading 5,000 francs a year is about 1.2 million francs a year, before counting new clients who want their own keys. The cost is the network fee Swissquote sponsors, a few cents per payment on Base by our estimate.</aside>
+</section>
+
+<!-- 18 · Real and mocked -->
+<section class="slide content" aria-label="Real and mocked">
+  <h1>What’s real, what’s mocked.</h1>
+  <div class="ledger visual">
+    <section>
+      <h2><svg class="i yes"><use href="#i-yes"/></svg>Real</h2>
+      <ul>
+        <li>Shamir 2-of-3 <span>with verified shares</span></li>
+        <li>Passkeys <span>checked on chain</span></li>
+        <li>ERC-4337 account, factory, paymaster</li>
+        <li>48-hour delay and cancel <span>on chain</span></li>
+        <li>Independent service <span>as its own process and database</span></li>
+        <li>Compliance engine <span>with signed, logged decisions</span></li>
+        <li>24-hour hold and exit mode</li>
+        <li>Signed transactions <span>on a local chain, Base Sepolia ready</span></li>
+      </ul>
+    </section>
+    <section class="mocked">
+      <h2><svg class="i" style="color: #aeaeb2;"><use href="#i-part"/></svg>Mocked</h2>
+      <ul>
+        <li>Bank sign-in and KYC record</li>
+        <li>ID and selfie check <span>against that record</span></li>
+        <li>HSMs <span>shares sealed in software</span></li>
+        <li>Sanctions and simulation <span>fixtures in the demo</span></li>
+        <li>Independent service <span>a process, not a company</span></li>
+        <li>Secure chip <span>web storage, unsealed without PRF</span></li>
+      </ul>
+    </section>
+  </div>
+  <aside class="notes">Everything in the protocol runs for real: the key split, the passkey checked on chain, the smart account, the paymaster, the 48-hour delay and the independent service as its own process. What needs a real bank or real hardware is mocked and labelled: the bank sign-in and KYC record, the ID check, the HSMs and the sanctions lists. The production path is the native Swissquote app with the secure chip, real HSMs, a contracted independent service and Base mainnet.</aside>
+</section>
+
+<!-- 19 · Closing -->
+<section class="slide blue" aria-label="Closing">
+  <h1 class="display">Your wallet.<br>A bank in your corner.</h1>
+  <p class="sub">Thank you. Questions?</p>
+  <p class="sub" style="position: absolute; left: 128px; bottom: 120px; margin: 0; font-size: 30px;">Built with Claude Code and OpenAI Codex.</p>
+  <aside class="notes">Swissquote Wallet gives clients their own keys without making them security experts, keeps their assets one tap from Swissquote, and never gives the bank the power to spend. Thank you.</aside>
+</section>
+
+<div id="notes" hidden aria-live="polite"></div>
+
 <script>
-// Arrows / Space / PageUp / PageDown navigate. Home / End jump. N toggles notes. F toggles fullscreen.
-const slides=[...document.querySelectorAll('.slide')];
-const previous=document.getElementById('previous'),next=document.getElementById('next'),position=document.getElementById('position');
-const notesToggle=document.getElementById('notes-toggle'),notesPanel=document.getElementById('notes-panel'),notesCopy=document.getElementById('notes-copy');
-let current=0;
-slides.forEach((slide,i)=>{const footer=document.createElement('footer');const brand=document.createElement('span');brand.className='brand';brand.textContent='Fuse';const number=document.createElement('span');number.className='slide-number';number.textContent=String(i+1).padStart(2,'0')+' / '+slides.length;footer.append(brand,number);slide.append(footer);slide.setAttribute('role','group');slide.setAttribute('aria-roledescription','slide');});
-function fit(){document.documentElement.style.setProperty('--scale',Math.min(innerWidth/1920,innerHeight/1080));}
-function show(n){current=Math.max(0,Math.min(slides.length-1,n));slides.forEach((slide,i)=>{slide.classList.toggle('current',i===current);slide.setAttribute('aria-hidden',String(i!==current));});history.replaceState(null,'','#'+(current+1));position.textContent=(current+1)+' / '+slides.length;previous.disabled=current===0;next.disabled=current===slides.length-1;notesCopy.textContent=slides[current].querySelector('.speaker-notes').textContent;document.title=(current+1)+' · '+slides[current].getAttribute('aria-label')+' · Fuse';}
-function go(step){document.body.classList.add('animate');show(current+step);}
-function toggleNotes(){notesPanel.hidden=!notesPanel.hidden;notesToggle.setAttribute('aria-pressed',String(!notesPanel.hidden));}
-async function fullscreen(){try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen();}catch{}}
-previous.addEventListener('click',()=>go(-1));next.addEventListener('click',()=>go(1));notesToggle.addEventListener('click',toggleNotes);document.getElementById('fullscreen').addEventListener('click',fullscreen);
-addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey||e.altKey||e.target.closest('button,a,input,textarea,select'))return;const step={ArrowRight:1,ArrowDown:1,PageDown:1,' ':e.shiftKey?-1:1,ArrowLeft:-1,ArrowUp:-1,PageUp:-1}[e.key];if(step){e.preventDefault();go(step);}if(e.key==='Home'){e.preventDefault();go(-current);}if(e.key==='End'){e.preventDefault();go(slides.length);}if(e.key.toLowerCase()==='n')toggleNotes();if(e.key.toLowerCase()==='f')void fullscreen();if(e.key==='Escape'&&!notesPanel.hidden)toggleNotes();});
-addEventListener('click',e=>{if(e.target.closest('.controls,.notes-panel,a'))return;go(e.clientX<innerWidth/3?-1:1);});
-let touchX=null,touchY=null,suppressClickUntil=0;
-addEventListener('touchstart',e=>{if(e.target.closest('.controls,.notes-panel'))return;touchX=e.touches[0].clientX;touchY=e.touches[0].clientY;},{passive:true});
-addEventListener('touchend',e=>{if(touchX===null)return;const dx=e.changedTouches[0].clientX-touchX,dy=e.changedTouches[0].clientY-touchY;touchX=null;if(Math.abs(dx)>40&&Math.abs(dx)>Math.abs(dy)){suppressClickUntil=Date.now()+500;go(dx<0?1:-1);}},{passive:true});
-addEventListener('click',e=>{if(Date.now()<suppressClickUntil){e.stopImmediatePropagation();e.preventDefault();}},true);
-const fromHash=()=>{const n=Number.parseInt(location.hash.slice(1),10);show(Number.isFinite(n)?n-1:0);};
-addEventListener('hashchange',fromHash);addEventListener('resize',fit);fit();fromHash();
+  // → Space PageDown next · ← PageUp previous · Home/End · F full screen · N speaker notes · click or swipe · #3 opens slide 3
+  const slides = [...document.querySelectorAll('.slide')];
+  const notes = document.getElementById('notes');
+  let current = 0;
+
+  function fit() {
+    document.documentElement.style.setProperty('--scale', Math.min(innerWidth / 1920, innerHeight / 1080));
+  }
+
+  function showNotes() {
+    const text = slides[current].querySelector('.notes')?.textContent ?? '';
+    notes.innerHTML = `<small>${current + 1} / ${slides.length}</small>`;
+    notes.append(text);
+  }
+
+  function show(n) {
+    current = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, i) => s.classList.toggle('current', i === current));
+    history.replaceState(null, '', '#' + (current + 1));
+    showNotes();
+  }
+
+  function go(step) {
+    document.body.classList.add('animate');
+    show(current + step);
+  }
+
+  addEventListener('keydown', (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const step = { ArrowRight: 1, ArrowDown: 1, PageDown: 1, ' ': e.shiftKey ? -1 : 1, ArrowLeft: -1, ArrowUp: -1, PageUp: -1 }[e.key];
+    if (step) { e.preventDefault(); go(step); }
+    if (e.key === 'Home') go(-current);
+    if (e.key === 'End') go(slides.length);
+    if (e.key === 'f') document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+    if (e.key === 'n') notes.hidden = !notes.hidden;
+  });
+  addEventListener('click', (e) => {
+    if (notes.contains(e.target)) return;
+    go(e.clientX < innerWidth / 3 ? -1 : 1);
+  });
+
+  let touchX = null;
+  addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; }, { passive: true });
+  addEventListener('touchend', (e) => {
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (Math.abs(dx) > 40) go(dx < 0 ? 1 : -1);
+  });
+
+  const fromHash = () => show(parseInt(location.hash.slice(1), 10) - 1 || 0);
+  addEventListener('hashchange', fromHash);
+  addEventListener('resize', fit);
+  fit();
+  fromHash();
 </script>
 </body>
 </html>
