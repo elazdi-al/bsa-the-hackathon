@@ -1,8 +1,6 @@
-import { CaretLeftIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Screen } from "@/components/navigation";
-import { Button } from "@/components/ui/button";
+import { BackButton } from "@/components/ui/back-button";
 import { HideMyWallet } from "./_components/hide-my-wallet";
 import { recipient, transfer } from "./data";
 
@@ -13,16 +11,7 @@ export default function Page() {
     <Screen>
       <main className="flex min-h-dvh flex-col bg-white pt-[env(safe-area-inset-top)] pb-[max(2rem,env(safe-area-inset-bottom))]">
         <header className="relative flex h-14 shrink-0 items-center justify-center px-4">
-          <Button
-            nativeButton={false}
-            render={<Link href="/choose-recipient" />}
-            aria-label="Back"
-            variant="secondary"
-            size="icon"
-            className="absolute left-3"
-          >
-            <CaretLeftIcon aria-hidden weight="bold" className="size-[18px]" />
-          </Button>
+          <BackButton fallback="/choose-recipient" className="absolute left-3.5" />
           <h1 className="text-[17px] font-semibold">Send</h1>
         </header>
 
@@ -30,7 +19,7 @@ export default function Page() {
           <div className="pt-16 pb-[84px] text-center md:pt-0">
             <p className="text-[48px] leading-[56px] font-bold tracking-[-0.035em] tabular-nums">
               {transfer.amount.whole}
-              <span className="text-black/25">{transfer.amount.cents}</span>
+              <span className="text-cents">{transfer.amount.cents}</span>
             </p>
             <p className="mt-1 text-[15px] text-black/35 tabular-nums">{transfer.token}</p>
           </div>
@@ -63,7 +52,7 @@ export default function Page() {
                 </sup>
                 <span className="sr-only"> Plus</span>
               </span>{" "}
-              <span className="text-[#30b256]">Covered</span>
+              <span className="text-positive">Covered</span>
             </dd>
           </dl>
 

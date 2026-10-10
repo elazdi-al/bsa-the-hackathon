@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { HistoryTransitions } from "@/components/navigation";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -14,7 +15,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className="h-full">
-      <body className="min-h-full">{children}</body>
+      <body className="min-h-full">
+        {children}
+        <HistoryTransitions />
+      </body>
     </html>
   );
 }

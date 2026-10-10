@@ -2,8 +2,8 @@
 
 import { LightningIcon, XIcon } from "@phosphor-icons/react";
 import { AnimatePresence, MotionConfig, motion, type Variants } from "motion/react";
-import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
+import { useBack } from "@/components/navigation";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerClose, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { steps, withdrawal } from "../data";
@@ -32,7 +32,7 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 }
 
 export function TransactionSheet() {
-  const router = useRouter();
+  const back = useBack("/history");
   const [open, setOpen] = useState(true);
   const [tracker, setTracker] = useState<Tracker>({ step: withdrawal.step, expanded: true });
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -60,7 +60,7 @@ export function TransactionSheet() {
         open={open}
         onOpenChange={setOpen}
         onAnimationEnd={(isOpen) => {
-          if (!isOpen) router.push("/history");
+          if (!isOpen) back();
         }}
       >
         {/* The shared handle sits outside the layout animation and would jump when the tracker folds, so the header draws its own. */}

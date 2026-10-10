@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Screen } from "@/components/navigation";
-import { XCircleIcon } from "@phosphor-icons/react/dist/ssr";
+import { BackButton } from "@/components/ui/back-button";
 import { BridgeLogo } from "./_components/bridge-logo";
 import { IdentityIllustration } from "./_components/identity-illustration";
 import { verification } from "./data";
@@ -16,13 +15,7 @@ export default function Page() {
   return (
     <Screen>
       <main className="relative grid min-h-dvh w-full place-items-center overflow-hidden bg-[#f2f2f2] px-6 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
-        <Link
-          href="/settings"
-          aria-label="Close"
-          className="absolute top-[calc(env(safe-area-inset-top)+8px)] right-2 grid size-11 place-items-center rounded-full text-black/20 transition-[color,scale] duration-150 ease-out hover:text-black/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black/40 active:scale-[0.96]"
-        >
-          <XCircleIcon weight="fill" size={30} />
-        </Link>
+        <BackButton kind="close" fallback="/settings" className="absolute top-[calc(env(safe-area-inset-top)+10px)] right-3" />
 
         <div className="flex flex-col items-center text-center md:[zoom:1.25]">
           <div className={enter}>

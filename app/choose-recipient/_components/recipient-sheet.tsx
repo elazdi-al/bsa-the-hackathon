@@ -2,14 +2,14 @@
 
 import { CornersOutIcon } from "@phosphor-icons/react";
 import { MotionConfig } from "motion/react";
-import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
+import { useBack } from "@/components/navigation";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { swapSpring } from "./motion";
 
 export function RecipientSheet({ children }: { children: ReactNode }) {
-  const router = useRouter();
+  const back = useBack("/home");
   const [open, setOpen] = useState(true);
 
   return (
@@ -18,7 +18,7 @@ export function RecipientSheet({ children }: { children: ReactNode }) {
         open={open}
         onOpenChange={setOpen}
         onAnimationEnd={(isOpen) => {
-          if (!isOpen) router.push("/home");
+          if (!isOpen) back();
         }}
       >
         <DrawerContent

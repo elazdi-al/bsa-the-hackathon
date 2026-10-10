@@ -1,6 +1,7 @@
 "use client";
 
-import { ViewTransition, type ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { ViewTransition, addTransitionType, startTransition, useEffect, useRef, type ReactNode } from "react";
 
 /**
  * How a navigation animates. Tabs sit side by side at depth 0 and drift in bar order; anything
@@ -29,4 +30,62 @@ export function Screen({ children }: { children: ReactNode }) {
       {children}
     </ViewTransition>
   );
+}
+
+type HistoryNavigation = EventTarget & { canGoBack: boolean; currentEntry: { index: number } | null };
+type TraverseEvent = Event & { navigationType: string; destination: { index: number } };
+
+const navigation = () => (window as Window & { navigation?: HistoryNavigation }).navigation;
+
+// Without the Navigation API, any client-side route change means Back stays inside the app.
+let navigated = false;
+
+/**
+ * Mounted once in the root layout. Tags history traversals (router.back() and the browser's own
+ * Back and Forward) with a transition type, so going back pops instead of swapping.
+ */
+export function HistoryTransitions() {
+  const pathname = usePathname();
+  const shown = useRef(pathname);
+
+  useEffect(() => {
+    if (pathname !== shown.current) navigated = true;
+    shown.current = pathname;
+  }, [pathname]);
+
+  useEffect(() => {
+    const nav = navigation();
+    let back = true;
+    const onNavigate = (e: Event) => {
+      const { navigationType, destination } = e as TraverseEvent;
+      if (navigationType === "traverse") back = destination.index < (nav?.currentEntry?.index ?? 0);
+    };
+    // Next restores the route in its own popstate transition. Holding an async transition open across
+    // it entangles the two, so Next's commit carries our type. Capture runs this before Next's listener.
+    const onPopState = () => {
+      const type = transitionFor(shown.current, location.pathname, back);
+      back = true;
+      startTransition(async () => {
+        addTransitionType(type);
+        await new Promise((resolve) => setTimeout(resolve));
+      });
+    };
+    nav?.addEventListener("navigate", onNavigate);
+    window.addEventListener("popstate", onPopState, { capture: true });
+    return () => {
+      nav?.removeEventListener("navigate", onNavigate);
+      window.removeEventListener("popstate", onPopState, { capture: true });
+    };
+  }, []);
+
+  return null;
+}
+
+/** Leaves the current screen: back through history when the previous entry is in the app, else to `fallback`. */
+export function useBack(fallback: string) {
+  const router = useRouter();
+  return () => {
+    if (navigation()?.canGoBack ?? navigated) router.back();
+    else router.replace(fallback, { transitionTypes: ["pop"] });
+  };
 }

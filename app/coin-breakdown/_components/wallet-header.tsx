@@ -2,6 +2,7 @@ import { CaretDownIcon, CheckCircleIcon, ClockIcon, CopyIcon } from "@phosphor-i
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { BackButton } from "@/components/ui/back-button";
 import { wallet } from "../data";
 import { iconSwap } from "./motion";
 
@@ -11,13 +12,10 @@ const iconHidden = { opacity: 0, scale: 0.25, filter: "blur(4px)" };
 export function WalletHeader() {
   return (
     <header className="flex items-center gap-4 px-[22px]">
-      <Link
-        href="/home"
-        aria-label="Back to Home"
-        className="relative grid size-[42px] shrink-0 place-items-center rounded-full bg-[#e6e6e6] outline-none transition-transform duration-150 ease-out after:absolute after:-inset-0.5 focus-visible:ring-2 focus-visible:ring-black/20 active:scale-[0.96]"
-      >
+      <BackButton fallback="/home" className="-mr-1" />
+      <span aria-hidden className="grid size-[42px] shrink-0 place-items-center rounded-full bg-[#e6e6e6]">
         <FuseMark />
-      </Link>
+      </span>
       <div className="min-w-0 flex-1">
         <p className="flex items-center gap-1.5 text-[17px]/[22px] font-semibold tracking-[-0.01em]">
           {wallet.name}
@@ -70,7 +68,7 @@ function CopyAddress() {
               transition={iconSwap}
             >
               {copied ? (
-                <CheckCircleIcon weight="fill" className="size-4 text-[#34c759]" />
+                <CheckCircleIcon weight="fill" className="size-4 text-positive" />
               ) : (
                 <CopyIcon weight="duotone" className="size-4" />
               )}

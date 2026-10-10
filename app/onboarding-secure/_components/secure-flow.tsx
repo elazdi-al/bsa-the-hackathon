@@ -36,7 +36,7 @@ export function SecureFlow() {
   const ready = step.name === "setup" && step.status === "ready";
   useEffect(() => {
     if (!ready) return;
-    const id = setTimeout(() => router.push("/home"), 1600);
+    const id = setTimeout(() => router.replace("/home"), 1600);
     return () => clearTimeout(id);
   }, [ready, router]);
 
