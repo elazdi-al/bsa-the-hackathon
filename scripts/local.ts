@@ -2,6 +2,8 @@
 // app. Writes .env.local for the app, the partner, the CLI (npm run status, fund, ...) and npm run e2e.
 //
 //   npm run local            (PORT, RPC_PORT and PARTNER_PORT pick other ports)
+//   npm run local -- --prod  a public demo behind a tunnel: a production build instead of next dev, and 100 test
+//                            USDC for every new wallet. PUBLIC_PARTNER_URL is the partner's public URL, where phones post Share C.
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -16,6 +18,7 @@ const ports = {
 const RPC_URL = `http://127.0.0.1:${ports.anvil.port}`;
 const APP_URL = `http://localhost:${ports.app.port}`;
 const PARTNER_URL = `http://localhost:${ports.partner.port}`;
+const prod = process.argv.includes("--prod");
 // Anvil's first prefunded account plays Swissquote.
 const SWISSQUOTE_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
 const MARKER = "# Written by npm run local.";
@@ -131,16 +134,22 @@ const env = {
   SWISSQUOTE_SHARE_KEY: randomBytes(32).toString("hex"),
   PARTNER_SHARE_KEY: randomBytes(32).toString("hex"),
   PARTNER_URL,
-  NEXT_PUBLIC_PARTNER_URL: PARTNER_URL,
+  NEXT_PUBLIC_PARTNER_URL: process.env.PUBLIC_PARTNER_URL ?? PARTNER_URL,
   APP_URL,
   COMPLIANCE_MODE: "demo",
   COMPLIANCE_POLICY_FILE: POLICY_FILE,
+  ...(prod && { WELCOME_USDC: "100" }),
 };
 writeFileSync(".env.local", `${MARKER}\n${Object.entries(env).map(([k, v]) => `${k}=${v}`).join("\n")}\n`);
 
+if (prod) {
+  console.log("Building the app");
+  const build = spawnSync("node_modules/.bin/next", ["build"], { stdio: "inherit", env: { ...process.env, ...env } });
+  if (build.status !== 0) fail("next build failed.");
+}
 console.log(`Starting the partner on ${PARTNER_URL} and the app on ${APP_URL}`);
 run("partner", "node", ["services/partner/server.ts"], env);
-run("app", "node_modules/.bin/next", ["dev", "--port", String(ports.app.port)], env);
+run("app", "node_modules/.bin/next", [prod ? "start" : "dev", "--port", String(ports.app.port)], env);
 while (!(await answers(`${APP_URL}/api/config`))) await sleep(500);
 
 // next dev compiles each route on its first request, about a second apiece. Asking for every screen and API

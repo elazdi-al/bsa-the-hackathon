@@ -140,6 +140,8 @@ The app uses port 3000, anvil 8545 and the independent service 4002. If a port i
 PORT=3200 RPC_PORT=8546 PARTNER_PORT=4003 npm run local
 ```
 
+For a public demo behind a tunnel, `npm run local -- --prod` serves a production build and mints 100 test USDC to every new wallet. Set `PUBLIC_PARTNER_URL` to the independent service's public URL, because the phone posts Share C there directly. The app and the independent service each need a public hostname. Anvil stays private.
+
 Drive the protocol from a second terminal. The commands read `.env.local`, so they follow the ports.
 
 | Command | What it does |
