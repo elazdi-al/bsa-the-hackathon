@@ -250,9 +250,17 @@ export function createPhone({ api = "", partner, authenticator, storage }: { api
       return { address: prepared.address, executeAfter: pendingRecovery!.executeAfter };
     },
 
-    /** Swissquote cancels the pending recovery for the client, who proves it with the recovery key. */
-    async cancelRecoveryWithSwissquote(secret: Hex): Promise<Hex> {
-      const { address } = requireWallet();
+    /** The wallet a recovery key restores, and the recovery already pending for it, if someone started one. */
+    findRecovery: (secret: Hex) =>
+      call<{ address: Address; pendingRecovery: { executeAfter: number } | null }>(
+        `/api/recovery?${new URLSearchParams({ recoveryKey: privateKeyToAddress(secret) })}`,
+      ),
+
+    /**
+     * Swissquote cancels the pending recovery for the client, who proves it with the recovery key. Works
+     * without a wallet on this phone: the key's holder may have lost theirs and found a recovery underway.
+     */
+    async cancelRecoveryWithSwissquote(secret: Hex, address = requireWallet().address): Promise<Hex> {
       const { pendingRecovery } = await call<WalletState>(`/api/wallets/${address}`);
       if (!pendingRecovery) throw new Error("There is no recovery to cancel.");
       const signature = await privateKeyToAccount(secret).signMessage({ message: cancelRecoveryMessage(address, pendingRecovery.executeAfter) });
