@@ -1,5 +1,6 @@
 "use client";
 
+import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -13,10 +14,12 @@ import { dayLabel, type Tx } from "../../history/data";
 import { transferToTx } from "../../history/live";
 import { sectionLabel } from "../../_components/list";
 import { Money } from "../../_components/money";
-import { forgetWallet, onPhoneClock, refreshWallet, useActivity, useWallet, type Wallet, type WalletSnapshot } from "../../_components/wallet";
+import { snappy } from "../../_components/transitions";
+import { forgetWallet, phoneDate, refreshWallet, useActivity, useWallet, type WalletSnapshot } from "../../_components/wallet";
 import { tiles, type Tile, type TileId } from "../data";
 import { AssetTile, tileLooks } from "./asset-tile";
 import { MoneyPlaceholder } from "./blur-money";
+import { HeldCard } from "./held-card";
 import { PromoStack } from "./promo-stack";
 
 
@@ -39,6 +42,7 @@ export function Accounts() {
   // Read while Home shows, so the Cash sheet opens on its transfers.
   useActivity();
   const alert = alertFor(wallet);
+  const live = wallet.status === "ready" ? wallet.wallet : undefined;
   const [open, setOpen] = useState(false);
   // Kept after close so the sheet's content doesn't vanish mid-exit.
   const [id, setId] = useState<TileId>("cash");
@@ -59,16 +63,23 @@ export function Accounts() {
             </p>
           )
         )}
-        <section aria-label="Accounts" className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-2">
+        {/* A card leaving pops out of the flow at once, so the grid glides up into its place instead of jumping once it's gone. */}
+        <AnimatePresence initial={false} mode="popLayout">
+          {live?.controls && live.held.map((payment) => <HeldCard key={payment.hash} payment={payment} wallet={live} />)}
+        </AnimatePresence>
+        <motion.section layout="position" transition={snappy} aria-label="Accounts" className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-2">
           {shown.map((tile, i) => (
             <AssetTile key={tile.id} tile={tile} index={i} onOpen={() => show(tile.id)} />
           ))}
           <PromoStack className="col-span-2 md:col-span-4 lg:col-span-2" onOpenAccount={show} />
-        </section>
-        <Link href="/dapps" transitionTypes={["push"]} className="flex items-center justify-between rounded-3xl border border-border bg-surface px-5 py-4">
-          <span><span className="block text-label">Reviewed dApps</span><span className="mt-1 block text-caption text-muted-foreground">Vaults, transaction checks and sponsored gas</span></span>
-          <span aria-hidden className="text-heading">↗</span>
-        </Link>
+        </motion.section>
+        {/* Glides with the grid when a held payment's card leaves. */}
+        <motion.div layout="position" transition={snappy}>
+          <Link href="/dapps" transitionTypes={["push"]} className="flex items-center justify-between rounded-3xl border border-border bg-surface px-5 py-4">
+            <span><span className="block text-label">Reviewed dApps</span><span className="mt-1 block text-caption text-muted-foreground">Vaults, transaction checks and sponsored gas</span></span>
+            <span aria-hidden className="text-heading">↗</span>
+          </Link>
+        </motion.div>
       </div>
 
       <Drawer open={open} onOpenChange={setOpen}>
@@ -81,9 +92,6 @@ export function Accounts() {
     </>
   );
 }
-
-const restoreDate = (wallet: Wallet, executeAfter: number) =>
-  onPhoneClock(wallet, executeAfter).toLocaleString("en-GB", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
 
 type Alert = { kind: "recovering" | "restoring" | "cancelled" | "moved" | "missing"; Icon: Icon; tone: string; title: string; line: string };
 
@@ -106,7 +114,7 @@ function alertFor(wallet: WalletSnapshot): Alert | undefined {
           Icon: WarningIcon,
           tone: "text-pending",
           title: "Someone started recovering your wallet",
-          line: `If it wasn’t you, cancel it before ${restoreDate(wallet.wallet, recovery.executeAfter)}.`,
+          line: `If it wasn’t you, cancel it before ${phoneDate(wallet.wallet, recovery.executeAfter)}.`,
         }
       : undefined;
   return recovery?.mine
@@ -115,7 +123,7 @@ function alertFor(wallet: WalletSnapshot): Alert | undefined {
         Icon: RestoreIcon,
         tone: "text-purple",
         title: "Your wallet is being restored",
-        line: `It completes on ${restoreDate(wallet.wallet, recovery.executeAfter)}, and this phone can send once it does.`,
+        line: `It completes on ${phoneDate(wallet.wallet, recovery.executeAfter)}, and this phone can send once it does.`,
       }
     : restoring
       ? {
