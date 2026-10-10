@@ -1,14 +1,16 @@
 "use client";
 
-import { ArrowSquareUpRightIcon } from "@phosphor-icons/react";
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { TrendUpIcon } from "@/components/icons";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { balance, defaultRange, history, ranges, series, type Range } from "../data";
 import { usd } from "../../_components/money";
 import { RollingMoney } from "../../_components/rolling-money";
 import { BlurMoney, markIntroDone, wasIntroDone } from "./blur-money";
 import { smooth, snappy } from "../../_components/transitions";
+
+const cents = "text-[0.74em] text-cents";
 
 export function BalanceChart() {
   const [range, setRange] = useState<Range>(defaultRange);
@@ -21,18 +23,11 @@ export function BalanceChart() {
   const [active, setActive] = useState<number | null>(null);
   const pointer = useRef<{ id: number; touch: boolean; bar?: number } | null>(null);
   const [rolled, setRolled] = useState(false);
-
-  // The chart height changes per breakpoint, so the 2px floor of a bar is measured, not assumed.
   const chart = useRef<HTMLDivElement>(null);
-  const [dot, setDot] = useState<number>();
+  // The layout's MotionConfig stills transforms only; bars grow by height, so they are stilled here.
+  const still = useReducedMotion();
 
-  useEffect(() => {
-    const el = chart.current!;
-    const observer = new ResizeObserver(() => setDot(2 / el.clientHeight));
-    observer.observe(el);
-    markIntroDone();
-    return () => observer.disconnect();
-  }, []);
+  useEffect(markIntroDone, []);
 
   const { values, dates } = history[range];
   const last = values.length - 1;
@@ -76,35 +71,28 @@ export function BalanceChart() {
 
   return (
     <section aria-labelledby="total-balance">
-      <div className="mt-6 flex items-center gap-2.5 text-[15px] leading-5">
-        {/* Every label of the range shares one cell, so the cell is as wide as the widest and the badge never slides. */}
-        <h2 id="total-balance" className="grid min-w-28 text-[#adadad] tabular-nums">
-          <span className={`col-start-1 row-start-1 ${scrubbing ? "invisible" : ""}`}>Total Balance</span>
-          {dates.map((date, i) => (
-            <span key={i} aria-hidden className={`col-start-1 row-start-1 whitespace-nowrap ${i === active ? "" : "invisible"}`}>
-              {date}
-            </span>
-          ))}
+      {/* Label and change meet on the balance's centre line, so neither slides when the label becomes a date or the range changes. */}
+      <div className="mt-8 grid grid-cols-2 items-center gap-1.5 text-body tabular-nums">
+        <h2 id="total-balance" className="justify-self-end whitespace-nowrap text-muted-foreground">
+          {scrubbing ? <span aria-hidden>{dates[shown]}</span> : "Total balance"}
         </h2>
         {/* A quarter turn makes the up-right arrow the down-right one, so crossing zero turns it instead of swapping glyphs. */}
-        <p
-          className={`flex items-center gap-1 text-[14px] font-medium tabular-nums transition-[color] duration-200 ease-out ${up ? "text-positive" : "text-negative"}`}
-        >
+        <p className={`flex items-center gap-0.5 justify-self-start font-semibold transition-[color] duration-200 ease-out ${up ? "text-positive" : "text-negative"}`}>
           <motion.span aria-hidden className="flex" initial={false} animate={{ rotate: up ? 0 : 90 }} transition={snappy}>
-            <ArrowSquareUpRightIcon weight="fill" size={17} />
+            <TrendUpIcon size={16} />
           </motion.span>
-          <span className="sr-only">{up ? "Up" : "Down"}</span>
+          {up ? "+" : "−"}
           {Math.abs(change).toFixed(2)}%
         </p>
       </div>
 
       {/* BlurMoney types the total in; from the first scrub on, the rolling amount in the same cell owns the number. */}
-      <p className="mt-1.5 grid text-[42px] leading-12 font-bold tracking-[-0.025em]">
+      <p className="mt-2 grid justify-items-center text-display">
         <span className={`col-start-1 row-start-1 ${rolled ? "invisible" : ""}`}>
-          <BlurMoney value={balance.total} delay={0.2} step={0.065} />
+          <BlurMoney value={balance.total} delay={0.2} step={0.065} centsClassName={cents} />
         </span>
         <span className={`col-start-1 row-start-1 ${rolled ? "" : "invisible"}`}>
-          <RollingMoney value={values[shown]} />
+          <RollingMoney value={values[shown]} centsClassName={cents} />
         </span>
       </p>
 
@@ -129,20 +117,20 @@ export function BalanceChart() {
         onLostPointerCapture={release}
         onKeyDown={onKeyDown}
         onBlur={() => setActive(null)}
-        className="mt-4 flex h-22 touch-pan-y items-end justify-between rounded-sm outline-none select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 md:h-28 lg:h-44"
+        className="mt-8 flex h-32 touch-pan-y items-end gap-0.5 rounded-sm outline-none select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 md:h-36 md:gap-1 lg:h-56"
       >
-        {dot !== undefined &&
-          series[range].map((height, i) => (
-            <motion.span
-              key={i}
-              className={`h-full w-0.5 origin-bottom rounded-full transition-colors duration-100 md:w-1 ${
-                i === active ? "bg-black" : active !== null && i > active ? "bg-[#f0f0f0]" : "bg-[#dcdcdc]"
-              }`}
-              initial={revisit ? false : { scaleY: dot }}
-              animate={{ scaleY: Math.max(height / 100, dot) }}
-              transition={{ ...smooth, delay: startDelay + i * (switched ? 0.004 : 0.007) }}
-            />
-          ))}
+        {/* Height, not scaleY: a scaled pill squashes its rounded top. */}
+        {series[range].map((height, i) => (
+          <motion.span
+            key={i}
+            className={`min-h-0.5 flex-1 rounded-full transition-[opacity] duration-100 ${
+              i === active ? "bg-fuse-blue" : "bg-linear-to-b from-fuse-blue/45 to-fuse-blue/10"
+            } ${active !== null && i > active ? "opacity-20" : ""}`}
+            initial={revisit ? false : { height: "0%" }}
+            animate={{ height: `${height}%` }}
+            transition={still ? { duration: 0 } : { ...smooth, delay: startDelay + i * (switched ? 0.004 : 0.007) }}
+          />
+        ))}
       </div>
 
       <ToggleGroup
@@ -153,22 +141,19 @@ export function BalanceChart() {
           setRange(next as Range);
           setSwitched(true);
         }}
-        className="mx-auto mt-1 gap-0"
+        className="mx-auto mt-3 gap-0"
       >
         {ranges.map((r) => (
           <ToggleGroupItem
             key={r}
             value={r}
-            className="relative h-11 w-12 rounded-full text-[13px] font-semibold text-[#bcbcbc] transition-[color,scale] duration-150 hover:bg-transparent hover:text-[#bcbcbc] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset active:scale-[0.96] aria-pressed:bg-transparent aria-pressed:text-black"
+            className="relative h-11 w-12 rounded-full text-muted-foreground hover:bg-transparent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset aria-pressed:bg-transparent aria-pressed:text-foreground"
           >
             {r === range && (
-              <motion.span
-                layoutId="range-pill"
-                transition={snappy}
-                className="absolute inset-x-[3px] inset-y-[11px] rounded-full bg-[#f2f2f2]"
-              />
+              <motion.span layoutId="range-pill" transition={snappy} className="absolute inset-x-0 inset-y-1.5 rounded-full bg-secondary" />
             )}
-            <span className="relative z-10">{r}</span>
+            {/* The size sits on the label: the item's class merge would drop it beside a text colour. */}
+            <span className="relative z-10 text-caption font-semibold">{r}</span>
           </ToggleGroupItem>
         ))}
       </ToggleGroup>

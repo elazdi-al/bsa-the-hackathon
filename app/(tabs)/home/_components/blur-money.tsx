@@ -12,8 +12,18 @@ export const markIntroDone = () => {
   introDone = true;
 };
 
-/** A dollar amount that types in glyph by glyph, each one sharpening out of a blur. Cents are grey. */
-export function BlurMoney({ value, delay, step }: { value: number; delay: number; step: number }) {
+/** A dollar amount that types in glyph by glyph, each one sharpening out of a blur. Cents are grey unless restyled. */
+export function BlurMoney({
+  value,
+  delay,
+  step,
+  centsClassName = "text-cents",
+}: {
+  value: number;
+  delay: number;
+  step: number;
+  centsClassName?: string;
+}) {
   const [skip] = useState(introDone);
   const [whole, cents] = usd.format(value).split(".");
   const glyphs = [...`${whole}.`, ...cents];
@@ -21,11 +31,12 @@ export function BlurMoney({ value, delay, step }: { value: number; delay: number
   return (
     <span className="tabular-nums">
       <span className="sr-only">{`${whole}.${cents}`}</span>
-      <span aria-hidden className="inline-flex">
+      {/* Baseline, not stretch: cents drawn smaller still sit on the line of the whole units. */}
+      <span aria-hidden className="inline-flex items-baseline">
         {glyphs.map((glyph, i) => (
           <motion.span
             key={i}
-            className={i > whole.length ? "inline-block text-cents" : "inline-block"}
+            className={i > whole.length ? `inline-block ${centsClassName}` : "inline-block"}
             initial={skip ? false : { opacity: 0, filter: blurred, y: "0.2em" }}
             animate={{ opacity: 1, filter: sharp, y: 0 }}
             transition={{ ...reveal, delay: delay + i * step }}

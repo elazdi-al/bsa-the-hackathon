@@ -1,31 +1,32 @@
 "use client";
 
-import { ArrowDownIcon, ArrowsClockwiseIcon, ClockIcon, GearSixIcon, HouseSimpleIcon, PaperPlaneTiltIcon, PlusIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion, type Variants } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { RecipientSheet } from "@/app/choose-recipient/_components/recipient-sheet";
 import { sendDraft } from "@/app/choose-recipient/data";
+import { ClockIcon, GearIcon, HomeIcon, PlusIcon } from "@/components/icons";
 import { transitionFor } from "@/components/navigation";
+import { kinds } from "../history/_components/tx-row";
 import { column } from "./column";
 import { ReceiveSheet } from "./receive-sheet";
 import { SwapSheet } from "./swap-sheet";
 import { blurred, leave, sharp, snappy } from "./transitions";
 
+// Each sheet is named for the transaction kind it makes, so its glyph is that kind's glyph in History.
 type Sheet = "receive" | "send" | "swap";
-type Action = { label: string; icon: ReactNode; sheet: Sheet };
 
-const actions: Action[] = [
-  { label: "Receive", icon: <ArrowDownIcon weight="bold" size={30} className="text-[#ef642c]" />, sheet: "receive" },
-  { label: "Send", icon: <PaperPlaneTiltIcon weight="fill" size={30} className="text-[#8a52f5]" />, sheet: "send" },
-  { label: "Swap", icon: <ArrowsClockwiseIcon weight="bold" size={30} className="text-[#2059f2]" />, sheet: "swap" },
+const actions: { label: string; sheet: Sheet }[] = [
+  { label: "Receive", sheet: "receive" },
+  { label: "Send", sheet: "send" },
+  { label: "Swap", sheet: "swap" },
 ];
 
 const tabs = [
-  { href: "/home", label: "Home", Icon: HouseSimpleIcon },
+  { href: "/home", label: "Home", Icon: HomeIcon },
   { href: "/history", label: "History", Icon: ClockIcon },
-  { href: "/settings", label: "Settings", Icon: GearSixIcon },
+  { href: "/settings", label: "Settings", Icon: GearIcon },
 ] as const;
 
 const rowPitch = 68; // menu row height + gap; the last row sits exactly on the FAB
@@ -49,7 +50,7 @@ const item: Variants = {
 };
 
 const navIcon = "grid h-12 w-[54px] place-items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring";
-const menuItem = "flex h-12 items-center gap-3.5 rounded-full pl-4 text-[20px] font-medium outline-none transition-transform duration-150 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.96]";
+const menuItem = "flex h-12 items-center gap-3.5 rounded-full pl-4 text-heading font-semibold outline-none transition-transform duration-150 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.96]";
 
 export function BottomBar() {
   const pathname = usePathname();
@@ -98,9 +99,9 @@ export function BottomBar() {
                 transitionTypes={[transitionFor(pathname, href)]}
                 aria-current={active ? "page" : undefined}
                 aria-label={label}
-                className={`${navIcon} transition-[color,scale] duration-150 active:scale-[0.96] ${active ? "text-black" : "text-black/35 hover:text-black/45"}`}
+                className={`${navIcon} transition-[color,scale] duration-150 active:scale-[0.96] ${active ? "text-foreground" : "text-muted-foreground hover:text-foreground/65"}`}
               >
-                <Icon weight="fill" size={25} />
+                <Icon size={24} />
               </Link>
             );
           })}
@@ -117,7 +118,7 @@ export function BottomBar() {
             whileTap={{ scale: 0.96 }}
             transition={snappy}
           >
-            <PlusIcon weight="bold" size={22} />
+            <PlusIcon size={24} />
           </motion.button>
         </div>
       </nav>
@@ -148,22 +149,27 @@ export function BottomBar() {
               animate="open"
               exit="closed"
             >
-              {actions.map((action, i) => (
-                <motion.li key={action.label} custom={i} variants={item} className="origin-right">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setOpen(false);
-                      setSheet(action.sheet);
-                    }}
-                    className={menuItem}
-                    autoFocus={i === 0}
-                  >
-                    {action.label}
-                    <span className="grid size-12 place-items-center">{action.icon}</span>
-                  </button>
-                </motion.li>
-              ))}
+              {actions.map((action, i) => {
+                const { Icon, text } = kinds[action.sheet];
+                return (
+                  <motion.li key={action.label} custom={i} variants={item} className="origin-right">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOpen(false);
+                        setSheet(action.sheet);
+                      }}
+                      className={menuItem}
+                      autoFocus={i === 0}
+                    >
+                      {action.label}
+                      <span className="grid size-12 place-items-center">
+                        <Icon size={32} className={text} />
+                      </span>
+                    </button>
+                  </motion.li>
+                );
+              })}
             </motion.ul>
           )}
         </AnimatePresence>

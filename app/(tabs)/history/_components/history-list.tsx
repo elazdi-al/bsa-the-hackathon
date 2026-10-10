@@ -1,21 +1,21 @@
 "use client";
 
-import { LightningIcon, ReceiptIcon, XIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { CopyButton } from "@/app/transaction-tracking/_components/copy-button";
 import { TransactionSheet } from "@/app/transaction-tracking/_components/transaction-sheet";
+import { CloseIcon, LightningIcon, ReceiptIcon } from "@/components/icons";
 import { Drawer, FloatingSheetContent, FloatingSheetHeader } from "@/components/ui/drawer";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { hairline, rowPress, sectionLabel } from "../../_components/list";
+import { rowPress } from "../../_components/list";
 import { Money } from "../../_components/money";
 import { blurred, leave, reveal, sharp, snappy } from "../../_components/transitions";
 import { tiles, type TileId } from "../../home/data";
 import { byDay, filters, fullDate, monthSummary, transactions, type Filter, type Tx } from "../data";
-import { Amount, RowBody, TxGlyph } from "./tx-row";
+import { Amount, Glyph, RowBody } from "./tx-row";
 
-const rowClass = `flex min-h-[60px] w-full items-center gap-3 rounded-[18px] px-3 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring ${rowPress}`;
+const rowClass = `flex min-h-[68px] w-full items-center gap-4 rounded-2xl px-3 py-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring ${rowPress}`;
 
 const faded = { opacity: 0, filter: "blur(4px)" };
 
@@ -57,7 +57,7 @@ export function HistoryList({ account, sent }: { account?: TileId; sent: Tx | nu
 
   return (
     <div className="max-w-2xl">
-      <p className="mt-1 text-[13px] leading-[18px] text-[#adadad]">
+      <p className="mt-1 text-body text-muted-foreground">
         {summary.month}
         {summary.in > 0 && (
           <>
@@ -73,27 +73,27 @@ export function HistoryList({ account, sent }: { account?: TileId; sent: Tx | nu
         )}
       </p>
 
-      <div className="mt-4 flex items-center">
+      <div className="mt-4 flex flex-wrap items-center gap-x-2">
         <ToggleGroup
           aria-label="Filter transactions"
           value={[filter]}
           onValueChange={([next]) => next && setFilter(next as Filter)}
-          className="-ml-[3px] gap-0"
+          className="gap-0"
         >
           {(Object.keys(filters) as Filter[]).map((f) => (
             <ToggleGroupItem
               key={f}
               value={f}
-              className="relative h-11 rounded-full px-3.5 text-[13px] font-semibold text-[#bcbcbc] transition-[color,scale] duration-150 hover:bg-transparent hover:text-[#bcbcbc] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset active:scale-[0.96] aria-pressed:bg-transparent aria-pressed:text-black"
+              className="relative h-11 rounded-full px-3.5 text-muted-foreground hover:bg-transparent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset aria-pressed:bg-transparent aria-pressed:text-foreground"
             >
               {f === filter && (
                 <motion.span
                   layoutId="history-filter"
                   transition={snappy}
-                  className="absolute inset-x-[3px] inset-y-[11px] rounded-full bg-[#f2f2f2]"
+                  className="absolute inset-x-0 inset-y-1.5 rounded-full bg-secondary"
                 />
               )}
-              <span className="relative z-10">{filters[f].label}</span>
+              <span className="relative z-10 text-caption font-semibold">{filters[f].label}</span>
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
@@ -103,10 +103,10 @@ export function HistoryList({ account, sent }: { account?: TileId; sent: Tx | nu
             href="/history"
             replace
             scroll={false}
-            className="relative ml-auto flex h-[22px] items-center gap-1 rounded-full bg-[#f2f2f2] pr-2 pl-2.5 text-[13px] font-semibold outline-none transition-transform duration-150 ease-out after:absolute after:-inset-y-[11px] after:inset-x-0 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.96]"
+            className="relative my-1.5 flex h-8 items-center gap-1 rounded-full bg-secondary pr-2.5 pl-3.5 text-caption font-semibold outline-none transition-transform duration-150 ease-out after:absolute after:-inset-y-1.5 after:inset-x-0 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.96]"
           >
             {scope.label}
-            <XIcon weight="bold" size={11} aria-hidden className="text-[#a5a5a5]" />
+            <CloseIcon size={16} aria-hidden className="text-muted-foreground" />
             <span className="sr-only">, show all accounts</span>
           </Link>
         )}
@@ -124,8 +124,8 @@ export function HistoryList({ account, sent }: { account?: TileId; sent: Tx | nu
               // Rows bleed their press highlight past the column, so the glyphs line up with the title.
               <div className="-mx-3">
                 {groups.map((g) => (
-                  <section key={g.date} aria-label={g.label} className="mb-5">
-                    <h2 className={`px-3 ${sectionLabel}`}>{g.label}</h2>
+                  <section key={g.date} aria-label={g.label} className="mt-6 first:mt-0">
+                    <h2 className="mb-1 px-3 text-label">{g.label}</h2>
                     <ul>
                       {g.items.map((t) => {
                         const i = shown.indexOf(t);
@@ -165,7 +165,7 @@ export function HistoryList({ account, sent }: { account?: TileId; sent: Tx | nu
 
       <Drawer open={open && !tracked} onOpenChange={setOpen}>
         <FloatingSheetContent>
-          <div className="min-h-0 overflow-y-auto px-4 pb-4">{tx && <Sheet tx={tx} />}</div>
+          <div className="min-h-0 overflow-y-auto px-4 pb-6">{tx && <Sheet tx={tx} />}</div>
         </FloatingSheetContent>
       </Drawer>
       <TransactionSheet open={open && tracked} onOpenChange={setOpen} />
@@ -178,13 +178,13 @@ function Empty({ noun }: { noun: string }) {
     <div className="flex flex-col items-center py-16 text-center">
       <motion.span
         aria-hidden
-        className="grid size-[54px] place-items-center rounded-full bg-[#f2f2f2] text-[#bcbcbc]"
+        className="text-muted-foreground"
         animate={{ y: [0, -4, 0] }}
         transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
       >
-        <ReceiptIcon weight="fill" size={26} />
+        <ReceiptIcon size={48} />
       </motion.span>
-      <p className="mt-4 text-[15px] leading-5 font-medium text-[#adadad]">
+      <p className="mt-4 text-body text-muted-foreground">
         No{" "}
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.span
@@ -206,9 +206,9 @@ function Empty({ noun }: { noun: string }) {
 
 function Detail({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-4 py-[7px]">
-      <dt className="shrink-0 text-[#909090]">{label}</dt>
-      <dd className="min-w-0 truncate text-right font-medium">{children}</dd>
+    <div className="flex min-h-11 items-center justify-between gap-4">
+      <dt className="shrink-0 text-body text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 truncate text-right text-body font-semibold">{children}</dd>
     </div>
   );
 }
@@ -216,15 +216,15 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
 function Sheet({ tx }: { tx: Tx }) {
   return (
     <>
-      <FloatingSheetHeader icon={<TxGlyph kind={tx.kind} size={54} />} title={tx.title}>
-        <p className={`mt-1 text-[27.5px] leading-[34px] font-bold tracking-[-0.01em] ${tx.flow === "in" ? "text-positive" : ""}`}>
+      <FloatingSheetHeader icon={<Glyph kind={tx.kind} size="hero" />} title={tx.title}>
+        <p className={`mt-1 text-amount ${tx.flow === "in" ? "text-positive" : ""}`}>
           <Amount tx={tx} />
         </p>
-        {tx.crypto && <p className="text-[13.5px] text-[#969696] tabular-nums">{tx.crypto}</p>}
-        <p className="mt-1 font-medium text-[#969696]">{fullDate(tx)}</p>
+        {tx.crypto && <p className="mt-1 text-body text-muted-foreground tabular-nums">{tx.crypto}</p>}
+        <p className="text-body text-muted-foreground">{fullDate(tx)}</p>
       </FloatingSheetHeader>
 
-      <dl className={`mt-6 rounded-[18px] px-4 py-2 ${hairline}`}>
+      <dl className="mt-8 px-4">
         {tx.rows.map((r) => (
           <Detail key={r.label} label={r.label}>
             {r.value}
@@ -232,9 +232,9 @@ function Sheet({ tx }: { tx: Tx }) {
         ))}
         {tx.fee && (
           <Detail label="Network fee">
-            <span className="inline-flex items-center gap-1.5 text-positive">
-              <LightningIcon size={15} weight="fill" />
-              Free <span className="font-normal text-[#a5a5a5]">· covered by Fuse⁺</span>
+            <span className="inline-flex items-center gap-1">
+              <LightningIcon size={16} className="text-positive" />
+              Free<span className="font-normal text-muted-foreground"> · covered by Fuse⁺</span>
             </span>
           </Detail>
         )}
