@@ -53,7 +53,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
           <hr className="mt-6 h-px border-0 bg-[repeating-linear-gradient(90deg,rgb(0_0_0/0.1)_0_8px,transparent_8px_17px)]" />
 
           <dl className="flex items-center justify-between pt-3 text-[15px] leading-5 tracking-[-0.24px]">
-            <dt className="text-black/35">Onchain fees</dt>
+            <dt className="text-black/35">Network fee</dt>
             <dd>
               <span className="text-black/35">
                 Fuse

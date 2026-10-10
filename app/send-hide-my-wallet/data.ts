@@ -27,6 +27,6 @@ export const howItWorks = [
   {
     icon: LightningIcon,
     title: "Still covered",
-    body: "Fuse⁺ pays the onchain fees, like any other send.",
+    body: "Fuse⁺ pays the network fee, like any other send.",
   },
 ] as const;
