@@ -1,6 +1,6 @@
 import { walletRows } from "../data";
 
-/** A blurred impression of a History list behind the sheet. */
+/** A blurred impression of the History list the sheet was opened from. */
 export function WalletBackdrop() {
   return (
     <div aria-hidden className="absolute inset-0 bg-white">
