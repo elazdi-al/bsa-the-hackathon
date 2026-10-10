@@ -32,6 +32,10 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.compliance.example
+
+# Local compliance audit records contain transaction metadata
+/var/compliance/
 
 # vercel
 .vercel
