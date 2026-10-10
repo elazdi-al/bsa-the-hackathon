@@ -1,14 +1,15 @@
 // Builds, sponsors and submits UserOperations. Swissquote submits them to the EntryPoint
-// itself and pays the gas through its paymaster, so the client never needs ETH.
-import { randomUUID } from "node:crypto";
+// itself and pays the gas through its paymaster, so the client never needs ETH. A payment its
+// policy marks for step-up is held: sponsored only from 24 hours on, so the EntryPoint refuses it
+// sooner, and kept by Swissquote, which the client can ask to cancel it until then.
+import { randomBytes, randomUUID } from "node:crypto";
 import {
   BaseError,
   ContractFunctionRevertedError,
-  concat,
   createWalletClient,
   decodeFunctionData,
-  encodeAbiParameters,
   encodeFunctionData,
+  erc20Abi,
   http,
   isAddressEqual,
   parseEventLogs,
@@ -28,10 +29,19 @@ import { privateKeyToAccount } from "viem/accounts";
 import * as z from "zod";
 import { getComplianceRuntime } from "@/services/compliance/runtime";
 import type { DappMetadata } from "../../dapps/model";
-import { accountAbi, bindRecoveryKeyMessage, factoryAbi, paymasterAbi, type Config, type Passkey } from "../account.ts";
-import { addresses, chain, credentials, partnerUrl, publicClient, rpcUrl } from "../env.ts";
+import {
+  accountAbi,
+  bindRecoveryKeyMessage,
+  decodeSponsorship,
+  encodeSponsorship,
+  factoryAbi,
+  paymasterAbi,
+  type Config,
+  type Passkey,
+} from "../account.ts";
+import { addresses, chain, chainNow, credentials, isDeployed, partnerUrl, publicClient, rpcUrl } from "../env.ts";
 import { address, passkey } from "../schema.ts";
-import { store, type Kind, type Wallet } from "./db.ts";
+import { store, type Held, type Kind, type Wallet } from "./db.ts";
 import { HttpError } from "./http.ts";
 
 /** Read lazily, so a build without secrets works. */
@@ -49,6 +59,10 @@ const GAS = {
 };
 // As long as a compliance decision lives, so a sponsored operation never outlives the decision behind it.
 const SPONSORSHIP_TTL = 120n;
+/** How long Swissquote holds a payment that needs step-up before it leaves. */
+const HOLD = 24 * 60 * 60;
+// Swissquote's sponsorship of a held payment lasts a week past its release, so a late release still goes through.
+const HOLD_SPONSORSHIP = 7 * 24 * 60 * 60;
 
 export function walletConfig(signer: Address, passkey: Passkey, recoveryKey: Address): Config {
   return { signer, passkey, recoveryKey, guardian: swissquote().address };
@@ -98,13 +112,18 @@ export async function bindShares(signer: Address, recoveryKey: Address, signatur
   return b;
 }
 
-/** Swissquote assists only operations its compliance policy allows; refusing never freezes the wallet itself. */
+/**
+ * Swissquote assists only operations its compliance policy allows; refusing never freezes the wallet itself.
+ * `hold`: the policy asks for step-up, which Swissquote meets by holding the payment for 24 hours.
+ */
 export async function assist(wallet: Wallet, callData: Hex, dapp?: DappMetadata) {
   const call = decodeFunctionData({ abi: accountAbi, data: callData });
   if (call.functionName !== "execute") throw new HttpError(403, "The app can't make this call.");
   const [to, value, data] = call.args;
   if (isAddressEqual(to, wallet.address)) {
-    if (!dapp && data === encodeFunctionData({ abi: accountAbi, functionName: "cancelRecovery" })) return { summary: ["You cancel the pending recovery of your wallet."] };
+    if (!dapp && data === encodeFunctionData({ abi: accountAbi, functionName: "cancelRecovery" })) {
+      return { summary: ["You cancel the pending recovery of your wallet."], hold: false };
+    }
     throw new HttpError(403, "The app can't change the account itself.");
   }
   const requestId = randomUUID();
@@ -112,20 +131,31 @@ export async function assist(wallet: Wallet, callData: Hex, dapp?: DappMetadata)
     { requestId, nonce: requestId, chainId: chain.id, account: wallet.address, calls: [{ to, value: value.toString(), data, operation: "CALL" }], ...(dapp ? { dapp } : {}) },
     { subject: wallet.address.toLowerCase() },
   );
-  if (decision.status !== "ALLOW") {
+  // Only a USDC payment can wait out a hold. Swissquote has no step-up for any other call, such as a dApp's, and refuses it.
+  const hold = decision.status === "STEP_UP" && decision.decodedActions.every((a) => a.type === "TRANSFER" && isAddressEqual(a.contract, addresses.usdc));
+  if (decision.status !== "ALLOW" && !hold) {
     throw new HttpError(403, "Swissquote can't sponsor this transaction.", {
       decision: { status: decision.status, reasons: decision.reasons.map((r) => r.message) },
       review: decision,
     });
   }
-  return { summary: decision.summary, review: decision };
+  return { summary: decision.summary, hold, review: decision };
 }
 
-/** Fills in nonce, gas, fees and Swissquote's sponsorship, and keeps the operation for submission. */
-export async function prepare(wallet: Wallet, kind: Kind, callData: Hex, decisionExpiresAt?: string) {
+const nonceOf = (sender: Address, key: bigint) =>
+  publicClient.readContract({ address: addresses.entryPoint, abi: entryPoint07Abi, functionName: "getNonce", args: [sender, key] });
+
+/**
+ * Fills in nonce, gas, fees and Swissquote's sponsorship, and keeps the operation for submission. A held one
+ * is sponsored only from 24 hours on, and takes a nonce key of its own so later payments don't use up its nonce.
+ */
+export async function prepare(wallet: Wallet, kind: Kind, callData: Hex, hold = false, decisionExpiresAt?: string) {
+  // Deploying in a held operation would fail if a payment sent meanwhile deployed the account first.
+  if (hold && !(await isDeployed(wallet.address))) await deploy(wallet);
+  const key = hold ? BigInt(`0x${randomBytes(24).toString("hex")}`) : 0n;
   const [code, nonce, fees, block] = await Promise.all([
     publicClient.getCode({ address: wallet.address }),
-    publicClient.readContract({ address: addresses.entryPoint, abi: entryPoint07Abi, functionName: "getNonce", args: [wallet.address, 0n] }),
+    nonceOf(wallet.address, key),
     publicClient.estimateFeesPerGas(),
     // The pending block, not the latest: an idle local chain's latest block can be minutes old, which would
     // start the sponsorship already expired.
@@ -149,17 +179,15 @@ export async function prepare(wallet: Wallet, kind: Kind, callData: Hex, decisio
   const remaining = decisionExpiresAt ? Math.floor((Date.parse(decisionExpiresAt) - Date.now()) / 1000) : Number(SPONSORSHIP_TTL);
   if (!Number.isFinite(remaining) || remaining <= 0) throw new HttpError(410, "This compliance decision expired. Check it again.");
   const ttl = Math.min(remaining, Number(SPONSORSHIP_TTL));
-  const validUntil = Number(block.timestamp) + ttl;
+  const validAfter = hold ? Number(block.timestamp) + HOLD : 0;
+  const validUntil = hold ? validAfter + HOLD_SPONSORSHIP : Number(block.timestamp) + ttl;
   const sponsored = await publicClient.readContract({
     address: addresses.paymaster,
     abi: paymasterAbi,
     functionName: "getHash",
-    args: [toPackedUserOperation(userOp), validUntil, 0],
+    args: [toPackedUserOperation(userOp), validUntil, validAfter],
   });
-  userOp.paymasterData = concat([
-    encodeAbiParameters([{ type: "uint48" }, { type: "uint48" }], [validUntil, 0]),
-    await swissquote().signMessage({ message: { raw: sponsored } }),
-  ]);
+  userOp.paymasterData = encodeSponsorship(validUntil, validAfter, await swissquote().signMessage({ message: { raw: sponsored } }));
   const hash = getUserOperationHash({ chainId: chain.id, entryPointAddress: addresses.entryPoint, entryPointVersion: "0.7", userOperation: userOp });
   const rpc = formatUserOperationRequest(userOp);
   store().addOperation(hash, wallet.address, kind, rpc);
@@ -192,26 +220,113 @@ function serialize<T>(task: () => Promise<T>): Promise<T> {
   return run;
 }
 
+/**
+ * Runs the operation through the EntryPoint without sending it: in the pending block, whose time the next
+ * transaction sees, or `at` a later chain time.
+ */
+function simulate(userOp: UserOperation<"0.7">, at?: number) {
+  return publicClient
+    .simulateContract({
+      account: swissquote(),
+      address: addresses.entryPoint,
+      abi: entryPoint07Abi,
+      functionName: "handleOps",
+      args: [[toPackedUserOperation(userOp)], swissquote().address],
+      ...(at === undefined ? { blockTag: "pending" as const } : { blockOverrides: { time: BigInt(at) } }),
+    })
+    .catch((error: unknown) => {
+      throw new HttpError(422, "The operation would fail.", { detail: revertReason(error) });
+    });
+}
+
 /** Simulates, then submits through the EntryPoint. Resolves once the operation succeeded on-chain. */
 export function submit(userOp: UserOperation<"0.7">, signature: Hex): Promise<Hex> {
   return serialize(async () => {
-    const { request } = await publicClient
-      .simulateContract({
-        account: swissquote(),
-        address: addresses.entryPoint,
-        abi: entryPoint07Abi,
-        functionName: "handleOps",
-        args: [[toPackedUserOperation({ ...userOp, signature })], swissquote().address],
-      })
-      .catch((error: unknown) => {
-        throw new HttpError(422, "The operation would fail.", { detail: revertReason(error) });
-      });
+    const { request } = await simulate({ ...userOp, signature });
     const transactionHash = await operator().writeContract(request);
     const receipt = await publicClient.waitForTransactionReceipt({ hash: transactionHash });
     const [event] = parseEventLogs({ abi: entryPoint07Abi, eventName: "UserOperationEvent", logs: receipt.logs });
     if (!event?.args.success) throw new HttpError(422, "The operation reverted.", { transactionHash });
     return transactionHash;
   });
+}
+
+/** Swissquote deploys the account itself: anyone may, and its address and config don't change. */
+function deploy(wallet: Wallet) {
+  return serialize(async () => {
+    const hash = await operator().writeContract({
+      address: addresses.factory,
+      abi: factoryAbi,
+      functionName: "createAccount",
+      args: [wallet.config, 0n],
+    });
+    await publicClient.waitForTransactionReceipt({ hash });
+  });
+}
+
+/** Keeps a signed payment until its release, once it is shown to go through then. */
+export async function hold(wallet: Wallet, hash: Hex, userOp: UserOperation<"0.7">) {
+  const { validAfter } = decodeSponsorship(userOp.paymasterData!);
+  await simulate(userOp, validAfter);
+  store().hold(hash, wallet.address, formatUserOperationRequest(userOp), validAfter);
+  return { hash, releaseAt: validAfter };
+}
+
+/** A held payment as the client sees it: who it pays, how much, and when it leaves. */
+export function heldPayments(wallet: Wallet) {
+  return store()
+    .held(wallet.address)
+    .map(({ hash, userOp, releaseAt, stopped }) => {
+      const [, , data] = decodeFunctionData({ abi: accountAbi, data: userOp.callData }).args as readonly [Address, bigint, Hex];
+      const [to, value] = decodeFunctionData({ abi: erc20Abi, data }).args as readonly [Address, bigint];
+      return { hash, to, value: value.toString(), releaseAt, stopped };
+    });
+}
+
+// Payments mid-release, so a cancel can't race one already on its way.
+const releasing = new Set<Hex>();
+
+/** The client cancels a held payment; Swissquote discards it. */
+export function cancelHeld(wallet: Wallet, hash: Hex) {
+  if (!store().heldPayment(hash, wallet.address)) throw new HttpError(404, "No such payment. It may have left already.");
+  if (releasing.has(hash)) throw new HttpError(409, "This payment is leaving now.");
+  store().unhold(hash);
+}
+
+/**
+ * Sends the wallet's held payments whose time has come, after a fresh compliance check.
+ * ponytail: runs when Swissquote next reads the wallet, which the app does every few seconds; a scheduler sends them on time in production.
+ */
+export async function releaseDue(wallet: Wallet) {
+  if (!store().held(wallet.address).length) return;
+  const now = await chainNow();
+  for (const { hash } of store().held(wallet.address)) {
+    // Read again: a cancel may have landed while an earlier payment went out.
+    const payment = store().heldPayment(hash, wallet.address);
+    if (!payment || payment.stopped || payment.releaseAt > now || releasing.has(hash)) continue;
+    releasing.add(hash);
+    await release(wallet, payment, now)
+      .catch((error: unknown) => console.error(`Held payment ${hash} stays held:`, error))
+      .finally(() => releasing.delete(hash));
+  }
+}
+
+async function release(wallet: Wallet, { hash, userOp }: Held, now: number) {
+  const op = formatUserOperation(userOp) as UserOperation<"0.7">;
+  // Its nonce used means it went out already: an earlier release that crashed before forgetting it, or anyone else submitting it.
+  if ((await nonceOf(op.sender, op.nonce >> 64n)) > op.nonce) return store().unhold(hash);
+  if (now > decodeSponsorship(op.paymasterData!).validUntil) return store().stop(hash, "Its approval expired.");
+  try {
+    await assist(wallet, op.callData);
+    await submit(op, op.signature);
+    store().unhold(hash);
+  } catch (error) {
+    if (!(error instanceof HttpError)) throw error;
+    const decision = error.body.decision as { status: string; reasons: string[] } | undefined;
+    // REVIEW means the evidence isn't there right now, as when screening is down: try again on the next read.
+    if (decision?.status === "REVIEW") return;
+    store().stop(hash, decision?.reasons[0] ?? "Your wallet couldn't make this payment any more.");
+  }
 }
 
 /** Swissquote calls the account itself: to cancel a recovery as guardian, or to finalize one, which anyone may. */

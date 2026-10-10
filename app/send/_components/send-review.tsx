@@ -139,7 +139,8 @@ function Review({ to, address, children }: { to: string; address: Address; child
   async function send() {
     setPhase("sending");
     try {
-      setSent(await phone.approve(prepared!));
+      const sent = await phone.approve(prepared!);
+      setSent("transactionHash" in sent ? sent.transactionHash : sent.hash);
       // Paid, so the chooser must not come back filled in, even if the tracker never opens.
       sendDraft.clear();
       setPhase("sent");

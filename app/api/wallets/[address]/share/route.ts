@@ -1,7 +1,7 @@
 import type { Address } from "viem";
 import * as z from "zod";
 import { store } from "@/lib/wallet/api/db.ts";
-import { HttpError, parse, route, verifyAssertion } from "@/lib/wallet/api/http.ts";
+import { HttpError, parse, route, rpId, verifyAssertion } from "@/lib/wallet/api/http.ts";
 import { liveCredentials, loadOperation, requireWallet } from "@/lib/wallet/api/operations.ts";
 import { assertion, bytes32 } from "@/lib/wallet/schema.ts";
 
@@ -14,9 +14,7 @@ export const POST = route(async (request: Request, ctx: RouteContext<"/api/walle
   const input = await parse(request, z.object({ hash: bytes32, assertion }));
   loadOperation(wallet, input.hash, "normal");
   const { signer, passkey } = await liveCredentials(wallet);
-  // The passkey's rpId is the hostname the phone reached. next start puts its own listen address in request.url, so read Host.
-  const rpId = new URL(`http://${request.headers.get("host")}`).hostname;
-  if (!verifyAssertion(input.assertion, input.hash, passkey, rpId)) {
+  if (!verifyAssertion(input.assertion, input.hash, passkey, rpId(request))) {
     throw new HttpError(403, "This passkey did not approve the operation.");
   }
   const b = store().shares.get(signer);
