@@ -70,13 +70,14 @@ export function TransactionSheet({
 
 /**
  * A direct visit to /transaction-tracking: the sheet is up on arrival and closing it leaves the screen.
- * With `hash`, `amount` and `to` it tracks that send; without, the mock USDC withdrawal.
+ * With `hash`, `amount` and `to` it tracks that send, scheduled to leave at `leaves` if Swissquote holds it;
+ * without, the mock USDC withdrawal.
  * A live send has nothing to go back to (its review is spent), so it closes to Home.
  */
 export function TransactionRoute() {
   const params = useSearchParams();
-  const [hash, amount, to] = [params.get("hash"), params.get("amount"), params.get("to")];
-  const live = hash !== null && amount !== null && to !== null ? { hash: hash as Hex, amount, to } : undefined;
+  const [hash, amount, to, leaves] = [params.get("hash"), params.get("amount"), params.get("to"), params.get("leaves")];
+  const live = hash !== null && amount !== null && to !== null ? { hash: hash as Hex, amount, to, leaves: leaves === null ? undefined : Number(leaves) } : undefined;
   const router = useRouter();
   const back = useBack("/history");
   const [open, setOpen] = useState(true);
@@ -156,11 +157,13 @@ export function Tracking({ tx, step, badge }: { tx: Tracked; step: number; badge
             >
               <dl>
                 <Row label={tx.rail.label}>{tx.rail.value}</Row>
-                <Row label="Transaction id">
-                  <CopyButton text={tx.txHash} label="Copy transaction id">
-                    {tx.txHash.slice(0, 6)}...{tx.txHash.slice(-4)}
-                  </CopyButton>
-                </Row>
+                {tx.txHash && (
+                  <Row label="Transaction id">
+                    <CopyButton text={tx.txHash} label="Copy transaction id">
+                      {tx.txHash.slice(0, 6)}...{tx.txHash.slice(-4)}
+                    </CopyButton>
+                  </Row>
+                )}
                 <Row label="Network fee">
                   <span className="flex items-center gap-1 text-positive">
                     <LightningIcon size={16} />
