@@ -1,7 +1,7 @@
 "use client";
 
 import { ImagesSquareIcon, SquaresFourIcon, type Icon } from "@phosphor-icons/react";
-import { MotionConfig } from "motion/react";
+import { MotionConfig, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsIndicator, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { coins, type CoinId } from "../data";
@@ -12,9 +12,9 @@ import { WalletHeader } from "./wallet-header";
 const tabs = ["Dashboard", "Coins", "NFTs"] as const;
 type Tab = (typeof tabs)[number];
 
-const empty: Record<Exclude<Tab, "Coins">, { icon: Icon; title: string; body: string }> = {
-  Dashboard: { icon: SquaresFourIcon, title: "Your dashboard is on its way", body: "Portfolio insights will live here." },
-  NFTs: { icon: ImagesSquareIcon, title: "No NFTs yet", body: "Collectibles you receive will show up here." },
+const empty: Record<Exclude<Tab, "Coins">, { icon: Icon; title: string }> = {
+  Dashboard: { icon: SquaresFourIcon, title: "Your dashboard is on its way" },
+  NFTs: { icon: ImagesSquareIcon, title: "No NFTs yet" },
 };
 
 export function CoinsScreen() {
@@ -86,12 +86,19 @@ export function CoinsScreen() {
   );
 }
 
-function EmptyState({ icon: Icon, title, body }: { icon: Icon; title: string; body: string }) {
+// History's empty state, on this screen's grey.
+function EmptyState({ icon: Icon, title }: { icon: Icon; title: string }) {
   return (
-    <div className="flex flex-col items-center px-10 pt-24 text-center">
-      <Icon weight="duotone" aria-hidden className="size-9 text-[#b2b2b2]" />
-      <p className="mt-4 text-[17px] font-semibold text-balance">{title}</p>
-      <p className="mt-1 text-[15px] text-pretty text-[#8a8a8a]">{body}</p>
+    <div className="flex flex-col items-center px-10 py-16 text-center">
+      <motion.span
+        aria-hidden
+        className="grid size-[54px] place-items-center rounded-full bg-black/[0.04] text-[#b2b2b2]"
+        animate={{ y: [0, -4, 0] }}
+        transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+      >
+        <Icon weight="fill" size={26} />
+      </motion.span>
+      <p className="mt-4 text-[15px] leading-5 font-medium text-balance text-[#8a8a8a]">{title}</p>
     </div>
   );
 }
