@@ -58,9 +58,9 @@ export const HOLDERS: readonly { name: string; Icon: Icon }[] = [
 ];
 
 export const RECOVERY_FILE = {
-  name: "Fuse Recovery Key.txt",
+  name: "Swissquote Wallet Recovery Key.txt",
   text: (secret: string) =>
-    `Fuse Recovery Key\n\n${secret}\n\nThis key restores your wallet if you lose your phone. Keep it safe at home, not on your phone. Swissquote will never ask you to send it.`,
+    `Swissquote Wallet Recovery Key\n\n${secret}\n\nThis key restores your wallet if you lose your phone. Keep it safe at home, not on your phone. Swissquote will never ask you to send it.`,
 };
 
 /** The setup row's copy by status. Setup only idles after a failed registration; the ready body is the wallet's address. */

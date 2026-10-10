@@ -8,7 +8,7 @@ export const benefits: Benefit[] = [
   {
     icon: "bolt",
     title: "Free Transactions",
-    body: "Use Fuse without paying Solana network fees.",
+    body: "Swissquote pays the network fee on every payment, so you never need ETH.",
   },
   {
     icon: "bank",
@@ -17,7 +17,7 @@ export const benefits: Benefit[] = [
   },
   {
     icon: "card",
-    title: "Fuse Card",
+    title: "Swissquote Card",
     body: "A virtual Visa debit card to spend stablecoins anywhere, with zero fees.",
   },
 ];

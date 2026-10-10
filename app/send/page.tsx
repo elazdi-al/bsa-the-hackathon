@@ -8,7 +8,7 @@ import { BackButton } from "@/components/ui/back-button";
 import { addresses } from "@/lib/wallet/env";
 import { SendReview } from "./_components/send-review";
 
-export const metadata: Metadata = { title: "Send · Fuse" };
+export const metadata: Metadata = { title: "Send" };
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ to?: string | string[] }> }) {
   const to = (await searchParams).to;

@@ -11,7 +11,7 @@ function AppIcon({ className, children }: { className: string; children: ReactNo
 
 export function UsdcIcon() {
   return (
-    <AppIcon className="bg-fuse-blue">
+    <AppIcon className="bg-brand">
       <svg viewBox="0 0 24 24" className="size-[22px]" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth={1.8}>
         <path d="M9.2 5.3a7.4 7.4 0 0 0 0 13.4M14.8 5.3a7.4 7.4 0 0 1 0 13.4" />
         <path d="M14.1 9.7c-.2-1-1-1.6-2.1-1.6-1.2 0-2.1.7-2.1 1.7 0 2.4 4.3 1.5 4.3 4.1 0 1.1-.9 1.9-2.2 1.9-1.2 0-2.1-.7-2.2-1.7M12 6.9v1.2M12 15.8V17" />
@@ -28,8 +28,8 @@ export function VisaIcon() {
   );
 }
 
-/** Black Fuse mark with a small plus. */
-export function FusePlusIcon() {
+/** Black mark with a small plus. */
+export function PlusAppIcon() {
   return (
     <AppIcon className="bg-black">
       <svg viewBox="0 0 24 24" className="size-6" fill="currentColor" stroke="currentColor" strokeLinecap="round">
@@ -43,8 +43,8 @@ export function FusePlusIcon() {
   );
 }
 
-/** Fuse Earn mark: light streaks across the Earn account's colour. */
-export function FuseEarnIcon() {
+/** Earn mark: light streaks across the Earn account's colour. */
+export function EarnAppIcon() {
   return (
     <AppIcon className={`overflow-hidden ${tileLooks.earn.fill}`}>
       <svg viewBox="0 0 24 24" className="size-8" fill="none" stroke="currentColor" strokeLinecap="round">

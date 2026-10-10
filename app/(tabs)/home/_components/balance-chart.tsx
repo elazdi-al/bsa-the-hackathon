@@ -124,7 +124,7 @@ export function BalanceChart() {
           <motion.span
             key={i}
             className={`min-h-0.5 flex-1 rounded-full transition-[opacity] duration-100 ${
-              i === active ? "bg-fuse-blue" : "bg-linear-to-b from-fuse-blue/45 to-fuse-blue/10"
+              i === active ? "bg-brand" : "bg-linear-to-b from-brand/45 to-brand/10"
             } ${active !== null && i > active ? "opacity-20" : ""}`}
             initial={revisit ? false : { height: "0%" }}
             animate={{ height: `${height}%` }}

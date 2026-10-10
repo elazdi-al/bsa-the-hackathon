@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Screen } from "@/components/navigation";
 import { WelcomeFlow } from "./_components/welcome-flow";
 
-export const metadata: Metadata = { title: "Welcome · Fuse" };
+export const metadata: Metadata = { title: "Welcome" };
 
 export default function Page() {
   return (

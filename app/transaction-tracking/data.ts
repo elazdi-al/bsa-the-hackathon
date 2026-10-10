@@ -38,7 +38,7 @@ export const withdrawal: Tracked & { step: number } = {
   rail: { label: "Payment rail", value: "ACH Same Day" },
   txHash: "3W4gk9VhQ2nRrT7mXcLp8sYdA5bE1fJu6oZiN4wKq3HtMz5xH",
   networkFee: "Free",
-  feePaidBy: "covered by Fuse⁺",
+  feePaidBy: "paid by Swissquote",
 };
 
 /** A send from the wallet. Face ID approval resolves once it is on-chain. */

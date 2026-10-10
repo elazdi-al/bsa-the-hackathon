@@ -93,7 +93,7 @@ export function SendReview({ to, address, usdc, children }: { to: string; addres
             inputMode="decimal"
             aria-label="Amount in USDC"
             style={{ width: `${Math.max(amount.length, 1)}ch` }}
-            className="bg-transparent caret-fuse-blue outline-none"
+            className="bg-transparent caret-brand outline-none"
           />
         </label>
         <p className="mt-2 text-body text-muted-foreground tabular-nums">

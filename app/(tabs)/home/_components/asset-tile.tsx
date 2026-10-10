@@ -11,7 +11,7 @@ import { BlurMoney } from "./blur-money";
  */
 export const tileLooks: Record<TileId, { Icon: Icon; fill: string }> = {
   cash: { Icon: CoinIcon, fill: "bg-linear-to-b/oklch from-[oklch(0.75_0.17_140)] to-[oklch(0.62_0.16_152)] to-70%" },
-  investments: { Icon: ChartIcon, fill: "bg-linear-to-b/oklch from-[oklch(0.65_0.17_248)] to-fuse-blue to-70%" },
+  investments: { Icon: ChartIcon, fill: "bg-linear-to-b/oklch from-[oklch(0.65_0.17_248)] to-brand to-70%" },
   earn: { Icon: PercentIcon, fill: "bg-linear-to-b/oklch from-[oklch(0.79_0.16_70)] to-[oklch(0.66_0.185_44)] to-70%" },
   card: { Icon: CardIcon, fill: "bg-linear-to-b/oklch from-[oklch(0.38_0.01_286)] to-ink to-70%" },
 };

@@ -1,6 +1,6 @@
-# Fuse
+# Swissquote Wallet
 
-Fuse is a self-custody crypto wallet that Swissquote could offer its clients. The client holds the keys. Swissquote screens each payment, pays the network fee and helps recover a lost phone. Swissquote cannot move the client's funds, alone or together with the independent service that holds the third key share.
+Swissquote Wallet is a self-custody crypto wallet that Swissquote could offer its clients. The client holds the keys. Swissquote screens each payment, pays the network fee and helps recover a lost phone. Swissquote cannot move the client's funds, alone or together with the independent service that holds the third key share.
 
 This is a hackathon build. The whole protocol runs on a local chain: the smart account, the key split, the passkey checks, the compliance policy, gas sponsorship and the 48-hour recovery. The parts that need a real bank, such as the ID check and the HSMs, are mocked. [What is mocked](#what-is-mocked-and-the-production-path) lists them.
 
@@ -10,7 +10,7 @@ Self-custody asks clients to become security experts. A lost seed phrase loses t
 
 A Swissquote client who wants their own keys today must whitelist an address, prove they own it and pay USD 10 (native coin) or USD 15 (ERC-20 token) per withdrawal ([pricing](https://www.swissquote.com/en-ch/private/trade/pricing/cryptocurrencies), [external wallets](https://www.swissquote.com/en-ch/private/help/trade/products/crypto-asset-products)). After that, Swissquote no longer sees those assets. With 1.22 million accounts and CHF 96.3 billion in client assets ([H1 2026 results](https://www.swissquote.com/en/api/internal/media/get-media?filename=press-releases%2Fad+hoc_EN_Media_Release_H1_2026.pdf)), every client who leaves for a separate wallet takes future trading with them.
 
-Fuse keeps self-custody one tap from the Swissquote account. The client keeps the authority to move funds. Swissquote adds checks before each payment and a recovery path after a lost phone.
+Swissquote Wallet keeps self-custody one tap from the Swissquote account. The client keeps the authority to move funds. Swissquote adds checks before each payment and a recovery path after a lost phone.
 
 ## The protocol
 
@@ -52,8 +52,8 @@ The wallet key is a secp256k1 key split 2-of-3 with Shamir secret sharing. Share
 
 - Create: `/onboarding-welcome`, then `/onboarding-secure`. Creates the passkey, splits the wallet key, saves the Recovery Key file and registers the wallet.
 - Home: the real address and USDC balance. On the old phone, a pending recovery shows an alert with Cancel.
-- Send: `/choose-recipient`, `/send-hide-my-wallet`, `/transaction-tracking`.
-- Recover: `/pending-verification`. Loads the Recovery Key file, runs the mocked ID check, creates a new passkey and split, then shows the 48-hour countdown with Finish and Cancel.
+- Send: `/choose-recipient`, `/send`, `/transaction-tracking`.
+- Recover: `/recover`. Loads the Recovery Key file, runs the mocked ID check, creates a new passkey and split, then shows the 48-hour countdown with Finish and Cancel.
 
 ## Threat model
 

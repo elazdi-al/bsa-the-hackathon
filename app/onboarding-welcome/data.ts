@@ -8,5 +8,5 @@ export const WORDS: Word[] = [
   { label: "Earn", Icon: ChartIcon, color: "var(--color-orange)" },
   { label: "Save", Icon: CoinsIcon, color: "var(--color-positive)" },
   { label: "Pay", Icon: LightningIcon, color: "var(--color-negative)" },
-  { label: "Invest", Icon: PercentIcon, color: "var(--color-fuse-blue)" },
+  { label: "Invest", Icon: PercentIcon, color: "var(--color-brand)" },
 ];

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { RecipientSheetRoute } from "./_components/recipient-sheet";
 
-export const metadata: Metadata = { title: "Choose recipient · Fuse" };
+export const metadata: Metadata = { title: "Choose recipient" };
 
 export default function Page() {
   return (

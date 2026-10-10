@@ -116,7 +116,7 @@ export function ReceiveSheet({ open, onOpenChange, onClosed }: { open: boolean; 
               </span>
             </Button>
             {canShare && (
-              <Button variant="secondary" onClick={() => navigator.share({ title: "My Fuse address", text: address }).catch(() => {})}>
+              <Button variant="secondary" onClick={() => navigator.share({ title: "My Swissquote Wallet address", text: address }).catch(() => {})}>
                 <ShareIcon size={20} />
                 Share
               </Button>

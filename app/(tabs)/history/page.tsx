@@ -4,7 +4,7 @@ import { tiles } from "../home/data";
 import { HistoryList } from "./_components/history-list";
 import { justSent } from "./data";
 
-export const metadata: Metadata = { title: "History · Fuse" };
+export const metadata: Metadata = { title: "History" };
 
 const one = (param?: string | string[]) => (typeof param === "string" ? param : undefined);
 

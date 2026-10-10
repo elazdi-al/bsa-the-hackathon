@@ -44,9 +44,9 @@ export const sections: Row[][] = [
     { kind: "info", label: "Currency", Icon: CoinIcon, value: "USD" },
   ],
   [
-    { kind: "mail", label: "Help & support", Icon: HelpIcon, href: "mailto:support@fuse.xyz" },
+    { kind: "mail", label: "Help & support", Icon: HelpIcon, href: "https://www.swissquote.com/en-ch/private/help" },
     { kind: "tray", opens: "signout", label: "Sign out", Icon: SignOutIcon, destructive: true },
   ],
 ];
 
-export const version = "Fuse 0.1.0";
+export const version = "Swissquote Wallet 0.1.0";

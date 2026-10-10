@@ -9,7 +9,7 @@ export const kinds = {
   reward: { Icon: SparkleIcon, text: "text-orange", tint: "bg-orange/12" },
   send: { Icon: SendIcon, text: "text-purple", tint: "bg-purple/12" },
   withdrawal: { Icon: BankIcon, text: "text-purple", tint: "bg-purple/12" },
-  swap: { Icon: SwapIcon, text: "text-fuse-blue", tint: "bg-fuse-blue/12" },
+  swap: { Icon: SwapIcon, text: "text-brand", tint: "bg-brand/12" },
   card: { Icon: CardIcon, text: "text-ink", tint: "bg-secondary" },
   membership: { Icon: PlusIcon, text: "text-ink", tint: "bg-secondary" },
 } satisfies Record<Kind, { Icon: Icon; text: string; tint: string }>;

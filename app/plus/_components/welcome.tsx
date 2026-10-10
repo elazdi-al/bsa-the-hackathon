@@ -29,7 +29,7 @@ export function Welcome() {
           variants={rise}
           className="mt-5 text-center text-title text-balance text-white"
         >
-          Welcome to Fuse Plus
+          Welcome to Swissquote Plus
         </motion.h1>
         <motion.p
           variants={rise}

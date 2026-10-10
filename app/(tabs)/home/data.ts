@@ -55,13 +55,13 @@ export const tiles: Tile[] = [
   { id: "cash", label: "Cash", value: 5000, about: "USDC & PYUSD you can spend or send" },
   { id: "investments", label: "Investments", value: 7531, href: "/coin-breakdown" },
   { id: "earn", label: "Earn", value: 10000, about: "Earning up to 5.45% APY" },
-  { id: "card", label: "Card", value: 1000, about: "Your Fuse virtual Visa" },
+  { id: "card", label: "Card", value: 1000, about: "Your Swissquote virtual Visa" },
 ];
 
-export type Promo = { id: "fuse-plus" | "earn"; title: [string, string] } & ({ href: string } | { account: TileId });
+export type Promo = { id: "plus" | "earn"; title: [string, string] } & ({ href: string } | { account: TileId });
 
 export const promos: Promo[] = [
-  { id: "fuse-plus", title: ["Welcome to", "Fuse Plus"], href: "/fuse-plus" },
+  { id: "plus", title: ["Welcome to", "Swissquote Plus"], href: "/plus" },
   { id: "earn", title: ["Earn up to", "5.45% APY"], account: "earn" },
 ];
 

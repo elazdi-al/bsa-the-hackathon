@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Screen } from "@/components/navigation";
 import { Welcome } from "./_components/welcome";
 
-export const metadata: Metadata = { title: "Fuse Plus · Fuse" };
+export const metadata: Metadata = { title: "Swissquote Plus" };
 
 export const viewport: Viewport = { themeColor: "#4a5776" };
 

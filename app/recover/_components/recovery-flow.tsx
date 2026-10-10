@@ -280,7 +280,7 @@ function KeyField({ value, onChange }: { value: string; onChange: (text: string)
         placeholder="Paste your Recovery Key"
         rows={4}
         spellCheck={false}
-        className="w-full resize-none rounded-2xl bg-secondary p-4 font-mono text-caption break-all caret-fuse-blue ring-fuse-blue/40 outline-none ring-inset transition-[background-color,box-shadow] duration-150 ease-out placeholder:font-sans placeholder:text-muted-foreground focus:bg-background focus:ring-[1.5px]"
+        className="w-full resize-none rounded-2xl bg-secondary p-4 font-mono text-caption break-all caret-brand ring-brand/40 outline-none ring-inset transition-[background-color,box-shadow] duration-150 ease-out placeholder:font-sans placeholder:text-muted-foreground focus:bg-background focus:ring-[1.5px]"
       />
       <label className={buttonVariants({ variant: "secondary", className: "cursor-pointer has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring has-[:focus-visible]:outline-solid" })}>
         <RestoreIcon size={20} />

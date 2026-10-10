@@ -57,7 +57,7 @@ export class ApiError extends Error {
   }
 }
 
-const DEVICE = "fuse.wallet.device";
+const DEVICE = "swissquote.wallet.device";
 
 /**
  * `partner` is pinned in the app build, never taken from Swissquote, so Swissquote cannot redirect
@@ -166,7 +166,7 @@ export function createPhone({ api = "", partner, authenticator, storage }: { api
 
     /** Face ID creates the passkey that approves every payment. */
     // A unique name gives a unique WebAuthn user id, so a recovery passkey never replaces an older one on the same device.
-    createPasskey: (): Promise<Credential> => authenticator.create(`Fuse ${new Date().toISOString()}`),
+    createPasskey: (): Promise<Credential> => authenticator.create(`Swissquote Wallet ${new Date().toISOString()}`),
 
     /** Splits a fresh wallet key: B to Swissquote, C straight to the partner, A sealed on this phone with Face ID. */
     async splitKey(credential: Credential): Promise<Address> {
@@ -282,7 +282,7 @@ export const readRecoveryKey = (text: string) => text.match(/0x[0-9a-fA-F]{64}/)
 
 export type Phone = ReturnType<typeof createPhone>;
 
-const PRF_SALT = new TextEncoder().encode("Fuse Share A v1");
+const PRF_SALT = new TextEncoder().encode("Swissquote Wallet Share A v1");
 
 const browserAuthenticator: Authenticator = {
   async create(name) {

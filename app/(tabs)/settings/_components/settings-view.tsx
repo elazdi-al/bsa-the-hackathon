@@ -65,15 +65,15 @@ function SettingsRow({ item, onOpen }: { item: Row; onOpen: (root: TrayRoot) => 
   }
 }
 
-/** The member's card: their plan, name and address on Fuse blue, like the card in a wallet. It opens Fuse Plus. */
+/** The member's card: their plan, name and address on the brand blue, like the card in a wallet. It opens Swissquote Plus. */
 function MemberCard() {
   return (
     <Link
-      href="/fuse-plus"
+      href="/plus"
       transitionTypes={["push"]}
-      className={`flex aspect-video flex-col justify-between rounded-[28px] bg-linear-135/oklch from-[oklch(0.64_0.18_250)] to-fuse-blue p-5 text-white transition-transform duration-150 ease-out active:scale-[0.96] ${focusRing} focus-visible:ring-offset-2`}
+      className={`flex aspect-video flex-col justify-between rounded-[28px] bg-linear-135/oklch from-[oklch(0.64_0.18_250)] to-brand p-5 text-white transition-transform duration-150 ease-out active:scale-[0.96] ${focusRing} focus-visible:ring-offset-2`}
     >
-      <span className="text-label">Fuse Plus</span>
+      <span className="text-label">Swissquote Plus</span>
       <span className="min-w-0">
         <span className="block truncate text-heading">{profile.name}</span>
         <span className="block text-body text-white/70">{shortAddress(profile.address)}</span>
@@ -97,7 +97,7 @@ function TrayBody({ view, push, close }: { view: View; push: (next: View) => voi
       return (
         <>
           <TrayHeader
-            icon={<Hero Icon={ShieldIcon} color="var(--color-fuse-blue)" />}
+            icon={<Hero Icon={ShieldIcon} color="var(--color-brand)" />}
             title="Your keys"
             description="Your Passkey approves every payment and your Wallet Key signs it. Your Recovery Key gets you back in."
           />

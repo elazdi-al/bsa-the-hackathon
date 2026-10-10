@@ -39,10 +39,10 @@ async function newPhone() {
   return page;
 }
 
-const walletOf = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem("fuse.wallet.device") ?? "null")?.address as string);
+const walletOf = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem("swissquote.wallet.device") ?? "null")?.address as string);
 
 async function send(page: Page, to: Address, amount: string) {
-  await page.goto(`${APP}/send-hide-my-wallet?to=${to}`);
+  await page.goto(`${APP}/send?to=${to}`);
   await page.getByLabel("Amount in USDC").fill(amount);
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Send", exact: true }).click(SLOW);
@@ -51,7 +51,7 @@ async function send(page: Page, to: Address, amount: string) {
 }
 
 async function recover(page: Page, kit: string) {
-  await page.goto(`${APP}/pending-verification`);
+  await page.goto(`${APP}/recover`);
   await page.locator("input[type=file]").setInputFiles(kit);
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Scan ID" }).click();

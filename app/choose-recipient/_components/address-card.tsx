@@ -45,7 +45,7 @@ export function AddressCard() {
       }}
       className="px-6 pt-4"
     >
-      <div className="flex h-14 items-center gap-2 rounded-2xl bg-secondary pr-2.5 pl-4 ring-fuse-blue/40 transition-[background-color,box-shadow] duration-150 ease-out ring-inset has-[input:focus]:bg-background has-[input:focus]:ring-[1.5px]">
+      <div className="flex h-14 items-center gap-2 rounded-2xl bg-secondary pr-2.5 pl-4 ring-brand/40 transition-[background-color,box-shadow] duration-150 ease-out ring-inset has-[input:focus]:bg-background has-[input:focus]:ring-[1.5px]">
         <input
           ref={inputRef}
           data-vaul-no-drag
@@ -61,7 +61,7 @@ export function AddressCard() {
           autoComplete="off"
           autoCorrect="off"
           spellCheck={false}
-          className="h-full min-w-0 flex-1 bg-transparent text-label font-normal caret-fuse-blue outline-none placeholder:text-muted-foreground"
+          className="h-full min-w-0 flex-1 bg-transparent text-label font-normal caret-brand outline-none placeholder:text-muted-foreground"
         />
         <AnimatePresence initial={false}>
           {value && (

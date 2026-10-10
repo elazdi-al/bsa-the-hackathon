@@ -31,7 +31,7 @@ export function shortAddress(address: string) {
 }
 
 /** The send review for `to`, an address or .eth handle. */
-export const reviewHref = (to: string) => `/send-hide-my-wallet?${new URLSearchParams({ to })}`;
+export const reviewHref = (to: string) => `/send?${new URLSearchParams({ to })}`;
 
 /** How the review names `to`, and the address it pays, or null when it isn't a recipient. */
 export function recipientFor(to: string): { name: string; detail: string; address: string } | null {
@@ -45,7 +45,7 @@ export function recipientFor(to: string): { name: string; detail: string; addres
 
 // The recipient under review, so leaving the review reopens the chooser with it filled in. The review
 // sets it; dismissing the chooser or finishing the send clears it.
-const DRAFT_KEY = "fuse:send-to";
+const DRAFT_KEY = "swissquote:send-to";
 export const sendDraft = {
   get: () => sessionStorage.getItem(DRAFT_KEY),
   set: (to: string) => sessionStorage.setItem(DRAFT_KEY, to),

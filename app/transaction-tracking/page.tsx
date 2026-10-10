@@ -3,7 +3,7 @@ import type { Hex } from "viem";
 import { TransactionRoute } from "./_components/transaction-sheet";
 import { WalletBackdrop } from "./_components/wallet-backdrop";
 
-export const metadata: Metadata = { title: "Transaction · Fuse" };
+export const metadata: Metadata = { title: "Transaction" };
 
 type Params = { hash?: string; amount?: string; to?: string };
 

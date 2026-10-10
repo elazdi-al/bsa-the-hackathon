@@ -3,7 +3,7 @@
 @import "shadcn/tailwind.css";
 
 @theme {
-  --color-fuse-blue: oklch(0.515 0.257 263.5);
+  --color-brand: oklch(0.515 0.257 263.5);
   --color-positive: oklch(0.674 0.172 148.7);
   --color-negative: oklch(0.654 0.232 28.7);
   --color-pending: oklch(0.671 0.184 40.3);
@@ -87,7 +87,7 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* shadcn tokens mapped onto the Fuse palette: black ink, near-white greys, Fuse blue focus. */
+/* shadcn tokens mapped onto the app palette: black ink, near-white greys, brand blue focus. */
 :root {
   --background: #fff;
   --foreground: #000;
@@ -106,7 +106,7 @@
   --destructive: var(--color-negative);
   --border: rgb(0 0 0 / 0.06);
   --input: rgb(0 0 0 / 0.08);
-  --ring: var(--color-fuse-blue);
+  --ring: var(--color-brand);
   --radius: 0.875rem;
 }
 

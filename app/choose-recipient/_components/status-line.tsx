@@ -38,7 +38,7 @@ function describe(status: Status) {
       return { icon: null, text: null };
     case "resolving":
       return {
-        icon: <Spinner aria-hidden className="text-fuse-blue motion-reduce:animate-none" />,
+        icon: <Spinner aria-hidden className="text-brand motion-reduce:animate-none" />,
         text: "Resolving...",
       };
     case "resolved":

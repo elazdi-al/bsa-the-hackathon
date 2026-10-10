@@ -234,7 +234,7 @@ function Sheet({ tx }: { tx: Tx }) {
           <Detail label="Network fee">
             <span className="inline-flex items-center gap-1">
               <LightningIcon size={16} className="text-positive" />
-              Free<span className="font-normal text-muted-foreground"> · covered by Fuse⁺</span>
+              Free<span className="font-normal text-muted-foreground"> · paid by Swissquote</span>
             </span>
           </Detail>
         )}
