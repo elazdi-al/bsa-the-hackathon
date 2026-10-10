@@ -40,6 +40,12 @@ contract SwissquoteAccount is BaseAccount, Initializable {
         uint48 executeAfter;
     }
 
+    struct Call {
+        address target;
+        uint256 value;
+        bytes data;
+    }
+
     uint8 public constant MODE_NORMAL = 0;
     uint8 public constant MODE_RECOVERY = 1;
     uint48 public constant RECOVERY_DELAY = 48 hours;
@@ -81,6 +87,17 @@ contract SwissquoteAccount is BaseAccount, Initializable {
 
     function execute(address target, uint256 value, bytes calldata data) external {
         _requireFromEntryPoint();
+        _call(target, value, data);
+    }
+
+    function executeBatch(Call[] calldata calls) external {
+        _requireFromEntryPoint();
+        for (uint256 i; i < calls.length; ++i) {
+            _call(calls[i].target, calls[i].value, calls[i].data);
+        }
+    }
+
+    function _call(address target, uint256 value, bytes calldata data) internal {
         (bool ok, bytes memory result) = target.call{value: value}(data);
         if (!ok) {
             assembly ("memory-safe") {
@@ -130,7 +147,8 @@ contract SwissquoteAccount is BaseAccount, Initializable {
         emit RecoveryInitiated(newSigner, newPasskey.x, newPasskey.y, executeAfter);
     }
 
-    /// The user cancels from the phone (MODE_NORMAL, through execute), or Swissquote does it for them as guardian.
+    /// The user cancels from the phone (MODE_NORMAL, through execute or executeBatch), or Swissquote
+    /// does it for them as guardian.
     function cancelRecovery() external {
         if (msg.sender != guardian && msg.sender != address(this)) revert Unauthorized();
         if (pendingRecovery.executeAfter == 0) revert NoRecoveryPending();

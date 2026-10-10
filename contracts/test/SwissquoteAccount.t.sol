@@ -13,6 +13,7 @@ import {WebAuthn} from "@openzeppelin/contracts/utils/cryptography/WebAuthn.sol"
 import {SwissquoteAccount} from "../src/SwissquoteAccount.sol";
 import {SwissquoteAccountFactory} from "../src/SwissquoteAccountFactory.sol";
 import {TestUSDC} from "../script/TestUSDC.sol";
+import {TestPool, TestWETH} from "../script/TestPool.sol";
 
 contract SwissquoteAccountTest is Test {
     uint256 constant P256_N = 0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551;
@@ -21,6 +22,8 @@ contract SwissquoteAccountTest is Test {
     SwissquoteAccountFactory factory;
     VerifyingPaymaster paymaster;
     TestUSDC usdc;
+    TestWETH weth;
+    TestPool pool;
     SwissquoteAccount account;
 
     // The Shamir-shared wallet key is a single ECDSA key on-chain, so one test key stands in for it.
@@ -38,6 +41,10 @@ contract SwissquoteAccountTest is Test {
         paymaster = new VerifyingPaymaster(entryPoint, vm.addr(paymasterSigner));
         paymaster.deposit{value: 10 ether}();
         usdc = new TestUSDC();
+        weth = new TestWETH();
+        pool = new TestPool(usdc, weth);
+        usdc.mint(address(pool), 250_000e6);
+        weth.mint(address(pool), 100e18);
 
         account = SwissquoteAccount(payable(factory.getAddress(_config(), 0)));
         usdc.mint(address(account), 1_000e6);
@@ -77,6 +84,49 @@ contract SwissquoteAccountTest is Test {
         _signNormal(op, walletKey, passkeyKey);
         vm.expectRevert();
         _handle(op);
+    }
+
+    // ---------------------------------------------------------------- swap
+
+    function test_sponsoredBatchSwapDeploysAccount() public {
+        uint256 quoted = pool.quote(address(usdc), 100e6);
+        PackedUserOperation memory op = _op(_swap(100e6, quoted), true);
+        _signNormal(op, walletKey, passkeyKey);
+        _handle(op);
+
+        assertEq(weth.balanceOf(address(account)), quoted);
+        assertEq(usdc.balanceOf(address(account)), 900e6);
+        assertEq(usdc.allowance(address(account), address(pool)), 0, "no allowance left behind");
+        assertEq(address(account).balance, 0, "client never needs ETH");
+        assertLt(entryPoint.balanceOf(address(paymaster)), 10 ether, "Swissquote paid the gas");
+    }
+
+    function test_walletKeyAloneCannotSwap() public {
+        PackedUserOperation memory op = _op(_swap(100e6, 1), true);
+        _signNormal(op, walletKey, 0xBAD);
+        _expectSigError();
+        _handle(op);
+    }
+
+    function test_onlyEntryPointExecutesBatch() public {
+        _deploy();
+        SwissquoteAccount.Call[] memory calls = new SwissquoteAccount.Call[](1);
+        calls[0] = SwissquoteAccount.Call(address(usdc), 0, abi.encodeCall(IERC20.transfer, (anna, 980e6)));
+        vm.expectRevert("account: not from EntryPoint");
+        vm.prank(anna);
+        account.executeBatch(calls);
+    }
+
+    function test_failedSwapRevertsTheWholeBatch() public {
+        _deploy();
+        uint256 quoted = pool.quote(address(usdc), 100e6);
+        PackedUserOperation memory op = _op(_swap(100e6, quoted + 1), false);
+        _signNormal(op, walletKey, passkeyKey);
+        _expectRevertReason(op, abi.encodeWithSelector(TestPool.Slippage.selector, quoted, quoted + 1));
+        _handle(op);
+
+        assertEq(usdc.allowance(address(account), address(pool)), 0, "the approval reverted with the swap");
+        assertEq(weth.balanceOf(address(account)), 0);
     }
 
     // ---------------------------------------------------------------- recovery
@@ -178,6 +228,37 @@ contract SwissquoteAccountTest is Test {
         assertEq(executeAfter, 0);
     }
 
+    function test_recoveryCannotBeStartedThroughBatch() public {
+        _deploy();
+        PackedUserOperation memory op = _op(_batch(address(account), _initiateRecoveryCall(0xB0B, 0xBEEF)), false);
+        _signNormal(op, walletKey, passkeyKey);
+        _expectRevertReason(op, abi.encodeWithSignature("Error(string)", "account: not from EntryPoint"));
+        _handle(op);
+        (,, uint48 executeAfter) = account.pendingRecovery();
+        assertEq(executeAfter, 0);
+    }
+
+    function test_recoveryModeCannotSignBatch() public {
+        _deploy();
+        PackedUserOperation memory op = _op(_batch(address(account), _initiateRecoveryCall(0xB0B, 0xBEEF)), false);
+        _signRecovery(op, walletKey, recoveryKey);
+        _expectSigError();
+        _handle(op);
+    }
+
+    function test_clientCancelsRecoveryThroughBatch() public {
+        _deploy();
+        _initiateRecovery(0xB0B, 0xBEEF, walletKey, recoveryKey);
+
+        PackedUserOperation memory op =
+            _op(_batch(address(account), abi.encodeCall(SwissquoteAccount.cancelRecovery, ())), false);
+        _signNormal(op, walletKey, passkeyKey);
+        _handle(op);
+
+        (,, uint48 executeAfter) = account.pendingRecovery();
+        assertEq(executeAfter, 0);
+    }
+
     // ---------------------------------------------------------------- helpers
 
     function _config() internal view returns (SwissquoteAccount.Config memory c) {
@@ -194,6 +275,21 @@ contract SwissquoteAccountTest is Test {
 
     function _transfer(address to, uint256 amount) internal view returns (bytes memory) {
         return abi.encodeCall(SwissquoteAccount.execute, (address(usdc), 0, abi.encodeCall(IERC20.transfer, (to, amount))));
+    }
+
+    function _swap(uint256 amountIn, uint256 minAmountOut) internal view returns (bytes memory) {
+        SwissquoteAccount.Call[] memory calls = new SwissquoteAccount.Call[](2);
+        calls[0] = SwissquoteAccount.Call(address(usdc), 0, abi.encodeCall(IERC20.approve, (address(pool), amountIn)));
+        calls[1] = SwissquoteAccount.Call(
+            address(pool), 0, abi.encodeCall(TestPool.swap, (address(usdc), amountIn, minAmountOut))
+        );
+        return abi.encodeCall(SwissquoteAccount.executeBatch, (calls));
+    }
+
+    function _batch(address target, bytes memory data) internal pure returns (bytes memory) {
+        SwissquoteAccount.Call[] memory calls = new SwissquoteAccount.Call[](1);
+        calls[0] = SwissquoteAccount.Call(target, 0, data);
+        return abi.encodeCall(SwissquoteAccount.executeBatch, (calls));
     }
 
     function _initiateRecoveryCall(uint256 newKey, uint256 newPasskey) internal pure returns (bytes memory) {
@@ -219,14 +315,15 @@ contract SwissquoteAccountTest is Test {
             op.initCode = abi.encodePacked(address(factory), abi.encodeCall(factory.createAccount, (_config(), 0)));
         }
         op.callData = callData;
-        op.accountGasLimits = bytes32((uint256(1_500_000) << 128) | 300_000); // verification | call
-        op.preVerificationGas = 60_000;
+        // The limits the app submits with (GAS in lib/wallet/api/operations.ts).
+        op.accountGasLimits = bytes32((uint256(1_000_000) << 128) | 300_000); // verification | call
+        op.preVerificationGas = 50_000;
         op.gasFees = bytes32((uint256(1 gwei) << 128) | 2 gwei); // priority | max
 
         // Swissquote's Wallet API signs the sponsorship: it pays the gas.
         uint48 validUntil = uint48(block.timestamp + 120);
         op.paymasterAndData =
-            abi.encodePacked(address(paymaster), uint128(60_000), uint128(0), abi.encode(validUntil, uint48(0)));
+            abi.encodePacked(address(paymaster), uint128(100_000), uint128(0), abi.encode(validUntil, uint48(0)));
         bytes32 h = MessageHashUtils.toEthSignedMessageHash(paymaster.getHash(op, validUntil, 0));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(paymasterSigner, h);
         op.paymasterAndData = abi.encodePacked(op.paymasterAndData, r, s, v);
@@ -266,6 +363,12 @@ contract SwissquoteAccountTest is Test {
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
         ops[0] = op;
         entryPoint.handleOps(ops, payable(bundler));
+    }
+
+    // The operation is included and paid for; only its call reverts, with the inner call's revert data.
+    function _expectRevertReason(PackedUserOperation memory op, bytes memory reason) internal {
+        vm.expectEmit(address(entryPoint));
+        emit IEntryPoint.UserOperationRevertReason(entryPoint.getUserOpHash(op), address(account), op.nonce, reason);
     }
 
     function _expectSigError() internal {

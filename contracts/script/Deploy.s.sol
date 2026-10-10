@@ -5,11 +5,13 @@ import {Script, console} from "forge-std/Script.sol";
 import {EntryPoint} from "account-abstraction/core/EntryPoint.sol";
 import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 import {VerifyingPaymaster} from "account-abstraction/samples/VerifyingPaymaster.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SwissquoteAccountFactory} from "../src/SwissquoteAccountFactory.sol";
 import {TestUSDC} from "./TestUSDC.sol";
+import {TestPool, TestWETH} from "./TestPool.sol";
 
 /// Deploys the factory and Swissquote's funded VerifyingPaymaster. A fresh local chain also gets
-/// its own EntryPoint v0.7 and a mintable USDC.
+/// its own EntryPoint v0.7, a mintable USDC, and a USDC/WETH test pool seeded at 1 ETH = 2,500 USDC.
 ///   forge script script/Deploy.s.sol --rpc-url $RPC_URL --private-key $SWISSQUOTE_KEY --broadcast
 contract Deploy is Script {
     IEntryPoint constant CANONICAL_ENTRY_POINT = IEntryPoint(0x0000000071727De22E5E9d8BAf0edAc6f37da032);
@@ -26,11 +28,23 @@ contract Deploy is Script {
         SwissquoteAccountFactory factory = new SwissquoteAccountFactory(entryPoint);
         VerifyingPaymaster paymaster = new VerifyingPaymaster(entryPoint, swissquote);
         paymaster.deposit{value: deposit}();
+        TestWETH weth;
+        TestPool pool;
+        if (local) {
+            weth = new TestWETH();
+            pool = new TestPool(IERC20(usdc), weth);
+            TestUSDC(usdc).mint(address(pool), 250_000e6);
+            weth.mint(address(pool), 100e18);
+        }
         vm.stopBroadcast();
 
         console.log("ENTRY_POINT_ADDRESS=%s", address(entryPoint));
         console.log("USDC_ADDRESS=%s", usdc);
         console.log("FACTORY_ADDRESS=%s", address(factory));
         console.log("PAYMASTER_ADDRESS=%s", address(paymaster));
+        if (local) {
+            console.log("WETH_ADDRESS=%s", address(weth));
+            console.log("POOL_ADDRESS=%s", address(pool));
+        }
     }
 }
