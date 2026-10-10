@@ -142,7 +142,7 @@ function CopyAddress() {
 
 export function SettingsView() {
   return (
-    <div className="mx-auto mt-6 max-w-xl">
+    <div className="mt-6 max-w-xl">
       <div className="flex items-center gap-4 px-1">
         <span aria-hidden className="grid size-14 shrink-0 place-items-center rounded-full bg-black text-[19px] font-semibold tracking-[-0.01em] text-white">
           {profile.initials}

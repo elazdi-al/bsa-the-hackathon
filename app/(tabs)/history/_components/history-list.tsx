@@ -146,7 +146,7 @@ export function HistoryList() {
         {summary.month} · In <span className="text-[#30b256]">+<Money value={summary.in} /></span> · Out −<Money value={summary.out} />
       </p>
 
-      <div className="mx-auto mt-6 max-w-2xl md:mx-0">
+      <div className="mt-6 max-w-2xl">
         {groups.map((g) => (
           <section key={g.label} className="mb-5" aria-label={g.label}>
             <h2 className="px-3 pb-1 text-[13px] leading-[18px] font-medium text-[#adadad]">{g.label}</h2>
