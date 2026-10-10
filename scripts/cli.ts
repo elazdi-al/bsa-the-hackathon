@@ -54,6 +54,18 @@ function walletOf(arg: string): Address {
   return address;
 }
 
+/** Swissquote locks or unlocks the live credentials of an account's or address's wallet, after a mocked ID check. */
+async function setLock(arg: string, method: "POST" | "DELETE") {
+  const res = await fetch(`${APP}/api/wallets/${walletOf(arg)}/lock`, {
+    method,
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ identity: { document: "id-card-scan", selfie: "selfie" } }),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new ApiError(res.status, json);
+  return json as { wallet: Address; signer: Address };
+}
+
 function walletRows() {
   const path = process.env.SWISSQUOTE_DB ?? "data/swissquote.db";
   if (!existsSync(path)) return [];
@@ -323,6 +335,42 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
           [
             ["Wallet", phone.device()!.address!],
             ["Transaction", hash],
+          ],
+          "",
+        ),
+      );
+    },
+  },
+
+  lock: {
+    usage: "lock <account>",
+    about: "Report an account's phone lost: Swissquote locks its credentials, after a mocked ID check.",
+    async run([name]) {
+      const { wallet, signer } = await setLock(name, "POST");
+      console.log(`Swissquote refuses Share B, sponsorship and submission for this phone until a recovery replaces it or npm run unlock ${name}.`);
+      console.log(
+        table(
+          [
+            ["Wallet", wallet],
+            ["Phone key", signer],
+          ],
+          "",
+        ),
+      );
+    },
+  },
+
+  unlock: {
+    usage: "unlock <account>",
+    about: "Swissquote unlocks the phone, after a mocked ID check.",
+    async run([name]) {
+      const { wallet, signer } = await setLock(name, "DELETE");
+      console.log("This phone can send again.");
+      console.log(
+        table(
+          [
+            ["Wallet", wallet],
+            ["Phone key", signer],
           ],
           "",
         ),
