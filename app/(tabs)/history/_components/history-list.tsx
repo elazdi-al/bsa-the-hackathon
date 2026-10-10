@@ -13,6 +13,7 @@ import { Money } from "../../_components/money";
 import { blurred, leave, reveal, sharp, snappy } from "../../_components/transitions";
 import { tiles, type TileId } from "../../home/data";
 import { byDay, filters, fullDate, monthSummary, transactions, type Filter, type Tx } from "../data";
+import { useLiveTxs } from "../live";
 import { Amount, Glyph, RowBody } from "./tx-row";
 
 const rowClass = `flex min-h-[68px] w-full items-center gap-4 rounded-2xl px-3 py-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring ${rowPress}`;
@@ -28,14 +29,15 @@ const arrive = {
 // The session's first History visit staggers its rows in; revisits just show them.
 let introPlayed = false;
 
-export function HistoryList({ account, sent }: { account?: TileId; sent: Tx | null }) {
+export function HistoryList({ account }: { account?: TileId }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [open, setOpen] = useState(false);
   // Kept after close so the sheet's content doesn't vanish mid-exit.
   const [tx, setTx] = useState<Tx | null>(null);
   const tracked = tx?.kind === "withdrawal";
 
-  const scoped = (sent ? [sent, ...transactions] : transactions).filter((t) => !account || t.account === account);
+  const live = useLiveTxs();
+  const scoped = [...live.txs, ...transactions].filter((t) => !account || t.account === account);
   const shown = scoped.filter(filters[filter].match);
   const groups = byDay(shown);
   const summary = monthSummary(scoped);
@@ -43,17 +45,12 @@ export function HistoryList({ account, sent }: { account?: TileId; sent: Tx | nu
 
   const [intro] = useState(() => !introPlayed);
   // motion reads `initial` only on mount, so entrances belong to the first render: whatever a filter change mounts later
-  // cross-fades as a whole instead of replaying the stagger or the sent row's arrival.
+  // cross-fades as a whole instead of replaying the stagger or a live row's arrival.
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     introPlayed = true;
     setMounted(true);
   }, []);
-
-  // The params go once read: a refresh or Back must not show the send again.
-  useEffect(() => {
-    if (sent) history.replaceState(null, "", "/history");
-  }, [sent]);
 
   return (
     <div className="max-w-2xl">
@@ -129,14 +126,14 @@ export function HistoryList({ account, sent }: { account?: TileId; sent: Tx | nu
                     <ul>
                       {g.items.map((t) => {
                         const i = shown.indexOf(t);
-                        const motionProps =
-                          t === sent
-                            ? { ...arrive, initial: mounted ? false : arrive.initial }
-                            : {
-                                initial: intro && !mounted && i < 8 ? { ...faded, y: 6 } : false,
-                                animate: { opacity: 1, filter: sharp, y: 0 },
-                                transition: { ...reveal, delay: 0.05 + i * 0.03 },
-                              };
+                        const motionProps = live.arrived(t)
+                          ? arrive
+                          : {
+                              initial: intro && !mounted && i < 8 ? { ...faded, y: 6 } : false,
+                              // The same keys as `arrive`: a key dropped from `animate` mid-arrival freezes where it is.
+                              animate: { opacity: 1, filter: sharp, y: 0, scale: 1 },
+                              transition: { ...reveal, delay: 0.05 + i * 0.03 },
+                            };
                         return (
                           <motion.li key={t.id} {...motionProps}>
                             <button
@@ -147,7 +144,7 @@ export function HistoryList({ account, sent }: { account?: TileId; sent: Tx | nu
                                 setOpen(true);
                               }}
                             >
-                              <RowBody tx={t} when={t === sent ? "Just now" : undefined} />
+                              <RowBody tx={t} />
                             </button>
                           </motion.li>
                         );

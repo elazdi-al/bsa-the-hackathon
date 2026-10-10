@@ -76,7 +76,9 @@ const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long"
 const monthFmt = new Intl.DateTimeFormat("en-GB", { month: "long", timeZone: "UTC" });
 
 export function dayLabel(iso: string) {
-  const diff = (Date.parse(today) - Date.parse(iso)) / 86_400_000;
+  // Against the real clock: live rows carry this phone's local date, and the mock rows' 2025 dates read as dates.
+  const d = new Date();
+  const diff = (Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.parse(iso)) / 86_400_000;
   if (diff === 0) return "Today";
   if (diff === 1) return "Yesterday";
   return dayFmt.format(Date.parse(iso));
@@ -108,26 +110,4 @@ export function monthSummary(txs: Tx[]) {
   const month = txs.filter((t) => t.date.startsWith(today.slice(0, 7)));
   const total = (flow: Tx["flow"]) => month.reduce((s, t) => (t.flow === flow ? s + t.usd : s), 0);
   return { month: monthFmt.format(now), in: total("in"), out: total("out") };
-}
-
-/** The send that just completed, from the send review's `?sent=<recipient>&amount=<usd>`. */
-export function justSent(to: string | undefined, amount: string | undefined): Tx | null {
-  const name = to?.trim();
-  const usd = Math.round(Number(amount) * 100) / 100;
-  if (!name || !Number.isFinite(usd) || usd <= 0) return null;
-  return {
-    id: "just-sent",
-    account: "cash",
-    kind: "send",
-    title: `Sent to ${name}`,
-    detail: "Wallet",
-    date: today,
-    time: stamp.slice(11, 16),
-    usd,
-    flow: "out",
-    crypto: `${usd.toLocaleString("en-US", { minimumFractionDigits: 2 })} USDC`,
-    status: "Pending",
-    rows: [{ label: "To", value: name }],
-    fee: true,
-  };
 }

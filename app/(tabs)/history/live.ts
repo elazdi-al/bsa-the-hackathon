@@ -1,6 +1,8 @@
+import { useEffect, useRef } from "react";
 import { formatUnits, isAddressEqual, zeroAddress, type Address } from "viem";
 import type { Transfer } from "@/lib/wallet/phone";
 import { shortAddress } from "@/app/choose-recipient/data";
+import { useActivity, useWallet } from "../_components/wallet";
 import type { Tx } from "./data";
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -31,4 +33,24 @@ export function transferToTx(transfer: Transfer, wallet: Address): Tx {
     fee: out,
     hash: transfer.hash,
   };
+}
+
+/**
+ * The wallet's transfers as History rows, newest first; none on the server or before the first read. `arrived` picks
+ * the rows that came in after the list first painted, on the render that mounts them, so each fades in once.
+ */
+export function useLiveTxs() {
+  const wallet = useWallet();
+  const transfers = useActivity();
+  // Block times on this phone's clock, so a send after `npm run warp` still lands under Today.
+  const txs =
+    wallet.status === "ready" && transfers
+      ? transfers.map((t) => transferToTx({ ...t, timestamp: t.timestamp - wallet.wallet.skew }, wallet.wallet.address))
+      : [];
+  // The ids at the last commit. A row filtered out when it came in is known by the time a filter shows it.
+  const known = useRef<Set<string>>(undefined);
+  useEffect(() => {
+    known.current = new Set(txs.map((t) => t.id));
+  });
+  return { txs, arrived: (tx: Tx) => !!known.current && txs.includes(tx) && !known.current.has(tx.id) };
 }
