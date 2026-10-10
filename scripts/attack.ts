@@ -1,6 +1,7 @@
-// An attacker holds the owner's phone and their email inbox, and tries to take the wallet. Each attempt
-// prints who stopped it and why, and asserts it. Run by npm run attack <account> and npm run e2e, against
-// npm run local only.
+// An attacker holds the owner's phone and their email inbox, and tries to take the wallet: A1 to A5 without
+// Face ID, A6 with it, stopped once the owner reports the phone stolen. Each attempt prints who stopped it and
+// why, and asserts it. A6 ends by cancelling its recovery and unlocking the phone, so the account keeps
+// working. Run by npm run attack <account> and npm run e2e, against npm run local only.
 import assert from "node:assert/strict";
 import { P256 } from "ox";
 import {
@@ -25,14 +26,14 @@ import {
   type Passkey,
 } from "../lib/wallet/account.ts";
 import { addresses, chain, partnerUrl, publicClient } from "../lib/wallet/env.ts";
-import { ApiError, softwareAuthenticator, unseal, type Device, type WalletState } from "../lib/wallet/phone.ts";
+import { ApiError, softwareAuthenticator, unseal, type Device, type Phone, type WalletState } from "../lib/wallet/phone.ts";
 import { APP, newPhone } from "./software-phone.ts";
 
 const say = (who: string, what: string) => console.log(`   ${who.padEnd(20)}${what}`);
 
-async function send(url: string, body?: unknown) {
+async function send(url: string, body?: unknown, method = body === undefined ? "GET" : "POST") {
   const res = await fetch(url, {
-    method: body === undefined ? "GET" : "POST",
+    method,
     headers: { "content-type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
@@ -76,9 +77,10 @@ const hashOf = (userOp: UserOperation<"0.7">) =>
 
 /**
  * `phone`: a copy of what the owner's phone stores, as the attacker reads it. `homeKey`: the owner's Recovery Key,
- * which the attacker copies only in the last attempt, and with which the owner cancels.
+ * which the attacker copies in A5, and with which the owner cancels. `unlocked`: the owner's phone itself, as a
+ * thief holds it once Face ID passes (A6).
  */
-export async function attack({ phone: stolen, homeKey }: { phone: Device; homeKey: Hex }) {
+export async function attack({ phone: stolen, homeKey, unlocked }: { phone: Device; homeKey: Hex; unlocked: Phone }) {
   const wallet = stolen.address!;
   const live = (await send(`${APP}/api/wallets/${wallet}`)).body as unknown as WalletState;
   assert.equal(live.pendingRecovery, null, "the wallet has no recovery pending");
@@ -158,6 +160,33 @@ export async function attack({ phone: stolen, homeKey }: { phone: Device; homeKe
   say("Owner", `cancelled it through Swissquote with their Recovery Key (${cancelled.slice(0, 10)}...)`);
   assert.equal((await withKey.state()).pendingRecovery, null, "the recovery is gone");
   say("Account", `refused to finish it: ${await failed(withKey.finalizeRecovery(), 409)}`);
+
+  console.log("A6. The thief can unlock the phone, so Face ID passes. The owner reports it stolen");
+  const payment = await unlocked.prepare({ to: addresses.usdc, data: transfer });
+  say("Phone", "Face ID passes, so it pays like the owner until they report it, within Swissquote's limits. Here it only prepares 50 USDC to the attacker");
+  const owner = newPhone();
+  // The owner shows their ID to Swissquote's hotline; the demo reads the mock ID on file instead.
+  const { idOnFile: ownersId } = await owner.findRecovery(homeKey);
+  const lock = (method: "POST" | "DELETE") => send(`${APP}/api/wallets/${wallet}/lock`, { identity: ownersId }, method);
+  assert.equal((await lock("POST")).status, 200, "Swissquote locked the phone");
+  say("Swissquote", "locked the phone after the owner's ID check (mocked)");
+  say("Swissquote", `refused to prepare or sponsor a payment: ${await failed(unlocked.sendUsdc(thief.address, "50"), 423)}`);
+  unlocked.forgetKey();
+  say("Swissquote", `refused Share B for the payment prepared before the report (key cache empty): ${await failed(unlocked.approve(payment), 423)}`);
+  await owner.splitKey(await owner.createPasskey());
+  await owner.startRecovery(homeKey, ownersId!);
+  say("Owner", "started a recovery on a new phone, with the Recovery Key and their ID");
+  say("Swissquote", `refused the stolen phone's cancel: ${await failed(unlocked.cancelRecovery(), 423)}`);
+  say(
+    "Account",
+    "is unchanged on chain: the lock is Swissquote's. A key the phone still caches (up to 3 hours) could pay through a public bundler, if the wallet holds ETH for gas",
+  );
+  await owner.cancelRecoveryWithSwissquote(homeKey);
+  assert.equal((await lock("DELETE")).status, 200, "Swissquote unlocked the phone");
+  const after = await unlocked.state();
+  assert.equal(after.pendingRecovery, null, "no recovery is left pending");
+  assert.equal(after.locked, false, "the phone is unlocked");
+  say("Demo reset", "the owner cancelled that recovery through Swissquote with the Recovery Key, and Swissquote unlocked the phone");
 }
 
 /** An unsponsored recovery of `wallet` to the attacker's key: Swissquote won't prepare one, so the attacker builds it. */

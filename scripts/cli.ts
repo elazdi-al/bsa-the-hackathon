@@ -390,13 +390,15 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
 
   attack: {
     usage: "attack <account>",
-    about: "An attacker with the account's phone and email inbox tries to take its wallet. Every attempt must fail.",
+    about: "An attacker with the account's phone and email inbox tries to take its wallet, also with Face ID once the phone is reported stolen. Every attempt must fail.",
     async run([name]) {
       const { phone, recoveryKey } = loadAccount(name);
       const device = phone.device();
       if (!device?.address) throw new Error(`${name} has no wallet.`);
-      if ((await phone.state()).pendingRecovery) throw new Error(`A recovery is pending for ${name}'s wallet. Cancel it first: npm run cancel ${name}.`);
-      await attack({ phone: structuredClone(device), homeKey: recoveryKey });
+      const { pendingRecovery, locked } = await phone.state();
+      if (pendingRecovery) throw new Error(`A recovery is pending for ${name}'s wallet. Cancel it first: npm run cancel ${name}.`);
+      if (locked) throw new Error(`Swissquote has locked ${name}'s phone. Unlock it first: npm run unlock ${name}.`);
+      await attack({ phone: structuredClone(device), homeKey: recoveryKey, unlocked: phone });
       console.log(`Every attempt on ${name}'s wallet failed.`);
     },
   },
