@@ -1,27 +1,27 @@
-import type { registerWallet } from "@/lib/auth-client";
+import type { Address } from "viem";
+import type { Credential } from "@/lib/wallet/phone";
 import type { KeyId, Tone } from "./data";
 
-/** The three public credentials W registers at setup. */
-export type Keys = Parameters<typeof registerWallet>[0];
-type Hex = Keys["mpcKey"];
+/** What setup registers: the passkey, the address of the split wallet key and the recovery key's address. */
+export type Keys = { credential: Credential; signer: Address; recoveryKey: Address };
 
 type Pending = { status: "idle"; error?: string } | { status: "working" };
 
 /** Each step carries what the steps before it made, so setup starts with all three keys in hand. */
 export type Step =
   | ({ name: "passkey" } & Pending)
-  | ({ name: "key"; keys: Pick<Keys, "credentialId"> } & Pending)
-  | { name: "key"; status: "split"; keys: Pick<Keys, "credentialId" | "mpcKey"> }
-  | ({ name: "recovery"; keys: Pick<Keys, "credentialId" | "mpcKey"> } & Pending)
+  | ({ name: "key"; keys: Pick<Keys, "credential"> } & Pending)
+  | { name: "key"; status: "split"; keys: Pick<Keys, "credential" | "signer"> }
+  | ({ name: "recovery"; keys: Pick<Keys, "credential" | "signer"> } & Pending)
   | ({ name: "setup"; keys: Keys } & ({ status: "idle"; error: string } | { status: "working" }))
-  | { name: "setup"; status: "registered" | "ready"; address: Hex };
+  | { name: "setup"; status: "registered" | "ready"; address: Address };
 
 export type FlowAction =
   | { type: "start" }
-  | { type: "passkeyCreated"; credentialId: string }
-  | { type: "keySplit"; mpcKey: Hex }
-  | { type: "recoverySaved"; recoveryKey: Hex }
-  | { type: "registered"; address: Hex }
+  | { type: "passkeyCreated"; credential: Credential }
+  | { type: "keySplit"; signer: Address }
+  | { type: "recoverySaved"; recoveryKey: Address }
+  | { type: "registered"; address: Address }
   | { type: "failed"; error: string }
   | { type: "cancelled" }
   | { type: "advance" };
@@ -43,11 +43,11 @@ export function flowReducer(step: Step, action: FlowAction): Step {
       return step;
     case "passkeyCreated":
       if (step.name === "passkey" && step.status === "working")
-        return { name: "key", status: "idle", keys: { credentialId: action.credentialId } };
+        return { name: "key", status: "idle", keys: { credential: action.credential } };
       return step;
     case "keySplit":
       if (step.name === "key" && step.status === "working")
-        return { name: "key", status: "split", keys: { ...step.keys, mpcKey: action.mpcKey } };
+        return { name: "key", status: "split", keys: { ...step.keys, signer: action.signer } };
       return step;
     case "advance":
       if (step.name === "key" && step.status === "split") return { name: "recovery", status: "idle", keys: step.keys };
@@ -65,7 +65,7 @@ export function flowReducer(step: Step, action: FlowAction): Step {
 
 /**
  * The beats after real work: the Wallet Key holds while its three shares land, and setup keeps its
- * working copy on screen once W has the keys, since registration usually returns before it can be read.
+ * working copy on screen once the wallet is registered, since that usually returns before it can be read.
  */
 export function pendingTimer(step: Step): { ms: number; action: FlowAction } | null {
   if (step.name === "key" && step.status === "split") return { ms: 1400, action: { type: "advance" } };

@@ -1,36 +1,50 @@
-// Wallet API storage, separate from the signer services' databases.
-import { createHash } from 'node:crypto'
-import { mkdirSync } from 'node:fs'
-import { DatabaseSync } from 'node:sqlite'
+// Swissquote's storage: its vault of B shares, the wallets it serves and the operations it prepared.
+import type { Address, Hex } from "viem";
+import type { RpcUserOperation } from "viem/account-abstraction";
+import type { Config } from "../account.ts";
+import { openVault } from "../vault.ts";
 
-let handle: DatabaseSync | undefined
+export type Wallet = { address: Address; config: Config };
+export type Kind = "normal" | "recovery";
+
+let handle: ReturnType<typeof open> | undefined;
 
 /** Opened on first use, so builds never touch it. */
-export function db() {
-  if (handle) return handle
-  mkdirSync('data', { recursive: true })
-  handle = new DatabaseSync(process.env.WALLET_API_DB ?? 'data/wallet-api.db', { timeout: 5000 })
-  handle.exec(`
-  create table if not exists wallets (
-    client_id text primary key, address text not null, signer text not null, config text not null);
-  create table if not exists operations (
-    hash text primary key, client_id text not null, kind text not null, user_op text not null, created_at integer not null);
-  create table if not exists sponsorships (
-    client_id text not null, month text not null, count integer not null, primary key (client_id, month));
-  create table if not exists identity_checks (client_id text primary key, passed_at integer not null);
-  create table if not exists audit (
-    id integer primary key, at integer not null, client_id text, event text not null, detail text not null, hash text not null);
-  `)
-  return handle
+export function store() {
+  return (handle ??= open());
 }
 
-export const json = (value: unknown) => JSON.stringify(value, (_, v) => (typeof v === 'bigint' ? v.toString() : v))
+function open() {
+  const vault = openVault(process.env.SWISSQUOTE_DB ?? "data/swissquote.db", process.env.SWISSQUOTE_SHARE_KEY);
+  const { db } = vault;
+  db.exec(`
+    create table if not exists wallets (
+      address text primary key collate nocase, recovery_key text not null collate nocase,
+      config text not null, created_at integer not null);
+    create index if not exists wallets_by_recovery_key on wallets (recovery_key);
+    create table if not exists operations (
+      hash text primary key, wallet text not null collate nocase, kind text not null,
+      user_op text not null, created_at integer not null);
+  `);
+  const wallet = (row: { address: Address; config: string } | undefined): Wallet | undefined =>
+    row && { address: row.address, config: JSON.parse(row.config) };
 
-/** Hash-chained audit log: each entry commits to the previous one (AMLA record keeping). */
-export function audit(clientId: string | null, event: string, detail: unknown = {}) {
-  const prev = db().prepare('select hash from audit order by id desc limit 1').get() as { hash: string } | undefined
-  const at = Date.now()
-  const body = json({ prev: prev?.hash ?? '', at, clientId, event, detail })
-  const hash = createHash('sha256').update(body).digest('hex')
-  db().prepare('insert into audit (at, client_id, event, detail, hash) values (?, ?, ?, ?, ?)').run(at, clientId, event, json(detail), hash)
+  return {
+    shares: vault,
+    addWallet({ address, config }: Wallet) {
+      db.prepare("insert into wallets values (?, ?, ?, ?)").run(address, config.recoveryKey, JSON.stringify(config), Date.now());
+    },
+    wallet: (address: Address) => wallet(db.prepare("select * from wallets where address = ?").get(address) as never),
+    walletByRecoveryKey: (recoveryKey: Address) =>
+      wallet(db.prepare("select * from wallets where recovery_key = ? order by created_at desc").get(recoveryKey) as never),
+    addOperation(hash: Hex, wallet: Address, kind: Kind, userOp: RpcUserOperation<"0.7">) {
+      db.prepare("insert or replace into operations values (?, ?, ?, ?, ?)").run(hash, wallet, kind, JSON.stringify(userOp), Date.now());
+    },
+    operation(hash: Hex, wallet: Address) {
+      const row = db.prepare("select * from operations where hash = ? and wallet = ?").get(hash, wallet) as
+        | { kind: Kind; user_op: string }
+        | undefined;
+      return row && { kind: row.kind, userOp: JSON.parse(row.user_op) as RpcUserOperation<"0.7"> };
+    },
+  };
 }

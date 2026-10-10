@@ -27,7 +27,7 @@ export const KEYS: readonly WalletKey[] = [
   {
     id: "key",
     title: "Wallet Key",
-    body: "Split between these three, so nobody holds it whole. Any two can sign.",
+    body: "Split between these three, so no one keeps it whole. Any two can rebuild it, and payments still need your Passkey.",
     Icon: KeyIcon,
     accent: "var(--color-orange)",
     cta: { idle: "Split Wallet Key", busy: "Splitting Wallet Key" },
@@ -35,25 +35,34 @@ export const KEYS: readonly WalletKey[] = [
   {
     id: "recovery",
     title: "Recovery Key",
-    body: "Restores your wallet if you lose this phone, after a 48-hour hold you can cancel. Keep it off this phone.",
+    body: "Restores your wallet if you lose this phone, after a 48-hour hold you can cancel. Keep it at home, off this phone.",
     Icon: RestoreIcon,
     accent: "var(--color-purple)",
     cta: { idle: "Save Recovery Key", busy: "Saving Recovery Key" },
   },
 ];
 
+/** What a step says when its work fails. The browser's own cancel and timeout text is a spec link, not copy. */
+export const FAILED = {
+  passkey: "Your passkey wasn't created. Try again.",
+  key: "Your Wallet Key wasn't split. Try again.",
+  recovery: "Your Recovery Key wasn't saved. Try again.",
+  setup: "Your wallet wasn't set up. Try again.",
+} as const;
+
 /** Who holds a part of the Wallet Key, in the order the parts land. */
 export const HOLDERS: readonly { name: string; Icon: Icon }[] = [
   { name: "This phone", Icon: PhoneIcon },
   { name: "Swissquote", Icon: BankIcon },
-  { name: "Backup service", Icon: CloudIcon },
+  { name: "Independent service", Icon: CloudIcon },
 ];
 
 export const RECOVERY_FILE = {
   name: "Fuse Recovery Key.txt",
   text: (secret: string) =>
-    `Fuse Recovery Key\n\n${secret}\n\nThis key restores your wallet if you lose your phone. Keep it somewhere other than your phone. Swissquote will never ask for it.`,
-  failed: "Your Recovery Key wasn't saved. Try again.",
+    `Fuse Recovery Key\n\n${secret}\n\nThis key restores your wallet if you lose your phone. Keep it safe at home, not on your phone. Swissquote will never ask you to send it.`,
+  /** The key inside a saved file, or undefined if the file holds none. */
+  read: (text: string) => text.match(/0x[0-9a-fA-F]{64}/)?.[0] as `0x${string}` | undefined,
 };
 
 /** The setup row's copy by status. Setup only idles after a failed registration; the ready body is the wallet's address. */

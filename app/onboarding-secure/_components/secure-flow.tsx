@@ -4,8 +4,8 @@ import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useReducer } from "react";
 import { blurred, sharp, smooth } from "@/app/(tabs)/_components/transitions";
-import { createPasskey, createRecoveryKey, registerWallet, splitWalletKey } from "@/lib/auth-client";
-import { KEYS, RECOVERY_FILE, SETUP } from "../data";
+import { phone } from "@/lib/wallet/phone";
+import { FAILED, KEYS, RECOVERY_FILE, SETUP } from "../data";
 import { flowReducer, initialFlow, keyState, pendingTimer, toneOf, type Keys } from "../flow";
 import { CreateButton } from "./create-button";
 import { GlimmBackdrop } from "./glimm-backdrop";
@@ -53,8 +53,8 @@ export function SecureFlow() {
   }, [ready, router]);
 
   const register = async (keys: Keys) => {
-    const result = await registerWallet(keys);
-    dispatch(result.ok ? { type: "registered", address: result.value.address } : { type: "failed", error: result.error });
+    const address = await phone.register(keys.recoveryKey).catch(() => null);
+    dispatch(address ? { type: "registered", address } : { type: "failed", error: FAILED.setup });
   };
 
   // All work starts in the click, never in an effect: WebAuthn and the share sheet need the click's user
@@ -64,23 +64,23 @@ export function SecureFlow() {
     dispatch({ type: "start" });
     switch (step.name) {
       case "passkey": {
-        const result = await createPasskey();
-        return dispatch(result.ok ? { type: "passkeyCreated", credentialId: result.value } : { type: "failed", error: result.error });
+        const credential = await phone.createPasskey().catch(() => null);
+        return dispatch(credential ? { type: "passkeyCreated", credential } : { type: "failed", error: FAILED.passkey });
       }
       case "key": {
-        const result = await splitWalletKey();
-        return dispatch(result.ok ? { type: "keySplit", mpcKey: result.value } : { type: "failed", error: result.error });
+        const signer = await phone.splitKey(step.keys.credential).catch(() => null);
+        return dispatch(signer ? { type: "keySplit", signer } : { type: "failed", error: FAILED.key });
       }
       case "recovery": {
-        const { secret, publicKey } = createRecoveryKey();
+        const { secret, address } = phone.createRecoveryKey();
         try {
           await saveRecoveryKey(secret);
         } catch (error) {
           const closed = error instanceof DOMException && error.name === "AbortError";
-          return dispatch(closed ? { type: "cancelled" } : { type: "failed", error: RECOVERY_FILE.failed });
+          return dispatch(closed ? { type: "cancelled" } : { type: "failed", error: FAILED.recovery });
         }
-        dispatch({ type: "recoverySaved", recoveryKey: publicKey });
-        return register({ ...step.keys, recoveryKey: publicKey });
+        dispatch({ type: "recoverySaved", recoveryKey: address });
+        return register({ ...step.keys, recoveryKey: address });
       }
       case "setup":
         return register(step.keys);

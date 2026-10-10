@@ -1,198 +1,202 @@
-// Builds, sponsors and submits UserOperations for clients' SwissquoteAccounts.
-import { randomUUID } from 'node:crypto'
+// Builds, sponsors and submits UserOperations. Swissquote submits them to the EntryPoint
+// itself and pays the gas through its paymaster, so the client never needs ETH.
+import { randomUUID } from "node:crypto";
 import {
+  BaseError,
+  ContractFunctionRevertedError,
   concat,
   createWalletClient,
+  decodeFunctionData,
   encodeAbiParameters,
   encodeFunctionData,
   http,
+  isAddressEqual,
+  parseEventLogs,
   type Address,
   type Hex,
-} from 'viem'
+} from "viem";
 import {
-  createBundlerClient,
   entryPoint07Abi,
   formatUserOperation,
   formatUserOperationRequest,
   getUserOperationHash,
   toPackedUserOperation,
   type UserOperation,
-} from 'viem/account-abstraction'
-import { privateKeyToAccount } from 'viem/accounts'
-import { factoryAbi, paymasterAbi, type Passkey } from '../account.ts'
-import { addresses, bundlerUrl, chain, entryPoint, publicClient, rpcUrl, signerUrls } from '../env.ts'
-import { PARTNER, remoteParty, run, SIGN_STEPS, SWISSQUOTE, toEthSignature } from '../mpc.ts'
-import { signTicket } from '../tickets.ts'
-import { HttpError, type Client } from './clients.ts'
-import { db, json } from './db.ts'
+} from "viem/account-abstraction";
+import { privateKeyToAccount } from "viem/accounts";
+import { getComplianceRuntime } from "@/services/compliance/runtime";
+import { accountAbi, factoryAbi, paymasterAbi, type Config, type Passkey } from "../account.ts";
+import { addresses, chain, credentials, partnerUrl, publicClient, rpcUrl } from "../env.ts";
+import { combine, type Share } from "../shamir.ts";
+import { signTicket } from "../tickets.ts";
+import { store, type Kind, type Wallet } from "./db.ts";
+import { HttpError } from "./http.ts";
 
-// ponytail: one key for paymaster signing, tickets and the guardian role; split them into an HSM in production.
-// Read lazily so builds without secrets work.
-export const swissquote = () => privateKeyToAccount(process.env.SWISSQUOTE_KEY as Hex)
-export const operator = () => createWalletClient({ account: swissquote(), chain, transport: http(rpcUrl) })
-export const bundler = createBundlerClient({ chain, transport: http(bundlerUrl) })
+/** Read lazily, so a build without secrets works. */
+export const swissquote = () => privateKeyToAccount(process.env.SWISSQUOTE_KEY as Hex);
+const operator = () => createWalletClient({ account: swissquote(), chain, transport: http(rpcUrl) });
 
-const SPONSORSHIP_TTL = 120n
-// Gas estimation runs with a stub signature, so the account rejects it before the WebAuthn
-// check (base64, sha256, P-256). This covers that part, including the no-precompile fallback.
-const WEBAUTHN_VERIFICATION_GAS = 300_000n
-const MAX_GAS_PER_OP = 2_000_000n
+// ponytail: fixed limits sized for a first operation that deploys the account plus a token
+// transfer with on-chain P-256 verification; estimate per operation once dApp calls need more.
+const GAS = {
+  callGasLimit: 300_000n,
+  verificationGasLimit: 1_000_000n,
+  preVerificationGas: 50_000n,
+  paymasterVerificationGasLimit: 100_000n,
+  paymasterPostOpGasLimit: 0n,
+};
+const SPONSORSHIP_TTL = 300n;
 
-// ---------------------------------------------------------------- wallet registry
-
-export type WalletConfig = {
-  signer: Address
-  passkey: Passkey
-  confirmationKey: Address
-  guardian: Address
-  recoveryDelay: number
-  rules: Address[]
-}
-export type Wallet = { address: Address; signer: Address; config: WalletConfig }
-
-export function getWallet(clientId: string): Wallet | undefined {
-  const row = db().prepare('select * from wallets where client_id = ?').get(clientId) as
-    | { address: Address; signer: Address; config: string }
-    | undefined
-  return row && { address: row.address, signer: row.signer, config: JSON.parse(row.config) }
+export function walletConfig(signer: Address, passkey: Passkey, recoveryKey: Address): Config {
+  return { signer, passkey, recoveryKey, guardian: swissquote().address, rules: [addresses.spendingLimitRule] };
 }
 
-export function requireWallet(clientId: string): Wallet {
-  const wallet = getWallet(clientId)
-  if (!wallet) throw new HttpError(404, 'no wallet yet')
-  return wallet
+export const predictAddress = (config: Config) =>
+  publicClient.readContract({ address: addresses.factory, abi: factoryAbi, functionName: "getAddress", args: [config, 0n] });
+
+export function requireWallet(address: Address): Wallet {
+  const wallet = store().wallet(address);
+  if (!wallet) throw new HttpError(404, "No wallet at that address.");
+  return wallet;
 }
 
-const IDENTITY_CHECK_TTL = 15 * 60_000
+export const liveCredentials = (wallet: Wallet) => credentials(wallet.address, () => wallet.config);
 
-/** Recovery steps need a recent pass of the (mocked) ID and liveness check. */
-export function requireIdentityCheck(client: Client) {
-  const check = db().prepare('select passed_at from identity_checks where client_id = ?').get(client.id) as
-    | { passed_at: number }
-    | undefined
-  if (!check || Date.now() - check.passed_at > IDENTITY_CHECK_TTL) throw new HttpError(403, 'pass the identity check first')
-}
-
-export function walletConfig(signer: Address, passkey: Passkey, confirmationKey: Address): WalletConfig {
-  return {
-    signer,
-    passkey,
-    confirmationKey,
-    guardian: swissquote().address,
-    recoveryDelay: Number(process.env.RECOVERY_DELAY ?? 48 * 3600),
-    rules: [addresses.spendingLimitRule],
+/** Swissquote assists only operations its compliance policy allows; refusing never freezes the wallet itself. */
+export async function assist(wallet: Wallet, callData: Hex) {
+  const call = decodeFunctionData({ abi: accountAbi, data: callData });
+  if (call.functionName === "cancelRecovery") return ["You cancel the pending recovery of your wallet."];
+  if (call.functionName !== "execute") throw new HttpError(403, "The app can't make this call.");
+  const [to, value, data] = call.args;
+  const requestId = randomUUID();
+  const { decision } = await getComplianceRuntime().engine.evaluate(
+    { requestId, nonce: requestId, chainId: chain.id, account: wallet.address, calls: [{ to, value: value.toString(), data, operation: "CALL" }] },
+    { subject: wallet.address.toLowerCase() },
+  );
+  if (decision.status !== "ALLOW") {
+    throw new HttpError(403, "Swissquote can't sponsor this transaction.", {
+      decision: { status: decision.status, reasons: decision.reasons.map((r) => r.message) },
+    });
   }
+  return decision.summary;
 }
 
-export const predictAddress = (config: WalletConfig) =>
-  publicClient.readContract({ address: addresses.factory, abi: factoryAbi, functionName: 'getAddress', args: [config, 0n] })
-
-/** The co-signer holds a share for this key, made in a ceremony this client was ticketed for. */
-export async function requireShare(client: Client, signer: Address, passkey: Passkey) {
-  const res = await fetch(`${signerUrls.swissquote}/shares/${signer}`)
-  const share = res.ok ? ((await res.json()) as { clientId: string; passkey: Passkey }) : undefined
-  if (share?.clientId !== client.id || share.passkey.x !== passkey.x || share.passkey.y !== passkey.y) {
-    throw new HttpError(403, 'this key did not come from your key ceremony with Swissquote')
-  }
-}
-
-// ---------------------------------------------------------------- operations
-
-export type Kind = 'normal' | 'recovery'
-
-/** Estimates gas, signs Swissquote's sponsorship and stores the operation for submission. */
-export async function prepare(client: Client, wallet: Wallet, kind: Kind, callData: Hex, stubSignature: Hex) {
-  const [code, nonce, gasPrice, block] = await Promise.all([
+/** Fills in nonce, gas, fees and Swissquote's sponsorship, and keeps the operation for submission. */
+export async function prepare(wallet: Wallet, kind: Kind, callData: Hex) {
+  const [code, nonce, fees, block] = await Promise.all([
     publicClient.getCode({ address: wallet.address }),
-    publicClient.readContract({ address: entryPoint, abi: entryPoint07Abi, functionName: 'getNonce', args: [wallet.address, 0n] }),
-    bundler.request({ method: 'pimlico_getUserOperationGasPrice' } as never) as Promise<{ fast: { maxFeePerGas: Hex; maxPriorityFeePerGas: Hex } }>,
+    publicClient.readContract({ address: addresses.entryPoint, abi: entryPoint07Abi, functionName: "getNonce", args: [wallet.address, 0n] }),
+    publicClient.estimateFeesPerGas(),
     publicClient.getBlock(),
-  ])
-  const draft = {
+  ]);
+  const userOp: UserOperation<"0.7"> = {
     sender: wallet.address,
     nonce,
     callData,
     ...(code
       ? {}
-      : {
-          factory: addresses.factory,
-          factoryData: encodeFunctionData({ abi: factoryAbi, functionName: 'createAccount', args: [wallet.config, 0n] }),
-        }),
-    maxFeePerGas: BigInt(gasPrice.fast.maxFeePerGas),
-    maxPriorityFeePerGas: BigInt(gasPrice.fast.maxPriorityFeePerGas),
+      : { factory: addresses.factory, factoryData: encodeFunctionData({ abi: factoryAbi, functionName: "createAccount", args: [wallet.config, 0n] }) }),
+    ...GAS,
+    maxFeePerGas: fees.maxFeePerGas,
+    maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
     paymaster: addresses.paymaster,
-    paymasterData: await sponsorship(0n, '0x'), // stub, replaced below
-    signature: stubSignature,
-  }
-
-  const gas = await bundler
-    .estimateUserOperationGas({ ...draft, entryPointAddress: entryPoint } as never)
-    .catch((error: Error) => {
-      throw new HttpError(422, 'this transaction would fail', { detail: error.message.split('\n')[0] })
-    })
-  const userOp = {
-    ...draft,
-    ...gas,
-    verificationGasLimit: gas.verificationGasLimit + WEBAUTHN_VERIFICATION_GAS,
-    paymasterPostOpGasLimit: gas.paymasterPostOpGasLimit ?? 0n,
-  } as UserOperation<'0.7'>
-  if (userOp.verificationGasLimit + userOp.callGasLimit > MAX_GAS_PER_OP) throw new HttpError(422, 'gas above the sponsorship cap')
-
-  const validUntil = block.timestamp + SPONSORSHIP_TTL
-  const sponsorHash = await publicClient.readContract({
+    paymasterData: "0x",
+    signature: "0x",
+  };
+  const validUntil = Number(block.timestamp + SPONSORSHIP_TTL);
+  const sponsored = await publicClient.readContract({
     address: addresses.paymaster,
     abi: paymasterAbi,
-    functionName: 'getHash',
-    args: [toPackedUserOperation(userOp), Number(validUntil), 0],
-  })
-  userOp.paymasterData = await sponsorship(validUntil, await swissquote().signMessage({ message: { raw: sponsorHash } }))
-
-  const hash = getUserOperationHash({ chainId: chain.id, entryPointAddress: entryPoint, entryPointVersion: '0.7', userOperation: userOp })
-  const rpc = formatUserOperationRequest(userOp)
-  db().prepare('insert into operations values (?, ?, ?, ?, ?)').run(hash, client.id, kind, json(rpc), Date.now())
-  return { hash, userOp: rpc }
+    functionName: "getHash",
+    args: [toPackedUserOperation(userOp), validUntil, 0],
+  });
+  userOp.paymasterData = concat([
+    encodeAbiParameters([{ type: "uint48" }, { type: "uint48" }], [validUntil, 0]),
+    await swissquote().signMessage({ message: { raw: sponsored } }),
+  ]);
+  const hash = getUserOperationHash({ chainId: chain.id, entryPointAddress: addresses.entryPoint, entryPointVersion: "0.7", userOperation: userOp });
+  const rpc = formatUserOperationRequest(userOp);
+  store().addOperation(hash, wallet.address, kind, rpc);
+  return { hash, userOp: rpc };
 }
 
-/** paymasterData for eth-infinitism's VerifyingPaymaster: abi.encode(validUntil, validAfter) ++ signature. */
-async function sponsorship(validUntil: bigint, signature: Hex) {
-  const window = encodeAbiParameters([{ type: 'uint48' }, { type: 'uint48' }], [Number(validUntil), 0])
-  // The stub must still be a recoverable signature: the paymaster uses ECDSA.recover, which reverts otherwise.
-  return concat([window, signature === '0x' ? await swissquote().signMessage({ message: 'estimation stub' }) : signature])
+export function loadOperation(wallet: Wallet, hash: Hex, kind: Kind) {
+  const row = store().operation(hash, wallet.address);
+  if (row?.kind !== kind) throw new HttpError(404, "No such operation.");
+  return formatUserOperation(row.userOp) as UserOperation<"0.7">;
 }
 
-export function loadOperation(client: Client, hash: Hex) {
-  const row = db().prepare('select * from operations where hash = ? and client_id = ?').get(hash, client.id) as
-    | { kind: Kind; user_op: string }
-    | undefined
-  if (!row) throw new HttpError(404, 'unknown operation')
-  return { kind: row.kind, userOp: formatUserOperation(JSON.parse(row.user_op)) as UserOperation<'0.7'> }
+// ponytail: one transaction at a time keeps Swissquote's own nonces in order; a nonce manager lifts it.
+let queue: Promise<unknown> = Promise.resolve();
+function serialize<T>(task: () => Promise<T>): Promise<T> {
+  const run = queue.then(task);
+  queue = run.catch(() => undefined);
+  return run;
 }
 
-export async function submit(userOp: UserOperation<'0.7'>, signature: Hex) {
-  return bundler
-    .sendUserOperation({ ...userOp, signature, entryPointAddress: entryPoint } as never)
-    .catch((error: Error) => {
-      throw new HttpError(422, 'the bundler rejected the operation', { detail: error.message.split('\n')[0] })
-    })
+/** Simulates, then submits through the EntryPoint. Resolves once the operation succeeded on-chain. */
+export function submit(userOp: UserOperation<"0.7">, signature: Hex): Promise<Hex> {
+  return serialize(async () => {
+    const { request } = await publicClient
+      .simulateContract({
+        account: swissquote(),
+        address: addresses.entryPoint,
+        abi: entryPoint07Abi,
+        functionName: "handleOps",
+        args: [[toPackedUserOperation({ ...userOp, signature })], swissquote().address],
+      })
+      .catch((error: unknown) => {
+        throw new HttpError(422, "The operation would fail.", { detail: revertReason(error) });
+      });
+    const transactionHash = await operator().writeContract(request);
+    const receipt = await publicClient.waitForTransactionReceipt({ hash: transactionHash });
+    const [event] = parseEventLogs({ abi: entryPoint07Abi, eventName: "UserOperationEvent", logs: receipt.logs });
+    if (!event?.args.success) throw new HttpError(422, "The operation reverted.", { transactionHash });
+    return transactionHash;
+  });
 }
 
-/** Swissquote (Share B) and the partner (Share C) sign a recovery the client confirmed with their home key. */
-export async function signRecovery(wallet: Wallet, hash: Hex, userOp: UserOperation<'0.7'>, confirmationSignature: Hex) {
-  const approval = await signTicket(swissquote(), chain.id, 'RecoveryApproval', {
-    wallet: wallet.address,
-    userOpHash: hash,
-    expiry: Math.floor(Date.now() / 1000) + 300,
-  })
-  const request = { kind: 'recovery', signer: wallet.signer, userOp: formatUserOperationRequest(userOp), confirmationSignature, approval }
-  const session = randomUUID()
-  const [result] = await run(
-    [
-      remoteParty(SWISSQUOTE, `${signerUrls.swissquote}/sign/${session}`, { request }),
-      remoteParty(PARTNER, `${signerUrls.partner}/sign/${session}`, { request }),
-    ],
-    SIGN_STEPS,
-  ).catch((error: Error) => {
-    throw new HttpError(403, 'the signers refused the recovery', { detail: error.message })
-  })
-  return toEthSignature(result.signature!, hash, wallet.signer)
+/** Swissquote calls the account itself: to cancel a recovery as guardian, or to finalize one, which anyone may. */
+export function callAccount(wallet: Address, functionName: "cancelRecovery" | "finalizeRecovery"): Promise<Hex> {
+  return serialize(async () => {
+    const { request } = await publicClient
+      .simulateContract({ account: swissquote(), address: wallet, abi: accountAbi, functionName })
+      .catch((error: unknown) => {
+        throw new HttpError(409, functionName === "finalizeRecovery" ? "The recovery can't be finalized yet." : "There is no recovery to cancel.", {
+          detail: revertReason(error),
+        });
+      });
+    const transactionHash = await operator().writeContract(request);
+    await publicClient.waitForTransactionReceipt({ hash: transactionHash });
+    return transactionHash;
+  });
+}
+
+function revertReason(error: unknown) {
+  const reverted = error instanceof BaseError ? error.walk((e) => e instanceof ContractFunctionRevertedError) : undefined;
+  if (reverted instanceof ContractFunctionRevertedError && reverted.data) return `${reverted.data.errorName}(${reverted.data.args?.join(", ")})`;
+  return error instanceof BaseError ? error.shortMessage : String(error);
+}
+
+/**
+ * Swissquote's Share B and the partner's Share C rebuild the wallet key for this one recovery
+ * signature, then the key is dropped. The partner checks the recovery key's signature itself.
+ */
+export async function signRecovery(wallet: Wallet, hash: Hex, userOp: UserOperation<"0.7">, recoverySignature: Hex): Promise<Hex> {
+  const { signer } = await liveCredentials(wallet);
+  const approval = await signTicket(swissquote(), chain.id, "RecoveryApproval", { wallet: wallet.address, userOpHash: hash });
+  const res = await fetch(`${partnerUrl}/recovery`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ approval, userOp: formatUserOperationRequest(userOp), signature: recoverySignature }),
+  }).catch(() => {
+    throw new HttpError(503, "The independent service is unreachable.");
+  });
+  const body = (await res.json()) as { share: Share } | { error: string };
+  if ("error" in body) throw new HttpError(403, "The independent service refused the recovery.", { detail: body.error });
+  const b = store().shares.get(signer);
+  if (!b) throw new HttpError(500, "Swissquote holds no Share B for this wallet's key.");
+  const key = privateKeyToAccount(combine(b.share, body.share));
+  if (!isAddressEqual(key.address, signer)) throw new HttpError(500, "Shares B and C do not rebuild this wallet's key.");
+  return key.sign({ hash });
 }

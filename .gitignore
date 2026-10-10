@@ -32,7 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
-!.env.compliance.example
+!.env.example
 
 # Local compliance audit records contain transaction metadata
 /var/compliance/
@@ -47,8 +47,6 @@ next-env.d.ts
 # playwright output
 /shots/
 
-# better-auth sqlite
-/fuse.db*
 
 # wallet backend databases
 /data/
