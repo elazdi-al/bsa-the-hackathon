@@ -16,6 +16,8 @@ import { SendButton, type Phase } from "./send-button";
 
 const AMOUNT = /^\d+(\.\d{0,6})?$/;
 const SENT_MS = 700;
+// The demo policy steps up above 1,000 USDC (scripts/local.ts), and this build has no second factor to offer.
+const STEP_UP = "Payments over 1,000 USDC need an extra check this demo doesn't offer.";
 
 /** Why this phone can't send yet, by wallet status. */
 const UNAVAILABLE: Record<Exclude<WalletSnapshot["status"], "ready">, string> = {
@@ -48,7 +50,8 @@ function failure(e: unknown): string[] {
     const expired = /AA32|expired/i.test(String(e.body.detail));
     return [expired ? "This approval expired. Press Continue to check it again." : "Your wallet couldn't make this payment. Check the amount and try again."];
   }
-  const decision = e.body.decision as { reasons?: string[] } | undefined;
+  const decision = e.body.decision as { status?: string; reasons?: string[] } | undefined;
+  if (decision?.status === "STEP_UP") return [STEP_UP];
   return [e.message, ...(decision?.reasons ?? [])];
 }
 
@@ -190,7 +193,8 @@ function Review({ to, address, children }: { to: string; address: Address; child
               ))}
             </div>
           )}
-          <SendButton phase={phase} disabled={!valid || blocked !== undefined} onPress={phase === "confirm" ? send : check} />
+          {/* Pressing again can't pass a step-up: only a new amount can. */}
+          <SendButton phase={phase} disabled={!valid || blocked !== undefined || error.includes(STEP_UP)} onPress={phase === "confirm" ? send : check} />
         </div>
       </div>
     </MotionConfig>
