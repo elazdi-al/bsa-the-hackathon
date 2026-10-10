@@ -4,6 +4,8 @@ Implementation of the policy part of `PROPOSAL.md`, section 8. The service evalu
 
 This is a hackathon component, not a legal compliance certification. The existing wallet UI is unchanged. No Safe, MPC, wallet creation, passkey, paymaster or blockchain-broadcast implementation is included here.
 
+See [Legal and regulatory briefing](LEGAL_AND_REGULATORY.md) for the researched Swiss/EU framework, qualifications to the proposal's legal claims, product-specific questions and production launch gates.
+
 ## Run the demo
 
 Requires Node.js 20.9+ and installed dependencies. From the repository root:

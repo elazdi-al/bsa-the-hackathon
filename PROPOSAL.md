@@ -396,6 +396,8 @@ In phase 2 the client can add on-chain rules through ERC-7579 modules on the Saf
 
 This is our reading of the sources in section 16, not legal advice. Section 9.6 lists what a lawyer would need to confirm.
 
+The [legal and regulatory briefing](docs/LEGAL_AND_REGULATORY.md) critically reviews and qualifies the claims in this section, including custody, automatic ownership verification, co-signed payment roles, retention and EU expansion. Treat those claims as working hypotheses pending the reviews described there, not established launch permissions.
+
 ### 9.1 Custody
 
 Our position: this is not custody.
