@@ -1,6 +1,7 @@
 import { EyeSlashIcon, LightningIcon, WalletIcon } from "@phosphor-icons/react/ssr";
 
 export const transfer = {
+  usd: 250,
   amount: { whole: "$250", cents: ".00" },
   token: "250.00 USDC",
 };

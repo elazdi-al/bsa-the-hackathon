@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { sendDraft } from "@/app/choose-recipient/data";
 import { useEffect, useId, useState } from "react";
 import { Switch } from "@/components/ui/switch";
+import { transfer } from "../data";
 import { HowItWorksSheet } from "./how-it-works-sheet";
 import { ShieldLeftHalf } from "./icons";
 import { SendButton, type Phase } from "./send-button";
@@ -12,7 +13,7 @@ import { SendButton, type Phase } from "./send-button";
 const SENDING_MS = 1400;
 const SENT_MS = 900;
 
-export function HideMyWallet({ to }: { to?: string }) {
+export function HideMyWallet({ to, label }: { to?: string; label: string }) {
   const router = useRouter();
   const titleId = useId();
   const [hidden, setHidden] = useState(false);
@@ -24,12 +25,16 @@ export function HideMyWallet({ to }: { to?: string }) {
 
   useEffect(() => {
     if (phase === "review") return;
-    const id = setTimeout(
-      () => (phase === "sending" ? setPhase("sent") : router.push("/home")),
-      phase === "sending" ? SENDING_MS : SENT_MS,
-    );
+    const id = setTimeout(() => {
+      if (phase === "sending") return setPhase("sent");
+      sendDraft.clear();
+      // Replace, so Back from History can't land on a review that's already sent.
+      router.replace(`/history?${new URLSearchParams({ sent: label, amount: String(transfer.usd) })}`, {
+        transitionTypes: ["pop"],
+      });
+    }, phase === "sending" ? SENDING_MS : SENT_MS);
     return () => clearTimeout(id);
-  }, [phase, router]);
+  }, [phase, router, label]);
 
   return (
     <MotionConfig reducedMotion="user">
