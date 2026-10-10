@@ -67,7 +67,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
           </dl>
 
           <div className="mt-auto pt-10 md:mt-0">
-            <HideMyWallet to={typeof to === "string" ? to : undefined} label={shown.name} />
+            <HideMyWallet to={typeof to === "string" ? to : undefined} />
           </div>
         </div>
       </main>

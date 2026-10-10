@@ -62,7 +62,7 @@ export function TransactionSheet({
 
 /** A direct visit to /transaction-tracking: the sheet is up on arrival and closing it leaves the screen. */
 export function TransactionRoute() {
-  const back = useBack("/history");
+  const back = useBack("/home");
   const [open, setOpen] = useState(true);
   return <TransactionSheet open={open} onOpenChange={setOpen} onClosed={back} />;
 }

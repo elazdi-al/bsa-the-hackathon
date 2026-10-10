@@ -9,7 +9,7 @@ export const blurSwap = {
   transition: snappy,
 };
 
-/** The app's icon swap, as in Settings and the Receive sheet. */
+/** The app's icon swap, as in the Receive sheet. */
 export const iconSwap = {
   initial: { opacity: 0, scale: 0.25, filter: "blur(4px)" },
   animate: { opacity: 1, scale: 1, filter: sharp },

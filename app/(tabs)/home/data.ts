@@ -67,3 +67,53 @@ export const promos: Promo[] = [
 ];
 
 export const promoInterval = 3200;
+
+export type Kind = "receive" | "send" | "swap" | "reward" | "deposit" | "card" | "membership" | "withdrawal";
+
+export type Tx = {
+  id: string;
+  account: TileId;
+  kind: Kind;
+  title: string;
+  /** Detail after the day in the row subtitle. */
+  detail: string;
+  /** "YYYY-MM-DD". */
+  date: string;
+  /** Fiat value in USD. */
+  usd: number;
+  /** "in" is green with +, "out" is ink with −, "swap" is unsigned. */
+  flow: "in" | "out" | "swap";
+  /** Secondary line under the fiat value. */
+  crypto?: string;
+  status: "Completed" | "Pending";
+};
+
+/** Recent activity in the account sheets. */
+export const transactions: Tx[] = [
+  { id: "t1", account: "card", kind: "card", title: "Blue Bottle Coffee", detail: "Fuse Card", date: "2025-03-12", usd: 6.5, flow: "out", status: "Pending" },
+  { id: "t2", account: "investments", kind: "receive", title: "Received from toly.sol", detail: "86xC...2MMY", date: "2025-03-12", usd: 119.51, flow: "in", crypto: "0.92 SOL", status: "Completed" },
+  { id: "t3", account: "cash", kind: "send", title: "Sent to Solana wallet", detail: "Ledger", date: "2025-03-12", usd: 250, flow: "out", crypto: "250.00 USDC", status: "Completed" },
+  { id: "t4", account: "investments", kind: "swap", title: "SOL to USDC", detail: "Swap", date: "2025-03-11", usd: 259.8, flow: "swap", crypto: "259.80 USDC", status: "Completed" },
+  { id: "t5", account: "cash", kind: "withdrawal", title: "USDC Withdrawal", detail: "Revolut ••••1342", date: "2025-03-11", usd: 1508.5, flow: "out", crypto: "1,508.50 USDC", status: "Completed" },
+  { id: "t6", account: "card", kind: "card", title: "Uber Eats", detail: "Fuse Card", date: "2025-03-11", usd: 24.9, flow: "out", status: "Completed" },
+  { id: "t7", account: "earn", kind: "reward", title: "Staking reward", detail: "Solana", date: "2025-03-10", usd: 649.5, flow: "in", crypto: "5.00 SOL", status: "Completed" },
+  { id: "t8", account: "cash", kind: "deposit", title: "Bank deposit", detail: "Bridge", date: "2025-03-10", usd: 2500, flow: "in", crypto: "2,500.00 USDC", status: "Completed" },
+  { id: "t9", account: "investments", kind: "swap", title: "USDC to JUP", detail: "Swap", date: "2025-03-07", usd: 100, flow: "swap", crypto: "142.86 JUP", status: "Completed" },
+  { id: "t10", account: "card", kind: "card", title: "Spotify", detail: "Fuse Card", date: "2025-03-07", usd: 11.99, flow: "out", status: "Completed" },
+  { id: "t11", account: "cash", kind: "receive", title: "Received PYUSD", detail: "9Qk2...vT4n", date: "2025-03-05", usd: 300, flow: "in", crypto: "300.00 PYUSD", status: "Completed" },
+  { id: "t12", account: "investments", kind: "swap", title: "SOL to JTO", detail: "Swap", date: "2025-03-05", usd: 389.7, flow: "swap", crypto: "203.71 JTO", status: "Completed" },
+  { id: "t13", account: "card", kind: "membership", title: "Fuse Plus", detail: "Monthly membership", date: "2025-02-28", usd: 4.99, flow: "out", status: "Completed" },
+  { id: "t14", account: "cash", kind: "send", title: "Sent to 9Qk2...vT4n", detail: "Wallet", date: "2025-02-28", usd: 75, flow: "out", crypto: "75.00 USDC", status: "Completed" },
+  { id: "t15", account: "cash", kind: "deposit", title: "Bank deposit", detail: "Bridge", date: "2025-02-24", usd: 1200, flow: "in", crypto: "1,200.00 USDC", status: "Completed" },
+  { id: "t16", account: "card", kind: "card", title: "Whole Foods", detail: "Fuse Card", date: "2025-02-24", usd: 63.42, flow: "out", status: "Completed" },
+  { id: "t17", account: "earn", kind: "reward", title: "Staking reward", detail: "Solana", date: "2025-02-18", usd: 623.52, flow: "in", crypto: "4.80 SOL", status: "Completed" },
+];
+
+const dayFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", timeZone: "UTC" });
+
+export function dayLabel(iso: string) {
+  const diff = Math.floor(now / day) - Date.parse(iso) / day;
+  if (diff === 0) return "Today";
+  if (diff === 1) return "Yesterday";
+  return dayFmt.format(Date.parse(iso));
+}

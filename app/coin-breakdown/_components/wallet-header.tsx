@@ -1,12 +1,11 @@
 import { CheckCircleIcon, ClockIcon, CopyIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "motion/react";
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BackButton } from "@/components/ui/back-button";
 import { wallet } from "../data";
 
 const short = (address: string) => `${address.slice(0, 4)}...${address.slice(-4)}`;
-// The app's icon swap, as in Settings and the Receive sheet.
+// The app's icon swap, as in the Receive sheet.
 const iconHidden = { opacity: 0, scale: 0.25, filter: "blur(4px)" };
 const iconSwap = { type: "spring", duration: 0.3, bounce: 0 } as const;
 
@@ -21,15 +20,15 @@ export function WalletHeader() {
         <h1 className="text-[17px]/[22px] font-semibold tracking-[-0.01em]">{wallet.name}</h1>
         <CopyAddress />
       </div>
-      <Link
-        href="/history"
-        replace
-        transitionTypes={["pop"]}
+      {/* No History screen yet. */}
+      <button
+        type="button"
+        disabled
         aria-label="History"
         className="-mr-2.5 grid size-11 place-items-center rounded-full text-[#b7b7b7] outline-none transition-transform duration-150 ease-out focus-visible:ring-2 focus-visible:ring-black/20 active:scale-[0.96]"
       >
         <ClockIcon weight="fill" mirrored className="size-6" />
-      </Link>
+      </button>
     </header>
   );
 }

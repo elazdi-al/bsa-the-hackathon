@@ -4,8 +4,6 @@ const screens = [
   { slug: "onboarding-welcome", title: "Onboarding: welcome & Sign in with Apple", refs: "02-onboarding.mp4 (0–4.5s)" },
   { slug: "onboarding-secure", title: "Onboarding: secure your wallet", refs: "02-onboarding.mp4 (4.5–24.7s)" },
   { slug: "home", title: "Home", refs: "03, 08, 01" },
-  { slug: "history", title: "Transaction history", refs: "—" },
-  { slug: "settings", title: "Settings", refs: "—" },
   { slug: "coin-breakdown", title: "Coin breakdown", refs: "11-coin-breakdown.mp4" },
   { slug: "choose-recipient", title: "Address input field", refs: "05-address-input-field.mp4" },
   { slug: "send-hide-my-wallet", title: "Send with Hide My Wallet", refs: "04-send-hide-my-wallet.mp4" },

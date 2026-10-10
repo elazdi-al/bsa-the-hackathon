@@ -2,7 +2,7 @@ import { CheckCircleIcon, CopyIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState, type ReactNode } from "react";
 
-// The app's icon swap, as in Settings and the Receive sheet.
+// The app's icon swap, as in the Receive sheet.
 const iconHidden = { opacity: 0, scale: 0.25, filter: "blur(4px)" };
 const iconShown = { opacity: 1, scale: 1, filter: "blur(0px)" };
 const iconSwap = { type: "spring", duration: 0.3, bounce: 0 } as const;

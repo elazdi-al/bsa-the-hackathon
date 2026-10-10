@@ -9,7 +9,7 @@ import { ViewTransition, addTransitionType, startTransition, useEffect, useRef, 
  */
 export type ScreenTransition = "tab-forward" | "tab-back" | "push" | "pop";
 
-const tabs = ["/home", "/history", "/settings"];
+const tabs = ["/home"];
 
 export function transitionFor(from: string, to: string, back = false): ScreenTransition {
   const a = tabs.indexOf(from);

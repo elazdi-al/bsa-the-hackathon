@@ -83,7 +83,7 @@ function DrawerContent({
   )
 }
 
-// A grey card floating clear of the screen edges, for detail sheets (history, withdrawal tracking).
+// A grey card floating clear of the screen edges, for detail sheets (accounts, withdrawal tracking).
 function FloatingSheetContent({
   className,
   ...props
