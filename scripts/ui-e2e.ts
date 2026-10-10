@@ -1,6 +1,6 @@
 // The wallet's screens end to end in Chromium, each phone a fresh browser profile with a virtual
 // passkey authenticator: create a wallet, send USDC, lose the phone and recover with the Recovery Key
-// file; Swissquote cancels once, the old phone cancels once from Home, then the 48-hour delay passes
+// file once a key no wallet uses and someone else's ID are refused; Swissquote cancels once, the old phone cancels once from Home, then the 48-hour delay passes
 // (fast-forwarded on anvil) and the new phone sends.
 //
 //   npm run e2e:ui            (against `npm run local`; HEADED=1 to watch)
@@ -77,9 +77,29 @@ console.log("2. Send 20 USDC from the Send screen: Face ID, Swissquote pays the 
 await send(phone1, FRIEND, "20");
 assert.equal(await usdcOf(FRIEND), parseUnits("20", 6));
 
-console.log("3. New phone: Recovery Key file, ID check, new passkey and key; Swissquote cancels it for the user");
+console.log("3. New phone: a Recovery Key no wallet uses, then someone else's ID, are refused; the owner's ID passes");
 const phone2 = await newPhone();
-await recover(phone2, kit);
+await phone2.goto(`${APP}/recover`);
+await phone2.getByLabel("Recovery Key").fill(`0x${"7".repeat(64)}`);
+await phone2.getByRole("button", { name: "Continue" }).click();
+await phone2.getByText("This Recovery Key doesn't open a wallet").waitFor(SLOW);
+await phone2.getByRole("button", { name: "Choose another file" }).click();
+await phone2.locator("input[type=file]").setInputFiles(kit);
+await phone2.getByRole("button", { name: "Continue" }).click();
+await phone2.getByText(/^Mock ID: /).waitFor(SLOW);
+// What a scan of someone else's ID and face would send.
+await phone2.route("**/api/recovery", (route) =>
+  route.continue({ postData: JSON.stringify({ ...route.request().postDataJSON(), identity: { document: "C0000000", selfie: "face-of-someone-else" } }) }),
+);
+await phone2.getByRole("button", { name: "Scan ID" }).click();
+await phone2.getByRole("button", { name: "Restore with Face ID" }).click(SLOW);
+await phone2.getByText("This ID doesn't match").waitFor(SLOW);
+await phone2.unroute("**/api/recovery");
+await phone2.getByRole("button", { name: "Try again" }).click();
+await phone2.getByRole("button", { name: "Scan ID" }).click();
+await phone2.getByRole("button", { name: "Restore with Face ID" }).click(SLOW);
+await phone2.getByText("Your wallet will be restored on").waitFor(SLOW);
+console.log("   Swissquote cancels it for the user");
 await phone2.getByRole("button", { name: "Cancel recovery" }).click();
 await phone2.getByText("Recover your wallet").waitFor(SLOW);
 
@@ -101,6 +121,13 @@ console.log("6. The new phone sends 5 USDC: same address, same balance");
 await send(phone2, FRIEND, "5");
 assert.equal(await walletOf(phone2), wallet);
 console.log(`   friend has ${formatUnits(await usdcOf(FRIEND), 6)} USDC, the wallet ${formatUnits(await usdcOf(wallet), 6)} USDC`);
+
+console.log("7. The ID check signed the new phone in to Swissquote as the same client, who Settings shows verified");
+const clientOf = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem("swissquote.session") ?? "null")?.client);
+assert.deepEqual(await clientOf(phone2), await clientOf(phone1));
+await phone2.goto(`${APP}/settings`);
+await phone2.getByText((await clientOf(phone1)).name).waitFor(SLOW);
+await phone2.getByText("Verified as yours by Swissquote").waitFor(SLOW);
 
 await browser.close();
 console.log("All good.");
