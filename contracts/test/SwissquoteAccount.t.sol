@@ -110,6 +110,30 @@ contract SwissquoteAccountTest is Test {
         _handle(op);
     }
 
+    // ---------------------------------------------------------------- held payment
+
+    /// Above 1,000 USDC, Swissquote sponsors the payment only from 24 hours on, under a nonce key of its own.
+    function test_heldPaymentLeavesOnlyAfterItsRelease() public {
+        _deploy();
+        PackedUserOperation memory held = _op(_transfer(anna, 500e6), false);
+        held.nonce = entryPoint.getNonce(address(account), 7);
+        uint48 releaseAt = uint48(block.timestamp + 24 hours);
+        _sponsor(held, releaseAt + 7 days, releaseAt);
+        _signNormal(held, walletKey, passkeyKey);
+
+        vm.expectRevert(abi.encodeWithSelector(IEntryPoint.FailedOp.selector, 0, "AA32 paymaster expired or not due"));
+        _handle(held);
+
+        // A payment sent meanwhile uses nonce key 0 and leaves the held one valid.
+        PackedUserOperation memory small = _op(_transfer(anna, 5e6), false);
+        _signNormal(small, walletKey, passkeyKey);
+        _handle(small);
+
+        vm.warp(releaseAt);
+        _handle(held);
+        assertEq(usdc.balanceOf(anna), 525e6);
+    }
+
     // ---------------------------------------------------------------- recovery
 
     function test_recoveryFlow() public {
@@ -254,11 +278,14 @@ contract SwissquoteAccountTest is Test {
         op.preVerificationGas = 60_000;
         op.gasFees = bytes32((uint256(1 gwei) << 128) | 2 gwei); // priority | max
 
-        // Swissquote's Wallet API signs the sponsorship: it pays the gas.
-        uint48 validUntil = uint48(block.timestamp + 120);
+        _sponsor(op, uint48(block.timestamp + 120), 0);
+    }
+
+    /// Swissquote's Wallet API signs the sponsorship: it pays the gas, between validAfter and validUntil.
+    function _sponsor(PackedUserOperation memory op, uint48 validUntil, uint48 validAfter) internal view {
         op.paymasterAndData =
-            abi.encodePacked(address(paymaster), uint128(60_000), uint128(0), abi.encode(validUntil, uint48(0)));
-        bytes32 h = MessageHashUtils.toEthSignedMessageHash(paymaster.getHash(op, validUntil, 0));
+            abi.encodePacked(address(paymaster), uint128(60_000), uint128(0), abi.encode(validUntil, validAfter));
+        bytes32 h = MessageHashUtils.toEthSignedMessageHash(paymaster.getHash(op, validUntil, validAfter));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(paymasterSigner, h);
         op.paymasterAndData = abi.encodePacked(op.paymasterAndData, r, s, v);
     }
