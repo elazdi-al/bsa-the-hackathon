@@ -1,4 +1,4 @@
-import { CaretDownIcon, CheckCircleIcon, ClockIcon, CopyIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, ClockIcon, CopyIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -18,18 +18,17 @@ export function WalletHeader() {
         <FuseMark />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="flex items-center gap-1.5 text-[17px]/[22px] font-semibold tracking-[-0.01em]">
-          {wallet.name}
-          <CaretDownIcon weight="bold" aria-hidden className="size-3.5" />
-        </p>
+        <h1 className="text-[17px]/[22px] font-semibold tracking-[-0.01em]">{wallet.name}</h1>
         <CopyAddress />
       </div>
       <Link
         href="/history"
+        replace
+        transitionTypes={["pop"]}
         aria-label="History"
         className="-mr-2.5 grid size-11 place-items-center rounded-full text-[#b7b7b7] outline-none transition-transform duration-150 ease-out focus-visible:ring-2 focus-visible:ring-black/20 active:scale-[0.96]"
       >
-        <ClockIcon weight="duotone" mirrored className="size-6" />
+        <ClockIcon weight="fill" mirrored className="size-6" />
       </Link>
     </header>
   );

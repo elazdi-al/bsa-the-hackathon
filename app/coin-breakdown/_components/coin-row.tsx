@@ -15,23 +15,23 @@ export function CoinRow({ coin, state, onToggle }: { coin: Coin; state: RowState
   const panelId = `breakdown-${coin.id}`;
 
   return (
-    <li className="relative">
+    <li className="relative px-2.5">
       <Recede active={state === "receded"}>
         <button
           type="button"
           aria-expanded={open}
           aria-controls={panelId}
           onClick={onToggle}
-          className="flex w-full items-center gap-4 px-[22px] py-[15px] text-left outline-none transition-transform duration-150 ease-out focus-visible:bg-black/[0.04] active:scale-[0.98]"
+          className="flex w-full items-center gap-4 rounded-[18px] px-3 py-[15px] text-left outline-none transition-colors duration-150 ease-out focus-visible:ring-2 focus-visible:ring-fuse-blue active:bg-black/[0.04] [@media(hover:hover)]:hover:bg-black/[0.025]"
         >
           <CoinAvatar coin={coin} open={open} />
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[17px]/[22px] font-semibold tracking-[-0.01em]">{coin.name}</span>
-            <span className="mt-0.5 block truncate text-[15px]/5 text-[#858585]">
+            <span className="mt-0.5 block truncate text-[15px]/5 text-[#858585] tabular-nums">
               {amount.format(coin.amount)} {coin.symbol}
             </span>
           </span>
-          <span className="shrink-0 text-right text-[15px] font-medium">
+          <span className="shrink-0 text-right text-[15px] font-medium tabular-nums">
             <span className="block leading-[22px]">{usd.format(coin.value)}</span>
             {coin.change !== undefined && (
               <span className={`mt-0.5 block leading-5 ${coin.change < 0 ? "text-negative" : "text-positive"}`}>
@@ -105,7 +105,7 @@ function Breakdown({ id, coin }: { id: string; coin: Coin }) {
       initial="hidden"
       animate="shown"
       exit="gone"
-      className="absolute inset-x-0 top-full z-10 pt-[3px] pr-[22px] pl-20 text-[15px] font-medium max-[375px]:pl-14"
+      className="absolute inset-x-0 top-full z-10 pt-[3px] pr-[22px] pl-20 text-[15px] font-medium tabular-nums max-[375px]:pl-14"
     >
       <motion.div variants={bar} className="flex h-1 gap-1">
         <span className="rounded-full bg-fuse-blue" style={{ width: `${availableShare(coin) * 100}%` }} />
