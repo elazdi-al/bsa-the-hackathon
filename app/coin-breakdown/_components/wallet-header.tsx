@@ -4,10 +4,11 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BackButton } from "@/components/ui/back-button";
 import { wallet } from "../data";
-import { iconSwap } from "./motion";
 
 const short = (address: string) => `${address.slice(0, 4)}...${address.slice(-4)}`;
+// The app's icon swap, as in Settings and the Receive sheet.
 const iconHidden = { opacity: 0, scale: 0.25, filter: "blur(4px)" };
+const iconSwap = { type: "spring", duration: 0.3, bounce: 0 } as const;
 
 export function WalletHeader() {
   return (

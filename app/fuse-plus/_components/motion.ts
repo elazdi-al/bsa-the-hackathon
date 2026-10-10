@@ -1,6 +1,5 @@
 import { stagger, type Transition, type Variants } from "motion/react";
-
-const settle: Transition = { type: "spring", duration: 0.7, bounce: 0 };
+import { blurred, reveal, sharp, smooth } from "@/app/(tabs)/_components/transitions";
 
 export const sequence: Variants = {
   hidden: {},
@@ -8,13 +7,13 @@ export const sequence: Variants = {
 };
 
 export const rise: Variants = {
-  hidden: { opacity: 0, y: 10, filter: "blur(6px)" },
-  shown: { opacity: 1, y: 0, filter: "blur(0px)", transition: settle },
+  hidden: { opacity: 0, y: 10, filter: blurred },
+  shown: { opacity: 1, y: 0, filter: sharp, transition: reveal },
 };
 
 export const bloom: Variants = {
-  hidden: { opacity: 0, scale: 0.85, filter: "blur(10px)" },
-  shown: { opacity: 1, scale: 1, filter: "blur(0px)", transition: { ...settle, duration: 0.9 } },
+  hidden: { opacity: 0, scale: 0.85, filter: blurred },
+  shown: { opacity: 1, scale: 1, filter: sharp, transition: reveal },
 };
 
 // The card itself only fades up; blurring a surface this large is costly, so its rows carry the blur.
@@ -23,7 +22,7 @@ export const surface: Variants = {
   shown: {
     opacity: 1,
     y: 0,
-    transition: { ...settle, delayChildren: stagger(0.06, { startDelay: 0.08 }) },
+    transition: { ...smooth, delayChildren: stagger(0.06, { startDelay: 0.08 }) },
   },
 };
 

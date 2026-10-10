@@ -5,6 +5,7 @@ import { AnimatePresence, LayoutGroup, MotionConfig, motion } from "motion/react
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useReducer, useState } from "react";
+import { blurred, sharp, smooth } from "@/app/(tabs)/_components/transitions";
 import { KEYS } from "../data";
 import { flowReducer, initialFlow, keyState, pendingTimer, toneOf } from "../flow";
 import { CodeEntry } from "./code-entry";
@@ -12,13 +13,13 @@ import { CreateButton } from "./create-button";
 import { EmailForm } from "./email-form";
 import { GlimmBackdrop } from "./glimm-backdrop";
 import { KeyItem, SetupRow } from "./key-list";
-import { blurSwap, glide } from "./motion";
+import { blurSwap } from "./motion";
 
 // Content waits for the entry flood to clear before it blurs in.
 const entrance = (delay: number) => ({
-  initial: { opacity: 0, filter: "blur(8px)", y: 16 },
-  animate: { opacity: 1, filter: "blur(0px)", y: 0 },
-  transition: { ...glide, delay, layout: glide },
+  initial: { opacity: 0, filter: blurred, y: 16 },
+  animate: { opacity: 1, filter: sharp, y: 0 },
+  transition: { ...smooth, delay, layout: smooth },
 });
 
 export function SecureFlow() {
@@ -55,7 +56,7 @@ export function SecureFlow() {
         <div className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col">
           <motion.header
             animate={{ opacity: setup ? 0 : 1 }}
-            transition={glide}
+            transition={smooth}
             inert={setup}
             className={`flex items-start justify-between px-[46px] pt-[calc(env(safe-area-inset-top)+24px)] transition-colors duration-300 ${
               onGradient ? "text-white" : "text-black/40"

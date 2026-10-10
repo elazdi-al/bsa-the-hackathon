@@ -7,9 +7,9 @@ import { verification } from "./data";
 
 export const metadata: Metadata = { title: "Verification · Fuse" };
 
-// House entrance: each block sharpens in from a soft blur; the delay classes stagger them.
+// House entrance (the shared `reveal` and `blurred`, in CSS): each block sharpens in; the delay classes stagger them.
 const enter =
-  "transition-[opacity,filter,translate] duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] starting:opacity-0 motion-safe:starting:translate-y-1.5 motion-safe:starting:blur-[4px]";
+  "transition-[opacity,filter,translate] duration-450 ease-[cubic-bezier(0.23,1,0.32,1)] starting:opacity-0 motion-safe:starting:translate-y-1.5 motion-safe:starting:blur-[8px]";
 
 export default function Page() {
   return (

@@ -1,8 +1,9 @@
 import { CheckCircleIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "motion/react";
 import type { ReactNode, Ref } from "react";
+import { blurred, sharp, smooth, snappy } from "@/app/(tabs)/_components/transitions";
 import { CODE_SENT, SETUP, type WalletKey } from "../data";
-import { blurSwap, glide, iconSwap, snap } from "./motion";
+import { blurSwap, iconSwap } from "./motion";
 
 type KeyItemProps = {
   ref?: Ref<HTMLLIElement>;
@@ -19,11 +20,11 @@ export function KeyItem({ ref, item, active, sentTo, children }: KeyItemProps) {
     <motion.li
       ref={ref}
       layout="position"
-      initial={{ opacity: 0, filter: "blur(4px)" }}
-      animate={{ opacity: 1, filter: "blur(0px)" }}
-      exit={{ ...blurSwap.exit, transition: snap }}
+      initial={{ opacity: 0, filter: blurred }}
+      animate={{ opacity: 1, filter: sharp }}
+      exit={blurSwap.exit}
       // Rows that come back wait for the content around them to settle first.
-      transition={{ ...snap, delay: 0.15, layout: glide }}
+      transition={{ ...snappy, delay: 0.15, layout: smooth }}
       className="relative px-4"
     >
       <AnimatePresence mode="popLayout" initial={false}>
@@ -68,7 +69,7 @@ export function SetupRow({ ref, ready }: { ref?: Ref<HTMLLIElement>; ready: bool
       ref={ref}
       layout="position"
       {...blurSwap}
-      transition={{ ...snap, delay: 0.25, layout: glide }}
+      transition={{ ...snappy, delay: 0.25, layout: smooth }}
       className="mt-1.5 flex gap-3 px-4 py-2.5"
       aria-live="polite"
     >

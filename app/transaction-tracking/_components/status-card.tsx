@@ -7,9 +7,12 @@ import {
   type IconProps,
 } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "motion/react";
+import { blurred, leave, sharp } from "@/app/(tabs)/_components/transitions";
 import { steps, type StepId } from "../data";
 import { CopyButton } from "./copy-button";
-import { blurred, leave, sharp } from "./motion";
+
+const hidden = { opacity: 0, filter: blurred };
+const shown = { opacity: 1, filter: sharp, y: 0 };
 
 /** `step` indexes `steps`; `expanded` shows the full tracker instead of the single status row. */
 export type Tracker = { step: number; expanded: boolean };
@@ -74,7 +77,7 @@ export function StatusCard({ tracker, summary, onToggle }: { tracker: Tracker; s
         </button>
         <AnimatePresence initial={false} mode="popLayout">
           {expanded ? (
-            <motion.div key="copy" className="text-[#a5a5a5]" initial={blurred} animate={sharp} exit={{ ...blurred, transition: leave }}>
+            <motion.div key="copy" className="text-[#a5a5a5]" initial={hidden} animate={shown} exit={{ ...hidden, transition: leave }}>
               <CopyButton text={summary} label="Copy details">
                 Copy details
               </CopyButton>
@@ -95,9 +98,9 @@ export function StatusCard({ tracker, summary, onToggle }: { tracker: Tracker; s
               <motion.li
                 key={s.id}
                 className={`relative flex h-[31px] items-center text-[12.5px] transition-colors duration-200 ${tone(i, step)}`}
-                initial={i === step ? false : { ...blurred, y: -12 }}
-                animate={sharp}
-                exit={i === step ? undefined : { ...blurred, y: -16, transition: leave }}
+                initial={i === step ? false : { ...hidden, y: -12 }}
+                animate={shown}
+                exit={i === step ? undefined : { ...hidden, y: -16, transition: leave }}
               >
                 {i > 0 && <span aria-hidden className="absolute -top-[5px] left-[8.5px] h-2.5 w-px bg-[#dadada]" />}
                 <StepMark index={i} />

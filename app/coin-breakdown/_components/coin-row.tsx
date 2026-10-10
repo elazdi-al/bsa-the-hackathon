@@ -1,7 +1,8 @@
 import { AnimatePresence, motion, stagger, type Variants } from "motion/react";
+import { blurred, leave, reveal, sharp, snappy } from "@/app/(tabs)/_components/transitions";
 import { availableShare, stakedTotal, type Coin } from "../data";
 import { CoinLogo } from "./coin-logos";
-import { Recede, blurredOut, easeOut, quickOut, sharp, spring } from "./motion";
+import { Recede } from "./motion";
 
 type RowState = "idle" | "open" | "receded";
 
@@ -59,7 +60,7 @@ function CoinAvatar({ coin, open }: { coin: Coin; open: boolean }) {
           aria-hidden
           initial={false}
           animate={{ opacity: ring ? 1 : 0 }}
-          transition={ring ? spring : quickOut}
+          transition={ring ? snappy : leave}
           // Mirrored and turned so the arc starts at 12 o'clock and runs counter-clockwise, as in the app.
           className="absolute inset-0 size-full rotate-90 -scale-x-100"
         >
@@ -69,7 +70,7 @@ function CoinAvatar({ coin, open }: { coin: Coin; open: boolean }) {
           </g>
         </motion.svg>
       )}
-      <motion.span className="block size-full" initial={false} animate={{ scale: ring ? 0.83 : 1 }} transition={spring}>
+      <motion.span className="block size-full" initial={false} animate={{ scale: ring ? 0.83 : 1 }} transition={snappy}>
         <CoinLogo id={coin.id} />
       </motion.span>
     </span>
@@ -82,14 +83,14 @@ const panel: Variants = {
 
 const bar: Variants = {
   hidden: { clipPath: "inset(0 100% 0 0)", opacity: 0 },
-  shown: { clipPath: "inset(0 0% 0 0)", ...sharp, transition: { duration: 0.35, ease: easeOut, opacity: { duration: 0.15 } } },
-  gone: { ...blurredOut, transition: quickOut },
+  shown: { clipPath: "inset(0 0% 0 0)", opacity: 1, filter: sharp, transition: { ...reveal, opacity: { duration: 0.15 } } },
+  gone: { opacity: 0, filter: blurred, transition: leave },
 };
 
 const line: Variants = {
-  hidden: { ...blurredOut, y: -6 },
-  shown: { ...sharp, y: 0, transition: spring },
-  gone: { ...blurredOut, y: -4, transition: quickOut },
+  hidden: { opacity: 0, filter: blurred, y: -6 },
+  shown: { opacity: 1, filter: sharp, y: 0, transition: snappy },
+  gone: { opacity: 0, filter: blurred, y: -4, transition: leave },
 };
 
 function Breakdown({ id, coin }: { id: string; coin: Coin }) {

@@ -1,16 +1,9 @@
-import { motion, type Transition } from "motion/react";
+import { motion } from "motion/react";
 import type { ReactNode } from "react";
+import { sharp } from "@/app/(tabs)/_components/transitions";
 
-export const easeOut = [0.23, 1, 0.32, 1] as const;
-const easeInOut = [0.65, 0, 0.35, 1] as const;
-
-export const spring: Transition = { type: "spring", duration: 0.35, bounce: 0 };
-/** Exits are quicker and softer than entrances. */
-export const quickOut: Transition = { duration: 0.16, ease: easeOut };
-export const iconSwap: Transition = { type: "spring", duration: 0.3, bounce: 0 };
-
-export const blurredOut = { opacity: 0, filter: "blur(4px)" };
-export const sharp = { opacity: 1, filter: "blur(0px)" };
+// Traced from the coin breakdown clip, so it keeps its own curve rather than a shared token.
+const recession = { duration: 0.3, ease: [0.65, 0, 0.35, 1] } as const;
 
 /**
  * Background recession: everything but the focused coin washes out and blurs in place.
@@ -21,8 +14,8 @@ export function Recede({ active, children }: { active: boolean; children: ReactN
     <motion.div
       inert={active}
       initial={false}
-      animate={active ? { opacity: 0.4, filter: "blur(24px)" } : sharp}
-      transition={{ duration: 0.3, ease: easeInOut, delay: active ? 0 : 0.1 }}
+      animate={active ? { opacity: 0.4, filter: "blur(24px)" } : { opacity: 1, filter: sharp }}
+      transition={{ ...recession, delay: active ? 0 : 0.1 }}
     >
       {children}
     </motion.div>

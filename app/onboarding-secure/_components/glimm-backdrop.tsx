@@ -1,8 +1,8 @@
 import { accentChain, createShader, playSweep, type Palette, type ShaderController, type SweepOptions } from "glimm";
 import { animate, useReducedMotion, type AnimationPlaybackControls } from "motion/react";
 import { useEffect, useRef } from "react";
+import { reveal } from "@/app/(tabs)/_components/transitions";
 import type { Tone } from "../data";
-import { easeOut } from "./motion";
 
 // The shader drifts hue over time. With two close anchors the cosine fit stays between them
 // wherever the drift lands, so each tone keeps reading as itself.
@@ -82,7 +82,7 @@ export function GlimmBackdrop({ tone, visible }: { tone: Tone; visible: boolean 
     rest.alpha?.stop();
     rest.alpha = animate(rest.shader.getAlpha(), to, {
       duration: to > 0 ? 0.6 : 0.35,
-      ease: easeOut,
+      ease: reveal.ease,
       onUpdate: (a) => rest.shader.setAlpha(a),
     });
   };
@@ -94,7 +94,7 @@ export function GlimmBackdrop({ tone, visible }: { tone: Tone; visible: boolean 
     rest.blend?.stop();
     rest.blend = animate(0, 1, {
       duration: reduceMotion ? 0 : 0.5,
-      ease: easeOut,
+      ease: reveal.ease,
       onUpdate: (k) => {
         rest.palette = mixPalette(from, to, k);
         rest.shader.setPalette(rest.palette);

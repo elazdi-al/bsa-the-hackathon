@@ -5,16 +5,26 @@ import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { blurred, leave, sharp, snappy } from "@/app/(tabs)/_components/transitions";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { GlimmField } from "./glimm-field";
 import { AppleLogo, FuseLogo } from "./glyphs";
-import { blurSwap, fade } from "./motion";
 import { WordWheel } from "./word-wheel";
 
 type Step = "welcome" | "signing" | "leaving";
 
 const NEXT_ROUTE = "/onboarding-secure";
+
+/** The hand-off: a house exit held a little longer, and the push waits for it. */
+const handOff = { ...leave, duration: 0.3 };
+
+const blurSwap = {
+  initial: { opacity: 0, scale: 0.9, filter: blurred },
+  animate: { opacity: 1, scale: 1, filter: sharp },
+  exit: { opacity: 0, scale: 0.9, filter: blurred, transition: leave },
+  transition: snappy,
+};
 
 const cta = "text-[15px] tracking-[-0.01em] focus-visible:outline-white";
 
@@ -25,7 +35,7 @@ export function WelcomeFlow() {
 
   useEffect(() => {
     if (step === "welcome") return;
-    const id = step === "signing" ? setTimeout(() => setStep("leaving"), 1200) : setTimeout(() => router.push(NEXT_ROUTE), 300);
+    const id = step === "signing" ? setTimeout(() => setStep("leaving"), 1200) : setTimeout(() => router.push(NEXT_ROUTE), handOff.duration * 1000);
     return () => clearTimeout(id);
   }, [step, router]);
 
@@ -36,8 +46,8 @@ export function WelcomeFlow() {
       <motion.div
         inert={step === "leaving"}
         className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col"
-        animate={step === "leaving" ? { opacity: 0, filter: "blur(8px)", y: 16 } : { opacity: 1, filter: "blur(0px)", y: 0 }}
-        transition={fade}
+        animate={step === "leaving" ? { opacity: 0, filter: blurred, y: 16 } : { opacity: 1, filter: sharp, y: 0 }}
+        transition={handOff}
       >
         <WordWheel />
 

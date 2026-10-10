@@ -1,7 +1,11 @@
 import { CheckIcon, CopyIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState, type ReactNode } from "react";
-import { blurred, sharp, swap } from "./motion";
+
+// The app's icon swap, as in Settings and the Receive sheet.
+const iconHidden = { opacity: 0, scale: 0.25, filter: "blur(4px)" };
+const iconShown = { opacity: 1, scale: 1, filter: "blur(0px)" };
+const iconSwap = { type: "spring", duration: 0.3, bounce: 0 } as const;
 
 export function CopyButton({ text, label, children }: { text: string; label: string; children: ReactNode }) {
   const [copied, setCopied] = useState(false);
@@ -35,10 +39,10 @@ export function CopyButton({ text, label, children }: { text: string; label: str
             <motion.span
               key={copied ? "check" : "copy"}
               className="flex"
-              initial={{ ...blurred, scale: 0.25 }}
-              animate={sharp}
-              exit={{ ...blurred, scale: 0.25 }}
-              transition={swap}
+              initial={iconHidden}
+              animate={iconShown}
+              exit={iconHidden}
+              transition={iconSwap}
             >
               {copied ? <CheckIcon size={14} weight="bold" /> : <CopyIcon size={16} weight="duotone" />}
             </motion.span>
