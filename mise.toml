@@ -1,0 +1,6 @@
+[tools]
+bun = "latest"
+node = "24"
+
+[hooks]
+postinstall = "bun install"
