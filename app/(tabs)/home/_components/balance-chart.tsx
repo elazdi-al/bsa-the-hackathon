@@ -129,7 +129,7 @@ export function BalanceChart() {
         onLostPointerCapture={release}
         onKeyDown={onKeyDown}
         onBlur={() => setActive(null)}
-        className="mt-4 flex h-22 touch-pan-y items-end justify-between rounded-sm outline-none select-none focus-visible:ring-2 focus-visible:ring-black/20 focus-visible:ring-offset-4 md:h-28 lg:h-44"
+        className="mt-4 flex h-22 touch-pan-y items-end justify-between rounded-sm outline-none select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 md:h-28 lg:h-44"
       >
         {dot !== undefined &&
           series[range].map((height, i) => (
@@ -159,7 +159,7 @@ export function BalanceChart() {
           <ToggleGroupItem
             key={r}
             value={r}
-            className="relative h-11 w-12 rounded-full text-[13px] font-semibold text-[#bcbcbc] transition-[color,scale] duration-150 hover:bg-transparent hover:text-[#bcbcbc] focus-visible:ring-2 focus-visible:ring-black/20 focus-visible:ring-inset active:scale-[0.96] aria-pressed:bg-transparent aria-pressed:text-black"
+            className="relative h-11 w-12 rounded-full text-[13px] font-semibold text-[#bcbcbc] transition-[color,scale] duration-150 hover:bg-transparent hover:text-[#bcbcbc] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset active:scale-[0.96] aria-pressed:bg-transparent aria-pressed:text-black"
           >
             {r === range && (
               <motion.span

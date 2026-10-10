@@ -48,8 +48,8 @@ const item: Variants = {
   }),
 };
 
-const navIcon = "grid h-12 w-[54px] place-items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-black/20";
-const menuItem = "flex h-12 items-center gap-3.5 rounded-full pl-4 text-[20px] font-medium outline-none transition-transform duration-150 focus-visible:ring-2 focus-visible:ring-black/20 active:scale-[0.96]";
+const navIcon = "grid h-12 w-[54px] place-items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring";
+const menuItem = "flex h-12 items-center gap-3.5 rounded-full pl-4 text-[20px] font-medium outline-none transition-transform duration-150 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.96]";
 
 export function BottomBar() {
   const pathname = usePathname();
@@ -112,7 +112,7 @@ export function BottomBar() {
             aria-expanded={open}
             aria-controls="quick-actions"
             onClick={() => setOpen(true)}
-            className="ml-auto grid size-12 place-items-center rounded-full bg-black text-white outline-none focus-visible:ring-2 focus-visible:ring-black/30 focus-visible:ring-offset-2"
+            className="ml-auto grid size-12 place-items-center rounded-full bg-black text-white outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             animate={open ? { scale: 0.5, opacity: 0, filter: blurred } : { scale: 1, opacity: 1, filter: sharp }}
             whileTap={{ scale: 0.96 }}
             transition={snappy}

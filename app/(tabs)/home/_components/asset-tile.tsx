@@ -16,7 +16,7 @@ export function AssetTile({ tile, index, onOpen }: { tile: Tile; index: number; 
       </span>
     </>
   );
-  const className = `flex flex-col p-5 text-left outline-none transition-transform duration-150 focus-visible:ring-2 focus-visible:ring-black/20 active:scale-[0.96] max-[375px]:p-4 ${tileSurface}`;
+  const className = `flex flex-col p-5 text-left outline-none transition-transform duration-150 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.96] max-[375px]:p-4 ${tileSurface}`;
 
   return "href" in tile ? (
     <Link href={tile.href} transitionTypes={["push"]} className={className}>

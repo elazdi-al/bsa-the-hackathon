@@ -104,7 +104,7 @@ export function PromoStack({ className, onOpenAccount }: { className: string; on
               type="button"
               aria-label="Dismiss promotion"
               onClick={() => dispatch("dismiss")}
-              className="absolute top-1.5 right-1.5 z-10 grid size-11 place-items-center rounded-full text-[#c8c8c8] outline-none transition-[color,scale] duration-150 hover:text-[#a0a0a0] focus-visible:ring-2 focus-visible:ring-black/20 active:scale-[0.96]"
+              className="absolute top-1.5 right-1.5 z-10 grid size-11 place-items-center rounded-full text-[#c8c8c8] outline-none transition-[color,scale] duration-150 hover:text-[#a0a0a0] focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.96]"
             >
               <XIcon weight="bold" size={14} />
             </button>
@@ -114,7 +114,7 @@ export function PromoStack({ className, onOpenAccount }: { className: string; on
             key="empty"
             type="button"
             onClick={() => dispatch("restore")}
-            className="absolute inset-0 flex flex-col items-start rounded-[22px] border border-dashed border-black/10 bg-white p-5 text-left outline-none focus-visible:ring-2 focus-visible:ring-black/20"
+            className="absolute inset-0 flex flex-col items-start rounded-[22px] border border-dashed border-black/10 bg-white p-5 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
             whileTap={{ scale: 0.96 }}
             {...layer}
           >
@@ -132,7 +132,7 @@ export function PromoStack({ className, onOpenAccount }: { className: string; on
 }
 
 function PromoCard({ promo, onOpenAccount, children }: { promo: Promo; onOpenAccount: (id: TileId) => void; children: ReactNode }) {
-  const className = "absolute inset-0 rounded-[22px] outline-none focus-visible:ring-2 focus-visible:ring-black/20 focus-visible:ring-inset";
+  const className = "absolute inset-0 rounded-[22px] outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
   return "href" in promo ? (
     <Link data-card href={promo.href} transitionTypes={["push"]} aria-label={promo.title.join(" ")} className={className}>
       {children}

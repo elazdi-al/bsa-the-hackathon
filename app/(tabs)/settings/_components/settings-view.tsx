@@ -15,7 +15,7 @@ import { plus, profile, sections, version, type Row, type Status, type TrayRow }
 
 // Rows sit 6px inside a 22px card, so their press tint is rounded 16px to stay concentric.
 const card = `rounded-[22px] ${hairline}`;
-const row = "flex min-h-[60px] w-full items-center gap-3 rounded-[16px] px-2.5 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-black/20 focus-visible:ring-inset";
+const row = "flex min-h-[60px] w-full items-center gap-3 rounded-[16px] px-2.5 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
 
 /** The tinted round glyph; `large` is the 54px of sheet headers. */
 function Glyph({ Icon, color, large }: { Icon: Icon; color: string; large?: boolean }) {
@@ -139,7 +139,7 @@ export function SettingsView() {
         <Link
           href="/fuse-plus"
           transitionTypes={["push"]}
-          className={`${card} mt-6 flex items-center gap-3 p-4 outline-none transition-transform duration-150 ease-out focus-visible:ring-2 focus-visible:ring-black/20 active:scale-[0.96]`}
+          className={`${card} mt-6 flex items-center gap-3 p-4 outline-none transition-transform duration-150 ease-out focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.96]`}
         >
           <span className="grid size-10 shrink-0 place-items-center">
             <FusePlusIcon />

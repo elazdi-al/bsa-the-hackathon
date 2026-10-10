@@ -15,7 +15,7 @@ import { tiles, type TileId } from "../../home/data";
 import { byDay, filters, fullDate, monthSummary, transactions, type Filter, type Tx } from "../data";
 import { Amount, Glyph, RowBody } from "./tx-row";
 
-const rowClass = `flex min-h-[60px] w-full items-center gap-3 rounded-[18px] px-3 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-black/20 ${rowPress}`;
+const rowClass = `flex min-h-[60px] w-full items-center gap-3 rounded-[18px] px-3 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring ${rowPress}`;
 
 const faded = { opacity: 0, filter: "blur(4px)" };
 
@@ -84,7 +84,7 @@ export function HistoryList({ account, sent }: { account?: TileId; sent: Tx | nu
             <ToggleGroupItem
               key={f}
               value={f}
-              className="relative h-11 rounded-full px-3.5 text-[13px] font-semibold text-[#bcbcbc] transition-[color,scale] duration-150 hover:bg-transparent hover:text-[#bcbcbc] focus-visible:ring-2 focus-visible:ring-black/20 focus-visible:ring-inset active:scale-[0.96] aria-pressed:bg-transparent aria-pressed:text-black"
+              className="relative h-11 rounded-full px-3.5 text-[13px] font-semibold text-[#bcbcbc] transition-[color,scale] duration-150 hover:bg-transparent hover:text-[#bcbcbc] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset active:scale-[0.96] aria-pressed:bg-transparent aria-pressed:text-black"
             >
               {f === filter && (
                 <motion.span
@@ -103,7 +103,7 @@ export function HistoryList({ account, sent }: { account?: TileId; sent: Tx | nu
             href="/history"
             replace
             scroll={false}
-            className="relative ml-auto flex h-7 items-center gap-1 rounded-full bg-[#f2f2f2] pr-2 pl-2.5 text-[13px] font-semibold outline-none transition-transform duration-150 ease-out after:absolute after:-inset-y-2 after:inset-x-0 focus-visible:ring-2 focus-visible:ring-black/20 active:scale-[0.96]"
+            className="relative ml-auto flex h-7 items-center gap-1 rounded-full bg-[#f2f2f2] pr-2 pl-2.5 text-[13px] font-semibold outline-none transition-transform duration-150 ease-out after:absolute after:-inset-y-2 after:inset-x-0 focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.96]"
           >
             {scope.label}
             <XIcon weight="bold" size={11} aria-hidden className="text-[#a5a5a5]" />
