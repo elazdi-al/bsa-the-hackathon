@@ -13,7 +13,8 @@ import { GlimmField } from "./glimm-field";
 import { AppleLogo, FuseLogo } from "./glyphs";
 import { WordWheel } from "./word-wheel";
 
-type Step = "welcome" | "signing" | "leaving";
+/** Apple signs in, then leaves; Recover leaves straight away. Both hand off the same way. */
+type Step = "welcome" | "signing" | "leaving" | "recovering";
 
 const NEXT_ROUTE = "/onboarding-secure";
 
@@ -32,7 +33,8 @@ const cta = "text-[15px] tracking-[-0.01em] focus-visible:outline-white";
 export function WelcomeFlow() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("welcome");
-  const busy = step !== "welcome";
+  const busy = step === "signing" || step === "leaving";
+  const exiting = step === "leaving" || step === "recovering";
 
   useEffect(() => {
     if (step === "welcome") return;
@@ -45,9 +47,9 @@ export function WelcomeFlow() {
       <GlimmField />
 
       <motion.div
-        inert={step === "leaving"}
+        inert={exiting}
         className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col"
-        animate={step === "leaving" ? { opacity: 0, filter: blurred, y: 16 } : { opacity: 1, filter: sharp, y: 0 }}
+        animate={exiting ? { opacity: 0, filter: blurred, y: 16 } : { opacity: 1, filter: sharp, y: 0 }}
         transition={handOff}
       >
         <WordWheel />
@@ -85,7 +87,15 @@ export function WelcomeFlow() {
               </motion.span>
             </AnimatePresence>
           </Button>
-          <Link href={NEXT_ROUTE} className={cn(buttonVariants({ size: "lg" }), "bg-white/15 text-white hover:bg-white/20", cta)}>
+          <Link
+            href={NEXT_ROUTE}
+            onClick={(e) => {
+              if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+              e.preventDefault();
+              setStep("recovering");
+            }}
+            className={cn(buttonVariants({ size: "lg" }), "bg-white/15 text-white hover:bg-white/20", cta)}
+          >
             <span className="grid size-4 place-items-center rounded-[4px] bg-white text-[#1B7DF6]">
               <ArrowCounterClockwiseIcon weight="fill" size={11} />
             </span>
