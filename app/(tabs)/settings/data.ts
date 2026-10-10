@@ -15,7 +15,7 @@ type Behaviour =
   | { kind: "link"; href: string }
   | { kind: "switch"; on: boolean };
 
-export type Row = Behaviour & { label: string; detail?: string; Icon: Icon; destructive?: boolean };
+export type Row = Behaviour & { label: string; detail?: string; demo?: true; Icon: Icon; destructive?: boolean };
 
 const about: Record<KeyId, { detail: string; about: string }> = {
   passkey: { detail: "Face ID on this phone", about: "Approves every payment you make. Without it, nothing leaves your wallet." },
@@ -38,7 +38,7 @@ export const sections: Row[][] = [
     { kind: "tray", opens: "keys", label: "Keys", Icon: KeyIcon },
   ],
   [
-    { kind: "switch", label: "Notifications", Icon: BellIcon, on: true },
+    { kind: "switch", label: "Notifications", Icon: BellIcon, on: true, demo: true },
     { kind: "info", label: "Currency", Icon: CoinIcon, value: "USD" },
   ],
   [

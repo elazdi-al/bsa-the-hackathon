@@ -32,7 +32,7 @@ export class ComplianceEngine {
     const issuedAt = clock().toISOString();
     const { actions, findings } = decodeRequest(request, this.policy);
     const add = (code: string, message: string, status: Finding["status"]) => findings.push({ code, message, status });
-    if (!this.policy.supportedChainIds.includes(request.chainId)) add("CHAIN_NOT_SUPPORTED", "Swissquote assistance is not configured for this chain.", "DENY_ASSISTANCE");
+    if (!this.policy.supportedChainIds.includes(request.chainId)) add("CHAIN_NOT_SUPPORTED", "Swissquote doesn't support payments on this network.", "DENY_ASSISTANCE");
     let simulation: SimulationResult = { status: "UNAVAILABLE", provider: "not-run", mode: this.dependencies.mode, checkedAt: issuedAt,
       calls: [], assetChanges: [], approvalChanges: [], transfers: [], touchedAddresses: [], coverage: "CALL_INTENT_ONLY" };
     let screening: ScreeningResult[] = [];
@@ -56,12 +56,12 @@ export class ComplianceEngine {
       this.checkScreening(uniqueAddresses([...addresses, ...extra]), screening, clock(), add);
       const simulationAge = clock().getTime() - Date.parse(simulation.checkedAt);
       if (!Number.isFinite(simulationAge) || simulationAge < -5000 || simulationAge > this.policy.screeningMaxAgeSeconds * 1000) {
-        add("SIMULATION_STALE", "Fresh simulation evidence is required.", "REVIEW");
+        add("SIMULATION_STALE", "Swissquote's check of this payment is out of date. Try again in a moment.", "REVIEW");
       }
       this.checkSimulation(request, actions, simulation, add);
       this.checkLimits(request, actions, simulation, usage, add);
       if (this.dependencies.mode === "live" && [simulation.mode, usage.mode, ...screening.map((result) => result.mode)].includes("demo")) {
-        add("DEMO_PROVIDER_IN_LIVE_MODE", "Demo evidence cannot authorize live assistance.", "REVIEW");
+        add("DEMO_PROVIDER_IN_LIVE_MODE", "Swissquote can't approve a real payment using test checks.", "REVIEW");
       }
     }
     const status = findings.reduce<DecisionStatus>((current, finding) => rank[finding.status] > rank[current] ? finding.status : current, "ALLOW");
@@ -92,21 +92,21 @@ export class ComplianceEngine {
     add: (code: string, message: string, status: Finding["status"]) => void) {
     for (const address of addresses) {
       const records = results.filter((result) => result.address.toLowerCase() === address);
-      if (records.some((result) => result.status === "MATCH")) add("SANCTIONS_MATCH", `A sanctions screening match was reported for ${address}.`, "DENY_ASSISTANCE");
+      if (records.some((result) => result.status === "MATCH")) add("SANCTIONS_MATCH", `Swissquote can't help with payments to or from ${address}. It is on a sanctions list.`, "DENY_ASSISTANCE");
       const fresh = records.some((result) => {
         const age = now.getTime() - Date.parse(result.checkedAt);
         return result.status === "CLEAR" && Number.isFinite(age) && age >= -5000 && age <= this.policy.screeningMaxAgeSeconds * 1000;
       });
-      if (!fresh && !records.some((result) => result.status === "MATCH")) add("SCREENING_UNAVAILABLE", `Current sanctions evidence is unavailable for ${address}.`, "REVIEW");
+      if (!fresh && !records.some((result) => result.status === "MATCH")) add("SCREENING_UNAVAILABLE", `Swissquote couldn't check ${address} against sanctions lists. Try again in a moment.`, "REVIEW");
     }
   }
 
   private checkSimulation(request: ComplianceRequest, actions: DecodedAction[], result: SimulationResult,
     add: (code: string, message: string, status: Finding["status"]) => void) {
-    if (result.status === "UNAVAILABLE") return add("SIMULATION_UNAVAILABLE", "The transaction could not be simulated.", "REVIEW");
-    if (result.status === "REVERTED" || result.calls.some((call) => !call.success)) return add("SIMULATION_REVERTED", "At least one proposed call would fail.", "DENY_ASSISTANCE");
+    if (result.status === "UNAVAILABLE") return add("SIMULATION_UNAVAILABLE", "Swissquote couldn't check this payment. Try again in a moment.", "REVIEW");
+    if (result.status === "REVERTED" || result.calls.some((call) => !call.success)) return add("SIMULATION_REVERTED", "This payment would fail, so Swissquote stopped it.", "DENY_ASSISTANCE");
     if (result.calls.length !== request.calls.length || result.calls.some((call, index) => call.index !== index)) {
-      return add("SIMULATION_INCOMPLETE", "Simulation did not cover every call in order.", "REVIEW");
+      return add("SIMULATION_INCOMPLETE", "Swissquote couldn't check every step of this payment. Try again in a moment.", "REVIEW");
     }
     const debits = new Map<string, bigint>();
     for (const action of actions) if (action.debit) debits.set(action.debit.asset, (debits.get(action.debit.asset) ?? 0n) + BigInt(action.debit.amount));
@@ -115,26 +115,26 @@ export class ComplianceEngine {
     for (const change of result.assetChanges) deltas.set(change.asset, (deltas.get(change.asset) ?? 0n) + BigInt(change.amount));
     for (const [asset, delta] of deltas) {
       if (delta < 0n && !withdrawalShares.has(asset as Address) && -delta > (debits.get(asset) ?? 0n)) {
-        add("UNEXPECTED_ASSET_LOSS", `Simulation removes more ${asset} than the reviewed intent permits.`, "DENY_ASSISTANCE");
+        add("UNEXPECTED_ASSET_LOSS", "This payment would take more from your wallet than it shows.", "DENY_ASSISTANCE");
       }
     }
     for (const [asset, amount] of debits) {
-      if (!deltas.has(asset)) add("ASSET_CHANGES_INCOMPLETE", `Simulation did not measure ${asset}.`, "REVIEW");
+      if (!deltas.has(asset)) add("ASSET_CHANGES_INCOMPLETE", "Swissquote couldn't confirm how much this payment takes from your wallet.", "REVIEW");
       else if (!actions.some((action) => action.creditAsset === asset) && deltas.get(asset) !== -amount) {
-        add("ASSET_AMOUNT_MISMATCH", `Simulation does not confirm the intended amount of ${asset}.`, "DENY_ASSISTANCE");
+        add("ASSET_AMOUNT_MISMATCH", "The amount this payment would move doesn't match the amount it shows.", "DENY_ASSISTANCE");
       }
     }
     for (const action of actions) {
       if (action.type === "DEPOSIT" && BigInt(action.amount) > 0n && (deltas.get(action.creditAsset!) ?? 0n) <= 0n) {
         // A deposit then redeem batch cannot use the optimistic single-deposit policy.
-        add("VAULT_SHARES_NOT_RECEIVED", "The deposit does not leave positive vault shares in the account.", "DENY_ASSISTANCE");
+        add("VAULT_SHARES_NOT_RECEIVED", "This deposit wouldn't credit anything back to your wallet.", "DENY_ASSISTANCE");
       }
       if (action.type === "WITHDRAW" || action.type === "REDEEM") {
         const contract = this.policy.contracts.find((item) => item.chainId === request.chainId && item.address === action.contract);
         const received = result.transfers.filter((transfer) => transfer.asset === contract?.asset && transfer.from === action.contract && transfer.to === action.recipient)
           .reduce((sum, transfer) => sum + BigInt(transfer.amount), 0n);
         if (BigInt(action.amount) > 0n && (action.type === "WITHDRAW" ? received < BigInt(action.amount) : received <= 0n)) {
-          add("VAULT_OUTPUT_NOT_CONFIRMED", "Simulation does not confirm the vault's underlying asset reaching the requested recipient.", "REVIEW");
+          add("VAULT_OUTPUT_NOT_CONFIRMED", "Swissquote couldn't confirm this withdrawal reaches the right wallet.", "REVIEW");
         }
       }
     }
@@ -153,22 +153,22 @@ export class ComplianceEngine {
       observed.set(key, (observed.get(key) ?? 0n) + BigInt(transfer.amount));
       const withdrawBurn = withdrawalShares.has(transfer.asset as Address) && transfer.to === zeroAddress;
       if (!withdrawBurn && transfer.to !== request.account && observed.get(key)! > (permitted.get(key) ?? 0n)) {
-        add("UNEXPECTED_RECIPIENT", "Simulation transfers assets to an address or in an amount outside the reviewed intent.", "DENY_ASSISTANCE");
+        add("UNEXPECTED_RECIPIENT", "This payment would send a different amount, or to a different address, than it shows.", "DENY_ASSISTANCE");
       }
     }
     for (const [key, amount] of permitted) {
-      if (amount > 0n && (observed.get(key) ?? 0n) < amount) add("TRANSFER_EVIDENCE_MISSING", "Simulation did not confirm the expected transfer recipient and amount.", "REVIEW");
+      if (amount > 0n && (observed.get(key) ?? 0n) < amount) add("TRANSFER_EVIDENCE_MISSING", "Swissquote couldn't confirm who receives this payment and how much.", "REVIEW");
     }
     const approvals = actions.flatMap((action) => action.approval ? [action.approval] : []);
     for (const approval of result.approvalChanges) {
       if (approval.owner !== request.account) continue;
       if (!approvals.some((expected) => expected.token === approval.token && expected.spender === approval.spender && expected.amount === approval.amount)) {
-        add("UNEXPECTED_APPROVAL", "Simulation grants a spending permission outside the reviewed intent.", "DENY_ASSISTANCE");
+        add("UNEXPECTED_APPROVAL", "This payment would also let someone else spend from your wallet.", "DENY_ASSISTANCE");
       }
     }
     for (const approval of approvals) {
       if (!result.approvalChanges.some((actual) => actual.owner === request.account && actual.token === approval.token && actual.spender === approval.spender && actual.amount === approval.amount)) {
-        add("APPROVAL_EVIDENCE_MISSING", "Simulation did not confirm the requested spending permission.", "REVIEW");
+        add("APPROVAL_EVIDENCE_MISSING", "Swissquote couldn't confirm the spending permission this payment asks for.", "REVIEW");
       }
     }
   }
@@ -193,12 +193,12 @@ export class ComplianceEngine {
       const native = asset === "native" ? this.policy.nativeTransfers.find((item) => item.chainId === request.chainId) : undefined;
       const max = token?.maxTransactionAmount ?? native?.maxAmount;
       const stepUp = token?.stepUpAmount ?? native?.stepUpAmount;
-      if (max && amount > BigInt(max)) add("TRANSACTION_LIMIT_EXCEEDED", `The batch exceeds the ${token?.symbol ?? "native token"} transaction limit.`, "DENY_ASSISTANCE");
-      else if (stepUp && amount > BigInt(stepUp)) add("HIGH_VALUE_STEP_UP", "The amount requires additional user authentication.", "STEP_UP");
+      if (max && amount > BigInt(max)) add("TRANSACTION_LIMIT_EXCEEDED", token ? `This payment is over the ${token.symbol} limit for a single payment.` : "This payment is over the limit for a single payment.", "DENY_ASSISTANCE");
+      else if (stepUp && amount > BigInt(stepUp)) add("HIGH_VALUE_STEP_UP", "Payments this large need an extra check that it's you.", "STEP_UP");
       if (token?.dailyLimitAmount) {
         const spent = usage.spent.filter((item) => item.asset === asset).reduce((sum, item) => sum + BigInt(item.amount), 0n);
-        if (usage.status !== "AVAILABLE") add("DAILY_USAGE_UNAVAILABLE", "A trusted daily usage snapshot is unavailable.", "REVIEW");
-        else if (spent + (spending.get(asset) ?? 0n) > BigInt(token.dailyLimitAmount)) add("DAILY_LIMIT_EXCEEDED", "The operation would exceed the daily limit.", "DENY_ASSISTANCE");
+        if (usage.status !== "AVAILABLE") add("DAILY_USAGE_UNAVAILABLE", "Swissquote couldn't check how much you've sent today. Try again in a moment.", "REVIEW");
+        else if (spent + (spending.get(asset) ?? 0n) > BigInt(token.dailyLimitAmount)) add("DAILY_LIMIT_EXCEEDED", "This payment would go over your daily limit.", "DENY_ASSISTANCE");
       }
     }
   }

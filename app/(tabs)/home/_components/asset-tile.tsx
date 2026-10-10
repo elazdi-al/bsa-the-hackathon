@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CardIcon, ChartIcon, CoinIcon, PercentIcon, type Icon } from "@/components/icons";
+import { DemoTag } from "@/components/ui/demo-tag";
 import type { Tile, TileId } from "../data";
 import { IntroMoney } from "./blur-money";
 
@@ -20,7 +21,10 @@ export function AssetTile({ tile, index, onOpen }: { tile: Tile; index: number; 
   const { Icon, fill } = tileLooks[tile.id];
   const body = (
     <>
-      <Icon size={32} />
+      <span className="flex items-start justify-between gap-2">
+        <Icon size={32} />
+        {tile.demo && <DemoTag className="bg-white/20 text-white" />}
+      </span>
       <span className="mt-auto pt-2 text-label">{tile.label}</span>
       <span className="text-heading max-[375px]:text-label max-[375px]:font-bold">
         <IntroMoney value={tile.value} delay={0.05 + index * 0.08} step={0.035} />

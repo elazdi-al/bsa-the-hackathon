@@ -32,7 +32,7 @@ export const RESOLVE_DELAY_MS = 300 + 500;
 const HANDLE_PATTERN = /^[a-z0-9_-]+\.eth$/i;
 const ADDRESS_PATTERN = /^0x[0-9a-f]{40}$/i;
 
-export type Resolution = { kind: "resolved"; address: string } | { kind: "notFound" };
+export type Resolution = { kind: "resolved"; address: string; demo?: true } | { kind: "notFound" };
 
 export const isHandle = (query: string) => HANDLE_PATTERN.test(query);
 
@@ -44,8 +44,9 @@ export function looksLikeRecipient(query: string) {
 }
 
 export function lookupRecipient(query: string): Resolution {
-  const address = isHandle(query) ? HANDLES[query.toLowerCase()] : query;
-  return address ? { kind: "resolved", address } : { kind: "notFound" };
+  if (!isHandle(query)) return query ? { kind: "resolved", address: query } : { kind: "notFound" };
+  const address = HANDLES[query.toLowerCase()];
+  return address ? { kind: "resolved", address, demo: true } : { kind: "notFound" };
 }
 
 export function shortAddress(address: string) {
@@ -60,7 +61,7 @@ export function recipientFor(to: string): { name: string; detail: string; addres
   const resolution = looksLikeRecipient(to) ? lookupRecipient(to) : null;
   if (resolution?.kind !== "resolved") return null;
   if (resolution.address === to) return { name: shortAddress(to), detail: "Address on Base", address: to };
-  return { name: to, detail: shortAddress(resolution.address), address: resolution.address };
+  return { name: to, detail: `Demo name · ${shortAddress(resolution.address)}`, address: resolution.address };
 }
 
 // The recipient under review, so leaving the review reopens the chooser with it filled in. The review

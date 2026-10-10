@@ -15,7 +15,7 @@ type Tab = (typeof tabs)[number];
 
 const empty: Record<Exclude<Tab, "Coins">, { icon: Icon; title: string }> = {
   Dashboard: { icon: GridIcon, title: "Your dashboard is on its way" },
-  NFTs: { icon: ImagesIcon, title: "No NFTs yet" },
+  NFTs: { icon: ImagesIcon, title: "NFTs don’t show here yet" },
 };
 
 export function CoinsScreen() {

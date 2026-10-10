@@ -4,9 +4,10 @@ import { AnimatePresence, motion, useAnimate, useReducedMotion, type Variants } 
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { CoinLogo } from "@/app/coin-breakdown/_components/coin-logos";
 import { coins, stakedTotal } from "@/app/coin-breakdown/data";
-import { ApproxIcon, CheckIcon, ChevronDownIcon, FaceIdIcon, FlipIcon, LightningIcon } from "@/components/icons";
+import { ApproxIcon, CheckIcon, ChevronDownIcon, FlipIcon, LightningIcon } from "@/components/icons";
 import { BackButton } from "@/components/ui/back-button";
 import { Button } from "@/components/ui/button";
+import { DemoTag } from "@/components/ui/demo-tag";
 import { Drawer, DrawerClose, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
@@ -200,7 +201,10 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
               </motion.div>
             )}
           </AnimatePresence>
-          <DrawerTitle>Swap</DrawerTitle>
+          <DrawerTitle className="relative">
+            Swap
+            <DemoTag className="absolute top-1/2 left-full ml-2 -translate-y-1/2" />
+          </DrawerTitle>
           <DrawerClose asChild>
             <BackButton kind="close" disabled={phase === "busy"} className="absolute right-4" />
           </DrawerClose>
@@ -324,6 +328,7 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
                     </dl>
                   </div>
 
+                  <p className="mb-3 text-center text-caption text-muted-foreground">Your balances don’t change in this demo.</p>
                   <Button
                     size="lg"
                     onClick={swap}
@@ -333,7 +338,6 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
                   >
                     <AnimatePresence initial={false} mode="popLayout">
                       <motion.span key={phase} className="flex items-center gap-2" {...labelSwap}>
-                        {phase === "idle" && <FaceIdIcon size={20} />}
                         {phase === "busy" && <Spinner className="size-5" />}
                         {phase === "done" && <CheckIcon size={20} />}
                         {phase === "idle" ? "Swap" : phase === "busy" ? "Swapping" : "Swapped"}
