@@ -1,11 +1,10 @@
 "use client";
 
-import { XCircleIcon } from "@phosphor-icons/react";
 import { AnimatePresence, LayoutGroup, MotionConfig, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useReducer, useState } from "react";
 import { blurred, sharp, smooth } from "@/app/(tabs)/_components/transitions";
-import { useBack } from "@/components/navigation";
+import { BackButton } from "@/components/ui/back-button";
 import { KEYS } from "../data";
 import { flowReducer, initialFlow, keyState, pendingTimer, toneOf } from "../flow";
 import { CodeEntry } from "./code-entry";
@@ -24,7 +23,6 @@ const entrance = (delay: number) => ({
 
 export function SecureFlow() {
   const router = useRouter();
-  const close = useBack("/onboarding-welcome");
   const [step, dispatch] = useReducer(flowReducer, initialFlow);
   const [typing, setTyping] = useState(false);
 
@@ -68,16 +66,7 @@ export function SecureFlow() {
               <br />
               your wallet
             </h1>
-            <button
-              type="button"
-              onClick={close}
-              aria-label="Close"
-              className={`-mt-[11px] -mr-[11px] grid size-11 place-items-center rounded-full outline-none transition-[color,scale] duration-150 ease-out focus-visible:ring-2 active:scale-[0.96] ${onGradient ? "focus-visible:ring-white/60" : "focus-visible:ring-black/20"} ${
-                onGradient ? "text-white/55" : "text-black/40"
-              }`}
-            >
-              <XCircleIcon size={26} weight="fill" />
-            </button>
+            <BackButton kind="close" tone={onGradient ? "dark" : "light"} fallback="/onboarding-welcome" className="-mt-[9px] -mr-[10px]" />
           </motion.header>
 
           <div
