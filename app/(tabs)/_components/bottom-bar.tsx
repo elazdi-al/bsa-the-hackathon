@@ -99,7 +99,7 @@ export function BottomBar() {
                 transitionTypes={[transitionFor(pathname, href)]}
                 aria-current={active ? "page" : undefined}
                 aria-label={label}
-                className={`${navIcon} transition-[color,scale] duration-150 active:scale-[0.96] ${active ? "text-foreground" : "text-muted-foreground hover:text-foreground/65"}`}
+                className={`${navIcon} transition-[color,scale] duration-150 active:scale-[0.96] ${active ? "text-fuse-blue [--icon-duo:0.45]" : "text-faint [--icon-duo:0.5] hover:text-muted-foreground"}`}
               >
                 <Icon size={24} />
               </Link>

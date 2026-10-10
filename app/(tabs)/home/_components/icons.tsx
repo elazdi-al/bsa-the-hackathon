@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { tileLooks } from "./asset-tile";
 
 function AppIcon({ className, children }: { className: string; children: ReactNode }) {
   return (
@@ -42,10 +43,10 @@ export function FusePlusIcon() {
   );
 }
 
-/** Blue Fuse Earn mark: light streaks across a blue tile. */
+/** Fuse Earn mark: light streaks across the Earn account's colour. */
 export function FuseEarnIcon() {
   return (
-    <AppIcon className="overflow-hidden bg-fuse-blue">
+    <AppIcon className={`overflow-hidden ${tileLooks.earn.fill}`}>
       <svg viewBox="0 0 24 24" className="size-8" fill="none" stroke="currentColor" strokeLinecap="round">
         <path d="M-1 17c7-1.5 12-7 26-10" strokeWidth={2.4} strokeOpacity={0.95} />
         <path d="M-1 19.4c7-1.5 12-7 26-10" strokeWidth={1.4} strokeOpacity={0.55} />

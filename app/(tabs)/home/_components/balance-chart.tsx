@@ -10,7 +10,7 @@ import { RollingMoney } from "../../_components/rolling-money";
 import { BlurMoney, markIntroDone, wasIntroDone } from "./blur-money";
 import { smooth, snappy } from "../../_components/transitions";
 
-const cents = "text-[0.74em] text-cents";
+const cents = "text-[0.74em]";
 
 export function BalanceChart() {
   const [range, setRange] = useState<Range>(defaultRange);

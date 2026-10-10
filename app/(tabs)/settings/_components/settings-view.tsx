@@ -3,33 +3,21 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { FusePlusIcon } from "@/app/(tabs)/home/_components/icons";
 import { shortAddress } from "@/app/choose-recipient/data";
-import { CopyButton } from "@/app/transaction-tracking/_components/copy-button";
 import { ChevronRightIcon, ShieldIcon, SignOutIcon, type Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Tray, TrayActions, TrayHeader } from "@/components/ui/tray";
-import { rowPress, sectionLabel } from "../../_components/list";
-import { keys, plus, profile, sections, version, type KeyId, type Row, type Status, type TrayRoot } from "../data";
+import { rowPress } from "../../_components/list";
+import { keys, profile, sections, version, type KeyId, type Row, type TrayRoot } from "../data";
 
 type View = { name: TrayRoot } | { name: "key"; id: KeyId };
 
 const viewKey = (view: View) => (view.name === "key" ? `key-${view.id}` : view.name);
 
 const focusRing = "outline-none focus-visible:ring-2 focus-visible:ring-ring";
-// Inside each section's -mx-3, the 12px padding lets the pressed tint bleed past the column while glyphs align with the profile.
+// Inside each section's -mx-3, the 12px padding lets the pressed tint bleed past the column while glyphs align with the card.
 const row = `flex min-h-14 w-full items-center gap-4 rounded-2xl px-3 py-2 text-left ${focusRing} focus-visible:ring-inset`;
-const dot: Record<Status, string> = { Active: "bg-positive", "All active": "bg-positive", Pending: "bg-pending" };
-
-function StatusMark({ status }: { status: Status }) {
-  return (
-    <span className="flex shrink-0 items-center gap-2 text-label font-medium text-muted-foreground">
-      <span aria-hidden className={`size-2 rounded-full ${dot[status]}`} />
-      {status}
-    </span>
-  );
-}
 
 const Chevron = () => <ChevronRightIcon size={16} className="shrink-0 text-faint" />;
 
@@ -41,7 +29,6 @@ function SettingsRow({ item, onOpen }: { item: Row; onOpen: (root: TrayRoot) => 
         <span className={`block truncate text-label ${item.destructive ? "text-negative" : ""}`}>{item.label}</span>
         {item.detail && <span className="block truncate text-body text-muted-foreground">{item.detail}</span>}
       </span>
-      {item.status && <StatusMark status={item.status} />}
       {item.kind === "info" && <span className="shrink-0 text-label font-medium text-muted-foreground">{item.value}</span>}
       {item.kind !== "info" && item.kind !== "switch" && <Chevron />}
     </>
@@ -78,22 +65,19 @@ function SettingsRow({ item, onOpen }: { item: Row; onOpen: (root: TrayRoot) => 
   }
 }
 
-function PlusCard() {
+/** The member's card: their plan, name and address on Fuse blue, like the card in a wallet. It opens Fuse Plus. */
+function MemberCard() {
   return (
     <Link
       href="/fuse-plus"
       transitionTypes={["push"]}
-      className={`mt-6 flex items-center gap-4 rounded-[24px] bg-ink p-5 text-white transition-transform duration-150 ease-out active:scale-[0.96] ${focusRing} focus-visible:ring-offset-2`}
+      className={`flex aspect-video flex-col justify-between rounded-[28px] bg-linear-135/oklch from-[oklch(0.64_0.18_250)] to-fuse-blue p-5 text-white transition-transform duration-150 ease-out active:scale-[0.96] ${focusRing} focus-visible:ring-offset-2`}
     >
-      <FusePlusIcon />
-      <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-2">
-          <span className="text-label">{plus.title}</span>
-          <span className="rounded-full bg-white/15 px-2 py-0.5 text-caption font-semibold">{plus.status}</span>
-        </span>
-        <span className="mt-0.5 block text-body text-pretty text-white/60">{plus.benefits}</span>
+      <span className="text-label">Fuse Plus</span>
+      <span className="min-w-0">
+        <span className="block truncate text-heading">{profile.name}</span>
+        <span className="block text-body text-white/70">{shortAddress(profile.address)}</span>
       </span>
-      <ChevronRightIcon size={16} className="shrink-0 text-white/40" />
     </Link>
   );
 }
@@ -130,7 +114,7 @@ function TrayBody({ view, push, close }: { view: View; push: (next: View) => voi
                   <span className="block truncate text-label">{title}</span>
                   <span className="block truncate text-body text-muted-foreground">{detail}</span>
                 </span>
-                <StatusMark status="Active" />
+                <Chevron />
               </button>
             ))}
           </div>
@@ -196,32 +180,15 @@ export function SettingsView() {
 
   return (
     <div className="mt-6 max-w-xl lg:grid lg:max-w-none lg:grid-cols-[20rem_minmax(0,1fr)] lg:items-start lg:gap-12">
+      <MemberCard />
+
       <div>
-        <div className="flex items-center gap-4">
-          <span aria-hidden className="grid size-14 shrink-0 place-items-center rounded-full bg-ink text-heading text-white">
-            {profile.initials}
-          </span>
-          <div className="min-w-0">
-            <p className="truncate text-heading">{profile.name}</p>
-            <CopyButton text={profile.address} label={`Copy address ${profile.address}`}>
-              <span className="text-body text-muted-foreground">{shortAddress(profile.address)}</span>
-            </CopyButton>
+        {sections.map((rows, i) => (
+          <div key={i} className={`-mx-3 ${i ? "mt-6" : "mt-6 lg:mt-0"}`}>
+            {rows.map((item) => (
+              <SettingsRow key={item.label} item={item} onOpen={show} />
+            ))}
           </div>
-        </div>
-
-        <PlusCard />
-      </div>
-
-      <div>
-        {sections.map((section, i) => (
-          <section key={section.title ?? i} className={section.title ? "mt-8" : "mt-4 lg:mt-0"}>
-            {section.title && <h2 className={sectionLabel}>{section.title}</h2>}
-            <div className="-mx-3">
-              {section.rows.map((item) => (
-                <SettingsRow key={item.label} item={item} onOpen={show} />
-              ))}
-            </div>
-          </section>
         ))}
         <p className="mt-8 text-center text-caption text-faint">{version}</p>
       </div>

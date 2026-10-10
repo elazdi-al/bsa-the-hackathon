@@ -4,8 +4,8 @@ import { AnimatePresence, motion } from "motion/react";
 import { usd } from "./money";
 import { leave, snappy } from "./transitions";
 
-/** A dollar amount whose digits roll like an odometer as the value changes. Cents are grey unless restyled. */
-export function RollingMoney({ value, centsClassName = "text-cents" }: { value: number; centsClassName?: string }) {
+/** A dollar amount whose digits roll like an odometer as the value changes. `centsClassName` restyles the cents, e.g. smaller. */
+export function RollingMoney({ value, centsClassName }: { value: number; centsClassName?: string }) {
   const [whole, cents] = usd.format(value).split(".");
   // Keyed by place from the right, so $9,999 -> $10,000 rolls every existing column and only the new leading glyphs enter.
   const glyphs = [

@@ -12,12 +12,12 @@ export const markIntroDone = () => {
   introDone = true;
 };
 
-/** A dollar amount that types in glyph by glyph, each one sharpening out of a blur. Cents are grey unless restyled. */
+/** A dollar amount that types in glyph by glyph, each one sharpening out of a blur. `centsClassName` restyles the cents, e.g. smaller. */
 export function BlurMoney({
   value,
   delay,
   step,
-  centsClassName = "text-cents",
+  centsClassName = "",
 }: {
   value: number;
   delay: number;
@@ -36,7 +36,7 @@ export function BlurMoney({
         {glyphs.map((glyph, i) => (
           <motion.span
             key={i}
-            className={i > whole.length ? `inline-block ${centsClassName}` : "inline-block"}
+            className={`inline-block ${i > whole.length ? centsClassName : ""}`}
             initial={skip ? false : { opacity: 0, filter: blurred, y: "0.2em" }}
             animate={{ opacity: 1, filter: sharp, y: 0 }}
             transition={{ ...reveal, delay: delay + i * step }}

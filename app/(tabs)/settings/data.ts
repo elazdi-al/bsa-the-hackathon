@@ -1,14 +1,10 @@
 import { wallet } from "@/app/coin-breakdown/data";
 import { KEYS, type KeyId } from "@/app/onboarding-secure/data";
-import { BankIcon, BellIcon, CardIcon, CoinIcon, HelpIcon, KeyIcon, SignOutIcon, type Icon } from "@/components/icons";
+import { BellIcon, CoinIcon, HelpIcon, KeyIcon, SignOutIcon, type Icon } from "@/components/icons";
 
 export type { KeyId };
 
-export const profile = { name: "Thomas A. Anderson", initials: "TA", address: wallet.address };
-
-export const plus = { title: "Fuse Plus", status: "Member", benefits: "Network fees covered, bank account and virtual Visa." };
-
-export type Status = "Active" | "All active" | "Pending";
+export const profile = { name: "Thomas A. Anderson", address: wallet.address };
 
 /** The trays a row can open; each is the root of its own view stack. */
 export type TrayRoot = "keys" | "signout";
@@ -21,7 +17,7 @@ type Behaviour =
   | { kind: "mail"; href: string }
   | { kind: "switch"; on: boolean };
 
-export type Row = Behaviour & { label: string; detail?: string; Icon: Icon; status?: Status; destructive?: boolean };
+export type Row = Behaviour & { label: string; detail?: string; Icon: Icon; destructive?: boolean };
 
 const about: Record<KeyId, { detail: string; about: string }> = {
   passkey: { detail: "Face ID on this iPhone", about: "Approves every payment you make. Without it, nothing leaves your wallet." },
@@ -38,28 +34,19 @@ const about: Record<KeyId, { detail: string; about: string }> = {
 // Labels, glyphs and colours come from onboarding, so a key looks the same where it was made.
 export const keys = KEYS.map(({ id, title, Icon, accent }) => ({ id, title, Icon, accent, ...about[id] }));
 
-export const sections: { title?: string; rows: Row[] }[] = [
-  {
-    rows: [
-      { kind: "tray", opens: "keys", label: "Keys", Icon: KeyIcon, status: "All active" },
-      { kind: "info", label: "Bank account", Icon: BankIcon, value: "Revolut ••••1342" },
-      { kind: "info", label: "Fuse Card", Icon: CardIcon, value: "Virtual Visa" },
-    ],
-  },
-  {
-    title: "Preferences",
-    rows: [
-      { kind: "switch", label: "Notifications", Icon: BellIcon, on: true },
-      { kind: "info", label: "Currency", Icon: CoinIcon, value: "USD" },
-    ],
-  },
-  {
-    title: "More",
-    rows: [
-      { kind: "mail", label: "Help & support", Icon: HelpIcon, href: "mailto:support@fuse.xyz" },
-      { kind: "tray", opens: "signout", label: "Sign out", Icon: SignOutIcon, destructive: true },
-    ],
-  },
+/** Groups of rows, set apart by space alone. */
+export const sections: Row[][] = [
+  [
+    { kind: "tray", opens: "keys", label: "Keys", Icon: KeyIcon },
+  ],
+  [
+    { kind: "switch", label: "Notifications", Icon: BellIcon, on: true },
+    { kind: "info", label: "Currency", Icon: CoinIcon, value: "USD" },
+  ],
+  [
+    { kind: "mail", label: "Help & support", Icon: HelpIcon, href: "mailto:support@fuse.xyz" },
+    { kind: "tray", opens: "signout", label: "Sign out", Icon: SignOutIcon, destructive: true },
+  ],
 ];
 
 export const version = "Fuse 0.1.0";
