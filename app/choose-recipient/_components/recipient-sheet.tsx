@@ -30,8 +30,8 @@ export function RecipientSheet({ open, onOpenChange, onClosed }: Props) {
           if (!isOpen) onClosed();
         }}
       >
-        {/* Continue pushes the review with the sheet still up. Named, the sheet and its dim dissolve above the
-            outgoing page; in the page's root snapshot that page's own snapshot would paint over them. */}
+        {/* Continue pushes the review with the sheet still up. Named, the sheet and its dim dissolve on top;
+            left in the root snapshot, the outgoing page's own snapshot would paint over them. */}
         <DrawerContent
           aria-describedby={undefined}
           overlayClassName="[view-transition-name:recipient-overlay]"
