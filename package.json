@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "ios": "CAPACITOR=1 next build && cap sync ios",
+    "ios:sim": "NEXT_PUBLIC_SOFTWARE_PASSKEY=1 npm run ios",
     "ios:open": "cap open ios",
     "typecheck": "next typegen && tsc --noEmit",
     "local": "node scripts/local.ts",

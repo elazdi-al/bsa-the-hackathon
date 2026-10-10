@@ -180,10 +180,13 @@ Run `npm run local` in one terminal. In a second terminal:
 
 ```bash
 npm run ios        # static export into out/, copied into ios/
+npm run ios:sim    # the same, with a software passkey
 npm run ios:open   # opens the project in Xcode
 ```
 
 In Xcode, pick an iPhone simulator and press Run. With `PORT=3200 npm run local`, build with `NEXT_PUBLIC_API_URL=http://localhost:3200 npm run ios`.
+
+`npm run ios` is the real-passkey build. Real passkeys need an associated domain, and an app on `localhost` cannot have one, so WebKit refuses them. `npm run ios:sim` builds for the simulator with a software passkey kept in the web view's storage instead. It is for the simulator only and must never ship.
 
 ## What is mocked and the production path
 

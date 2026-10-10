@@ -2,8 +2,8 @@
 // wallet key from A and Swissquote's B, then keeps the key in memory only: for three hours at
 // most, and never past the app closing. It builds every call itself, and before Face ID signs it
 // checks that Swissquote's operation carries that call, is sponsored, and hashes to what it signs.
-import { WebAuthnP256 } from "ox";
-import { bytesToHex, encodeFunctionData, erc20Abi, hexToBytes, isAddressEqual, numberToHex, parseUnits, type Address, type Hex } from "viem";
+import { P256, WebAuthnP256 } from "ox";
+import { bytesToHex, encodeFunctionData, erc20Abi, hexToBytes, isAddressEqual, numberToHex, parseUnits, sha256, type Address, type Hex } from "viem";
 import { formatUserOperation, getUserOperationHash, type RpcUserOperation } from "viem/account-abstraction";
 import { generatePrivateKey, privateKeyToAccount, privateKeyToAddress } from "viem/accounts";
 import {
@@ -297,13 +297,37 @@ const browserAuthenticator: Authenticator = {
   },
 };
 
-/** The app's phone. Storage is read lazily, so server rendering can import this module. */
+const PASSKEYS = "fuse.wallet.passkeys";
+
+/** The simulator's passkey. WebKit refuses real passkeys without an associated domain. The key sits in plain web storage, so this must never ship. */
+export function softwareAuthenticator(storage: Storage, origin: () => string): Authenticator {
+  const keys = (): Record<string, Hex> => JSON.parse(storage.getItem(PASSKEYS) ?? "{}");
+  return {
+    async create() {
+      const id = crypto.randomUUID();
+      const privateKey = P256.randomPrivateKey();
+      storage.setItem(PASSKEYS, JSON.stringify({ ...keys(), [id]: privateKey }));
+      const { x, y } = P256.getPublicKey({ privateKey });
+      return { id, passkey: { x: numberToHex(x, { size: 32 }), y: numberToHex(y, { size: 32 }) } };
+    },
+    async sign(credentialId, challenge) {
+      const privateKey = keys()[credentialId];
+      if (!privateKey) throw new Error(`This phone has no passkey ${credentialId}.`);
+      const { metadata, payload } = WebAuthnP256.getSignPayload({ challenge, origin: origin(), rpId: new URL(origin()).hostname });
+      return { assertion: { metadata, signature: P256.sign({ payload, privateKey, hash: true }) }, secret: sha256(privateKey, "bytes") };
+    },
+  };
+}
+
+const webStorage: Storage = {
+  getItem: (key) => localStorage.getItem(key),
+  setItem: (key, value) => localStorage.setItem(key, value),
+};
+
+/** The app's phone. Storage and `location` are read lazily, so server rendering can import this module. */
 export const phone = createPhone({
   api: process.env.NEXT_PUBLIC_API_URL ?? "",
   partner: process.env.NEXT_PUBLIC_PARTNER_URL ?? "http://localhost:4002",
-  authenticator: browserAuthenticator,
-  storage: {
-    getItem: (key) => localStorage.getItem(key),
-    setItem: (key, value) => localStorage.setItem(key, value),
-  },
+  authenticator: process.env.NEXT_PUBLIC_SOFTWARE_PASSKEY === "1" ? softwareAuthenticator(webStorage, () => location.origin) : browserAuthenticator,
+  storage: webStorage,
 });

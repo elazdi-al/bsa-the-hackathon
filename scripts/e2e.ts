@@ -4,38 +4,24 @@
 //
 //   npm run e2e
 import assert from "node:assert/strict";
-import { P256, WebAuthnP256 } from "ox";
-import { createWalletClient, erc20Abi, formatUnits, http, numberToHex, parseAbi, parseUnits, sha256, type Address, type Hex } from "viem";
+import { createWalletClient, erc20Abi, formatUnits, http, numberToHex, parseAbi, parseUnits, type Address, type Hex } from "viem";
 import { generatePrivateKey, privateKeyToAccount, privateKeyToAddress } from "viem/accounts";
 import { bindRecoveryKeyMessage } from "../lib/wallet/account.ts";
 import { addresses, chain, publicClient, rpcUrl } from "../lib/wallet/env.ts";
-import { ApiError, createPhone, type Authenticator } from "../lib/wallet/phone.ts";
+import { ApiError, createPhone, softwareAuthenticator } from "../lib/wallet/phone.ts";
 
 const API = process.env.APP_URL ?? "http://localhost:3000";
 const ANNA = privateKeyToAddress(generatePrivateKey());
 const SANCTIONED: Address = "0x098B716B8Aaf21512996dC57EB0615e2383E2f96"; // flagged by the compliance demo screening
 
-/** A phone's passkey, in software. The app uses Face ID through WebAuthnP256 instead. */
-function softwareAuthenticator(): Authenticator {
-  const privateKey = P256.randomPrivateKey();
-  const { x, y } = P256.getPublicKey({ privateKey });
-  const prf = sha256(privateKey, "bytes");
-  return {
-    create: async () => ({ id: "software", passkey: { x: numberToHex(x, { size: 32 }), y: numberToHex(y, { size: 32 }) } }),
-    async sign(_id, challenge) {
-      const { metadata, payload } = WebAuthnP256.getSignPayload({ challenge, origin: API, rpId: new URL(API).hostname });
-      return { assertion: { metadata, signature: P256.sign({ payload, privateKey, hash: true }) }, secret: prf };
-    },
-  };
-}
-
 function newPhone() {
   const items = new Map<string, string>();
+  const storage = { getItem: (k: string) => items.get(k) ?? null, setItem: (k: string, v: string) => void items.set(k, v) };
   return createPhone({
     api: API,
     partner: process.env.PARTNER_URL ?? "http://localhost:4002",
-    authenticator: softwareAuthenticator(),
-    storage: { getItem: (k) => items.get(k) ?? null, setItem: (k, v) => void items.set(k, v) },
+    authenticator: softwareAuthenticator(storage, () => API),
+    storage,
   });
 }
 
