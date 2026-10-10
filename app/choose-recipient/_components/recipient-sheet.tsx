@@ -31,7 +31,7 @@ export function RecipientSheet({ open, onOpenChange, onClosed }: Props) {
       >
         <DrawerContent
           aria-describedby={undefined}
-          className="h-[calc(100dvh-env(safe-area-inset-top)-12px)] pb-[env(safe-area-inset-bottom)] tracking-[-0.02em] sm:h-auto sm:pb-5"
+          className="h-[calc(100dvh-env(safe-area-inset-top)-12px)] pb-[env(safe-area-inset-bottom)] sm:h-auto sm:pb-5"
         >
           <DrawerHeader title="Choose recipient" />
           <AddressCard />

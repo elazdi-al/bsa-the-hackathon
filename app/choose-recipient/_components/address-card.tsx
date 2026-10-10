@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { RESOLVE_DELAY_MS, lookupRecipient, looksLikeRecipient, reviewHref, sendDraft, type Resolution } from "../data";
+import { RESOLVE_DELAY_MS, isHandle, isMistyped, lookupRecipient, looksLikeRecipient, reviewHref, sendDraft } from "../data";
 import { CloseIcon, PasteIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { iconPop } from "./motion";
@@ -99,19 +99,19 @@ export function AddressCard() {
 }
 
 function useResolution(query: string): Status {
-  // A value that arrives filled in (back from the review) was already resolved: show it settled.
-  const [settled, setSettled] = useState(() =>
-    looksLikeRecipient(query) ? { query, result: lookupRecipient(query) } : null,
-  );
-  const resolvable = looksLikeRecipient(query);
+  const handle = isHandle(query);
+  // A name that arrives filled in (back from the review) was already resolved: show it settled.
+  const [settled, setSettled] = useState(() => (handle ? { query, result: lookupRecipient(query) } : null));
 
   useEffect(() => {
-    if (!resolvable) return;
+    if (!handle) return;
     // Each keystroke restarts the timer: this debounces and drops stale lookups in one go.
     const timer = setTimeout(() => setSettled({ query, result: lookupRecipient(query) }), RESOLVE_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [query, resolvable]);
+  }, [query, handle]);
 
-  if (!resolvable) return { kind: "hint" };
-  return settled?.query === query ? settled.result : { kind: "resolving" };
+  if (handle) return settled?.query === query ? settled.result : { kind: "resolving" };
+  // An address is checked right here, so it settles at once.
+  if (looksLikeRecipient(query)) return lookupRecipient(query);
+  return isMistyped(query) ? { kind: "mistyped" } : { kind: "hint" };
 }

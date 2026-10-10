@@ -7,6 +7,8 @@ import { encodeFunctionData, erc20Abi, parseUnits, type Address, type Hex } from
 import { usd } from "@/app/(tabs)/_components/money";
 import { refreshWallet, useWallet, type WalletSnapshot } from "@/app/(tabs)/_components/wallet";
 import { sendDraft } from "@/app/choose-recipient/data";
+import { useBack } from "@/components/navigation";
+import { BackButton } from "@/components/ui/back-button";
 import { ApiError, phone, type Prepared } from "@/lib/wallet/phone";
 import { SendButton, type Phase } from "./send-button";
 
@@ -51,6 +53,7 @@ function failure(e: unknown): string[] {
 /** Continue asks Swissquote to sponsor the transfer; Send is Face ID approving exactly that operation. */
 export function SendReview({ to, address, usdc, children }: { to: string; address: Address; usdc: Address; children: ReactNode }) {
   const router = useRouter();
+  const back = useBack("/choose-recipient");
   const [amount, setAmount] = useState("25");
   const [phase, setPhase] = useState<Phase>("review");
   const [prepared, setPrepared] = useState<Prepared>();
@@ -62,7 +65,6 @@ export function SendReview({ to, address, usdc, children }: { to: string; addres
   useEffect(() => {
     if (!sent) return;
     const id = setTimeout(() => {
-      sendDraft.clear();
       // Replace, so Back from the tracker can't land on a review that's already sent.
       router.replace(`/transaction-tracking?${new URLSearchParams({ hash: sent, amount, to: address })}`, {
         transitionTypes: ["push"],
@@ -103,6 +105,8 @@ export function SendReview({ to, address, usdc, children }: { to: string; addres
     setPhase("sending");
     try {
       setSent(await phone.approve(prepared!));
+      // Paid, so the chooser must not come back filled in, even if the tracker never opens.
+      sendDraft.clear();
       setPhase("sent");
       refreshWallet();
     } catch (e) {
@@ -114,41 +118,49 @@ export function SendReview({ to, address, usdc, children }: { to: string; addres
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="pt-16 pb-20 text-center md:pt-0">
-        <label className="flex items-baseline justify-center text-display tabular-nums">
-          <span aria-hidden>$</span>
-          <input
-            value={amount}
-            onChange={(e) => {
-              setAmount(e.target.value.replace(",", "."));
-              reset();
-            }}
-            readOnly={phase === "checking" || phase === "sending" || phase === "sent"}
-            inputMode="decimal"
-            aria-label="Amount in USDC"
-            style={{ width: `${Math.max(amount.length, 1)}ch` }}
-            className="bg-transparent caret-brand outline-none"
-          />
-        </label>
-        {/* One line tall whatever it says: a blocker that wraps spills into the padding below, so nothing moves. */}
-        <p className="mt-2 h-lh text-body text-balance text-muted-foreground tabular-nums">
-          {blocked || `${valid ? Number(amount).toLocaleString("en-US", { maximumFractionDigits: 6 }) : 0} USDC`}
-        </p>
-      </div>
+      <header className="mx-auto mt-4 flex h-10 w-full max-w-md shrink-0 items-center gap-3 px-6">
+        {/* Leaving before the tracker opens would reopen the chooser, filled in, inviting a second payment. */}
+        <BackButton onClick={back} disabled={phase === "sending" || phase === "sent"} />
+        <h1 className="text-label">Send</h1>
+      </header>
 
-      {children}
+      <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-6 md:justify-center">
+        <div className="pt-16 pb-20 text-center md:pt-0">
+          <label className="flex items-baseline justify-center text-display tabular-nums">
+            <span aria-hidden>$</span>
+            <input
+              value={amount}
+              onChange={(e) => {
+                setAmount(e.target.value.replace(",", "."));
+                reset();
+              }}
+              readOnly={phase === "checking" || phase === "sending" || phase === "sent"}
+              inputMode="decimal"
+              aria-label="Amount in USDC"
+              style={{ width: `${Math.max(amount.length, 1)}ch` }}
+              className="bg-transparent caret-brand outline-none"
+            />
+          </label>
+          {/* One line tall whatever it says: a blocker that wraps spills into the padding below, so nothing moves. */}
+          <p className="mt-2 h-lh text-body text-balance text-muted-foreground tabular-nums">
+            {blocked || `${valid ? Number(amount).toLocaleString("en-US", { maximumFractionDigits: 6 }) : 0} USDC`}
+          </p>
+        </div>
 
-      <div className="mt-auto pt-10 md:mt-0">
-        {error.length > 0 && (
-          <div role="alert" className="mb-3 text-center text-caption text-negative">
-            {error.map((line) => (
-              <p key={line} className="first-letter:uppercase">
-                {line}
-              </p>
-            ))}
-          </div>
-        )}
-        <SendButton phase={phase} disabled={!valid || blocked !== undefined} onPress={phase === "confirm" ? send : check} />
+        {children}
+
+        <div className="mt-auto pt-10 md:mt-0">
+          {error.length > 0 && (
+            <div role="alert" className="mb-3 text-center text-caption text-negative">
+              {error.map((line) => (
+                <p key={line} className="first-letter:uppercase">
+                  {line}
+                </p>
+              ))}
+            </div>
+          )}
+          <SendButton phase={phase} disabled={!valid || blocked !== undefined} onPress={phase === "confirm" ? send : check} />
+        </div>
       </div>
     </MotionConfig>
   );

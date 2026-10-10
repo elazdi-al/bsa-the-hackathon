@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
+import { encode } from "uqr";
 import { wallet as mock } from "@/app/coin-breakdown/data";
 import { CheckIcon, CopyIcon, ReceiveIcon, ShareIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
@@ -9,46 +10,29 @@ import { Drawer, DrawerContent, DrawerHeader } from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
 import { shownAddress, useWallet } from "./wallet";
 
-const N = 29;
 const iconSwap = { type: "spring", duration: 0.3, bounce: 0 } as const;
 const iconFrom = { opacity: 0, scale: 0.25, filter: "blur(4px)" };
 const iconTo = { opacity: 1, scale: 1, filter: "blur(0px)" };
 
-const inFinder = (x: number, y: number) => (x < 8 && y < 8) || (x >= N - 8 && y < 8) || (x < 8 && y >= N - 8);
-const inLogo = (x: number, y: number) => Math.abs(x - (N - 1) / 2) < 4.5 && Math.abs(y - (N - 1) / 2) < 4.5;
-
-// ponytail: decorative, NOT scannable. A real QR encoder (Reed-Solomon, masking) is the upgrade path.
-function qrPath(seed: string) {
-  let h = 2166136261;
-  for (const c of seed) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
-  const rand = () => ((h = Math.imul(h ^ (h >>> 15), 2246822507) + 0x6d2b79f5), ((h ^ (h >>> 13)) >>> 0) / 2 ** 32);
+// Error correction H restores up to 30% of the code, so it still scans with its centre cleared for the badge.
+function qrPath(text: string) {
+  const { data, size } = encode(text, { ecc: "H", border: 0 });
+  const c = (size - 1) / 2;
   let d = "";
-  for (let y = 0; y < N; y++)
-    for (let x = 0; x < N; x++) if (!inFinder(x, y) && !inLogo(x, y) && rand() < 0.5) d += `M${x} ${y}h1v1h-1z`;
-  return d;
-}
-
-function Finder({ x, y }: { x: number; y: number }) {
-  return (
-    <g transform={`translate(${x} ${y})`}>
-      <path fillRule="evenodd" d="M0 0h7v7H0zM1 1v5h5V1z" />
-      <rect x="2" y="2" width="3" height="3" />
-    </g>
-  );
+  for (let y = 0; y < size; y++)
+    for (let x = 0; x < size; x++) if (data[y][x] && !(Math.abs(x - c) < 4.5 && Math.abs(y - c) < 4.5)) d += `M${x} ${y}h1v1h-1z`;
+  return { d, size };
 }
 
 function Qr({ address }: { address: string }) {
-  const d = useMemo(() => qrPath(address), [address]);
+  const { d, size } = useMemo(() => qrPath(address), [address]);
   return (
     <div className="relative size-[200px]">
-      <svg viewBox={`0 0 ${N} ${N}`} className="size-full" shapeRendering="crispEdges" fill="currentColor" aria-hidden>
+      <svg viewBox={`0 0 ${size} ${size}`} className="size-full" shapeRendering="crispEdges" fill="currentColor" aria-hidden>
         <path d={d} />
-        <Finder x={0} y={0} />
-        <Finder x={N - 7} y={0} />
-        <Finder x={0} y={N - 7} />
       </svg>
-      <span className="absolute top-1/2 left-1/2 grid size-12 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-2xl bg-background">
-        <ReceiveIcon size={32} className="text-orange" />
+      <span className="absolute top-1/2 left-1/2 grid size-10 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-xl bg-background">
+        <ReceiveIcon size={28} className="text-orange" />
       </span>
     </div>
   );

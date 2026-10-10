@@ -13,21 +13,20 @@ export type TrayRoot = "keys" | "remove";
 type Behaviour =
   | { kind: "info"; value: string }
   | { kind: "tray"; opens: TrayRoot }
-  | { kind: "push"; href: string }
   | { kind: "link"; href: string }
   | { kind: "switch"; on: boolean };
 
 export type Row = Behaviour & { label: string; detail?: string; Icon: Icon; destructive?: boolean };
 
 const about: Record<KeyId, { detail: string; about: string }> = {
-  passkey: { detail: "Face ID on this iPhone", about: "Approves every payment you make. Without it, nothing leaves your wallet." },
+  passkey: { detail: "Face ID on this phone", about: "Approves every payment you make. Without it, nothing leaves your wallet." },
   key: {
     detail: "Phone, Swissquote and an independent service",
-    about: "This phone, Swissquote and an independent service each hold one part. Any two can rebuild it, and payments still need your Passkey, which only this phone has.",
+    about: "This phone, Swissquote and an independent service each hold one part, so no one stores it whole. Any two can rebuild it, and payments still need your Passkey, which only this phone has.",
   },
   recovery: {
     detail: "Saved as a file",
-    about: "Restores your wallet if you lose this phone, after a 48-hour hold you can cancel. Keep it at home; Swissquote never needs to see it.",
+    about: "Restores your wallet if you lose this phone. A recovery also needs Swissquote's ID check, then a 48-hour hold you can cancel. Keep it at home; Swissquote never needs to see it.",
   },
 };
 

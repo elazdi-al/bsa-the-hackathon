@@ -45,12 +45,6 @@ function SettingsRow({ item, onOpen }: { item: Row; onOpen: (root: TrayRoot) => 
           {body}
         </button>
       );
-    case "push":
-      return (
-        <Link href={item.href} transitionTypes={["push"]} className={`${row} ${rowPress}`}>
-          {body}
-        </Link>
-      );
     case "link":
       return (
         <a href={item.href} target="_blank" rel="noreferrer" className={`${row} ${rowPress}`}>

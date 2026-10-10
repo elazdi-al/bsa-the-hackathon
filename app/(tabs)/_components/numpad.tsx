@@ -20,7 +20,7 @@ export function Numpad({ onKey }: { onKey: (key: Key) => void }) {
           aria-label={labels[key]}
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => onKey(key)}
-          className="grid h-[clamp(48px,7.4dvh,64px)] touch-manipulation place-items-center rounded-[20px] text-[28px] font-medium tabular-nums outline-none select-none transition-[background-color] duration-200 ease-out active:bg-black/[0.05] active:duration-0"
+          className="grid h-[clamp(48px,7.4dvh,64px)] touch-manipulation place-items-center rounded-[20px] text-title font-medium tabular-nums outline-none select-none transition-[background-color] duration-200 ease-out active:bg-black/[0.05] active:duration-0"
         >
           {key === "back" ? <BackIcon size={24} /> : key}
         </button>

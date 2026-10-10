@@ -4,7 +4,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { shortAddress, type Resolution } from "../data";
 import { blurSwap, iconPop } from "./motion";
 
-export type Status = { kind: "hint" } | { kind: "resolving" } | Resolution;
+export type Status = { kind: "hint" } | { kind: "resolving" } | { kind: "mistyped" } | Resolution;
 
 export function StatusLine({ id, status }: { id: string; status: Status }) {
   const { icon, text } = describe(status);
@@ -50,6 +50,11 @@ function describe(status: Status) {
       return {
         icon: <WarningIcon size={16} className="text-negative" />,
         text: "Name not found",
+      };
+    case "mistyped":
+      return {
+        icon: <WarningIcon size={16} className="text-negative" />,
+        text: "Check the address",
       };
   }
 }

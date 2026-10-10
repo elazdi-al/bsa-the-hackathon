@@ -1,11 +1,11 @@
-import { formatUnits, isAddressEqual } from "viem";
+import { formatUnits, isAddress, isAddressEqual } from "viem";
 import type { Transfer } from "@/lib/wallet/phone";
 import { onPhoneClock, type Wallet } from "@/app/(tabs)/_components/wallet";
 
 export type RecentAddress = { address: string; note: string };
 
 export const RECENT_ADDRESSES: RecentAddress[] = [
-  { address: "0x8C3f6a1D2e9B4c7A05d6E1f2B3a4C5d6E7f8A9b0", note: "No previous sends" },
+  { address: "0x8c3f6A1D2E9B4C7A05d6E1F2B3A4c5D6E7F8A9b0", note: "No previous sends" },
 ];
 
 const sentUsd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", trailingZeroDisplay: "stripIfInteger" });
@@ -27,23 +27,28 @@ export function recentSends(transfers: Transfer[], wallet: Pick<Wallet, "address
 
 /** Mock ENS. */
 const HANDLES: Record<string, string> = {
-  "anna.eth": "0x4bA4E2C1fb1B7D3a2f06e1D8C5b9e3a7F0d2c6B1",
+  "anna.eth": "0x4BA4e2c1fb1B7d3a2f06E1d8C5B9e3A7F0d2c6B1",
 };
 
-/** Debounce plus mock network latency, as one delay. */
-export const RESOLVE_DELAY_MS = 1000;
+/** A name's 300 ms debounce plus mock network latency, as one delay. An address needs no lookup. */
+export const RESOLVE_DELAY_MS = 300 + 500;
 
 const HANDLE_PATTERN = /^[a-z0-9_-]+\.eth$/i;
 const ADDRESS_PATTERN = /^0x[0-9a-f]{40}$/i;
 
 export type Resolution = { kind: "resolved"; address: string } | { kind: "notFound" };
 
+export const isHandle = (query: string) => HANDLE_PATTERN.test(query);
+
+/** 40 hex digits whose mixed case fails the EIP-55 checksum: most likely a typo. */
+export const isMistyped = (query: string) => ADDRESS_PATTERN.test(query) && !isAddress(query);
+
 export function looksLikeRecipient(query: string) {
-  return HANDLE_PATTERN.test(query) || ADDRESS_PATTERN.test(query);
+  return isHandle(query) || isAddress(query);
 }
 
 export function lookupRecipient(query: string): Resolution {
-  const address = HANDLE_PATTERN.test(query) ? HANDLES[query.toLowerCase()] : query;
+  const address = isHandle(query) ? HANDLES[query.toLowerCase()] : query;
   return address ? { kind: "resolved", address } : { kind: "notFound" };
 }
 
