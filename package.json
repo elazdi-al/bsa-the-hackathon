@@ -13,6 +13,7 @@
     "e2e": "node --env-file-if-exists=.env.local scripts/e2e.ts",
     "warp": "node --env-file-if-exists=.env.local scripts/warp.ts",
     "check": "node lib/wallet/shamir.check.ts && node app/onboarding-secure/flow.check.mjs && node 'app/(tabs)/_components/amount.check.mjs'",
+    "check:onboarding": "node --env-file-if-exists=.env.local scripts/onboarding.check.mjs",
     "contracts:test": "cd contracts && forge test",
     "test:compliance": "node --import tsx --test tests/compliance/*.test.ts",
     "demo:compliance": "tsx tools/compliance-demo.ts",
@@ -25,7 +26,6 @@
     "class-variance-authority": "^0.7.1",
     "cn": "^0.4.0",
     "glimm": "^0.3.1",
-    "input-otp": "^1.5.0",
     "motion": "^14.1.0",
     "next": "16.4.0",
     "ox": "^0.14.54",
@@ -44,7 +44,7 @@
     "@types/react-dom": "^19",
     "playwright": "^1.64.0",
     "tailwindcss": "^4",
-    "typescript": "^5",
-    "tsx": "4.23.15"
+    "tsx": "4.23.15",
+    "typescript": "^5"
   }
 }

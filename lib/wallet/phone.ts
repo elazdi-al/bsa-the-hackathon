@@ -1,12 +1,12 @@
 // The phone's side of the protocol. It holds Share A and the passkey. To sign, it rebuilds the
 // wallet key from A and Swissquote's B, then keeps the key in memory only: for three hours at
-// most, and never past the app closing. It builds every operation itself and checks what
-// Swissquote returns before Face ID signs, so a compromised server cannot swap the operation.
+// most, and never past the app closing. It builds every call itself, and before Face ID signs it
+// checks that Swissquote's operation carries that call, is sponsored, and hashes to what it signs.
 import { WebAuthnP256 } from "ox";
 import { encodeFunctionData, erc20Abi, isAddressEqual, numberToHex, parseUnits, type Address, type Hex } from "viem";
 import { formatUserOperation, getUserOperationHash, type RpcUserOperation } from "viem/account-abstraction";
 import { generatePrivateKey, privateKeyToAccount, privateKeyToAddress } from "viem/accounts";
-import { accountAbi, cancelRecoveryMessage, encodeNormalSignature, type Passkey, type PasskeyAssertion } from "./account.ts";
+import { accountAbi, bindRecoveryKeyMessage, cancelRecoveryMessage, encodeNormalSignature, type Passkey, type PasskeyAssertion } from "./account.ts";
 import { combine, split, type Share } from "./shamir.ts";
 
 export const KEY_TTL = 3 * 60 * 60 * 1000;
@@ -32,7 +32,7 @@ export type WalletState = {
 export type Identity = { document: string; selfie: string };
 
 type Storage = Pick<globalThis.Storage, "getItem" | "setItem">;
-type Config = { chainId: number; entryPoint: Address; usdc: Address; partnerUrl: string };
+type Config = { chainId: number; entryPoint: Address; usdc: Address };
 type Prepared = { hash: Hex; userOp: RpcUserOperation<"0.7"> };
 
 export class ApiError extends Error {
@@ -47,7 +47,11 @@ export class ApiError extends Error {
 
 const DEVICE = "fuse.wallet.device";
 
-export function createPhone({ api = "", authenticator, storage }: { api?: string; authenticator: Authenticator; storage: Storage }) {
+/**
+ * `partner` is pinned in the app build, never taken from Swissquote, so Swissquote cannot redirect
+ * Share C to itself during the split.
+ */
+export function createPhone({ api = "", partner, authenticator, storage }: { api?: string; partner: string; authenticator: Authenticator; storage: Storage }) {
   let cached: { key: Hex; expiresAt: number; timer: ReturnType<typeof setTimeout> } | undefined;
   let config: Promise<Config> | undefined;
 
@@ -62,7 +66,14 @@ export function createPhone({ api = "", authenticator, storage }: { api?: string
     return json;
   }
 
-  const getConfig = () => (config ??= call<Config>("/api/config"));
+  function getConfig() {
+    config ??= call<Config>("/api/config").catch((error) => {
+      config = undefined;
+      throw error;
+    });
+    return config;
+  }
+  // ponytail: Share A sits in plain web storage; the native app keeps it in the Secure Enclave or Keystore.
   const device = (): Device | undefined => JSON.parse(storage.getItem(DEVICE) ?? "null") ?? undefined;
   const save = (d: Device) => storage.setItem(DEVICE, JSON.stringify(d));
 
@@ -88,18 +99,28 @@ export function createPhone({ api = "", authenticator, storage }: { api?: string
   // A throttled timer can fire late, so the expiry is checked on every use too.
   const cachedKey = () => (cached && Date.now() < cached.expiresAt ? cached.key : undefined);
 
-  /** Rejects anything but the operation this phone asked for, then hashes it itself. */
+  /** Rejects anything but this phone's call, sponsored so the wallet never pays gas, then hashes it itself. */
   async function verify({ hash, userOp }: Prepared, sender: Address, callData: Hex) {
     const { chainId, entryPoint } = await getConfig();
     const op = formatUserOperation(userOp);
     const ours =
       isAddressEqual(op.sender, sender) &&
       op.callData === callData &&
+      !!op.paymaster &&
       getUserOperationHash({ chainId, entryPointAddress: entryPoint, entryPointVersion: "0.7", userOperation: op }) === hash;
     if (!ours) throw new Error("Swissquote returned a different operation than this phone built.");
   }
 
   /** Face ID approves the exact operation; the cached key, or one rebuilt from A and B, signs it. */
+  /** The freshly split key names the recovery key that may release its shares, at both holders. */
+  async function bind(signer: Address, recoveryKey: Address): Promise<Hex> {
+    const key = cachedKey();
+    if (!key) throw new Error("Split the wallet key again; this phone no longer has it in memory.");
+    const signature = await privateKeyToAccount(key).signMessage({ message: bindRecoveryKeyMessage(signer, recoveryKey) });
+    await call(`${partner}/shares/${signer}/recovery-key`, { recoveryKey, signature });
+    return signature;
+  }
+
   async function operate(callData: Hex): Promise<Hex> {
     const wallet = requireWallet();
     const prepared = await call<Prepared>(`/api/wallets/${wallet.address}/operations`, { callData });
@@ -129,12 +150,12 @@ export function createPhone({ api = "", authenticator, storage }: { api?: string
     /** Splits a fresh wallet key: B to Swissquote, C straight to the partner, A stays on this phone. */
     async splitKey(credential: Credential): Promise<Address> {
       const { key, shares, commitments } = split();
-      const { signer, ticket, partnerUrl } = await call<{ signer: Address; ticket: unknown; partnerUrl: string }>("/api/shares", {
+      const { signer, ticket } = await call<{ signer: Address; ticket: unknown }>("/api/shares", {
         commitments,
         passkey: credential.passkey,
         share: shares.swissquote,
       });
-      await call(`${partnerUrl}/shares`, { ticket, share: shares.partner });
+      await call(`${partner}/shares`, { ticket, share: shares.partner });
       save({ credentialId: credential.id, passkey: credential.passkey, share: shares.phone, signer });
       remember(key);
       return signer;
@@ -149,7 +170,8 @@ export function createPhone({ api = "", authenticator, storage }: { api?: string
     async register(recoveryKey: Address): Promise<Address> {
       const d = device();
       if (!d) throw new Error("Split the wallet key first.");
-      const { address } = await call<{ address: Address }>("/api/wallets", { signer: d.signer, recoveryKey });
+      const signature = await bind(d.signer, recoveryKey);
+      const { address } = await call<{ address: Address }>("/api/wallets", { signer: d.signer, recoveryKey, signature });
       save({ ...d, address });
       return address;
     },
@@ -171,7 +193,7 @@ export function createPhone({ api = "", authenticator, storage }: { api?: string
       const prepared = await call<Prepared & { address: Address }>("/api/recovery", {
         recoveryKey: recovery.address,
         signer: d.signer,
-        passkey: d.passkey,
+        signature: await bind(d.signer, recovery.address),
         identity,
       });
       await verify(prepared, prepared.address, encodeFunctionData({ abi: accountAbi, functionName: "initiateRecovery", args: [d.signer, d.passkey] }));
@@ -212,6 +234,7 @@ const browserAuthenticator: Authenticator = {
 
 /** The app's phone. Storage is read lazily, so server rendering can import this module. */
 export const phone = createPhone({
+  partner: process.env.NEXT_PUBLIC_PARTNER_URL ?? "http://localhost:4002",
   authenticator: browserAuthenticator,
   storage: {
     getItem: (key) => localStorage.getItem(key),

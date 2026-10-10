@@ -1,68 +1,88 @@
-// The independent third-party service: holds Share C of every wallet key. It stores C only
-// for a key Swissquote ticketed, and releases it only to start a recovery that Swissquote
-// approved AND the client's recovery key signed. It never co-signs a normal transaction.
+// The independent third-party service: holds Share C of every wallet key. It stores C only for
+// a key Swissquote ticketed, learns its recovery key only from the wallet key itself, and
+// releases C only to start a recovery that Swissquote approved AND that recovery key signed.
+// It never takes part in a normal transaction.
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { decodeFunctionData, isAddressEqual, recoverAddress, type Address } from "viem";
+import { decodeFunctionData, isAddressEqual, recoverAddress, recoverMessageAddress, type Address } from "viem";
 import { formatUserOperation, getUserOperationHash, type UserOperation } from "viem/account-abstraction";
-import { accountAbi, factoryAbi, type Config } from "../../lib/wallet/account.ts";
+import * as z from "zod";
+import { accountAbi, bindRecoveryKeyMessage, factoryAbi, type Config } from "../../lib/wallet/account.ts";
 import { addresses, chain, credentials, publicClient } from "../../lib/wallet/env.ts";
-import { HOLDERS, signerOf, verifyShare, type Share } from "../../lib/wallet/shamir.ts";
-import { verifyTicket, type Ticket } from "../../lib/wallet/tickets.ts";
+import { address, recoveryApproval, share, sharesTicket, signature, userOp as userOpSchema } from "../../lib/wallet/schema.ts";
+import { HOLDERS, signerOf, verifyShare } from "../../lib/wallet/shamir.ts";
+import { verifyTicket } from "../../lib/wallet/tickets.ts";
 import { openVault } from "../../lib/wallet/vault.ts";
 
 const vault = openVault(process.env.PARTNER_DB ?? "data/partner.db", process.env.PARTNER_SHARE_KEY);
 const PORT = Number(new URL(process.env.PARTNER_URL ?? "http://localhost:4002").port);
+const MAX_BODY = 64 * 1024;
 
-async function store(body: { ticket: Ticket<"Shares">; share: Share }) {
-  const ticket = await verifyTicket(addresses.swissquote, chain.id, "Shares", body.ticket);
+class Refusal extends Error {}
+
+async function store(body: unknown) {
+  const input = z.object({ ticket: sharesTicket, share: share(HOLDERS.partner) }).parse(body);
+  const ticket = await verifyTicket(addresses.swissquote, chain.id, "Shares", input.ticket);
   const commitments = [ticket.keyCommitment, ticket.slopeCommitment] as const;
-  if (body.share.x !== HOLDERS.partner || !verifyShare(body.share, commitments) || !isAddressEqual(signerOf(commitments), ticket.signer)) {
-    throw new Error("This is not Share C of the ticketed key.");
+  if (!verifyShare(input.share, commitments) || !isAddressEqual(signerOf(commitments), ticket.signer)) {
+    throw new Refusal("This is not Share C of the ticketed key.");
   }
-  const existing = vault.get(ticket.signer);
-  if (existing) return { signer: existing.signer };
-  vault.put({ signer: ticket.signer, passkey: { x: ticket.passkeyX, y: ticket.passkeyY }, share: body.share });
+  if (!vault.get(ticket.signer)) vault.put({ signer: ticket.signer, passkey: { x: ticket.passkeyX, y: ticket.passkeyY }, share: input.share });
   console.log(`[partner] stored Share C of ${ticket.signer}`);
   return { signer: ticket.signer };
 }
 
+async function bind(signer: Address, body: unknown) {
+  const input = z.object({ recoveryKey: address, signature }).parse(body);
+  const by = await recoverMessageAddress({ message: bindRecoveryKeyMessage(signer, input.recoveryKey), signature: input.signature });
+  if (!isAddressEqual(by, signer)) throw new Refusal("The wallet key did not sign this recovery key.");
+  if (!vault.bind(signer, input.recoveryKey)) throw new Refusal("No Share C for that key, or it has another recovery key.");
+  return { signer, recoveryKey: input.recoveryKey };
+}
+
 /** The account's config, read from the UserOperation that deploys it, checked against its address. */
-async function initialConfig(userOp: UserOperation<"0.7">): Promise<Config> {
-  if (!userOp.factoryData) throw new Error("The wallet is not deployed and the operation does not deploy it.");
-  const { args } = decodeFunctionData({ abi: factoryAbi, data: userOp.factoryData });
+async function initialConfig(op: UserOperation<"0.7">): Promise<Config> {
+  if (!op.factoryData) throw new Refusal("The wallet is not deployed and the operation does not deploy it.");
+  const { args } = decodeFunctionData({ abi: factoryAbi, data: op.factoryData });
   const [config, salt] = args as [Config, bigint];
   const predicted = await publicClient.readContract({ address: addresses.factory, abi: factoryAbi, functionName: "getAddress", args: [config, salt] });
-  if (!isAddressEqual(predicted, userOp.sender)) throw new Error("The deployment config does not match the wallet.");
+  if (!isAddressEqual(predicted, op.sender)) throw new Refusal("The deployment config does not match the wallet.");
   return config;
 }
 
-async function release(body: { approval: Ticket<"RecoveryApproval">; userOp: Record<string, unknown>; signature: `0x${string}` }) {
-  const userOp = formatUserOperation(body.userOp as never) as UserOperation<"0.7">;
-  const hash = getUserOperationHash({ chainId: chain.id, entryPointAddress: addresses.entryPoint, entryPointVersion: "0.7", userOperation: userOp });
-  const approval = await verifyTicket(addresses.swissquote, chain.id, "RecoveryApproval", body.approval);
-  if (approval.userOpHash !== hash || !isAddressEqual(approval.wallet, userOp.sender)) throw new Error("The approval is for another operation.");
-  if (decodeFunctionData({ abi: accountAbi, data: userOp.callData }).functionName !== "initiateRecovery") {
-    throw new Error("Share C only starts a recovery.");
+async function release(body: unknown) {
+  const input = z.object({ approval: recoveryApproval, userOp: userOpSchema, signature }).parse(body);
+  const op = formatUserOperation(input.userOp as never) as UserOperation<"0.7">;
+  const hash = getUserOperationHash({ chainId: chain.id, entryPointAddress: addresses.entryPoint, entryPointVersion: "0.7", userOperation: op });
+  const approval = await verifyTicket(addresses.swissquote, chain.id, "RecoveryApproval", input.approval);
+  if (approval.userOpHash !== hash || !isAddressEqual(approval.wallet, op.sender)) throw new Refusal("The approval is for another operation.");
+  if (decodeFunctionData({ abi: accountAbi, data: op.callData }).functionName !== "initiateRecovery") throw new Refusal("Share C only starts a recovery.");
+  const { signer } = await credentials(op.sender, () => initialConfig(op));
+  const stored = vault.get(signer);
+  // The independent check: the recovery key the wallet key named, kept at home, signed this exact operation.
+  if (!stored?.recoveryKey || !isAddressEqual(await recoverAddress({ hash, signature: input.signature }), stored.recoveryKey)) {
+    throw new Refusal("The wallet's recovery key did not sign this operation.");
   }
-  const wallet = await credentials(userOp.sender, () => initialConfig(userOp));
-  // The independent check: the client's recovery key, kept at home, signed this exact operation.
-  if (!isAddressEqual(await recoverAddress({ hash, signature: body.signature }), wallet.recoveryKey)) {
-    throw new Error("The recovery key did not sign this operation.");
-  }
-  const stored = vault.get(wallet.signer);
-  if (!stored) throw new Error("No Share C for this wallet's key.");
-  console.log(`[partner] released Share C of ${wallet.signer} for recovery ${hash.slice(0, 10)}`);
+  console.log(`[partner] released Share C of ${signer} for recovery ${hash.slice(0, 10)}`);
   return { share: stored.share };
 }
 
-async function readJson(req: IncomingMessage) {
+async function readJson(req: IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
-  for await (const chunk of req) chunks.push(chunk as Buffer);
-  return JSON.parse(Buffer.concat(chunks).toString() || "{}");
+  let size = 0;
+  for await (const chunk of req) {
+    size += (chunk as Buffer).length;
+    if (size > MAX_BODY) throw new Refusal("The body is too large.");
+    chunks.push(chunk as Buffer);
+  }
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString() || "{}");
+  } catch {
+    throw new Refusal("The body is not JSON.");
+  }
 }
 
 function send(res: ServerResponse, status: number, body: unknown) {
-  // The phone posts Share C here directly, so Swissquote never sees it.
+  // The phone posts Share C and the recovery-key binding here directly, so Swissquote never sees C.
   res.writeHead(status, {
     "content-type": "application/json",
     "access-control-allow-origin": "*",
@@ -73,17 +93,21 @@ function send(res: ServerResponse, status: number, body: unknown) {
 
 createServer(async (req, res) => {
   if (req.method === "OPTIONS") return send(res, 204, null);
-  const [, route, signer] = req.url?.split("/") ?? [];
+  const [, route, signer, sub] = req.url?.split("/") ?? [];
   try {
-    if (req.method === "POST" && route === "shares") return send(res, 200, await store(await readJson(req)));
+    if (req.method === "POST" && route === "shares" && !signer) return send(res, 200, await store(await readJson(req)));
+    if (req.method === "POST" && route === "shares" && sub === "recovery-key") return send(res, 200, await bind(address.parse(signer), await readJson(req)));
     if (req.method === "GET" && route === "shares" && signer) {
-      const stored = vault.get(signer as Address);
-      return stored ? send(res, 200, { signer: stored.signer, passkey: stored.passkey }) : send(res, 404, { error: "No share for that key." });
+      const stored = vault.get(address.parse(signer));
+      return stored
+        ? send(res, 200, { signer: stored.signer, passkey: stored.passkey, recoveryKey: stored.recoveryKey ?? null })
+        : send(res, 404, { error: "No share for that key." });
     }
     if (req.method === "POST" && route === "recovery") return send(res, 200, await release(await readJson(req)));
     send(res, 404, { error: "Not found." });
   } catch (error) {
+    const message = error instanceof Refusal ? error.message : error instanceof z.ZodError ? "Invalid request." : "Refused.";
     console.warn(`[partner] refused ${req.method} ${req.url}: ${(error as Error).message}`);
-    send(res, 400, { error: (error as Error).message });
+    send(res, 400, { error: message });
   }
 }).listen(PORT, () => console.log(`[partner] holding Share C on :${PORT}`));

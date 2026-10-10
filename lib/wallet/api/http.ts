@@ -1,9 +1,9 @@
 // Request parsing and error responses for the Wallet API's route handlers.
 import { WebAuthnP256 } from "ox";
-import { isAddress, isHex, type Address, type Hex } from "viem";
+import type { Hex } from "viem";
 import * as z from "zod";
 import type { Passkey } from "../account.ts";
-import { HOLDERS } from "../shamir.ts";
+import type { assertion } from "../schema.ts";
 
 export class HttpError extends Error {
   status: number;
@@ -29,29 +29,15 @@ export function route<A extends unknown[]>(handler: (...args: A) => Promise<Resp
   };
 }
 
-export const hex = z.custom<Hex>((v) => typeof v === "string" && isHex(v));
-export const bytes32 = z.custom<Hex>((v) => typeof v === "string" && isHex(v) && v.length === 66);
-export const address = z.custom<Address>((v) => typeof v === "string" && isAddress(v));
-export const passkey = z.object({ x: bytes32, y: bytes32 }) satisfies z.ZodType<Passkey>;
-export const share = (x: (typeof HOLDERS)[keyof typeof HOLDERS]) => z.object({ x: z.literal(x), y: bytes32 });
-export const commitments = z.tuple([hex, hex]);
-/** A passkey assertion with its signature as hex, the way the phone sends it. */
-export const assertion = z.object({
-  metadata: z.object({
-    authenticatorData: hex,
-    clientDataJSON: z.string(),
-    challengeIndex: z.number().int(),
-    typeIndex: z.number().int(),
-    userVerificationRequired: z.boolean(),
-  }),
-  signature: z.object({ r: hex, s: hex }),
-});
-export type WireAssertion = z.infer<typeof assertion>;
-
-export const parse = async <T extends z.ZodType>(request: Request, schema: T): Promise<z.infer<T>> => schema.parse(await request.json());
+export async function parse<T extends z.ZodType>(request: Request, schema: T): Promise<z.infer<T>> {
+  const body = await request.json().catch(() => {
+    throw new HttpError(400, "The body is not JSON.");
+  });
+  return schema.parse(body);
+}
 
 /** True when `wire` is the wallet passkey's assertion, with Face ID, over `challenge`. */
-export function verifyAssertion(wire: WireAssertion, challenge: Hex, key: Passkey, rpId: string): boolean {
+export function verifyAssertion(wire: z.infer<typeof assertion>, challenge: Hex, key: Passkey, rpId: string): boolean {
   return WebAuthnP256.verify({
     challenge,
     rpId,

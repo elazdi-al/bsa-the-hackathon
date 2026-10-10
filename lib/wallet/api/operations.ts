@@ -12,6 +12,7 @@ import {
   http,
   isAddressEqual,
   parseEventLogs,
+  recoverMessageAddress,
   type Address,
   type Hex,
 } from "viem";
@@ -24,10 +25,12 @@ import {
   type UserOperation,
 } from "viem/account-abstraction";
 import { privateKeyToAccount } from "viem/accounts";
+import * as z from "zod";
 import { getComplianceRuntime } from "@/services/compliance/runtime";
-import { accountAbi, factoryAbi, paymasterAbi, type Config, type Passkey } from "../account.ts";
+import { accountAbi, bindRecoveryKeyMessage, factoryAbi, paymasterAbi, type Config, type Passkey } from "../account.ts";
 import { addresses, chain, credentials, partnerUrl, publicClient, rpcUrl } from "../env.ts";
-import { combine, type Share } from "../shamir.ts";
+import { address, passkey, share } from "../schema.ts";
+import { combine, HOLDERS } from "../shamir.ts";
 import { signTicket } from "../tickets.ts";
 import { store, type Kind, type Wallet } from "./db.ts";
 import { HttpError } from "./http.ts";
@@ -45,7 +48,8 @@ const GAS = {
   paymasterVerificationGasLimit: 100_000n,
   paymasterPostOpGasLimit: 0n,
 };
-const SPONSORSHIP_TTL = 300n;
+// As long as a compliance decision lives, so a sponsored operation never outlives the decision behind it.
+const SPONSORSHIP_TTL = 120n;
 
 export function walletConfig(signer: Address, passkey: Passkey, recoveryKey: Address): Config {
   return { signer, passkey, recoveryKey, guardian: swissquote().address, rules: [addresses.spendingLimitRule] };
@@ -61,6 +65,39 @@ export function requireWallet(address: Address): Wallet {
 }
 
 export const liveCredentials = (wallet: Wallet) => credentials(wallet.address, () => wallet.config);
+
+/** Calls the partner. Silence or a refusal becomes an HttpError, never a raw failure. */
+async function partner<T extends z.ZodType>(path: string, reply: T, body?: unknown): Promise<z.infer<T>> {
+  const res = await fetch(partnerUrl + path, {
+    method: body === undefined ? "GET" : "POST",
+    headers: body === undefined ? undefined : { "content-type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+    signal: AbortSignal.timeout(5000),
+  }).catch(() => {
+    throw new HttpError(503, "The independent service is unreachable.");
+  });
+  const json = await res.json().catch(() => undefined);
+  if (!res.ok) throw new HttpError(409, "The independent service refused.", { detail: json?.error });
+  const parsed = reply.safeParse(json);
+  if (!parsed.success) throw new HttpError(502, "The independent service answered something unexpected.");
+  return parsed.data;
+}
+
+/**
+ * The wallet key itself names the recovery key that may release its shares. Swissquote records
+ * it for Share B and checks the partner recorded the same for Share C. Resolves to Share B's record.
+ */
+export async function bindShares(signer: Address, recoveryKey: Address, signature: Hex) {
+  const by = await recoverMessageAddress({ message: bindRecoveryKeyMessage(signer, recoveryKey), signature });
+  if (!isAddressEqual(by, signer)) throw new HttpError(403, "The wallet key did not sign this recovery key.");
+  if (!store().shares.bind(signer, recoveryKey)) throw new HttpError(409, "Swissquote holds no share of that key, or it has another recovery key.");
+  const b = store().shares.get(signer)!;
+  const c = await partner(`/shares/${signer}`, z.object({ passkey, recoveryKey: address.nullable() }));
+  if (c.passkey.x !== b.passkey.x || c.passkey.y !== b.passkey.y || !c.recoveryKey || !isAddressEqual(c.recoveryKey, recoveryKey)) {
+    throw new HttpError(409, "The independent service holds no share of that key for this recovery key.");
+  }
+  return b;
+}
 
 /** Swissquote assists only operations its compliance policy allows; refusing never freezes the wallet itself. */
 export async function assist(wallet: Wallet, callData: Hex) {
@@ -185,18 +222,14 @@ function revertReason(error: unknown) {
 export async function signRecovery(wallet: Wallet, hash: Hex, userOp: UserOperation<"0.7">, recoverySignature: Hex): Promise<Hex> {
   const { signer } = await liveCredentials(wallet);
   const approval = await signTicket(swissquote(), chain.id, "RecoveryApproval", { wallet: wallet.address, userOpHash: hash });
-  const res = await fetch(`${partnerUrl}/recovery`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ approval, userOp: formatUserOperationRequest(userOp), signature: recoverySignature }),
-  }).catch(() => {
-    throw new HttpError(503, "The independent service is unreachable.");
+  const c = await partner("/recovery", z.object({ share: share(HOLDERS.partner) }), {
+    approval,
+    userOp: formatUserOperationRequest(userOp),
+    signature: recoverySignature,
   });
-  const body = (await res.json()) as { share: Share } | { error: string };
-  if ("error" in body) throw new HttpError(403, "The independent service refused the recovery.", { detail: body.error });
   const b = store().shares.get(signer);
   if (!b) throw new HttpError(500, "Swissquote holds no Share B for this wallet's key.");
-  const key = privateKeyToAccount(combine(b.share, body.share));
+  const key = privateKeyToAccount(combine(b.share, c.share));
   if (!isAddressEqual(key.address, signer)) throw new HttpError(500, "Shares B and C do not rebuild this wallet's key.");
   return key.sign({ hash });
 }

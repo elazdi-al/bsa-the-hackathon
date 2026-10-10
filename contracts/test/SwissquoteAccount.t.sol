@@ -14,7 +14,7 @@ import {WebAuthn} from "@openzeppelin/contracts/utils/cryptography/WebAuthn.sol"
 import {SwissquoteAccount} from "../src/SwissquoteAccount.sol";
 import {SwissquoteAccountFactory} from "../src/SwissquoteAccountFactory.sol";
 import {SpendingLimitRule} from "../src/rules/SpendingLimitRule.sol";
-import {TestUSDC} from "../src/TestUSDC.sol";
+import {TestUSDC} from "../script/TestUSDC.sol";
 
 contract SwissquoteAccountTest is Test {
     uint256 constant P256_N = 0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551;

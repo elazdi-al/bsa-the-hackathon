@@ -26,12 +26,12 @@ export type Row = Behaviour & { label: string; detail?: string; Icon: Icon; stat
 const about: Record<KeyId, { detail: string; about: string }> = {
   passkey: { detail: "Face ID on this iPhone", about: "Approves every payment you make. Without it, nothing leaves your wallet." },
   key: {
-    detail: "Phone, Swissquote and backup",
-    about: "This phone, Swissquote and a backup service each hold one part. Any two of them sign with your Passkey. Nobody holds the whole key.",
+    detail: "Phone, Swissquote and an independent service",
+    about: "This phone, Swissquote and an independent service each hold one part. Any two can rebuild it, and payments still need your Passkey, which only this phone has.",
   },
   recovery: {
     detail: "Saved as a file",
-    about: "Restores your wallet if you lose this phone, after a 48-hour hold you can cancel. Swissquote never needs to see it.",
+    about: "Restores your wallet if you lose this phone, after a 48-hour hold you can cancel. Keep it at home; Swissquote never needs to see it.",
   },
 };
 

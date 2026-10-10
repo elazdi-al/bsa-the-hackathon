@@ -7,7 +7,8 @@ import type { Address, Hex } from "viem";
 import type { Passkey } from "./account.ts";
 import type { Share } from "./shamir.ts";
 
-export type Stored = { signer: Address; passkey: Passkey; share: Share };
+/** `recoveryKey` is set once the wallet key itself signed which recovery key may release its share. */
+export type Stored = { signer: Address; passkey: Passkey; share: Share; recoveryKey?: Address };
 
 // ponytail: the at-rest key comes from the environment; production keeps shares in an HSM.
 export function openVault(file: string, keyHex: string | undefined) {
@@ -17,7 +18,7 @@ export function openVault(file: string, keyHex: string | undefined) {
   const db = new DatabaseSync(file, { timeout: 5000 });
   db.exec(`create table if not exists shares (
     signer text primary key collate nocase, passkey_x text not null, passkey_y text not null,
-    x integer not null, sealed text not null, created_at integer not null)`);
+    x integer not null, sealed text not null, created_at integer not null, recovery_key text collate nocase)`);
 
   const seal = (y: Hex, signer: Address) => {
     const iv = randomBytes(12);
@@ -35,13 +36,27 @@ export function openVault(file: string, keyHex: string | undefined) {
   return {
     db,
     put({ signer, passkey, share }: Stored) {
-      db.prepare("insert into shares values (?, ?, ?, ?, ?, ?)").run(signer, passkey.x, passkey.y, share.x, seal(share.y, signer), Date.now());
+      db.prepare("insert into shares values (?, ?, ?, ?, ?, ?, null)").run(signer, passkey.x, passkey.y, share.x, seal(share.y, signer), Date.now());
+    },
+    /** False if the share is unknown or already bound to another recovery key. */
+    bind(signer: Address, recoveryKey: Address): boolean {
+      const { changes } = db
+        .prepare("update shares set recovery_key = ? where signer = ? and (recovery_key is null or recovery_key = ?)")
+        .run(recoveryKey, signer, recoveryKey);
+      return changes === 1;
     },
     get(signer: Address): Stored | undefined {
       const row = db.prepare("select * from shares where signer = ?").get(signer) as
-        | { signer: Address; passkey_x: Hex; passkey_y: Hex; x: Share["x"]; sealed: string }
+        | { signer: Address; passkey_x: Hex; passkey_y: Hex; x: Share["x"]; sealed: string; recovery_key: Address | null }
         | undefined;
-      return row && { signer: row.signer, passkey: { x: row.passkey_x, y: row.passkey_y }, share: { x: row.x, y: open(row.sealed, row.signer) } };
+      return (
+        row && {
+          signer: row.signer,
+          passkey: { x: row.passkey_x, y: row.passkey_y },
+          share: { x: row.x, y: open(row.sealed, row.signer) },
+          recoveryKey: row.recovery_key ?? undefined,
+        }
+      );
     },
   };
 }

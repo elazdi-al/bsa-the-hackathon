@@ -1,7 +1,8 @@
 import type { Address } from "viem";
 import * as z from "zod";
-import { hex, parse, route } from "@/lib/wallet/api/http.ts";
+import { parse, route } from "@/lib/wallet/api/http.ts";
 import { assist, prepare, requireWallet } from "@/lib/wallet/api/operations.ts";
+import { hex } from "@/lib/wallet/schema.ts";
 
 /**
  * Sponsors an operation the phone built. The phone checks the returned operation against its

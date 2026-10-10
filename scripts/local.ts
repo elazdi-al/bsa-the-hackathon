@@ -85,6 +85,7 @@ writeFileSync(
 );
 
 const env = {
+  CHAIN: "anvil",
   RPC_URL,
   SWISSQUOTE_KEY,
   SWISSQUOTE_ADDRESS: privateKeyToAddress(SWISSQUOTE_KEY),
@@ -92,6 +93,7 @@ const env = {
   SWISSQUOTE_SHARE_KEY: randomBytes(32).toString("hex"),
   PARTNER_SHARE_KEY: randomBytes(32).toString("hex"),
   PARTNER_URL: "http://localhost:4002",
+  NEXT_PUBLIC_PARTNER_URL: "http://localhost:4002",
   APP_URL: `http://localhost:${PORT}`,
   COMPLIANCE_MODE: "demo",
   COMPLIANCE_POLICY_FILE: POLICY_FILE,

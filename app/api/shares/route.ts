@@ -1,8 +1,9 @@
 import * as z from "zod";
 import { store } from "@/lib/wallet/api/db.ts";
-import { commitments, HttpError, parse, passkey, route, share } from "@/lib/wallet/api/http.ts";
+import { HttpError, parse, route } from "@/lib/wallet/api/http.ts";
 import { swissquote } from "@/lib/wallet/api/operations.ts";
-import { chain, partnerUrl } from "@/lib/wallet/env.ts";
+import { chain } from "@/lib/wallet/env.ts";
+import { commitments, passkey, share } from "@/lib/wallet/schema.ts";
 import { HOLDERS, signerOf, verifyShare } from "@/lib/wallet/shamir.ts";
 import { signTicket } from "@/lib/wallet/tickets.ts";
 
@@ -25,5 +26,5 @@ export const POST = route(async (request: Request) => {
     keyCommitment: input.commitments[0],
     slopeCommitment: input.commitments[1],
   });
-  return Response.json({ signer, ticket, partnerUrl });
+  return Response.json({ signer, ticket });
 });

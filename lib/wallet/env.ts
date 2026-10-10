@@ -4,8 +4,10 @@ import { entryPoint07Address } from "viem/account-abstraction";
 import { baseSepolia, foundry } from "viem/chains";
 import { accountAbi, type Config } from "./account.ts";
 
-/** A local anvil chain unless CHAIN=base-sepolia. */
-export const chain = process.env.CHAIN === "base-sepolia" ? baseSepolia : foundry;
+const chains = { anvil: foundry, "base-sepolia": baseSepolia };
+const chainName = (process.env.CHAIN ?? "anvil") as keyof typeof chains;
+if (!chains[chainName]) throw new Error(`CHAIN must be one of ${Object.keys(chains).join(", ")}.`);
+export const chain = chains[chainName];
 export const rpcUrl = process.env.RPC_URL ?? chain.rpcUrls.default.http[0];
 // Anvil mines on every transaction, so receipts are worth polling for almost at once.
 export const publicClient = createPublicClient({ chain, transport: http(rpcUrl), pollingInterval: chain.id === foundry.id ? 100 : 1000 });
@@ -40,7 +42,7 @@ export const addresses = {
   },
 };
 
-export type Credentials = Pick<Config, "signer" | "passkey" | "recoveryKey">;
+type Credentials = Pick<Config, "signer" | "passkey" | "recoveryKey">;
 
 /** The wallet's live credentials: on-chain once deployed, else its initial config. */
 export async function credentials(wallet: Address, initial: () => Credentials | Promise<Credentials>): Promise<Credentials> {

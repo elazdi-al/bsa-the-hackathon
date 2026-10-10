@@ -1,8 +1,9 @@
 import type { Address } from "viem";
 import * as z from "zod";
 import { store } from "@/lib/wallet/api/db.ts";
-import { assertion, bytes32, HttpError, parse, route, verifyAssertion } from "@/lib/wallet/api/http.ts";
+import { HttpError, parse, route, verifyAssertion } from "@/lib/wallet/api/http.ts";
 import { liveCredentials, loadOperation, requireWallet } from "@/lib/wallet/api/operations.ts";
+import { assertion, bytes32 } from "@/lib/wallet/schema.ts";
 
 /**
  * Lends Share B to the phone so it can rebuild the wallet key. The phone proves itself with the

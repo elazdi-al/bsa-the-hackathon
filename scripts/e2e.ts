@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import { P256, WebAuthnP256 } from "ox";
 import { createWalletClient, erc20Abi, formatUnits, http, numberToHex, parseAbi, parseUnits, type Address, type Hex } from "viem";
 import { generatePrivateKey, privateKeyToAccount, privateKeyToAddress } from "viem/accounts";
+import { bindRecoveryKeyMessage } from "../lib/wallet/account.ts";
 import { addresses, chain, publicClient, rpcUrl } from "../lib/wallet/env.ts";
 import { ApiError, createPhone, type Authenticator } from "../lib/wallet/phone.ts";
 
@@ -29,7 +30,12 @@ function softwareAuthenticator(): Authenticator {
 
 function newPhone() {
   const items = new Map<string, string>();
-  return createPhone({ api: API, authenticator: softwareAuthenticator(), storage: { getItem: (k) => items.get(k) ?? null, setItem: (k, v) => void items.set(k, v) } });
+  return createPhone({
+    api: API,
+    partner: process.env.PARTNER_URL ?? "http://localhost:4002",
+    authenticator: softwareAuthenticator(),
+    storage: { getItem: (k) => items.get(k) ?? null, setItem: (k, v) => void items.set(k, v) },
+  });
 }
 
 const shareRequests: string[] = [];
@@ -54,6 +60,17 @@ await phone.splitKey(await phone.createPasskey());
 const recoveryKey = phone.createRecoveryKey();
 const wallet = await phone.register(recoveryKey.address);
 console.log(`   wallet ${wallet}`);
+const attacker = privateKeyToAccount(generatePrivateKey());
+const hijack = await realFetch(`${API}/api/wallets`, {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({
+    signer: phone.device()!.signer,
+    recoveryKey: attacker.address,
+    signature: await attacker.signMessage({ message: bindRecoveryKeyMessage(phone.device()!.signer, attacker.address) }),
+  }),
+});
+assert.equal(hijack.status, 403, "only the wallet key can name its recovery key");
 await swissquote.writeContract({ address: addresses.usdc, abi: parseAbi(["function mint(address, uint256)"]), functionName: "mint", args: [wallet, parseUnits("100", 6)] });
 
 console.log("2. Send 20 USDC: deploys the account, Face ID + the key cached since the split");

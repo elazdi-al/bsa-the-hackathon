@@ -70,3 +70,7 @@ export function encodeRecoverySignature(keySignature: Hex, recoverySignature: He
 /** What the recovery key signs to have Swissquote cancel a pending recovery for the client. */
 export const cancelRecoveryMessage = (wallet: Address, executeAfter: number) =>
   `Cancel the recovery of wallet ${wallet.toLowerCase()} pending until ${executeAfter}.`;
+
+/** What the wallet key signs to name the recovery key that may release its shares. */
+export const bindRecoveryKeyMessage = (signer: Address, recoveryKey: Address) =>
+  `Wallet key ${signer.toLowerCase()} is recovered with ${recoveryKey.toLowerCase()}.`;

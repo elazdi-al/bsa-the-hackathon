@@ -7,7 +7,7 @@ import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 import {VerifyingPaymaster} from "account-abstraction/samples/VerifyingPaymaster.sol";
 import {SwissquoteAccountFactory} from "../src/SwissquoteAccountFactory.sol";
 import {SpendingLimitRule} from "../src/rules/SpendingLimitRule.sol";
-import {TestUSDC} from "../src/TestUSDC.sol";
+import {TestUSDC} from "./TestUSDC.sol";
 
 /// Deploys the factory, Swissquote's funded VerifyingPaymaster and the spending-limit rule. A
 /// fresh local chain also gets its own EntryPoint v0.7 and a mintable USDC.

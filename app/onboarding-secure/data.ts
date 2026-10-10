@@ -61,8 +61,6 @@ export const RECOVERY_FILE = {
   name: "Fuse Recovery Key.txt",
   text: (secret: string) =>
     `Fuse Recovery Key\n\n${secret}\n\nThis key restores your wallet if you lose your phone. Keep it safe at home, not on your phone. Swissquote will never ask you to send it.`,
-  /** The key inside a saved file, or undefined if the file holds none. */
-  read: (text: string) => text.match(/0x[0-9a-fA-F]{64}/)?.[0] as `0x${string}` | undefined,
 };
 
 /** The setup row's copy by status. Setup only idles after a failed registration; the ready body is the wallet's address. */
