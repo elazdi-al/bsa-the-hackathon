@@ -278,7 +278,7 @@ export function RecoveryFlow() {
           {busy === "Cancelling" ? <Spinner aria-hidden className="size-5" /> : controls && <FaceIdIcon size={20} />}
           {askKey ? "Cancel with Recovery Key" : "Cancel recovery"}
         </Button>
-        {/* Opt-in, never automatic: a locked old phone can't cancel this recovery with Face ID, its answer to a stranger's recovery. */}
+        {/* Opt-in: once locked, the old phone can no longer cancel a stranger's recovery with Face ID. */}
         {at.name === "wait" && (at.oldPhoneLocked || identity.current) && (
           // The height the action takes, held once it turns into the status line, so the centered screen doesn't jump.
           <div className="mt-3 flex min-h-22 flex-col items-center gap-1">
