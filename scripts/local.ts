@@ -29,6 +29,8 @@ const SWISSQUOTE_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d
 const MARKER = "# Written by npm run local.";
 const POLICY_FILE = "data/compliance-policy.json";
 const STATE = "data/chain.json";
+// The independent service's own secret lives outside .env.local, which next dev loads into Swissquote's app.
+const PARTNER_ENV = "data/partner.env";
 
 function fail(message: string): never {
   console.error(message);
@@ -97,6 +99,11 @@ const answers = (url: string, init?: RequestInit) => fetch(url, init).then((res)
 const rpcUp = () =>
   answers(RPC_URL, { method: "POST", headers: { "content-type": "application/json" }, body: '{"jsonrpc":"2.0","id":1,"method":"eth_chainId"}' });
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+async function waitFor(what: string, up: () => Promise<boolean>, seconds = prod ? 300 : 120) {
+  for (const start = Date.now(); !(await up()); await sleep(250)) {
+    if (Date.now() - start > seconds * 1000) fail(`${what} did not start within ${seconds} s. Its log above says why.`);
+  }
+}
 
 // --prod picks up the chain it saved last time, with the contracts, vault keys and policy that go with it.
 const resume = prod && existsSync(STATE) && existsSync(".env.local");
@@ -111,7 +118,7 @@ setSunset(false);
 
 console.log(`Starting anvil on ${RPC_URL}`);
 run("anvil", "anvil", ["--silent", "--port", String(ports.anvil.port), ...(prod ? ["--state", STATE, "--state-interval", "5"] : [])]);
-while (!(await rpcUp())) await sleep(200);
+await waitFor(`anvil on ${RPC_URL}`, rpcUp);
 
 const deployed = resume ? (Object.fromEntries(Object.entries(previous).filter(([k]) => k.endsWith("_ADDRESS"))) as Record<string, string>) : deployContracts();
 if (resume) console.log(`Resumed the chain in ${STATE}`);
@@ -138,12 +145,12 @@ const env = {
   SWISSQUOTE_ADDRESS: privateKeyToAddress(SWISSQUOTE_KEY),
   ...deployed,
   SWISSQUOTE_SHARE_KEY: previous.SWISSQUOTE_SHARE_KEY ?? randomBytes(32).toString("hex"),
-  PARTNER_SHARE_KEY: previous.PARTNER_SHARE_KEY ?? randomBytes(32).toString("hex"),
   PARTNER_URL,
   NEXT_PUBLIC_PARTNER_URL: process.env.PUBLIC_PARTNER_URL ?? PARTNER_URL,
   APP_URL,
-  // Seconds Swissquote must stay closed before the partner opens the exit. Production waits 30 days.
-  EXIT_AFTER: "5",
+  // Seconds Swissquote must stay closed before the partner opens the exit. Production waits 30 days; the
+  // public demo waits long enough that a redeploy never opens it.
+  EXIT_AFTER: prod ? "600" : "5",
   COMPLIANCE_MODE: "demo",
   COMPLIANCE_POLICY_FILE: POLICY_FILE,
 };
@@ -154,10 +161,16 @@ if (prod) {
   const build = spawnSync(process.execPath, ["node_modules/next/dist/bin/next", "build"], { stdio: "inherit", env: { ...process.env, ...env } });
   if (build.status !== 0) fail("next build failed.");
 }
+// Each process gets only its own secrets: the partner never sees Swissquote's keys, the app never sees
+// the partner's. The partner needs only Swissquote's public address to check its tickets.
+const partnerKey = (existsSync(PARTNER_ENV) && parseEnv(readFileSync(PARTNER_ENV, "utf8")).PARTNER_SHARE_KEY) || previous.PARTNER_SHARE_KEY || randomBytes(32).toString("hex");
+writeFileSync(PARTNER_ENV, `PARTNER_SHARE_KEY=${partnerKey}\n`);
+const { SWISSQUOTE_KEY: _key, SWISSQUOTE_SHARE_KEY: _share, COMPLIANCE_MODE: _mode, COMPLIANCE_POLICY_FILE: _policy, ...shared } = env;
 console.log(`Starting the partner on ${PARTNER_URL} and the app on ${APP_URL}`);
-run("partner", "node", ["services/partner/server.ts"], env);
+run("partner", "node", ["services/partner/server.ts"], { ...shared, PARTNER_SHARE_KEY: partnerKey });
 run("app", process.execPath, ["node_modules/next/dist/bin/next", prod ? "start" : "dev", "--port", String(ports.app.port)], env);
-while (!(await answers(`${APP_URL}/api/config`))) await sleep(500);
+await waitFor(`the partner on ${PARTNER_URL}`, () => listening(ports.partner.port));
+await waitFor(`the app on ${APP_URL}`, () => answers(`${APP_URL}/api/config`));
 
 // next dev compiles each route on its first request, about a second apiece. Asking for every screen and API
 // route once now means the first tap in a demo answers at full speed.
