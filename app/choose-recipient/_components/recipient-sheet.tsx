@@ -29,12 +29,9 @@ export function RecipientSheet({ open, onOpenChange, onClosed }: Props) {
           if (!isOpen) onClosed();
         }}
       >
-        {/* Continue pushes the review with the sheet still up. Named, the sheet and its dim dissolve on top;
-            left in the root snapshot, the outgoing page's own snapshot would paint over them. */}
         <DrawerContent
           aria-describedby={undefined}
-          overlayClassName="[view-transition-name:recipient-overlay]"
-          className="h-[calc(100dvh-env(safe-area-inset-top)-12px)] pb-[env(safe-area-inset-bottom)] tracking-[-0.02em] [view-transition-name:recipient-sheet] sm:h-auto sm:pb-5"
+          className="h-[calc(100dvh-env(safe-area-inset-top)-12px)] pb-[env(safe-area-inset-bottom)] tracking-[-0.02em] sm:h-auto sm:pb-5"
         >
           <DrawerHeader title="Choose recipient" />
           <AddressCard />
