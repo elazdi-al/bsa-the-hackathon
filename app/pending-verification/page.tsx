@@ -15,7 +15,10 @@ export default function Page() {
   return (
     <Screen>
       <main className="relative grid min-h-dvh w-full place-items-center overflow-hidden bg-[#f2f2f2] px-6 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
-        <BackButton kind="close" fallback="/settings" className="absolute top-[calc(env(safe-area-inset-top)+10px)] right-3" />
+        {/* Where Fuse Plus keeps its close: the top right of the content column, not the window's corner. */}
+        <div className="absolute inset-x-0 top-0 mx-auto flex max-w-md justify-end px-4 pt-[calc(env(safe-area-inset-top)+8px)]">
+          <BackButton kind="close" fallback="/settings" />
+        </div>
 
         <div className="flex flex-col items-center text-center md:[zoom:1.25]">
           <div className={enter}>
