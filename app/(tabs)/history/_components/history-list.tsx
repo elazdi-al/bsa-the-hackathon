@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { CopyButton } from "@/app/transaction-tracking/_components/copy-button";
 import { TransactionSheet } from "@/app/transaction-tracking/_components/transaction-sheet";
@@ -11,8 +12,8 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { rowPress } from "../../_components/list";
 import { Money } from "../../_components/money";
 import { blurred, leave, reveal, sharp, snappy } from "../../_components/transitions";
-import { tiles, type TileId } from "../../home/data";
-import { byDay, filters, fullDate, monthSummary, transactions, type Filter, type Tx } from "../data";
+import { tiles } from "../../home/data";
+import { byDay, filters, fullDate, justSent, monthSummary, transactions, type Filter, type Tx } from "../data";
 import { Amount, Glyph, RowBody } from "./tx-row";
 
 const rowClass = `flex min-h-[68px] w-full items-center gap-4 rounded-2xl px-3 py-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring ${rowPress}`;
@@ -28,7 +29,16 @@ const arrive = {
 // The session's first History visit staggers its rows in; revisits just show them.
 let introPlayed = false;
 
-export function HistoryList({ account, sent }: { account?: TileId; sent: Tx | null }) {
+export function HistoryList() {
+  const params = useSearchParams();
+  const scope = tiles.find((t) => t.id === params.get("account"));
+  const account = scope?.id;
+  // The params go once read: a refresh or Back must not show the send again.
+  const [sent] = useState(() => justSent(params.get("sent") ?? undefined, params.get("amount") ?? undefined));
+  useEffect(() => {
+    if (sent) history.replaceState(null, "", "/history");
+  }, [sent]);
+
   const [filter, setFilter] = useState<Filter>("all");
   const [open, setOpen] = useState(false);
   // Kept after close so the sheet's content doesn't vanish mid-exit.
@@ -39,7 +49,6 @@ export function HistoryList({ account, sent }: { account?: TileId; sent: Tx | nu
   const shown = scoped.filter(filters[filter].match);
   const groups = byDay(shown);
   const summary = monthSummary(scoped);
-  const scope = tiles.find((t) => t.id === account);
 
   const [intro] = useState(() => !introPlayed);
   // motion reads `initial` only on mount, so entrances belong to the first render: whatever a filter change mounts later
@@ -49,11 +58,6 @@ export function HistoryList({ account, sent }: { account?: TileId; sent: Tx | nu
     introPlayed = true;
     setMounted(true);
   }, []);
-
-  // The params go once read: a refresh or Back must not show the send again.
-  useEffect(() => {
-    if (sent) history.replaceState(null, "", "/history");
-  }, [sent]);
 
   return (
     <div className="max-w-2xl">

@@ -161,6 +161,7 @@ export function createPhone({ api = "", partner, authenticator, storage }: { api
     forgetKey,
     prepare,
     approve,
+    config: getConfig,
     hasWallet: () => !!device()?.address,
     state: () => call<WalletState>(`/api/wallets/${requireWallet().address}`),
 
@@ -298,6 +299,7 @@ const browserAuthenticator: Authenticator = {
 
 /** The app's phone. Storage is read lazily, so server rendering can import this module. */
 export const phone = createPhone({
+  api: process.env.NEXT_PUBLIC_API_URL ?? "",
   partner: process.env.NEXT_PUBLIC_PARTNER_URL ?? "http://localhost:4002",
   authenticator: browserAuthenticator,
   storage: {
