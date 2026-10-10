@@ -95,6 +95,11 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* Tailwind 4 gives buttons the default cursor, so a tile that opens a sheet would point differently from one that links. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
 }
 
 /* Navigation transitions, keyed by the type a navigation carries (components/navigation.tsx).
