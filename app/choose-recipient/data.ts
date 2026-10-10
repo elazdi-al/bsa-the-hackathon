@@ -7,12 +7,12 @@ export type RecentAddress = { address: string; note: string };
 const sentUsd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", trailingZeroDisplay: "stripIfInteger" });
 const sentOn = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
 
-/** The last three addresses `wallet` paid, newest first, each with its latest send. `transfers` is newest first. */
+/** The last three addresses `wallet` paid, itself aside, newest first, each with its latest send. `transfers` is newest first. */
 export function recentSends(transfers: Transfer[], wallet: Pick<Wallet, "address" | "skew">): RecentAddress[] {
   const latest = new Map<string, Transfer>();
   for (const t of transfers) {
     if (latest.size === 3) break;
-    if (isAddressEqual(t.from, wallet.address) && !latest.has(t.to.toLowerCase())) latest.set(t.to.toLowerCase(), t);
+    if (isAddressEqual(t.from, wallet.address) && !isAddressEqual(t.to, wallet.address) && !latest.has(t.to.toLowerCase())) latest.set(t.to.toLowerCase(), t);
   }
   return [...latest.values()].map((t) => ({
     address: t.to,

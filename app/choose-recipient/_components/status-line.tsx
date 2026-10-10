@@ -4,7 +4,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { shortAddress, type Resolution } from "../data";
 import { blurSwap, iconPop } from "./motion";
 
-export type Status = { kind: "hint" } | { kind: "resolving" } | { kind: "mistyped" } | Resolution;
+export type Status = { kind: "hint" } | { kind: "resolving" } | { kind: "mistyped" } | { kind: "own" } | Resolution;
 
 export function StatusLine({ id, status }: { id: string; status: Status }) {
   const { icon, text } = describe(status);
@@ -55,6 +55,11 @@ function describe(status: Status) {
       return {
         icon: <WarningIcon size={16} className="text-negative" />,
         text: "Check the address",
+      };
+    case "own":
+      return {
+        icon: <WarningIcon size={16} className="text-negative" />,
+        text: "That's your own wallet",
       };
   }
 }

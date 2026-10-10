@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { shownAddress, useWallet } from "@/app/(tabs)/_components/wallet";
 import { RESOLVE_DELAY_MS, isHandle, isMistyped, lookupRecipient, looksLikeRecipient, reviewHref, sendDraft } from "../data";
 import { CloseIcon, PasteIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,10 @@ export function AddressCard() {
   const inputRef = useRef<HTMLInputElement>(null);
   // The sheet renders in a portal, client-only, so reading sessionStorage here is safe.
   const [value, setValue] = useState(() => sendDraft.get() ?? "");
-  const status = useResolution(value.trim());
+  const resolution = useResolution(value.trim());
+  const mine = shownAddress(useWallet());
+  // Paying yourself moves nothing, yet would read as a payment in History.
+  const status: Status = resolution.kind === "resolved" && resolution.address.toLowerCase() === mine?.toLowerCase() ? { kind: "own" } : resolution;
   const resolved = status.kind === "resolved";
 
   function clear() {
