@@ -1,3 +1,5 @@
+import type { Wallet } from "@/app/(tabs)/_components/wallet";
+
 export type CoinId = "usdc" | "eth" | "eurc" | "cbbtc" | "aero";
 
 /** The part of a holding that is locked up earning yield: staked ETH, stablecoins in Earn. */
@@ -53,3 +55,29 @@ export const coins: Coin[] = [
 
 export const stakedTotal = (coin: Coin) => (coin.stake ? coin.stake.principal + coin.stake.earned : 0);
 export const availableShare = (coin: Coin) => 1 - stakedTotal(coin) / coin.amount;
+
+/**
+ * The demo portfolio with the live wallet in it: USDC outside Earn is the wallet's USDC, and where there is a pool,
+ * ETH outside staking is its WETH, all of it valued at the pool's price. The rest stays demo data.
+ */
+export function portfolio(wallet?: Pick<Wallet, "usdc" | "eth" | "ethPrice">): Coin[] {
+  if (!wallet) return coins;
+  const { usdc, eth, ethPrice } = wallet;
+  return coins.map((coin) => {
+    if (coin.id === "usdc") {
+      const amount = usdc + stakedTotal(coin);
+      return { ...coin, amount, value: amount };
+    }
+    if (coin.id === "eth" && ethPrice !== null) {
+      const amount = eth + stakedTotal(coin);
+      const value = amount * ethPrice;
+      // The demo 24h change scales with the value, so its percent holds.
+      return { ...coin, amount, value, change: ((coin.change ?? 0) * value) / coin.value };
+    }
+    return coin;
+  });
+}
+
+/** What Home's Investments tile holds: everything but the stablecoins. */
+export const investmentsValue = (coins: Coin[]) =>
+  coins.filter((c) => c.id === "eth" || c.id === "cbbtc" || c.id === "aero").reduce((sum, c) => sum + c.value, 0);

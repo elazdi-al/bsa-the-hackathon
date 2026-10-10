@@ -105,20 +105,27 @@ const deploy = spawnSync(
 if (deploy.status !== 0) fail(`${deploy.stdout}\n${deploy.stderr}\nThe contracts did not deploy.`);
 const deployed = Object.fromEntries([...deploy.stdout.matchAll(/([A-Z_]+_ADDRESS)=(0x[0-9a-fA-F]{40})/g)].map((m) => [m[1], m[2]]));
 
-// Swissquote sponsors USDC transfers on this chain; the compliance demo providers do the screening.
-const usdc = deployed.USDC_ADDRESS.toLowerCase();
+// Swissquote sponsors USDC and WETH transfers on this chain, and swaps between them through the test pool,
+// each approval exactly the swap's input; the compliance demo providers do the screening.
+const [usdc, weth, pool] = [deployed.USDC_ADDRESS, deployed.WETH_ADDRESS, deployed.POOL_ADDRESS].map((a) => a.toLowerCase());
+const erc20 = (address: string, name: string) => ({ chainId: 31337, address, name, kind: "ERC20", allowedFunctions: ["transfer", "approve"], origins: [] });
 writeFileSync(
   POLICY_FILE,
   JSON.stringify({
-    version: "local-1",
+    version: "local-2",
     decisionTtlSeconds: 120,
     screeningMaxAgeSeconds: 120,
     supportedChainIds: [31337],
     nativeTransfers: [],
     tokens: [
-      { chainId: 31337, address: usdc, symbol: "USDC", decimals: 6, approvedSpenders: [], maxTransactionAmount: "10000000000", stepUpAmount: "1000000000", dailyLimitAmount: "5000000000" },
+      { chainId: 31337, address: usdc, symbol: "USDC", decimals: 6, approvedSpenders: [pool], maxTransactionAmount: "10000000000", stepUpAmount: "1000000000", dailyLimitAmount: "5000000000" },
+      { chainId: 31337, address: weth, symbol: "WETH", decimals: 18, approvedSpenders: [pool], maxTransactionAmount: "4000000000000000000", stepUpAmount: "400000000000000000", dailyLimitAmount: "2000000000000000000" },
     ],
-    contracts: [{ chainId: 31337, address: usdc, name: "USDC", kind: "ERC20", allowedFunctions: ["transfer"], origins: [] }],
+    contracts: [
+      erc20(usdc, "USDC"),
+      erc20(weth, "WETH"),
+      { chainId: 31337, address: pool, name: "Swissquote test pool", kind: "SWAP", tokens: [usdc, weth], allowedFunctions: ["swap"], origins: [] },
+    ],
   }),
 );
 
@@ -132,6 +139,7 @@ const env = {
   PARTNER_SHARE_KEY: randomBytes(32).toString("hex"),
   PARTNER_URL,
   NEXT_PUBLIC_PARTNER_URL: PARTNER_URL,
+  NEXT_PUBLIC_POOL_ADDRESS: deployed.POOL_ADDRESS,
   APP_URL,
   COMPLIANCE_MODE: "demo",
   COMPLIANCE_POLICY_FILE: POLICY_FILE,
@@ -158,14 +166,15 @@ await Promise.all(routes.map((route) => fetch(APP_URL + route).catch(() => undef
 console.log(`
 Swissquote Wallet is running. Open ${APP_URL}/onboarding-welcome
 
-  npm run status                     chain, contracts, wallets and accounts
-  npm run fund [wallet] [amount]     mint test USDC (default: the newest wallet, 100)
-  npm run account <name>             create a wallet with a software passkey
-  npm run send <from> <to> <amount>  send USDC from an account
-  npm run recover <account|file>     start a recovery onto a new phone
-  npm run finish <account>           finish a recovery after the 48 hours
-  npm run cancel <account>           cancel a recovery with the Recovery Key
-  npm run warp [hours]               move chain time ahead (default 48)
+  npm run status                              chain, contracts, wallets and accounts
+  npm run fund [wallet] [amount] [usdc|eth]   mint test USDC or WETH (default: the newest wallet, 100 USDC)
+  npm run account <name>                      create a wallet with a software passkey
+  npm run send <from> <to> <amount>           send USDC from an account
+  npm run swap <account> <amount> <usdc|eth>  swap that much USDC or ETH for the other
+  npm run recover <account|file>              start a recovery onto a new phone
+  npm run finish <account>                    finish a recovery after the 48 hours
+  npm run cancel <account>                    cancel a recovery with the Recovery Key
+  npm run warp [hours]                        move chain time ahead (default 48)
 
 Ctrl-C stops everything.
 `);

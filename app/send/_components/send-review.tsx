@@ -34,14 +34,16 @@ function blocker(snapshot: WalletSnapshot, amount: number): string | undefined {
   if (amount > usdc) return `You have ${usd.format(usdc)}.`;
 }
 
-/** Swissquote's refusal and its reasons, a known failure in plain words, or the error as is. */
-function failure(e: unknown): string[] {
+/** Swissquote's refusal and its reasons, a known failure in plain words, or the error as is. The swap sheet shares it. */
+export function failure(e: unknown): string[] {
   // fetch rejects with a TypeError when no response came back: "Failed to fetch", "Load failed", "NetworkError...".
   if (e instanceof TypeError && /fetch|load failed|network/i.test(e.message)) return ["Can't reach Swissquote. Check your connection and try again."];
   // ox wraps the browser's NotAllowedError: Face ID cancelled or timed out.
   if (((e as Error).cause as Error | undefined)?.name === "NotAllowedError") return ["Face ID didn't approve it."];
   if (!(e instanceof ApiError)) return [(e as Error).message];
   if (e.status === 422) {
+    // A swap's minimum no longer met: the pool's price moved since the quote.
+    if (/Slippage/.test(String(e.body.detail))) return ["The price moved. Review the new quote."];
     // The paymaster's signature is valid for minutes; the EntryPoint rejects it after with AA32.
     const expired = /AA32|expired/i.test(String(e.body.detail));
     return [expired ? "This approval expired. Press Continue to check it again." : "Your wallet couldn't make this payment. Check the amount and try again."];

@@ -15,6 +15,7 @@ import {
   type Passkey,
   type PasskeyAssertion,
 } from "./account.ts";
+import { poolAbi, type PoolToken } from "./pool.ts";
 import { combine, split, type Share } from "./shamir.ts";
 
 export const KEY_TTL = 3 * 60 * 60 * 1000;
@@ -41,18 +42,23 @@ export type WalletState = {
   passkey: Passkey;
   recoveryKey: Address;
   usdc: string;
+  /** WETH, which the app shows as ETH. Base units, like `usdc`. */
+  eth: string;
+  /** The swap pool's reserves in base units; null on a chain without one. */
+  pool: { usdc: string; weth: string } | null;
   pendingRecovery: { signer: Address; executeAfter: number } | null;
   /** The chain's time when read, in seconds. A local chain can run ahead of this phone's clock. */
   chainTime: number;
 };
 
-/** A USDC transfer in or out of the wallet. `value` is in base units. */
-export type Transfer = { hash: Hex; from: Address; to: Address; value: string; timestamp: number };
+/** A USDC or WETH transfer in or out of the wallet. `value` is in base units. */
+export type Transfer = { hash: Hex; token: PoolToken; from: Address; to: Address; value: string; timestamp: number };
 
 export type Identity = { document: string; selfie: string };
 
 type Storage = Pick<globalThis.Storage, "getItem" | "setItem" | "removeItem">;
-type Config = { chainId: number; entryPoint: Address; usdc: Address };
+type Config = { chainId: number; entryPoint: Address; usdc: Address; weth: Address | null };
+export type Call = { to: Address; value?: bigint; data: Hex };
 export type Prepared = { hash: Hex; userOp: RpcUserOperation<"0.7">; summary?: string[] };
 
 export class ApiError extends Error {
@@ -68,10 +74,22 @@ export class ApiError extends Error {
 const DEVICE = "swissquote.wallet.device";
 
 /**
- * `partner` is pinned in the app build, never taken from Swissquote, so Swissquote cannot redirect
- * Share C to itself during the split.
+ * `partner` and `pool` are pinned in the app build, never taken from Swissquote, so Swissquote cannot redirect
+ * Share C to itself during the split, nor have the wallet approve a contract of its choosing as the swap pool.
  */
-export function createPhone({ api = "", partner, authenticator, storage }: { api?: string; partner: string; authenticator: Authenticator; storage: Storage }) {
+export function createPhone({
+  api = "",
+  partner,
+  pool,
+  authenticator,
+  storage,
+}: {
+  api?: string;
+  partner: string;
+  pool?: Address;
+  authenticator: Authenticator;
+  storage: Storage;
+}) {
   let cached: { key: Hex; expiresAt: number; timer: ReturnType<typeof setTimeout> } | undefined;
   let config: Promise<Config> | undefined;
 
@@ -140,10 +158,16 @@ export function createPhone({ api = "", partner, authenticator, storage }: { api
     return signature;
   }
 
-  /** Swissquote sponsors a call this phone built; the summary is its compliance reading of it. */
-  async function prepare(call_: { to: Address; value?: bigint; data: Hex }): Promise<Prepared> {
+  /** Swissquote sponsors the call, or the batch of calls, this phone built; the summary is its compliance reading of it. */
+  async function prepare(calls: Call | Call[]): Promise<Prepared> {
     const wallet = requireWallet();
-    const callData = encodeFunctionData({ abi: accountAbi, functionName: "execute", args: [call_.to, call_.value ?? 0n, call_.data] });
+    const callData = Array.isArray(calls)
+      ? encodeFunctionData({
+          abi: accountAbi,
+          functionName: "executeBatch",
+          args: [calls.map(({ to, value = 0n, data }) => ({ target: to, value, data }))],
+        })
+      : encodeFunctionData({ abi: accountAbi, functionName: "execute", args: [calls.to, calls.value ?? 0n, calls.data] });
     const prepared = await call<Prepared>(`/api/wallets/${wallet.address}/operations`, { callData });
     await verify(prepared, wallet.address, callData);
     return prepared;
@@ -165,10 +189,22 @@ export function createPhone({ api = "", partner, authenticator, storage }: { api
     return transactionHash;
   }
 
+  /** One operation that approves the pool for exactly `amountIn` and swaps it, so no allowance outlives it. */
+  async function prepareSwap(tokenIn: PoolToken, amountIn: bigint, minAmountOut: bigint): Promise<Prepared> {
+    const config = await getConfig();
+    if (!pool || !config.weth) throw new Error("This network has no swap pool.");
+    const token = config[tokenIn]!;
+    return prepare([
+      { to: token, data: encodeFunctionData({ abi: erc20Abi, functionName: "approve", args: [pool, amountIn] }) },
+      { to: pool, data: encodeFunctionData({ abi: poolAbi, functionName: "swap", args: [token, amountIn, minAmountOut] }) },
+    ]);
+  }
+
   return {
     device,
     forgetKey,
     prepare,
+    prepareSwap,
     approve,
     hasWallet: () => !!device()?.address,
     async state(): Promise<WalletState> {
@@ -225,6 +261,9 @@ export function createPhone({ api = "", partner, authenticator, storage }: { api
       const { usdc } = await getConfig();
       return approve(await prepare({ to: usdc, data: encodeFunctionData({ abi: erc20Abi, functionName: "transfer", args: [to, parseUnits(amount, 6)] }) }));
     },
+
+    /** Swaps `amountIn` of `tokenIn` for the other token, reverting if it would get less than `minAmountOut`. */
+    swap: async (tokenIn: PoolToken, amountIn: bigint, minAmountOut: bigint): Promise<Hex> => approve(await prepareSwap(tokenIn, amountIn, minAmountOut)),
 
     /** This phone still controls the wallet: it cancels a recovery someone started. */
     async cancelRecovery(): Promise<Hex> {
@@ -336,6 +375,7 @@ const browserAuthenticator: Authenticator = {
 /** The app's phone. Storage is read lazily, so server rendering can import this module. */
 export const phone = createPhone({
   partner: process.env.NEXT_PUBLIC_PARTNER_URL ?? "http://localhost:4002",
+  pool: (process.env.NEXT_PUBLIC_POOL_ADDRESS || undefined) as Address | undefined,
   authenticator: browserAuthenticator,
   storage: {
     getItem: (key) => localStorage.getItem(key),

@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { GridIcon, ImagesIcon, type Icon } from "@/components/icons";
 import { Tabs, TabsContent, TabsIndicator, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useWallet } from "@/app/(tabs)/_components/wallet";
-import { coins, stakedTotal, type CoinId } from "../data";
+import { portfolio, type CoinId } from "../data";
 import { CoinRow } from "./coin-row";
 import { Recede } from "./motion";
 import { WalletHeader } from "./wallet-header";
@@ -23,10 +23,7 @@ export function CoinsScreen() {
   const [focused, setFocused] = useState<CoinId | null>(null);
   const snapshot = useWallet();
   const live = snapshot.status === "ready" ? snapshot.wallet : undefined;
-  // USDC outside Earn is the wallet's real balance; the rest of the portfolio is demo data.
-  const shown = live
-    ? coins.map((coin) => (coin.id === "usdc" ? { ...coin, amount: live.usdc + stakedTotal(coin), value: live.usdc + stakedTotal(coin) } : coin))
-    : coins;
+  const shown = portfolio(live);
 
   useEffect(() => {
     if (!focused) return;

@@ -1,7 +1,7 @@
 // The wallet's screens end to end in Chromium, each phone a fresh browser profile with a virtual
-// passkey authenticator: create a wallet, send USDC, lose the phone and recover with the Recovery Key
-// file; Swissquote cancels once, the old phone cancels once from Home, then the 48-hour delay passes
-// (fast-forwarded on anvil) and the new phone sends.
+// passkey authenticator: create a wallet, send USDC, swap USDC for ETH on the local pool, lose the
+// phone and recover with the Recovery Key file; Swissquote cancels once, the old phone cancels once
+// from Home, then the 48-hour delay passes (fast-forwarded on anvil) and the new phone sends.
 //
 //   npm run e2e:ui            (against `npm run local`; HEADED=1 to watch)
 import assert from "node:assert/strict";
@@ -17,6 +17,7 @@ const SLOW = { timeout: 30_000 };
 const browser = await chromium.launch({ headless: process.env.HEADED !== "1" });
 const swissquote = createWalletClient({ account: privateKeyToAccount(process.env.SWISSQUOTE_KEY as Hex), chain, transport: http(rpcUrl) });
 const usdcOf = (owner: Address) => publicClient.readContract({ address: addresses.usdc, abi: erc20Abi, functionName: "balanceOf", args: [owner] });
+const wethOf = (owner: Address) => publicClient.readContract({ address: addresses.weth!, abi: erc20Abi, functionName: "balanceOf", args: [owner] });
 
 async function newPhone() {
   const context = await browser.newContext({ viewport: { width: 393, height: 852 } });
@@ -77,27 +78,45 @@ console.log("2. Send 20 USDC from the Send screen: Face ID, Swissquote pays the 
 await send(phone1, FRIEND, "20");
 assert.equal(await usdcOf(FRIEND), parseUnits("20", 6));
 
-console.log("3. New phone: Recovery Key file, ID check, new passkey and key; Swissquote cancels it for the user");
+console.log("3. Swap 50 USDC for ETH from the quick actions: Swissquote checks and sponsors it, the pool pays real WETH");
+const usdcBefore = await usdcOf(wallet);
+await phone1.goto(`${APP}/home`);
+await phone1.getByRole("button", { name: "Quick actions" }).click();
+await phone1.getByRole("button", { name: "Swap" }).click();
+const keypad = phone1.getByRole("group", { name: "Keypad" });
+await keypad.getByRole("button", { name: "5", exact: true }).click();
+await keypad.getByRole("button", { name: "0", exact: true }).click();
+await phone1.getByRole("button", { name: "Continue" }).click(SLOW);
+await phone1.getByRole("button", { name: "Swap", exact: true }).click(SLOW);
+await phone1.getByRole("dialog").waitFor({ state: "detached", ...SLOW });
+assert.equal(usdcBefore - (await usdcOf(wallet)), parseUnits("50", 6));
+const weth = await wethOf(wallet);
+assert.ok(weth > 0n, "the wallet holds the WETH it bought");
+console.log(`   got ${formatUnits(weth, 18)} ETH`);
+await phone1.goto(`${APP}/history`);
+await phone1.getByText("USDC to ETH").waitFor(SLOW);
+
+console.log("4. New phone: Recovery Key file, ID check, new passkey and key; Swissquote cancels it for the user");
 const phone2 = await newPhone();
 await recover(phone2, kit);
 await phone2.getByRole("button", { name: "Cancel recovery" }).click();
 await phone2.getByText("Recover your wallet").waitFor(SLOW);
 
-console.log("4. Again; the old phone sees it on Home and cancels it with Face ID");
+console.log("5. Again; the old phone sees it on Home and cancels it with Face ID");
 await recover(phone2, kit);
 await phone1.goto(`${APP}/home`);
 await phone1.getByText("Someone started recovering your wallet").waitFor(SLOW);
 await phone1.getByRole("button", { name: "Cancel recovery" }).click(SLOW);
 await phone1.getByText("Someone started recovering your wallet").waitFor({ state: "detached", ...SLOW });
 
-console.log("5. Again; the 48-hour delay passes on the chain, the countdown follows it, then finish");
+console.log("6. Again; the 48-hour delay passes on the chain, the countdown follows it, then finish");
 await recover(phone2, kit);
 await publicClient.request({ method: "evm_increaseTime", params: [numberToHex(48 * 3600 + 10)] } as never);
 await publicClient.request({ method: "evm_mine", params: [] } as never);
 await phone2.getByRole("button", { name: "Finish recovery" }).click(SLOW);
 await phone2.waitForURL("**/home", SLOW);
 
-console.log("6. The new phone sends 5 USDC: same address, same balance");
+console.log("7. The new phone sends 5 USDC: same address, same balance");
 await send(phone2, FRIEND, "5");
 assert.equal(await walletOf(phone2), wallet);
 console.log(`   friend has ${formatUnits(await usdcOf(FRIEND), 6)} USDC, the wallet ${formatUnits(await usdcOf(wallet), 6)} USDC`);

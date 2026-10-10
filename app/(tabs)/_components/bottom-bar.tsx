@@ -13,6 +13,7 @@ import { column } from "./column";
 import { ReceiveSheet } from "./receive-sheet";
 import { SwapSheet } from "./swap-sheet";
 import { blurred, leave, sharp, snappy } from "./transitions";
+import { useWallet } from "./wallet";
 
 // Each sheet is named for the transaction kind it makes, so its glyph is that kind's glyph in History.
 type Sheet = "receive" | "send" | "swap";
@@ -31,21 +32,21 @@ const tabs = [
 
 const rowPitch = 68; // menu row height + gap; the last row sits exactly on the FAB
 
-// Items rise out of the FAB, nearest first, and fold back into it in reverse.
+// Items rise out of the FAB, nearest first, and fold back into it in reverse. `n` is how many show.
 const item: Variants = {
-  closed: (i: number) => ({
+  closed: ({ i, n }: { i: number; n: number }) => ({
     opacity: 0,
     filter: blurred,
     scale: 0.5,
-    y: (actions.length - 1 - i) * rowPitch,
+    y: (n - 1 - i) * rowPitch,
     transition: { ...leave, delay: i * 0.03 },
   }),
-  open: (i: number) => ({
+  open: ({ i, n }: { i: number; n: number }) => ({
     opacity: 1,
     filter: sharp,
     scale: 1,
     y: 0,
-    transition: { ...snappy, delay: (actions.length - 1 - i) * 0.04 },
+    transition: { ...snappy, delay: (n - 1 - i) * 0.04 },
   }),
 };
 
@@ -57,6 +58,9 @@ export function BottomBar() {
   const [open, setOpen] = useState(false);
   const [sheet, setSheet] = useState<Sheet | null>(null);
   const fab = useRef<HTMLButtonElement>(null);
+  const wallet = useWallet();
+  // Only a chain with a pool can swap: the local one, not Base Sepolia.
+  const shown = wallet.status === "ready" && wallet.wallet.pool ? actions : actions.filter((a) => a.sheet !== "swap");
 
   const close = () => {
     setOpen(false);
@@ -157,10 +161,10 @@ export function BottomBar() {
               animate="open"
               exit="closed"
             >
-              {actions.map((action, i) => {
+              {shown.map((action, i) => {
                 const { Icon, text } = kinds[action.sheet];
                 return (
-                  <motion.li key={action.label} custom={i} variants={item} className="origin-right">
+                  <motion.li key={action.label} custom={{ i, n: shown.length }} variants={item} className="origin-right">
                     <button
                       type="button"
                       onClick={() => {

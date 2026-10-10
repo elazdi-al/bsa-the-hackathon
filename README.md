@@ -22,23 +22,23 @@ The wallet key is a secp256k1 key split 2-of-3 with Shamir secret sharing. Share
 
 **Smart account** (`contracts/`, Foundry). `SwissquoteAccount` runs on EntryPoint v0.7. Its config holds the wallet key's address, the passkey's P-256 public key, the Recovery Key's address and Swissquote as guardian.
 
-- Normal mode needs a wallet-key ECDSA signature and a WebAuthn assertion, both over the userOpHash. It cannot call `initiateRecovery`.
+- Normal mode needs a wallet-key ECDSA signature and a WebAuthn assertion, both over the userOpHash. It cannot call `initiateRecovery`. `execute` makes one call; `executeBatch` makes several in one operation, such as a swap's approval and the swap.
 - Recovery mode needs the wallet key and the Recovery Key. It can only call `initiateRecovery`.
 - `RECOVERY_DELAY` is a constant 48 hours. `cancelRecovery` accepts the guardian or the account itself (the phone, with passkey and key). `finalizeRecovery` is open to anyone after the delay.
 - `SwissquoteAccountFactory` deploys CREATE2 clones, so the address is known before deployment.
 - Swissquote's `VerifyingPaymaster` (the eth-infinitism sample) pays gas.
-- `script/Deploy.s.sol` deploys the factory and the funded paymaster. On a local chain (31337) it also deploys an EntryPoint and a mintable test USDC.
+- `script/Deploy.s.sol` deploys the factory and the funded paymaster. On a local chain (31337) it also deploys an EntryPoint, a mintable test USDC and test WETH, and a WETH/USDC pool (`script/TestPool.sol`). The pool prices from its own balances (constant product, 0.3% fee on the input) and is seeded with 250,000 USDC and 100 WETH, so 1 ETH starts at 2,500 USDC. Base Sepolia gets no pool.
 
 **Key split** (`lib/wallet/shamir.ts`). Shamir over the secp256k1 group order, with Feldman commitments. Each holder verifies its share against the commitments before storing it.
 
-**Phone SDK** (`lib/wallet/phone.ts`). Keeps Share A sealed with AES-GCM under the passkey's WebAuthn PRF output, so only Face ID opens it. Builds every call itself. Before Face ID, it checks Swissquote's UserOperation (sender, callData, sponsorship) and recomputes its hash. On a cache miss, the same Face ID assertion fetches Share B. At onboarding it sends Share C straight to the independent service at a URL pinned in the app build (`NEXT_PUBLIC_PARTNER_URL`), so Swissquote never sees C.
+**Phone SDK** (`lib/wallet/phone.ts`). Keeps Share A sealed with AES-GCM under the passkey's WebAuthn PRF output, so only Face ID opens it. Builds every call itself. Before Face ID, it checks Swissquote's UserOperation (sender, callData, sponsorship) and recomputes its hash. On a cache miss, the same Face ID assertion fetches Share B. At onboarding it sends Share C straight to the independent service at a URL pinned in the app build (`NEXT_PUBLIC_PARTNER_URL`), so Swissquote never sees C. The swap pool's address is pinned in the build the same way (`NEXT_PUBLIC_POOL_ADDRESS`), so Swissquote cannot have the wallet approve another contract as the pool.
 
 **Swissquote Wallet API** (`app/api`, Next.js route handlers). Session-free, with no Swissquote sign-in. Holds Share B in SQLite, sealed with AES-GCM. It runs the compliance check, signs sponsorship and submits operations to the EntryPoint itself, with no external bundler.
 
 - `POST /api/shares` stores Share B and gives the phone a signed ticket for the independent service.
 - `POST /api/wallets` registers a wallet. The wallet key must sign the Recovery Key binding.
-- `GET /api/wallets/:address` reads a wallet: its keys, USDC balance, any pending recovery and the chain's time. `GET /api/wallets/:address/activity` lists its USDC transfers. `GET /api/config` returns the chain ID and the EntryPoint and USDC addresses.
-- `POST /api/wallets/:address/operations` runs compliance and sponsorship for a call.
+- `GET /api/wallets/:address` reads a wallet: its keys, USDC and WETH balances, the pool's reserves, any pending recovery and the chain's time. `GET /api/wallets/:address/activity` lists its USDC and WETH transfers. `GET /api/config` returns the chain ID and the EntryPoint, USDC, WETH and pool addresses. WETH and the pool are null on a chain without a pool.
+- `POST /api/wallets/:address/operations` runs compliance and sponsorship for a call or a batch of calls. Every call in a batch goes to compliance, and a batch may not call the account itself.
 - `POST /api/wallets/:address/share` releases Share B for a passkey-approved operation.
 - `POST /api/wallets/:address/operations/:hash` submits the signed operation.
 - `POST /api/recovery` runs the mocked ID check and prepares `initiateRecovery`.
@@ -51,9 +51,10 @@ The wallet key is a secp256k1 key split 2-of-3 with Shamir secret sharing. Share
 **App** (Next.js 16).
 
 - Create: `/onboarding-welcome`, then `/onboarding-secure`. Creates the passkey, splits the wallet key, saves the Recovery Key file and registers the wallet.
-- Home, History, Receive and Settings read one shared wallet store (`app/(tabs)/_components/wallet.ts`). It refreshes every few seconds and when the app regains focus, so a payment, a recovery started elsewhere or a warped chain shows without a reload. Cash and its activity are real; Investments, Earn, Card, Swap and Swissquote Plus are demo data.
-- Home: the real balance. On the old phone a pending recovery shows an alert with Cancel; a wallet recovered elsewhere, or one the chain no longer knows, offers to remove it from the phone.
+- Home, History, Receive and Settings read one shared wallet store (`app/(tabs)/_components/wallet.ts`). It refreshes every few seconds and when the app regains focus, so a payment, a recovery started elsewhere or a warped chain shows without a reload. Cash, the wallet's ETH, Swap and their activity are real. Staked ETH, cbBTC, AERO, Earn, Card and Swissquote Plus are demo data.
+- Home: the real balance. Cash is the wallet's USDC. Investments values its WETH, shown as ETH, at the pool's price, plus the demo holdings. On the old phone a pending recovery shows an alert with Cancel; a wallet recovered elsewhere, or one the chain no longer knows, offers to remove it from the phone.
 - Send: `/choose-recipient`, `/send`, `/transaction-tracking`.
+- Swap: the sheet in the + menu. It quotes from the pool's reserves with the pool's own formula as the client types, and sets a minimum 0.5% under the quote. Continue has Swissquote check and sponsor one operation that approves the pool for exactly the input and swaps it. Face ID approves that operation. If the price moved past the minimum, the pool reverts and the app asks for a new quote. Base Sepolia has no pool, so the app hides Swap there.
 - Recover: `/recover`. Loads the Recovery Key file, runs the mocked ID check, creates a new passkey and split, then counts down the 48-hour hold in chain time, with Finish and Cancel.
 
 ## Threat model
@@ -79,13 +80,13 @@ Every payment Swissquote sponsors goes through the compliance engine in-process.
 
 The engine runs, in order:
 
-1. Decode the calldata. Only reviewed functions pass: ERC-20 `transfer` and finite `approve`, ERC-4626 `deposit`, `withdraw` and `redeem`, and batches of up to 16 calls.
-2. Allowlist and limits. The contract, function and token must be in the policy. Limits are integer token base units, never floating-point or CHF estimates. The local policy (written by `npm run local`) allows USDC `transfer`, with step-up above 1,000 USDC, a 5,000 USDC daily limit and a 10,000 USDC cap per transaction. On the local chain the daily limit counts what the account sent in the last 24 hours of chain time.
+1. Decode the calldata. Only reviewed functions pass: ERC-20 `transfer` and finite `approve`, ERC-4626 `deposit`, `withdraw` and `redeem`, a reviewed pool's `swap`, and batches of up to 16 calls. A swap must follow, in the same batch, an approval of exactly its input amount to the pool, so no allowance outlives the operation. It must set a nonzero minimum output.
+2. Allowlist and limits. The contract, function and token must be in the policy. Limits are integer token base units, never floating-point or CHF estimates. The local policy (written by `npm run local`) allows USDC and WETH `transfer`, and swaps between them through the test pool. USDC has step-up above 1,000 USDC, a 5,000 USDC daily limit and a 10,000 USDC cap per transaction. WETH has step-up above 0.4 WETH, a 2 WETH daily limit and a 4 WETH cap. A swap's input counts against these limits like a transfer, and its approval is not counted a second time. On the local chain the daily limit counts what the account sent in the last 24 hours of chain time, including what a pool pulled in a swap.
 3. Sanctions screening. TRM Labs' address sanctions endpoint in live mode, fixtures in demo mode.
 4. Simulation. viem's `simulateCalls` over `eth_simulateV1`, from the account's address, in live mode.
 5. A signed, expiring Ed25519 decision, appended to a SHA-256 hash-chained audit log. A failed append blocks the decision.
 
-It refuses unlisted contracts and functions, unknown calldata, unlimited approvals, `setApprovalForAll`, delegatecalls, account administration and unsupported chains. Outages and missing evidence never fall back to `ALLOW`. The wallet API separately refuses any call to the account itself except `cancelRecovery`.
+It refuses unlisted contracts and functions, unknown calldata, unlimited approvals, `setApprovalForAll`, delegatecalls, account administration and unsupported chains. It also refuses a swap without its exact approval, without a minimum output or outside the pool's token pair, and an approval to a pool that no swap in the batch spends. Outages and missing evidence never fall back to `ALLOW`. The wallet API separately refuses any call to the account itself except `cancelRecovery`.
 
 The engine also has a standalone HTTP API for other backends: `POST /api/compliance/evaluate`, `GET /api/compliance/keys` and `GET /api/compliance/registry`. Each call needs `Authorization: Bearer <COMPLIANCE_API_KEY>` and an `X-Compliance-Subject` header set by the trusted bank backend. Never ship the key to a browser.
 
@@ -142,21 +143,23 @@ Drive the protocol from a second terminal. The commands read `.env.local`, so th
 
 | Command | What it does |
 | --- | --- |
-| `npm run status` | Shows chain time, the contracts, Swissquote's gas funds, every wallet with its USDC and pending recovery, and the CLI accounts. |
-| `npm run fund [wallet] [amount]` | Mints test USDC, 100 by default. `wallet` is an address or an account name. Without it, the newest wallet gets the USDC. |
+| `npm run status` | Shows chain time, the contracts, Swissquote's gas funds, the pool's reserves and price, every wallet with its USDC, WETH and pending recovery, and the CLI accounts. |
+| `npm run fund [wallet] [amount] [usdc\|eth]` | Mints test USDC, 100 by default, or test WETH with `eth`, 1 by default. `wallet` is an address or an account name. Without it, the newest wallet gets the USDC. |
 | `npm run account <name>` | Creates a wallet with a software passkey and funds it with 100 USDC. Saves it in `data/accounts/<name>.json`, with its Recovery Key file next to it. |
 | `npm run send <from> <to> <amount>` | Sends USDC from an account to an address or another account. A refusal prints Swissquote's reasons. |
+| `npm run swap <account> <amount> <usdc\|eth>` | Swaps `amount` of USDC, or of WETH with `eth`, for the other through the pool, with a minimum 0.5% under the quote. A refusal prints Swissquote's reasons. |
 | `npm run recover <account or file> [new-name]` | Starts a recovery onto a new phone with an account's Recovery Key or a Recovery Key file. Saves the new phone as `new-name`, which defaults to `<account>-new`, or `recovered` for a file. |
 | `npm run cancel <account>` | Cancels a pending recovery through Swissquote, signed with the Recovery Key. |
 | `npm run finish <account>` | Finishes a recovery after the 48-hour delay. |
 | `npm run warp [hours]` | Moves chain time ahead, 48 hours by default. |
 | `npm run e2e` | Runs the whole protocol in about 3 seconds. |
 
-`npm run e2e` creates a wallet, sends, gets refused for a sanctioned recipient and a step-up amount, loses the phone, cancels recoveries both ways, recovers after the delay and sends from the new phone.
+`npm run e2e` creates a wallet, sends, gets refused for a sanctioned recipient and a step-up amount, swaps USDC for WETH and back, gets refused for a swap that needs step-up and for a batch that calls the account, sees a swap revert when the price moves past its minimum, loses the phone, cancels recoveries both ways, recovers after the delay and sends from the new phone.
 
 Demos:
 
 - **Fund a browser wallet.** Create a wallet at /onboarding-welcome, then run `npm run fund`. Home shows 100 USDC.
+- **Swap in the browser.** After funding, open the + menu, tap Swap and swap 50 USDC to ETH. Home's Cash drops by 50, Investments rises by the ETH at the pool's price, and History shows one "USDC to ETH" row. `npm run status` shows the pool's new reserves.
 - **Get refused.** `npm run account anna`, then `npm run send anna 0x000000000000000000000000000000000000dEaD 2000`. Swissquote refuses because 2,000 USDC needs step-up.
 - **Recover a browser wallet from the terminal.** Save the Recovery Key file during onboarding, then run `npm run recover ~/Downloads/"Swissquote Wallet Recovery Key.txt"`. The browser plays the old phone. Its Home shows "Someone started recovering your wallet" and can cancel it.
 - **Recover a CLI wallet in the browser.** Open /recover and load `data/accounts/anna Recovery Key.txt`.
@@ -167,8 +170,8 @@ Checks:
 ```bash
 npm run check              # Shamir, onboarding flow and amount unit checks
 npm run check:onboarding   # onboarding in Chromium, against the running app
-npm run e2e:ui             # create, send, recover, cancel and finish in Chromium, against the running app
-npm run contracts:test     # Foundry tests for the account
+npm run e2e:ui             # create, send, swap, recover, cancel and finish in Chromium, against the running app
+npm run contracts:test     # Foundry tests for the account and the test pool
 npm run test:compliance    # compliance engine, tampering, providers, HTTP, audit
 npm run typecheck
 ```
@@ -196,7 +199,7 @@ Run `npm run partner` and `npm run dev` in two terminals. The CLI commands work 
 
 ## What is mocked and the production path
 
-Real in this build: the Shamir split with verified shares, passkeys verified on-chain, the ERC-4337 account and factory, Swissquote's paymaster, the 48-hour on-chain delay, the independent service as a separate process with its own storage, and the compliance engine.
+Real in this build: the Shamir split with verified shares, passkeys verified on-chain, the ERC-4337 account and factory, Swissquote's paymaster, the 48-hour on-chain delay, the independent service as a separate process with its own storage, the compliance engine, and swaps that move real tokens through an on-chain pool in one sponsored operation on the local chain.
 
 | Mocked here | Production |
 | --- | --- |
@@ -206,6 +209,7 @@ Real in this build: the Shamir split with verified shares, passkeys verified on-
 | No Swissquote sign-in or account link | The wallet inside the authenticated Swissquote app |
 | Fixture sanctions and simulation in demo mode | Live mode with contracted list coverage and a bank usage ledger |
 | The independent service is a process, not a company | A separate, supervised company under contract |
+| The WETH/USDC test pool and the open-mint test WETH | A reviewed DEX pool or aggregator on Base, and real WETH |
 | Local anvil chain | Base Sepolia, then Base mainnet |
 
 Not built yet:

@@ -1,4 +1,4 @@
-import { parseAbiItem, type Address } from "viem";
+import { isAddressEqual, parseAbiItem, type Address } from "viem";
 import { route } from "@/lib/wallet/api/http.ts";
 import { requireWallet } from "@/lib/wallet/api/operations.ts";
 import { addresses, publicClient } from "@/lib/wallet/env.ts";
@@ -9,11 +9,12 @@ const WINDOW = 50_000n;
 // A block's time never changes, so each is read once. Keyed by hash: a restarted local chain reuses numbers.
 const times = new Map<string, number>();
 
-/** The wallet's USDC transfers in and out, newest first. */
+/** The wallet's USDC and WETH transfers in and out, newest first. */
 export const GET = route(async (_request: Request, ctx: RouteContext<"/api/wallets/[address]/activity">) => {
   const wallet = requireWallet((await ctx.params).address as Address);
   const latest = await publicClient.getBlockNumber();
-  const query = { address: addresses.usdc, event: transfer, fromBlock: latest > WINDOW ? latest - WINDOW : 0n, toBlock: latest };
+  const tokens = addresses.weth ? [addresses.usdc, addresses.weth] : [addresses.usdc];
+  const query = { address: tokens, event: transfer, fromBlock: latest > WINDOW ? latest - WINDOW : 0n, toBlock: latest };
   const [sent, received] = await Promise.all([
     publicClient.getLogs({ ...query, args: { from: wallet.address } }),
     publicClient.getLogs({ ...query, args: { to: wallet.address } }),
@@ -26,6 +27,7 @@ export const GET = route(async (_request: Request, ctx: RouteContext<"/api/walle
   return Response.json({
     transfers: logs.map((log) => ({
       hash: log.transactionHash,
+      token: isAddressEqual(log.address, addresses.usdc) ? "usdc" : "weth",
       from: log.args.from,
       to: log.args.to,
       value: log.args.value!.toString(),

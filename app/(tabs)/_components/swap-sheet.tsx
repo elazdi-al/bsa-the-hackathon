@@ -2,30 +2,62 @@
 
 import { AnimatePresence, motion, useAnimate, useReducedMotion, type Variants } from "motion/react";
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
+import { formatUnits, parseUnits } from "viem";
 import { CoinLogo } from "@/app/coin-breakdown/_components/coin-logos";
-import { coins, stakedTotal } from "@/app/coin-breakdown/data";
+import { failure } from "@/app/send/_components/send-review";
 import { ApproxIcon, CheckIcon, ChevronDownIcon, FaceIdIcon, FlipIcon, LightningIcon } from "@/components/icons";
 import { BackButton } from "@/components/ui/back-button";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerClose, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
+import { phone, type Prepared } from "@/lib/wallet/phone";
+import { DECIMALS, minOut, quoteOut, type PoolToken } from "@/lib/wallet/pool";
 import { grouped, press, quote, typed, type Key, type Unit } from "./amount";
 import { usd } from "./money";
 import { Numpad } from "./numpad";
 import { blurred, easeOut, leave, sharp, snappy } from "./transitions";
+import { refreshWallet, useWallet, type WalletSnapshot } from "./wallet";
 
 type Side = "eth" | "usdc";
-type Step = { name: "amount" | "review"; dir: 1 | -1 };
 
-// Staked ETH and USDC in Earn are locked, so only the available part can be swapped.
-function token(id: Side, decimals: number) {
-  const coin = coins.find((c) => c.id === id)!;
-  return { name: coin.name, symbol: coin.symbol, balance: coin.amount - stakedTotal(coin), price: coin.value / coin.amount, decimals };
+// The wallet's ETH is the pool's WETH. `decimals` is how finely the sheet types and shows each.
+const tokens = {
+  eth: { name: "Ethereum", symbol: "ETH", pool: "weth", decimals: 4 },
+  usdc: { name: "USD Coin", symbol: "USDC", pool: "usdc", decimals: 2 },
+} as const satisfies Record<Side, { name: string; symbol: string; pool: PoolToken; decimals: number }>;
+
+/** Base units of `side` as a number of tokens, and back, as the numpad would have typed it. */
+const fromUnits = (units: bigint, side: Side) => Number(formatUnits(units, DECIMALS[tokens[side].pool]));
+const toUnits = (n: number, side: Side) => parseUnits((Number.isFinite(n) && typed(n, tokens[side].decimals)) || "0", DECIMALS[tokens[side].pool]);
+
+/** A swap exactly as Swissquote sponsored it: the review shows what the operation enforces, not a live quote. */
+type Swap = { from: Side; amountIn: bigint; out: bigint; minimum: bigint; usd: number; prepared: Prepared };
+type Step = { name: "amount"; dir: 1 | -1 } | { name: "review"; dir: 1; swap: Swap };
+
+/** The swap's own price in USDC per ETH, whichever way round it goes. */
+const rate = ({ from, amountIn, out }: Swap) =>
+  from === "usdc" ? fromUnits(amountIn, "usdc") / fromUnits(out, "eth") : fromUnits(out, "usdc") / fromUnits(amountIn, "eth");
+
+const UNAVAILABLE: Record<Exclude<WalletSnapshot["status"], "ready">, string> = {
+  loading: "",
+  none: "This phone has no wallet yet.",
+  missing: "Swissquote can't find this wallet.",
+  offline: "Can't reach Swissquote. Check your connection.",
+};
+
+/** Why this phone can't swap, as a calm line like Send's; "" holds Continue without a word while the wallet loads. */
+function blocker(snapshot: WalletSnapshot): string | undefined {
+  if (snapshot.status !== "ready") return UNAVAILABLE[snapshot.status];
+  const { controls, recovery, restoring } = snapshot.wallet;
+  if (controls) return undefined;
+  if (recovery?.mine) return "You can swap once your wallet is restored on this phone.";
+  return restoring ? "Your recovery was cancelled, so this phone can't swap yet." : "Your wallet moved to another phone, so this one can't swap from it.";
 }
-const tokens = { eth: token("eth", 4), usdc: token("usdc", 2) };
 
-const fmt = (n: number, decimals: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: decimals });
+// A guaranteed minimum rounds down, so it never reads as more than the pool promises.
+const fmt = (n: number, decimals: number, roundingMode: "halfExpand" | "floor" = "halfExpand") =>
+  n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: decimals, roundingMode });
 
 // The label cross-fades through blur, like the Send button's.
 const labelSwap = { initial: { opacity: 0, filter: blurred }, animate: { opacity: 1, filter: sharp, transition: snappy }, exit: { opacity: 0, filter: blurred, transition: leave } };
@@ -78,11 +110,14 @@ function Detail({ label, className, children }: { label: string; className?: str
 }
 
 export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onOpenChange: (o: boolean) => void; onClosed: () => void }) {
-  const [from, setFrom] = useState<Side>("eth");
+  const [from, setFrom] = useState<Side>("usdc");
   const [unit, setUnit] = useState<Unit>("token");
   const [text, setText] = useState("");
+  // Use Max pays the exact balance rather than the rounded one the amount shows, until the amount changes.
+  const [max, setMax] = useState(false);
   const [step, setStep] = useState<Step>({ name: "amount", dir: 1 });
-  const [phase, setPhase] = useState<"idle" | "busy" | "done">("idle");
+  const [phase, setPhase] = useState<"idle" | "checking" | "swapping" | "done">("idle");
+  const [error, setError] = useState<string[]>([]);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const content = useRef<HTMLDivElement>(null);
   const proceed = useRef<HTMLButtonElement>(null);
@@ -90,12 +125,23 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
   const [amount, animate] = useAnimate<HTMLOutputElement>();
   const still = useReducedMotion();
 
+  const snapshot = useWallet();
+  const wallet = snapshot.status === "ready" ? snapshot.wallet : undefined;
+  const balance = { eth: wallet?.eth ?? 0, usdc: wallet?.usdc ?? 0 };
+  const price = { eth: wallet?.ethPrice ?? 0, usdc: 1 };
+
   const to: Side = from === "eth" ? "usdc" : "eth";
   const pay = tokens[from];
   const get = tokens[to];
-  const q = quote(text, unit, pay.price, get.price);
-  const over = Number(q.tokens.toFixed(pay.decimals)) > pay.balance;
-  const ready = q.tokens > 0 && !over;
+  const q = quote(text, unit, price[from], price[to]);
+  const held = wallet?.units[pay.pool] ?? 0n;
+  const amountIn = max ? held : toUnits(q.tokens, from);
+  // The pool's own formula over the reserves last read: what the swap would get on chain.
+  const out = wallet?.pool ? quoteOut(wallet.pool, pay.pool, amountIn) : 0n;
+  const over = amountIn > held;
+  const blocked = blocker(snapshot);
+  const ready = amountIn > 0n && minOut(out) > 0n && !over && blocked === undefined;
+  const busy = phase === "checking" || phase === "swapping";
 
   const shown = `${unit === "usd" ? "$" : ""}${grouped(text)}`;
   const size = shown.length > 14 ? "text-title" : shown.length > 9 ? "text-amount" : "text-display";
@@ -107,10 +153,12 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
     if (open) return;
     const t = setTimeout(() => {
       setText("");
-      setFrom("eth");
+      setFrom("usdc");
       setUnit("token");
+      setMax(false);
       setStep({ name: "amount", dir: 1 });
       setPhase("idle");
+      setError([]);
     }, 400);
     return () => clearTimeout(t);
   }, [open]);
@@ -121,14 +169,34 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
     else if (step.dir < 0) proceed.current?.focus();
   }, [step]);
 
+  /** A new amount: the typed one again, and the last error no longer applies. */
+  function change(next: string, all = false) {
+    setText(next);
+    setMax(all);
+    setError([]);
+  }
+
   function tap(key: Key) {
+    if (phase !== "idle") return;
     const next = press(text, key, unit === "usd" ? 2 : pay.decimals);
-    if (next !== null) setText(next);
+    if (next !== null) change(next);
     else if (!still) animate(amount.current, { x: [0, -6, 5, -3, 2, 0] }, { duration: 0.3, ease: "easeOut" });
   }
 
-  function review() {
-    if (ready) setStep({ name: "review", dir: 1 });
+  // Continue asks Swissquote to check and sponsor this exact swap, so Face ID on the review can follow straight
+  // from the tap, as Safari requires. The review then shows the operation's own amounts.
+  async function review() {
+    if (!ready || phase !== "idle") return;
+    const minimum = minOut(out);
+    setPhase("checking");
+    setError([]);
+    try {
+      const prepared = await phone.prepareSwap(pay.pool, amountIn, minimum);
+      setStep({ name: "review", dir: 1, swap: { from, amountIn, out, minimum, usd: fromUnits(out, to) * price[to], prepared } });
+    } catch (e) {
+      setError(failure(e));
+    }
+    setPhase("idle");
   }
 
   // With a keyboard, digits type straight into the amount wherever focus is, and hand focus back to the
@@ -152,7 +220,7 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
   function flip() {
     setFrom(to);
     // A dollar amount is worth the same either way round; a token amount becomes what it would have bought.
-    if (unit === "token") setText(typed(q.out, get.decimals));
+    change(unit === "token" ? typed(fromUnits(out, to), get.decimals) : text);
   }
 
   function switchUnit() {
@@ -160,18 +228,27 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
     setText(unit === "token" ? typed(q.usd, 2) : typed(q.tokens, pay.decimals));
   }
 
-  function swap() {
-    setPhase("busy");
-    timers.current.push(
-      setTimeout(() => setPhase("done"), 1200),
-      setTimeout(() => onOpenChange(false), 1900),
-    );
+  async function swap(prepared: Prepared) {
+    setPhase("swapping");
+    try {
+      await phone.approve(prepared);
+      setPhase("done");
+      refreshWallet();
+      timers.current.push(setTimeout(() => onOpenChange(false), 700));
+    } catch (e) {
+      // The operation is spent or its sponsorship lapsed. Back on the amount, the quote catches up with a moved
+      // price and Continue checks a fresh one.
+      refreshWallet();
+      setPhase("idle");
+      setStep({ name: "amount", dir: -1 });
+      setError(failure(e));
+    }
   }
 
-  const continueLabel = over ? `Insufficient ${pay.symbol}` : "Continue";
+  const continueLabel = phase === "checking" ? "Checking" : over ? `Insufficient ${pay.symbol}` : "Continue";
 
   return (
-    <Drawer open={open} onOpenChange={(o) => phase !== "busy" && onOpenChange(o)} dismissible={phase !== "busy"}>
+    <Drawer open={open} onOpenChange={(o) => !busy && onOpenChange(o)} dismissible={!busy}>
       <DrawerContent
         ref={content}
         aria-describedby={undefined}
@@ -202,7 +279,7 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
           </AnimatePresence>
           <DrawerTitle>Swap</DrawerTitle>
           <DrawerClose asChild>
-            <BackButton kind="close" disabled={phase === "busy"} className="absolute right-4" />
+            <BackButton kind="close" disabled={busy} className="absolute right-4" />
           </DrawerClose>
         </header>
 
@@ -224,12 +301,13 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
                       <Coin key={from} id={from} />
                       <TokenLabel id={from}>
                         <span className={`block tabular-nums transition-colors duration-150 ${over ? "text-negative" : "text-muted-foreground"}`}>
-                          {fmt(pay.balance, pay.decimals)} {pay.symbol}
+                          {fmt(balance[from], pay.decimals)} {pay.symbol}
                         </span>
                       </TokenLabel>
                       <button
                         type="button"
-                        onClick={() => setText(unit === "token" ? typed(pay.balance, pay.decimals) : typed(pay.balance * pay.price, 2))}
+                        disabled={phase !== "idle"}
+                        onClick={() => change(unit === "token" ? typed(balance[from], pay.decimals) : typed(balance[from] * price[from], 2), true)}
                         className={`${pill} h-8 shrink-0 rounded-full bg-secondary px-3 text-caption font-semibold after:absolute after:-inset-1.5 hover:bg-black/[0.08]`}
                       >
                         Use Max
@@ -247,6 +325,7 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
                       </output>
                       <button
                         type="button"
+                        disabled={phase !== "idle"}
                         onClick={switchUnit}
                         aria-label={`${other}. Type in ${unit === "token" ? "dollars" : pay.symbol}`}
                         className={`${pill} mt-2 flex h-8 items-center gap-1 rounded-full px-2.5 text-body font-medium text-muted-foreground tabular-nums after:absolute after:-inset-y-1.5 after:inset-x-0 hover:bg-black/[0.04] hover:text-foreground`}
@@ -262,6 +341,7 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
                     <button
                       type="button"
                       aria-label={`Switch to paying with ${get.symbol}`}
+                      disabled={phase !== "idle"}
                       onClick={flip}
                       className={`${pill} absolute top-1/2 left-1/2 grid size-8 -translate-1/2 place-items-center rounded-full border-[3px] border-background bg-secondary text-muted-foreground after:absolute after:-inset-[9px] hover:text-foreground`}
                     >
@@ -274,20 +354,44 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
                     <TokenLabel id={to}>
                       <span className="block truncate text-muted-foreground">Receive {get.symbol}</span>
                     </TokenLabel>
-                    <output className={`text-label tabular-nums transition-colors duration-150 ${q.out > 0 ? "" : "text-cents"}`}>
-                      {fmt(q.out, get.decimals)}
+                    <output className={`text-label tabular-nums transition-colors duration-150 ${out > 0n ? "" : "text-cents"}`}>
+                      {fmt(fromUnits(out, to), get.decimals)}
                     </output>
                   </section>
 
                   <div className="mt-auto pt-4">
                     <Numpad onKey={tap} />
-                    <Button ref={proceed} size="lg" onClick={review} disabled={!ready} className="mt-3 h-14 w-full">
+                    {error.length > 0 ? (
+                      <div role="alert" className="mt-3 text-center text-caption text-negative">
+                        {error.map((line) => (
+                          <p key={line} className="first-letter:uppercase">
+                            {line}
+                          </p>
+                        ))}
+                      </div>
+                    ) : (
+                      blocked && <p className="mt-3 text-center text-caption text-balance text-muted-foreground">{blocked}</p>
+                    )}
+                    {/* Focusable while checking, so focus stays put if Swissquote refuses. */}
+                    <Button
+                      ref={proceed}
+                      size="lg"
+                      onClick={review}
+                      disabled={!ready || phase !== "idle"}
+                      focusableWhenDisabled
+                      aria-busy={phase === "checking"}
+                      className={cn("mt-3 h-14 w-full aria-disabled:active:scale-100", !ready && "opacity-35")}
+                    >
                       <AnimatePresence initial={false} mode="popLayout">
-                        <motion.span key={continueLabel} {...labelSwap}>
+                        <motion.span key={continueLabel} className="flex items-center gap-2" {...labelSwap}>
+                          {phase === "checking" && <Spinner aria-hidden className="size-5" />}
                           {continueLabel}
                         </motion.span>
                       </AnimatePresence>
                     </Button>
+                    <span className="sr-only" aria-live="polite">
+                      {phase === "checking" ? "Checking" : ""}
+                    </span>
                   </div>
                 </>
               ) : (
@@ -303,19 +407,20 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
                         You receive
                       </h2>
                       <p className="mt-1 text-amount tabular-nums">
-                        {fmt(q.out, get.decimals)} <span className="text-faint">{get.symbol}</span>
+                        {fmt(fromUnits(step.swap.out, to), get.decimals)} <span className="text-faint">{get.symbol}</span>
                       </p>
-                      <p className="mt-1 text-body text-muted-foreground tabular-nums">≈ {usd.format(q.usd)}</p>
+                      <p className="mt-1 text-body text-muted-foreground tabular-nums">≈ {usd.format(step.swap.usd)}</p>
                     </div>
 
                     <hr className="mt-10 h-px shrink-0 border-0 bg-[repeating-linear-gradient(90deg,var(--color-cents)_0_8px,transparent_8px_17px)]" />
 
                     <dl className="space-y-2 pt-4 text-body">
                       <Detail label="You pay">
-                        {fmt(q.tokens, pay.decimals)} {pay.symbol}
+                        {fmt(fromUnits(step.swap.amountIn, from), pay.decimals)} {pay.symbol}
                       </Detail>
-                      <Detail label="Rate">
-                        1 {pay.symbol} ≈ {fmt(pay.price / get.price, get.decimals)} {get.symbol}
+                      <Detail label="Rate">1 ETH ≈ {fmt(rate(step.swap), 2)} USDC</Detail>
+                      <Detail label="Minimum received">
+                        {fmt(fromUnits(step.swap.minimum, to), get.decimals, "floor")} {get.symbol}
                       </Detail>
                       <Detail label="Network fee" className="flex items-center gap-1 font-semibold text-positive">
                         <LightningIcon size={16} />
@@ -326,22 +431,22 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
 
                   <Button
                     size="lg"
-                    onClick={swap}
+                    onClick={() => swap(step.swap.prepared)}
                     disabled={phase !== "idle"}
-                    aria-busy={phase === "busy"}
+                    aria-busy={phase === "swapping"}
                     className={`h-14 w-full shrink-0 ${phase !== "idle" ? "disabled:opacity-100" : ""} ${phase === "done" ? "bg-positive hover:bg-positive" : ""}`}
                   >
                     <AnimatePresence initial={false} mode="popLayout">
                       <motion.span key={phase} className="flex items-center gap-2" {...labelSwap}>
                         {phase === "idle" && <FaceIdIcon size={20} />}
-                        {phase === "busy" && <Spinner className="size-5" />}
+                        {phase === "swapping" && <Spinner aria-hidden className="size-5" />}
                         {phase === "done" && <CheckIcon size={20} />}
-                        {phase === "idle" ? "Swap" : phase === "busy" ? "Swapping" : "Swapped"}
+                        {phase === "done" ? "Swapped" : phase === "swapping" ? "Swapping" : "Swap"}
                       </motion.span>
                     </AnimatePresence>
                   </Button>
                   <span className="sr-only" aria-live="polite">
-                    {phase === "busy" ? "Swapping" : phase === "done" ? "Swapped" : ""}
+                    {phase === "swapping" ? "Swapping" : phase === "done" ? "Swapped" : ""}
                   </span>
                 </>
               )}

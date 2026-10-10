@@ -5,6 +5,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { foundry } from "viem/chains";
 import { addresses, chain, partnerUrl, publicClient, rpcUrl } from "../lib/wallet/env.ts";
 import { createPhone, type Authenticator } from "../lib/wallet/phone.ts";
+import { DECIMALS, type PoolToken } from "../lib/wallet/pool.ts";
 
 export const APP = process.env.APP_URL ?? "http://localhost:3000";
 
@@ -29,22 +30,30 @@ export function newPhone({ passkey = P256.randomPrivateKey(), storage }: { passk
   return createPhone({
     api: APP,
     partner: partnerUrl,
+    pool: addresses.pool ?? undefined,
     authenticator: softwareAuthenticator(passkey),
     storage: storage ?? { getItem: (k) => items.get(k) ?? null, setItem: (k, v) => void items.set(k, v), removeItem: (k) => void items.delete(k) },
   });
 }
 
-export async function mintUsdc(to: Address, amount: string) {
+/** Mints test USDC or WETH, whose mint is open on anvil. `amount` is in whole tokens, like "100" or "0.5". */
+export async function mint(token: PoolToken, to: Address, amount: string) {
   if (chain.id !== foundry.id) {
-    console.log(`Minting only works on anvil. Get Base Sepolia USDC for ${to} at https://faucet.circle.com.`);
+    console.log(
+      token === "usdc"
+        ? `Minting only works on anvil. Get Base Sepolia USDC for ${to} at https://faucet.circle.com.`
+        : "Minting only works on anvil. Base Sepolia has no test WETH, and no pool to swap it in.",
+    );
     return;
   }
+  const address = addresses[token];
+  if (!address) throw new Error("This chain has no WETH. npm run local deploys it with the swap pool.");
   const swissquote = createWalletClient({ account: privateKeyToAccount(process.env.SWISSQUOTE_KEY as Hex), chain, transport: http(rpcUrl) });
   const hash = await swissquote.writeContract({
-    address: addresses.usdc,
+    address,
     abi: parseAbi(["function mint(address, uint256)"]),
     functionName: "mint",
-    args: [to, parseUnits(amount, 6)],
+    args: [to, parseUnits(amount, DECIMALS[token])],
   });
   await publicClient.waitForTransactionReceipt({ hash });
 }

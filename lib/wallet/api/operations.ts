@@ -6,11 +6,13 @@ import {
   ContractFunctionRevertedError,
   concat,
   createWalletClient,
+  decodeErrorResult,
   decodeFunctionData,
   encodeAbiParameters,
   encodeFunctionData,
   http,
   isAddressEqual,
+  parseAbi,
   parseEventLogs,
   recoverMessageAddress,
   type Address,
@@ -28,7 +30,8 @@ import { privateKeyToAccount } from "viem/accounts";
 import * as z from "zod";
 import { getComplianceRuntime } from "@/services/compliance/runtime";
 import { accountAbi, bindRecoveryKeyMessage, factoryAbi, paymasterAbi, type Config, type Passkey } from "../account.ts";
-import { addresses, chain, credentials, partnerUrl, publicClient, rpcUrl } from "../env.ts";
+import { addresses, chain, credentials, isDeployed, partnerUrl, publicClient, rpcUrl } from "../env.ts";
+import { poolAbi } from "../pool.ts";
 import { address, passkey } from "../schema.ts";
 import { store, type Kind, type Wallet } from "./db.ts";
 import { HttpError } from "./http.ts";
@@ -97,18 +100,29 @@ export async function bindShares(signer: Address, recoveryKey: Address, signatur
   return b;
 }
 
-/** Swissquote assists only operations its compliance policy allows; refusing never freezes the wallet itself. */
+/**
+ * Swissquote assists only operations its compliance policy allows, every call of a batch included; refusing never
+ * freezes the wallet itself. Of calls to the account itself, only a lone cancelRecovery passes.
+ */
 export async function assist(wallet: Wallet, callData: Hex) {
   const call = decodeFunctionData({ abi: accountAbi, data: callData });
-  if (call.functionName !== "execute") throw new HttpError(403, "The app can't make this call.");
-  const [to, value, data] = call.args;
-  if (isAddressEqual(to, wallet.address)) {
-    if (data === encodeFunctionData({ abi: accountAbi, functionName: "cancelRecovery" })) return ["You cancel the pending recovery of your wallet."];
+  const calls =
+    call.functionName === "execute" ? [{ target: call.args[0], value: call.args[1], data: call.args[2] }] : call.functionName === "executeBatch" ? call.args[0] : [];
+  if (!calls.length) throw new HttpError(403, "The app can't make this call.");
+  if (calls.some(({ target }) => isAddressEqual(target, wallet.address))) {
+    const cancel = encodeFunctionData({ abi: accountAbi, functionName: "cancelRecovery" });
+    if (call.functionName === "execute" && calls[0].data === cancel) return ["You cancel the pending recovery of your wallet."];
     throw new HttpError(403, "The app can't change the account itself.");
   }
   const requestId = randomUUID();
   const { decision } = await getComplianceRuntime().engine.evaluate(
-    { requestId, nonce: requestId, chainId: chain.id, account: wallet.address, calls: [{ to, value: value.toString(), data, operation: "CALL" }] },
+    {
+      requestId,
+      nonce: requestId,
+      chainId: chain.id,
+      account: wallet.address,
+      calls: calls.map(({ target, value, data }) => ({ to: target, value: value.toString(), data, operation: "CALL" as const })),
+    },
     { subject: wallet.address.toLowerCase() },
   );
   if (decision.status !== "ALLOW") {
@@ -189,6 +203,14 @@ function serialize<T>(task: () => Promise<T>): Promise<T> {
 /** Simulates, then submits through the EntryPoint. Resolves once the operation succeeded on-chain. */
 export function submit(userOp: UserOperation<"0.7">, signature: Hex): Promise<Hex> {
   return serialize(async () => {
+    // handleOps succeeds even when the account's own call reverts, and Swissquote's paymaster would pay for the
+    // failure. A deployed account's call is tried first, as the EntryPoint makes it, so a moved price fails here.
+    if (await isDeployed(userOp.sender)) {
+      await publicClient.call({ account: addresses.entryPoint, to: userOp.sender, data: userOp.callData }).catch((error: unknown) => {
+        const data = error instanceof BaseError ? (error.walk((e) => typeof (e as { data?: unknown }).data === "string") as { data?: Hex } | null)?.data : undefined;
+        throw new HttpError(422, "The operation would fail.", { detail: data ? callError(data) : revertReason(error) });
+      });
+    }
     const { request } = await publicClient
       .simulateContract({
         account: swissquote(),
@@ -203,7 +225,11 @@ export function submit(userOp: UserOperation<"0.7">, signature: Hex): Promise<He
     const transactionHash = await operator().writeContract(request);
     const receipt = await publicClient.waitForTransactionReceipt({ hash: transactionHash });
     const [event] = parseEventLogs({ abi: entryPoint07Abi, eventName: "UserOperationEvent", logs: receipt.logs });
-    if (!event?.args.success) throw new HttpError(422, "The operation reverted.", { transactionHash });
+    if (!event?.args.success) {
+      // The account bubbles up the failing call's revert, like a swap's Slippage when the price moved.
+      const [reverted] = parseEventLogs({ abi: entryPoint07Abi, eventName: "UserOperationRevertReason", logs: receipt.logs });
+      throw new HttpError(422, "The operation reverted.", { transactionHash, detail: reverted && callError(reverted.args.revertReason) });
+    }
     return transactionHash;
   });
 }
@@ -223,6 +249,23 @@ export function callAccount(wallet: Address, functionName: "cancelRecovery" | "f
     await publicClient.waitForTransactionReceipt({ hash: transactionHash });
     return transactionHash;
   });
+}
+
+const callErrors = [
+  ...poolAbi,
+  ...parseAbi([
+    "error ERC20InsufficientBalance(address sender, uint256 balance, uint256 needed)",
+    "error ERC20InsufficientAllowance(address spender, uint256 allowance, uint256 needed)",
+  ]),
+];
+
+function callError(data: Hex) {
+  try {
+    const { errorName, args } = decodeErrorResult({ abi: callErrors, data });
+    return `${errorName}(${args?.join(", ") ?? ""})`;
+  } catch {
+    return data;
+  }
 }
 
 function revertReason(error: unknown) {

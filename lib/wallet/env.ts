@@ -33,6 +33,13 @@ export const addresses = {
   get usdc() {
     return required("USDC_ADDRESS");
   },
+  /** The local chain's WETH and USDC/WETH test pool; null where there is no pool, as on Base Sepolia. */
+  get weth() {
+    return (process.env.WETH_ADDRESS || null) as Address | null;
+  },
+  get pool() {
+    return (process.env.POOL_ADDRESS || null) as Address | null;
+  },
   /** Swissquote's key: paymaster signer, ticket signer, guardian and the account that submits operations. */
   get swissquote() {
     return required("SWISSQUOTE_ADDRESS");

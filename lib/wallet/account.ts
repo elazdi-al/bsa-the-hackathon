@@ -17,6 +17,7 @@ const structs = [
 export const accountAbi = parseAbi([
   ...structs,
   "function execute(address target, uint256 value, bytes data)",
+  "function executeBatch((address target, uint256 value, bytes data)[] calls)",
   "function initiateRecovery(address newSigner, Passkey newPasskey)",
   "function cancelRecovery()",
   "function finalizeRecovery()",
