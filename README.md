@@ -122,24 +122,44 @@ Questions for counsel before a real launch:
 
 ## Run it locally
 
-Free and offline. You need Node.js 22.18 or later and [Foundry](https://getfoundry.sh) (`forge`, `anvil`).
+You need Node.js 22.18 or later and [Foundry](https://getfoundry.sh), with `anvil` and `forge` on your PATH. Everything runs offline.
 
 ```bash
 npm install
-cd contracts && forge soldeer install && cd ..
 npm run local
 ```
 
-`npm run local` starts anvil, deploys the contracts, starts the independent service and the app, and writes `.env.local`. Open http://localhost:3000/onboarding-welcome. Use `PORT=3200 npm run local` for another port.
+`npm run local` starts a fresh anvil chain, deploys the contracts, starts the independent service and the app, and writes `.env.local`. The first run also installs the contract dependencies. Every run starts from an empty chain and wipes `data/`, CLI accounts included. Open http://localhost:3000/onboarding-welcome when it prints the command list. Ctrl-C stops everything.
 
-With the stack running, in a second terminal:
+The app uses port 3000, anvil 8545 and the independent service 4002. If a port is taken, `npm run local` names the process that holds it and exits. Pick other ports with `PORT`, `RPC_PORT` and `PARTNER_PORT`:
 
 ```bash
-npm run e2e    # the whole protocol in about 3 seconds
-npm run warp   # move the chain 48 hours ahead to finalize a recovery
+PORT=3200 RPC_PORT=8546 PARTNER_PORT=4003 npm run local
 ```
 
+Drive the protocol from a second terminal. The commands read `.env.local`, so they follow the ports.
+
+| Command | What it does |
+| --- | --- |
+| `npm run status` | Shows chain time, the contracts, Swissquote's gas funds, every wallet with its USDC and pending recovery, and the CLI accounts. |
+| `npm run fund [wallet] [amount]` | Mints test USDC, 100 by default. `wallet` is an address or an account name. Without it, the newest wallet gets the USDC. |
+| `npm run account <name>` | Creates a wallet with a software passkey and funds it with 100 USDC. Saves it in `data/accounts/<name>.json`, with its Recovery Key file next to it. |
+| `npm run send <from> <to> <amount>` | Sends USDC from an account to an address or another account. A refusal prints Swissquote's reasons. |
+| `npm run recover <account or file> [new-name]` | Starts a recovery onto a new phone with an account's Recovery Key or a Recovery Key file. Saves the new phone as `new-name`, which defaults to `<account>-new`, or `recovered` for a file. |
+| `npm run cancel <account>` | Cancels a pending recovery through Swissquote, signed with the Recovery Key. |
+| `npm run finish <account>` | Finishes a recovery after the 48-hour delay. |
+| `npm run warp [hours]` | Moves chain time ahead, 48 hours by default. |
+| `npm run e2e` | Runs the whole protocol in about 3 seconds. |
+
 `npm run e2e` creates a wallet, sends, gets refused for a sanctioned recipient and a step-up amount, loses the phone, cancels recoveries both ways, recovers after the delay and sends from the new phone.
+
+Demos:
+
+- **Fund a browser wallet.** Create a wallet at /onboarding-welcome, then run `npm run fund`. Home shows 100 USDC.
+- **Get refused.** `npm run account anna`, then `npm run send anna 0x000000000000000000000000000000000000dEaD 2000`. Swissquote refuses because 2,000 USDC needs step-up.
+- **Recover a browser wallet from the terminal.** Save the Recovery Key file during onboarding, then run `npm run recover ~/Downloads/"Swissquote Wallet Recovery Key.txt"`. The browser plays the old phone. Its Home shows "Someone started recovering your wallet" and can cancel it.
+- **Recover a CLI wallet in the browser.** Open /recover and load `data/accounts/anna Recovery Key.txt`.
+- **Skip the delay.** `npm run recover anna`, `npm run warp`, then `npm run finish anna-new`. `anna-new` now sends from the same address with the same funds.
 
 Checks:
 
@@ -166,7 +186,7 @@ The six demo cases are a 20 USDC transfer (`ALLOW`), a 2,000 USDC transfer (`STE
 cd contracts && forge script script/Deploy.s.sol --rpc-url $RPC_URL --private-key $SWISSQUOTE_KEY --broadcast
 ```
 
-Run `npm run partner` and `npm run dev` in two terminals.
+Run `npm run partner` and `npm run dev` in two terminals. The CLI commands work there too, except that `npm run fund` prints a faucet link instead of minting and `npm run warp` needs anvil.
 
 **Live compliance.** Set `COMPLIANCE_MODE=live` with `COMPLIANCE_POLICY_FILE` (a reviewed policy JSON), `COMPLIANCE_RPC_URLS` (chain ID to HTTPS RPC), `COMPLIANCE_SIGNING_PRIVATE_KEY` (a persistent Ed25519 PKCS#8 PEM, separate from every wallet key) and `COMPLIANCE_API_KEY`. `TRM_API_KEY` and `COMPLIANCE_AUDIT_FILE` are optional. Restart after any change.
 
