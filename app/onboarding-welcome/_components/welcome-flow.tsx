@@ -1,46 +1,42 @@
 "use client";
 
 import { ArrowCounterClockwiseIcon } from "@phosphor-icons/react";
-import { AnimatePresence, MotionConfig, motion } from "motion/react";
+import { MotionConfig, motion } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import { cn } from "cn";
-import { blurred, leave, sharp, snappy } from "@/app/(tabs)/_components/transitions";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
+import { blurred, leave, sharp } from "@/app/(tabs)/_components/transitions";
+import { buttonVariants } from "@/components/ui/button";
 import { GlimmField } from "./glimm-field";
-import { AppleLogo, FuseLogo } from "./glyphs";
+import { FuseLogo } from "./glyphs";
 import { WordWheel } from "./word-wheel";
 
-/** Apple signs in, then leaves; Recover leaves straight away. Both hand off the same way. */
-type Step = "welcome" | "signing" | "leaving" | "recovering";
-
-const NEXT_ROUTE = "/onboarding-secure";
+/** Both buttons leave the same way, to their own route. The client is already signed in to Swissquote. */
+const ROUTES = { create: "/onboarding-secure", recover: "/pending-verification" } as const;
+type Step = "welcome" | keyof typeof ROUTES;
 
 /** The hand-off: a house exit held a little longer, and the push waits for it. */
 const handOff = { ...leave, duration: 0.3 };
-
-const blurSwap = {
-  initial: { opacity: 0, scale: 0.9, filter: blurred },
-  animate: { opacity: 1, scale: 1, filter: sharp },
-  exit: { opacity: 0, scale: 0.9, filter: blurred, transition: leave },
-  transition: snappy,
-};
 
 const cta = "text-[15px] tracking-[-0.01em] focus-visible:outline-white";
 
 export function WelcomeFlow() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("welcome");
-  const busy = step === "signing" || step === "leaving";
-  const exiting = step === "leaving" || step === "recovering";
+  const exiting = step !== "welcome";
 
   useEffect(() => {
     if (step === "welcome") return;
-    const id = step === "signing" ? setTimeout(() => setStep("leaving"), 1200) : setTimeout(() => router.push(NEXT_ROUTE), handOff.duration * 1000);
+    const id = setTimeout(() => router.push(ROUTES[step]), handOff.duration * 1000);
     return () => clearTimeout(id);
   }, [step, router]);
+
+  const leaveTo = (to: keyof typeof ROUTES) => (e: MouseEvent) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+    e.preventDefault();
+    setStep(to);
+  };
 
   return (
     <MotionConfig reducedMotion="user">
@@ -71,29 +67,12 @@ export function WelcomeFlow() {
         </section>
 
         <div className="mt-8 flex flex-col gap-3 px-5 pb-[max(40px,calc(env(safe-area-inset-bottom)+12px))] min-[360px]:px-[30px]">
-          <Button
-            variant="inverse"
-            size="lg"
-            disabled={busy}
-            focusableWhenDisabled
-            aria-busy={busy}
-            onClick={() => setStep("signing")}
-            className={`grid place-items-center ${cta}`}
-          >
-            <AnimatePresence initial={false}>
-              <motion.span key={busy ? "busy" : "idle"} {...blurSwap} className="col-start-1 row-start-1 flex items-center gap-2">
-                {busy ? <Spinner aria-hidden className="size-[17px]" /> : <AppleLogo className="-mt-px size-[17px]" />}
-                {busy ? "Signing in" : "Continue with Apple"}
-              </motion.span>
-            </AnimatePresence>
-          </Button>
+          <Link href={ROUTES.create} onClick={leaveTo("create")} className={cn(buttonVariants({ variant: "inverse", size: "lg" }), cta)}>
+            Create wallet
+          </Link>
           <Link
-            href={NEXT_ROUTE}
-            onClick={(e) => {
-              if (e.metaKey || e.ctrlKey || e.shiftKey) return;
-              e.preventDefault();
-              setStep("recovering");
-            }}
+            href={ROUTES.recover}
+            onClick={leaveTo("recover")}
             className={cn(buttonVariants({ size: "lg" }), "bg-white/15 text-white hover:bg-white/20", cta)}
           >
             <span className="grid size-4 place-items-center rounded-[4px] bg-white text-[#1B7DF6]">

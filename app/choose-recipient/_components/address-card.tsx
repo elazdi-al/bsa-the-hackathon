@@ -51,9 +51,9 @@ export function AddressCard() {
           data-vaul-no-drag
           value={value}
           onChange={(event) => setValue(event.target.value)}
-          aria-label="Address or .sol handle"
+          aria-label="Address or ENS name"
           aria-describedby={STATUS_ID}
-          placeholder="Address or .sol handle"
+          placeholder="Address or ENS name"
           type="text"
           inputMode="text"
           enterKeyHint="go"

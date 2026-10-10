@@ -2,6 +2,7 @@ import { CheckCircleIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "motion/react";
 import type { ReactNode, Ref } from "react";
 import { blurred, sharp, smooth, snappy } from "@/app/(tabs)/_components/transitions";
+import { shortAddress } from "@/app/choose-recipient/data";
 import { CODE_SENT, SETUP, type WalletKey } from "../data";
 import { blurSwap, iconSwap } from "./motion";
 
@@ -62,7 +63,7 @@ export function KeyItem({ ref, item, active, sentTo, children }: KeyItemProps) {
   );
 }
 
-export function SetupRow({ ref, ready }: { ref?: Ref<HTMLLIElement>; ready: boolean }) {
+export function SetupRow({ ref, ready, address }: { ref?: Ref<HTMLLIElement>; ready: boolean; address?: string }) {
   const copy = ready ? SETUP.ready : SETUP.working;
   return (
     <motion.li
@@ -88,7 +89,8 @@ export function SetupRow({ ref, ready }: { ref?: Ref<HTMLLIElement>; ready: bool
         <AnimatePresence initial={false}>
           <motion.div key={copy.title} {...blurSwap} className="col-start-1 row-start-1">
             <p className="text-[17px] leading-[22px] font-semibold text-black">{copy.title}</p>
-            <p className="mt-0.5 max-w-[190px] text-[15px] leading-[19px] text-pretty text-black/40">{copy.body}</p>
+            <p className="mt-0.5 max-w-[230px] text-[15px] leading-[19px] text-pretty text-black/40">{copy.body}</p>
+            {ready && address && <p className="mt-1.5 text-[15px] leading-[19px] font-medium tabular-nums">{shortAddress(address)}</p>}
           </motion.div>
         </AnimatePresence>
       </div>

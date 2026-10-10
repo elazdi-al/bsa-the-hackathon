@@ -1,10 +1,14 @@
 "use client";
 
+import { DownloadSimpleIcon } from "@phosphor-icons/react";
 import { AnimatePresence, LayoutGroup, MotionConfig, motion } from "motion/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useReducer, useState } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
+import type { Address } from "viem";
 import { blurred, sharp, smooth } from "@/app/(tabs)/_components/transitions";
 import { BackButton } from "@/components/ui/back-button";
+import { buttonVariants } from "@/components/ui/button";
+import { api, ApiError, createDeviceKey, keyCeremony, registerWallet, type DeviceKey } from "@/lib/wallet/browser";
 import { KEYS } from "../data";
 import { flowReducer, initialFlow, keyState, pendingTimer, toneOf } from "../flow";
 import { CodeEntry } from "./code-entry";
@@ -25,6 +29,11 @@ export function SecureFlow() {
   const router = useRouter();
   const [step, dispatch] = useReducer(flowReducer, initialFlow);
   const [typing, setTyping] = useState(false);
+  const [error, setError] = useState("");
+  const device = useRef<DeviceKey>(null);
+  const signer = useRef<Address>(null);
+  const registration = useRef<ReturnType<typeof registerWallet>>(null);
+  const [wallet, setWallet] = useState<Awaited<ReturnType<typeof registerWallet>>>();
 
   useEffect(() => {
     const timer = pendingTimer(step);
@@ -33,12 +42,43 @@ export function SecureFlow() {
     return () => clearTimeout(id);
   }, [step]);
 
-  const ready = step.name === "setup" && step.status === "ready";
+  // Device Key: Face ID creates the passkey. Swissquote Key: the 2-of-3 key ceremony with Swissquote and the partner.
+  async function create() {
+    if (step.name !== "device" && step.name !== "twofa") return;
+    dispatch({ type: "create" });
+    setError("");
+    try {
+      if (step.name === "device") {
+        await api("GET", "/api/wallet").then(
+          () => Promise.reject(new Error("You already have a wallet. Recover it instead.")),
+          (e) => (e instanceof ApiError && e.status === 404 ? undefined : Promise.reject(e)),
+        );
+        device.current = await createDeviceKey();
+      } else {
+        signer.current = await keyCeremony(device.current!, "create");
+      }
+      dispatch({ type: "created" });
+    } catch (e) {
+      setError((e as Error).message);
+      dispatch({ type: "failed" });
+    }
+  }
+
+  // Setup registers the wallet with a new Recovery Kit. The ref owns the request, so Strict Mode's second run reuses it.
+  const working = step.name === "setup" && step.status === "working";
   useEffect(() => {
-    if (!ready) return;
-    const id = setTimeout(() => router.replace("/home", { transitionTypes: ["push"] }), 1600);
-    return () => clearTimeout(id);
-  }, [ready, router]);
+    if (!working) return;
+    registration.current ??= registerWallet(signer.current!, device.current!.passkey);
+    registration.current.then(
+      (w) => {
+        setWallet(w);
+        dispatch({ type: "walletReady" });
+      },
+      (e: Error) => setError(e.message),
+    );
+  }, [working]);
+
+  const ready = step.name === "setup" && step.status === "ready";
 
   // While the keyboard is up the content lifts above it and the gradient steps aside.
   // From sm the band is a 50svh strip, so the list starts in its fade (24svh, less the 60px header) instead of the bottom.
@@ -100,7 +140,7 @@ export function SecureFlow() {
                     </KeyItem>
                   );
                 })}
-                {setup && <SetupRow key="setup" ready={step.status === "ready"} />}
+                {setup && <SetupRow key="setup" ready={ready} address={wallet?.address} />}
               </AnimatePresence>
             </motion.ul>
 
@@ -111,7 +151,7 @@ export function SecureFlow() {
                     <CreateButton
                       item={current}
                       busy={step.status === "creating"}
-                      onPress={() => dispatch({ type: "create" })}
+                      onPress={create}
                     />
                   </motion.div>
                 )}
@@ -124,7 +164,24 @@ export function SecureFlow() {
                     />
                   </motion.div>
                 )}
+                {ready && wallet && (
+                  <motion.div key="kit" {...blurSwap}>
+                    {/* The kit is the only copy of the confirmation key: it leaves the browser and is never stored here. */}
+                    <a
+                      href={`data:text/plain;charset=utf-8,${encodeURIComponent(wallet.kit)}`}
+                      download="swissquote-recovery-kit.txt"
+                      onClick={() => router.replace("/home", { transitionTypes: ["push"] })}
+                      className={buttonVariants({ size: "lg", className: "w-full" })}
+                    >
+                      <DownloadSimpleIcon weight="bold" size={20} aria-hidden />
+                      Save Recovery Kit
+                    </a>
+                  </motion.div>
+                )}
               </AnimatePresence>
+              <p aria-live="polite" className="mt-3 px-4 text-[13px] leading-[18px] text-negative first-letter:uppercase empty:hidden">
+                {error}
+              </p>
             </motion.div>
           </div>
         </div>

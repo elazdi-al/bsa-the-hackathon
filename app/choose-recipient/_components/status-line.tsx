@@ -34,7 +34,7 @@ export function StatusLine({ id, status }: { id: string; status: Status }) {
 function describe(status: Status) {
   switch (status.kind) {
     case "hint":
-      return { icon: null, text: "Enter Solana address or .sol handle" };
+      return { icon: null, text: "Enter a Base address or ENS name" };
     case "resolving":
       return {
         icon: <FlowerIcon weight="fill" size={14} className="text-fuse-blue motion-safe:animate-spin" />,
@@ -48,7 +48,7 @@ function describe(status: Status) {
     case "notFound":
       return {
         icon: <SealWarningIcon weight="fill" size={16} className="text-negative" />,
-        text: "Handle not found",
+        text: "Name not found",
       };
   }
 }

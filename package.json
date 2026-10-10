@@ -11,6 +11,7 @@
     "signer:partner": "ROLE=partner node --env-file-if-exists=.env.local services/signer/server.ts",
     "contracts:test": "cd contracts && forge test",
     "e2e": "node --env-file-if-exists=.env.local scripts/e2e.ts",
+    "e2e:ui": "node --env-file-if-exists=.env.local scripts/ui-e2e.ts",
     "typecheck": "next typegen && tsc --noEmit",
     "test:compliance": "node --import tsx --test tests/compliance/*.test.ts",
     "demo:compliance": "tsx tools/compliance-demo.ts",

@@ -1,7 +1,7 @@
-import { BankIcon } from "@phosphor-icons/react";
+import { BankIcon, type Icon } from "@phosphor-icons/react";
 
-/** USDC coin with the bank badge that marks a bank payout. */
-export function UsdcCoin() {
+/** USDC coin with a badge: the bank marks a bank payout. */
+export function UsdcCoin({ Badge = BankIcon }: { Badge?: Icon }) {
   return (
     <div className="relative size-[54px]">
       <svg viewBox="0 0 32 32" aria-hidden className="size-full">
@@ -15,7 +15,7 @@ export function UsdcCoin() {
         </g>
       </svg>
       <span className="absolute -top-[3px] left-[36px] grid size-[21px] place-items-center rounded-full bg-[#e6e6e8] text-black ring-3 ring-[#f2f2f2]">
-        <BankIcon size={12} weight="fill" />
+        <Badge size={12} weight="fill" />
       </span>
     </div>
   );

@@ -12,6 +12,7 @@ export type FlowAction =
   | { type: "codeSent" }
   | { type: "verify" }
   | { type: "verified" }
+  | { type: "failed" }
   | { type: "walletReady" };
 
 export const initialFlow: Step = { name: "device", status: "idle" };
@@ -38,19 +39,19 @@ export function flowReducer(step: Step, action: FlowAction): Step {
     case "verified":
       if (step.name === "recovery" && step.status === "verifying") return { name: "setup", status: "working" };
       return step;
+    case "failed":
+      if ((step.name === "device" || step.name === "twofa") && step.status === "creating") return { name: step.name, status: "idle" };
+      return step;
     case "walletReady":
       if (step.name === "setup" && step.status === "working") return { name: "setup", status: "ready" };
       return step;
   }
 }
 
-/** The mock latency of whatever the flow is currently waiting on. */
+/** The mock latency of the email code, the alert channel's only mocked step. Keys and setup are real calls. */
 export function pendingTimer(step: Step): { ms: number; action: FlowAction } | null {
-  if ((step.name === "device" || step.name === "twofa") && step.status === "creating")
-    return { ms: step.name === "device" ? 1300 : 1500, action: { type: "created" } };
   if (step.name === "recovery" && step.status === "sending") return { ms: 1200, action: { type: "codeSent" } };
   if (step.name === "recovery" && step.status === "verifying") return { ms: 1000, action: { type: "verified" } };
-  if (step.name === "setup" && step.status === "working") return { ms: 2400, action: { type: "walletReady" } };
   return null;
 }
 

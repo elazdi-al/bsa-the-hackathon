@@ -56,6 +56,8 @@ npm run dev
 npm run e2e
 ```
 
+`npm run e2e:ui` runs the same flows through the screens in Google Chrome, with a virtual passkey authenticator (`PRF=0` for one without PRF, `EMAIL`/`PASSWORD` for the other demo client). Each demo client can create one wallet: to start over, delete `data/` and restart the signers and `next dev`.
+
 On Base Sepolia, `npm run e2e` prints the new wallet's address and waits until you send it 25 USDC from the Circle faucet. Delete `data/` before running it again. To run fully offline, point `RPC_URL` at `anvil --fork-url https://sepolia.base.org --hardfork osaka --block-time 1` and `BUNDLER_URL` at a local Alto bundler (`@pimlico/alto`, `--safe-mode false`). The script then funds the wallet and fast-forwards the delay itself.
 
 ## Wallet API
@@ -72,6 +74,18 @@ All routes use the mocked Swissquote session cookie from `POST /api/session` (`c
 | `GET /api/wallet/operations/:hash` | Status from the bundler |
 | `POST /api/recovery` | Mocked ID and liveness check |
 | `GET` / `DELETE` / `PATCH /api/recovery` | Pending recovery / Swissquote cancels as guardian / finalize after the delay |
+
+## Screens
+
+Sign in at `/sign-in`, then:
+
+| Flow | Screens | Calls |
+| --- | --- | --- |
+| Create | `/onboarding-welcome`, `/onboarding-secure` | Device Key: `createPasskey`. Swissquote Key: `POST /api/wallet/ceremony`, `runKeyCeremony` in the browser (`dkls-wasm-ll-web`). Recovery Key: a new confirmation key, `POST /api/wallet`, then "Save Recovery Kit" downloads it as a text file |
+| Send | `/choose-recipient`, `/send-hide-my-wallet`, `/transaction-tracking` | `POST /api/wallet/operations` shows the policy summary, or the PIN (and selfie) step-up, or the block. Face ID then `signOperation`, `POST /api/wallet/operations/:hash`, and the tracker polls `GET` |
+| Recover | `/pending-verification` | `POST /api/recovery`, the Recovery Kit, a new passkey and ceremony (`purpose: recovery`), the recovery operation signed with the kit's key, then a countdown from `GET /api/recovery` with cancel (`DELETE`) and finish (`PATCH`) |
+
+Share A is stored in IndexedDB, AES-GCM encrypted under the passkey's WebAuthn PRF output, so one Face ID both approves a send and decrypts the share (`lib/wallet/browser.ts`). Where the authenticator has no PRF, the key is a non-extractable WebCrypto key stored next to the ciphertext: page scripts can use it but not read it, so it protects less than PRF. The confirmation key exists only in the downloaded Recovery Kit.
 
 ## Mocked
 

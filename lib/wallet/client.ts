@@ -22,17 +22,32 @@ import type { Ticket } from './tickets.ts'
 
 export type PasskeySigner = (challenge: Hex) => Promise<PasskeyAssertion>
 
-/** Creates the device passkey (Face ID). Keep `id` to sign with it later. */
-export async function createPasskey(name: string): Promise<{ id: string; passkey: Passkey }> {
-  const credential = await WebAuthnP256.createCredential({ name })
+/** Input for the passkey's PRF: the same salt always yields the same 32 bytes, the key to Share A. */
+export const PRF_SALT = new TextEncoder().encode('Swissquote Wallet Share A v1')
+
+/** Creates the device passkey (Face ID). Keep `id` to sign with it later. `prf`: it can derive a key (WebAuthn PRF). */
+export async function createPasskey(name: string): Promise<{ id: string; passkey: Passkey; prf: boolean }> {
+  const credential = await WebAuthnP256.createCredential({ name, extensions: { prf: { eval: { first: PRF_SALT } } } })
   const { x, y } = credential.publicKey
-  return { id: credential.id, passkey: { x: numberToHex(x, { size: 32 }), y: numberToHex(y!, { size: 32 }) } }
+  return {
+    id: credential.id,
+    passkey: { x: numberToHex(x, { size: 32 }), y: numberToHex(y!, { size: 32 }) },
+    prf: !!credential.raw.getClientExtensionResults().prf?.enabled,
+  }
 }
 
+/** Face ID over `challenge`. `onPrf` receives the passkey's PRF output, when the authenticator supports it. */
 export const passkeySigner =
-  (credentialId: string): PasskeySigner =>
-  (challenge) =>
-    WebAuthnP256.sign({ challenge, credentialId })
+  (credentialId: string, onPrf?: (output: BufferSource | undefined) => void): PasskeySigner =>
+  async (challenge) => {
+    const { metadata, signature, raw } = await WebAuthnP256.sign({
+      challenge,
+      credentialId,
+      extensions: { prf: { eval: { first: PRF_SALT } } },
+    })
+    onPrf?.(raw.getClientExtensionResults().prf?.results?.first)
+    return { metadata, signature }
+  }
 
 /** Response of POST /api/wallet/ceremony. */
 export type Ceremony = { ticket: Ticket<'Ceremony'>; signers: { swissquote: string; partner: string } }
@@ -55,9 +70,18 @@ export async function runKeyCeremony(dkls: DklsModule, { ticket, signers }: Cere
 /** Response of POST /api/wallet/operations for a normal operation. */
 export type Prepared = { hash: Hex; userOp: Record<string, unknown>; signer: Address; cosigner: string }
 
-/** Face ID approves the exact operation, then phone and Swissquote produce the MPC signature. */
-export async function signOperation(dkls: DklsModule, share: Uint8Array, prepared: Prepared, sign: PasskeySigner) {
+/**
+ * Face ID approves the exact operation, then phone and Swissquote produce the MPC signature.
+ * `share` may be a function, read after Face ID: the browser decrypts Share A with that assertion's PRF output.
+ */
+export async function signOperation(
+  dkls: DklsModule,
+  share: Uint8Array | (() => Promise<Uint8Array>),
+  prepared: Prepared,
+  sign: PasskeySigner,
+) {
   const assertion = await sign(prepared.hash)
+  const keyshare = typeof share === 'function' ? await share() : share
   const request = {
     kind: 'normal',
     signer: prepared.signer,
@@ -65,7 +89,7 @@ export async function signOperation(dkls: DklsModule, share: Uint8Array, prepare
     assertion: { metadata: assertion.metadata, signature: { r: numberToHex(assertion.signature.r), s: numberToHex(assertion.signature.s) } },
   }
   const [result] = await run(
-    [signParty(dkls, share, prepared.hash), remoteParty(SWISSQUOTE, `${prepared.cosigner}/sign/${crypto.randomUUID()}`, { request })],
+    [signParty(dkls, keyshare, prepared.hash), remoteParty(SWISSQUOTE, `${prepared.cosigner}/sign/${crypto.randomUUID()}`, { request })],
     SIGN_STEPS,
   )
   const mpcSignature = await toEthSignature(result.signature!, prepared.hash, prepared.signer)
