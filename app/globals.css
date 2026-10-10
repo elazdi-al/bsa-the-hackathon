@@ -9,7 +9,47 @@
   --color-pending: #ef642c;
   --color-surface: #fafafa;
   --color-cents: #dcdcdc;
+  --color-faint: #ababab;
+
+  /* Identity colours, for glyphs and the flat blocks they sit on. Chrome stays monochrome. */
+  --color-orange: #ff6b1a;
+  --color-purple: #8b5cf6;
+  --color-sky: #0a84ff;
+  --color-ink: #1c1c1e;
+
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
+
+  /* Bold for numbers and titles, semibold for labels, regular for grey secondary lines. */
+  --text-display: 3.5rem;
+  --text-display--line-height: 1;
+  --text-display--letter-spacing: -0.045em;
+  --text-display--font-weight: 700;
+  --text-amount: 2.5rem;
+  --text-amount--line-height: 2.75rem;
+  --text-amount--letter-spacing: -0.035em;
+  --text-amount--font-weight: 700;
+  --text-title: 1.875rem;
+  --text-title--line-height: 2.25rem;
+  --text-title--letter-spacing: -0.03em;
+  --text-title--font-weight: 700;
+  --text-heading: 1.375rem;
+  --text-heading--line-height: 1.75rem;
+  --text-heading--letter-spacing: -0.02em;
+  --text-heading--font-weight: 700;
+  --text-label: 1.0625rem;
+  --text-label--line-height: 1.375rem;
+  --text-label--letter-spacing: -0.015em;
+  --text-label--font-weight: 600;
+  --text-body: 0.9375rem;
+  --text-body--line-height: 1.25rem;
+  --text-body--letter-spacing: -0.005em;
+  --text-caption: 0.8125rem;
+  --text-caption--line-height: 1.125rem;
+  --text-caption--font-weight: 500;
+  --text-section: 0.8125rem;
+  --text-section--line-height: 1rem;
+  --text-section--letter-spacing: 0.04em;
+  --text-section--font-weight: 600;
   --animate-caret-blink: caret-blink 1s steps(1) infinite;
 
   @keyframes caret-blink {
@@ -57,11 +97,11 @@
   --popover-foreground: #000;
   --primary: #000;
   --primary-foreground: #fff;
-  --secondary: #f4f4f4;
+  --secondary: #f2f2f2;
   --secondary-foreground: #000;
-  --muted: #f4f4f4;
-  --muted-foreground: rgb(0 0 0 / 0.4);
-  --accent: #f4f4f4;
+  --muted: #f2f2f2;
+  --muted-foreground: #737373;
+  --accent: #f2f2f2;
   --accent-foreground: #000;
   --destructive: var(--color-negative);
   --border: rgb(0 0 0 / 0.06);

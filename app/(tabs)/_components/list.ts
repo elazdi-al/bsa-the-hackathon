@@ -1,7 +1,7 @@
 /** The list idiom the tabs and their sheets share, so a section, a card and a row read the same everywhere. */
 
 /** Grey label over a group of rows. Callers inset it so it lines up with the rows' glyphs. */
-export const sectionLabel = "pb-2 text-[13px] leading-[18px] font-medium text-[#adadad]";
+export const sectionLabel = "pb-2 text-section text-muted-foreground uppercase";
 
 /** The card that groups rows: a 1px ring and a soft drop, no fill. Callers pick the radius. */
 export const hairline = "shadow-[0_0_0_1px_rgb(0_0_0/0.035),0_2px_6px_rgb(0_0_0/0.02)]";
