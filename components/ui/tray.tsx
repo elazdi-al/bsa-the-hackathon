@@ -1,11 +1,12 @@
 "use client"
 
 import * as React from "react"
-import { CaretLeftIcon, XIcon } from "@phosphor-icons/react"
 import { cn } from "cn"
 import { AnimatePresence, animate, motion, useIsPresent, useMotionValue, useReducedMotion } from "motion/react"
+import { Drawer as DrawerPrimitive } from "vaul"
+import { BackIcon, CloseIcon } from "@/components/icons"
 import { BackButton } from "./back-button"
-import { Drawer, DrawerClose, DrawerDescription, DrawerTitle, FloatingSheetContent } from "./drawer"
+import { Drawer, DrawerClose, FloatingSheetContent } from "./drawer"
 
 const easeOut = [0.23, 1, 0.32, 1] as const
 const settle = { type: "spring", duration: 0.3, bounce: 0 } as const
@@ -108,7 +109,7 @@ function TrayCard({ view, onBack, children }: { view: string; onBack?: () => voi
       <DrawerClose asChild>
         <BackButton
           kind={onBack ? "back" : "close"}
-          className="absolute top-4 right-4 z-10 bg-[#f5f5f5] hover:bg-[#ededed]"
+          className="absolute top-4 right-4 z-10 bg-secondary"
           onClick={(e) => {
             if (!onBack) return
             e.preventDefault()
@@ -117,10 +118,10 @@ function TrayCard({ view, onBack, children }: { view: string; onBack?: () => voi
         >
           <span className="grid *:col-start-1 *:row-start-1">
             <motion.span initial={false} animate={onBack ? glyphOff : morph.shown} transition={settle}>
-              <XIcon weight="bold" size={18} aria-hidden />
+              <CloseIcon size={20} />
             </motion.span>
             <motion.span initial={false} animate={onBack ? morph.shown : glyphOff} transition={settle}>
-              <CaretLeftIcon weight="bold" size={18} aria-hidden />
+              <BackIcon size={20} />
             </motion.span>
           </span>
         </BackButton>
@@ -178,25 +179,23 @@ function TrayHeader({
   description?: React.ReactNode
 }) {
   // A leaving view drops its ids so the dialog's name and description point at the arriving view.
+  // vaul's bare Title and Description: DrawerTitle's base size, weight and tracking would override the type tokens.
   const leaving = useIsPresent() ? null : { id: undefined }
   return (
     <header className="flex flex-col items-start">
       {icon}
-      <DrawerTitle
+      <DrawerPrimitive.Title
         data-tray-title=""
         tabIndex={-1}
         {...leaving}
-        className={cn(
-          "text-[22px] leading-7 font-bold tracking-tight text-balance outline-none",
-          icon ? "mt-4" : "py-1.5 pr-12"
-        )}
+        className={cn("text-heading text-balance outline-none", icon ? "mt-4" : "py-1.5 pr-12")}
       >
         {title}
-      </DrawerTitle>
+      </DrawerPrimitive.Title>
       {description && (
-        <DrawerDescription {...leaving} className="mt-2 text-[16px] leading-[22px]">
+        <DrawerPrimitive.Description {...leaving} className="mt-2 text-body text-pretty text-muted-foreground">
           {description}
-        </DrawerDescription>
+        </DrawerPrimitive.Description>
       )}
     </header>
   )

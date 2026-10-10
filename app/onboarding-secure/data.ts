@@ -1,4 +1,4 @@
-import { CloudIcon, EnvelopeIcon, ScanSmileyIcon, type Icon } from "@phosphor-icons/react";
+import { CloudIcon, EnvelopeIcon, FaceIdIcon, type Icon } from "@/components/icons";
 
 export type KeyId = "device" | "twofa" | "recovery";
 
@@ -20,8 +20,8 @@ export const KEYS: readonly WalletKey[] = [
     id: "device",
     title: "Device Key",
     body: "Your Device Key is protected by biometric verification — encrypted and stored on your phone.",
-    Icon: ScanSmileyIcon,
-    accent: "#0a84ff",
+    Icon: FaceIdIcon,
+    accent: "var(--color-sky)",
     cta: { idle: "Create Device Key", busy: "Creating Device Key" },
   },
   {
@@ -29,7 +29,7 @@ export const KEYS: readonly WalletKey[] = [
     title: "2FA Key",
     body: "Your 2FA Key adds a second layer of protection — encrypted and stored in iCloud.",
     Icon: CloudIcon,
-    accent: "#ff5a1f",
+    accent: "var(--color-orange)",
     cta: { idle: "Create 2FA Key", busy: "Creating 2FA Key" },
   },
   {
@@ -37,7 +37,7 @@ export const KEYS: readonly WalletKey[] = [
     title: "Recovery Key",
     body: "Your Recovery Key helps you regain access to Fuse if you lose your phone.",
     Icon: EnvelopeIcon,
-    accent: "#a945e8",
+    accent: "var(--color-purple)",
   },
 ];
 

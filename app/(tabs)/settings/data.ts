@@ -1,59 +1,66 @@
-import { BankIcon, BellIcon, CreditCardIcon, CurrencyDollarIcon, EyeSlashIcon, IdentificationCardIcon, LifebuoyIcon, type Icon } from "@phosphor-icons/react";
 import { wallet } from "@/app/coin-breakdown/data";
 import { KEYS, type KeyId } from "@/app/onboarding-secure/data";
-import { ink } from "../_components/glyph";
+import { BankIcon, BellIcon, CardIcon, CoinIcon, EyeSlashIcon, HelpIcon, IdCardIcon, KeyIcon, SignOutIcon, type Icon } from "@/components/icons";
+
+export type { KeyId };
 
 export const profile = { name: "Thomas A. Anderson", initials: "TA", address: wallet.address };
 
 export const plus = { title: "Fuse Plus", status: "Member", benefits: "Network fees covered, bank account and virtual Visa." };
 
-export type Status = "Active" | "Pending";
+export type Status = "Active" | "All active" | "Pending";
+
+/** The trays a row can open; each is the root of its own view stack. */
+export type TrayRoot = "keys" | "signout";
 
 /** What pressing a row does. `info` rows don't press, so they get no chevron. */
 type Behaviour =
-  | { kind: "info"; value?: string }
-  | { kind: "tray"; about: string }
+  | { kind: "info"; value: string }
+  | { kind: "tray"; opens: TrayRoot }
   | { kind: "push"; href: string }
   | { kind: "mail"; href: string }
   | { kind: "switch"; on: boolean };
 
-export type Row = Behaviour & { label: string; detail?: string; Icon: Icon; color: string; status?: Status };
-export type TrayRow = Extract<Row, { kind: "tray" }>;
+export type Row = Behaviour & { label: string; detail?: string; Icon: Icon; status?: Status; destructive?: boolean };
+
+const about: Record<KeyId, { detail: string; about: string }> = {
+  device: {
+    detail: "Face ID on this iPhone",
+    about: "Encrypted on this phone and unlocked with Face ID. A lost phone alone can’t move your money.",
+  },
+  twofa: { detail: "iCloud", about: "Encrypted in your iCloud. Together with your Device Key, it approves every payment you make." },
+  recovery: {
+    detail: "vova@sqds.io",
+    about: "If you lose your phone, this key and your 2FA Key get you back into Fuse. We send a code to this email when you use it.",
+  },
+};
 
 // Labels, glyphs and colours come from onboarding, so a key looks the same where it was made.
-function key(id: KeyId, detail: string, about: string): Row {
-  const { title, Icon, accent } = KEYS.find((k) => k.id === id)!;
-  return { kind: "tray", label: title, Icon, color: accent, detail, status: "Active", about };
-}
+export const keys = KEYS.map(({ id, title, Icon, accent }) => ({ id, title, Icon, accent, ...about[id] }));
 
-export const sections: { title: string; rows: Row[] }[] = [
+export const sections: { title?: string; rows: Row[] }[] = [
   {
-    title: "Security",
     rows: [
-      key("device", "Face ID on this iPhone", "Encrypted on this phone and unlocked with Face ID. Any two of your three keys approve a payment, so a lost phone alone can’t move your money."),
-      key("twofa", "iCloud", "Encrypted in your iCloud. Together with your Device Key, it approves every payment you make."),
-      key("recovery", "vova@sqds.io", "If you lose your phone, this key and your 2FA Key get you back into Fuse. We send a code to this email when you use it."),
-    ],
-  },
-  {
-    title: "Account",
-    rows: [
-      { kind: "push", label: "Identity verification", Icon: IdentificationCardIcon, color: "#2059f2", href: "/pending-verification", status: "Pending" },
-      { kind: "info", label: "Bank account", Icon: BankIcon, color: "#8a52f5", value: "Revolut ••••1342" },
-      { kind: "info", label: "Fuse Card", Icon: CreditCardIcon, color: ink, value: "Virtual Visa" },
+      { kind: "tray", opens: "keys", label: "Keys", Icon: KeyIcon, status: "All active" },
+      { kind: "push", label: "Identity verification", Icon: IdCardIcon, href: "/pending-verification", status: "Pending" },
+      { kind: "info", label: "Bank account", Icon: BankIcon, value: "Revolut ••••1342" },
+      { kind: "info", label: "Fuse Card", Icon: CardIcon, value: "Virtual Visa" },
     ],
   },
   {
     title: "Preferences",
     rows: [
-      { kind: "switch", label: "Hide My Wallet by default", detail: "Send from a fresh address", Icon: EyeSlashIcon, color: "var(--color-fuse-blue)", on: false },
-      { kind: "switch", label: "Notifications", Icon: BellIcon, color: "#ef642c", on: true },
-      { kind: "info", label: "Currency", Icon: CurrencyDollarIcon, color: "var(--color-positive)", value: "USD" },
+      { kind: "switch", label: "Hide My Wallet by default", detail: "Send from a fresh address", Icon: EyeSlashIcon, on: false },
+      { kind: "switch", label: "Notifications", Icon: BellIcon, on: true },
+      { kind: "info", label: "Currency", Icon: CoinIcon, value: "USD" },
     ],
   },
   {
-    title: "Support",
-    rows: [{ kind: "mail", label: "Help & support", Icon: LifebuoyIcon, color: "#2059f2", href: "mailto:support@fuse.xyz" }],
+    title: "More",
+    rows: [
+      { kind: "mail", label: "Help & support", Icon: HelpIcon, href: "mailto:support@fuse.xyz" },
+      { kind: "tray", opens: "signout", label: "Sign out", Icon: SignOutIcon, destructive: true },
+    ],
   },
 ];
 

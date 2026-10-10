@@ -1,45 +1,48 @@
 "use client";
 
-import { CaretRightIcon, SignOutIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { FusePlusIcon } from "@/app/(tabs)/home/_components/icons";
 import { shortAddress } from "@/app/choose-recipient/data";
 import { CopyButton } from "@/app/transaction-tracking/_components/copy-button";
+import { ChevronRightIcon, ShieldIcon, SignOutIcon, type Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
-import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerTitle, DrawerTrigger, FloatingSheetContent, FloatingSheetHeader } from "@/components/ui/drawer";
 import { Switch } from "@/components/ui/switch";
-import { Glyph } from "../../_components/glyph";
-import { hairline, rowPress, sectionLabel } from "../../_components/list";
-import { plus, profile, sections, version, type Row, type Status, type TrayRow } from "../data";
+import { Tray, TrayActions, TrayHeader } from "@/components/ui/tray";
+import { rowPress, sectionLabel } from "../../_components/list";
+import { keys, plus, profile, sections, version, type KeyId, type Row, type Status, type TrayRoot } from "../data";
 
-// Rows sit 6px inside a 22px card, so their press tint is rounded 16px to stay concentric.
-const card = `rounded-[22px] ${hairline}`;
-const row = "flex min-h-[60px] w-full items-center gap-3 rounded-[16px] px-2.5 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
+type View = { name: TrayRoot } | { name: "key"; id: KeyId };
 
-const statuses: Record<Status, ReactNode> = {
-  Active: (
-    <span className="flex items-center gap-1.5 text-[15px] text-[#adadad]">
-      <span aria-hidden className="size-1.5 rounded-full bg-positive" />
-      Active
+const viewKey = (view: View) => (view.name === "key" ? `key-${view.id}` : view.name);
+
+const focusRing = "outline-none focus-visible:ring-2 focus-visible:ring-ring";
+// Inside each section's -mx-3, the 12px padding lets the pressed tint bleed past the column while glyphs align with the profile.
+const row = `flex min-h-14 w-full items-center gap-4 rounded-2xl px-3 py-2 text-left ${focusRing} focus-visible:ring-inset`;
+const dot: Record<Status, string> = { Active: "bg-positive", "All active": "bg-positive", Pending: "bg-pending" };
+
+function StatusMark({ status }: { status: Status }) {
+  return (
+    <span className="flex shrink-0 items-center gap-2 text-label font-medium text-muted-foreground">
+      <span aria-hidden className={`size-2 rounded-full ${dot[status]}`} />
+      {status}
     </span>
-  ),
-  Pending: <span className="rounded-full bg-pending/12 px-2 py-0.5 text-[13px] leading-4 font-medium text-pending">Pending</span>,
-};
+  );
+}
 
-const Chevron = () => <CaretRightIcon weight="bold" size={14} aria-hidden className="shrink-0 text-black/20" />;
+const Chevron = () => <ChevronRightIcon size={16} className="shrink-0 text-faint" />;
 
-function SettingsRow({ item, onOpen }: { item: Row; onOpen: (item: TrayRow) => void }) {
+function SettingsRow({ item, onOpen }: { item: Row; onOpen: (root: TrayRoot) => void }) {
   const body = (
     <>
-      <Glyph Icon={item.Icon} color={item.color} />
+      <item.Icon className={`shrink-0 ${item.destructive ? "text-negative" : "text-muted-foreground"}`} />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[15px] leading-5 font-medium">{item.label}</span>
-        {item.detail && <span className="mt-0.5 block truncate text-[13px] leading-[18px] text-[#adadad]">{item.detail}</span>}
+        <span className={`block truncate text-label ${item.destructive ? "text-negative" : ""}`}>{item.label}</span>
+        {item.detail && <span className="block truncate text-body text-muted-foreground">{item.detail}</span>}
       </span>
-      {item.status && <span className="shrink-0">{statuses[item.status]}</span>}
-      {item.kind === "info" && item.value && <span className="shrink-0 text-[15px] text-[#adadad]">{item.value}</span>}
+      {item.status && <StatusMark status={item.status} />}
+      {item.kind === "info" && <span className="shrink-0 text-label font-medium text-muted-foreground">{item.value}</span>}
       {item.kind !== "info" && item.kind !== "switch" && <Chevron />}
     </>
   );
@@ -49,7 +52,7 @@ function SettingsRow({ item, onOpen }: { item: Row; onOpen: (item: TrayRow) => v
       return <div className={row}>{body}</div>;
     case "tray":
       return (
-        <button type="button" aria-haspopup="dialog" onClick={() => onOpen(item)} className={`${row} ${rowPress}`}>
+        <button type="button" aria-haspopup="dialog" onClick={() => onOpen(item.opens)} className={`${row} ${rowPress}`}>
           {body}
         </button>
       );
@@ -75,113 +78,163 @@ function SettingsRow({ item, onOpen }: { item: Row; onOpen: (item: TrayRow) => v
   }
 }
 
-function SignOut() {
-  const router = useRouter();
+function PlusCard() {
   return (
-    <Drawer>
-      <div className={`${card} mt-6 p-1.5`}>
-        <DrawerTrigger asChild>
-          <button type="button" className={`${row} ${rowPress}`}>
-            <Glyph Icon={SignOutIcon} color="var(--color-negative)" />
-            <span className="text-[15px] leading-5 font-medium text-negative">Sign out</span>
-          </button>
-        </DrawerTrigger>
-      </div>
-      <DrawerContent>
-        <div className="px-5 pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
-          <div className="px-3">
-            <Glyph Icon={SignOutIcon} color="var(--color-negative)" size={54} />
-            <DrawerTitle className="mt-4 text-[20px]">Sign out of Fuse?</DrawerTitle>
-            <DrawerDescription className="mt-1">Your keys stay safe while you’re away. Sign back in with Apple any time.</DrawerDescription>
+    <Link
+      href="/fuse-plus"
+      transitionTypes={["push"]}
+      className={`mt-6 flex items-center gap-4 rounded-[24px] bg-ink p-5 text-white transition-transform duration-150 ease-out active:scale-[0.96] ${focusRing} focus-visible:ring-offset-2`}
+    >
+      <FusePlusIcon />
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-2">
+          <span className="text-label">{plus.title}</span>
+          <span className="rounded-full bg-white/15 px-2 py-0.5 text-caption font-semibold">{plus.status}</span>
+        </span>
+        <span className="mt-0.5 block text-body text-pretty text-white/60">{plus.benefits}</span>
+      </span>
+      <ChevronRightIcon size={16} className="shrink-0 text-white/40" />
+    </Link>
+  );
+}
+
+function Hero({ Icon, color }: { Icon: Icon; color: string }) {
+  return (
+    <span aria-hidden style={{ color }} className="grid size-14 place-items-center rounded-full bg-current/12">
+      <Icon size={32} />
+    </span>
+  );
+}
+
+function TrayBody({ view, push, close }: { view: View; push: (next: View) => void; close: () => void }) {
+  const router = useRouter();
+  switch (view.name) {
+    case "keys":
+      return (
+        <>
+          <TrayHeader
+            icon={<Hero Icon={ShieldIcon} color="var(--color-fuse-blue)" />}
+            title="Your keys"
+            description="Any two of your three keys approve a payment, so losing one never locks you out."
+          />
+          <div className="mt-6 space-y-2">
+            {keys.map(({ id, title, detail, Icon, accent }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => push({ name: "key", id })}
+                className={`flex h-[60px] w-full items-center gap-4 rounded-2xl bg-secondary px-4 text-left transition-[scale,background-color] duration-150 ease-out hover:bg-black/[0.07] active:scale-[0.96] ${focusRing}`}
+              >
+                <Icon className="shrink-0" style={{ color: accent }} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-label">{title}</span>
+                  <span className="block truncate text-body text-muted-foreground">{detail}</span>
+                </span>
+                <StatusMark status="Active" />
+              </button>
+            ))}
           </div>
-          <Button onClick={() => router.replace("/onboarding-welcome", { transitionTypes: ["pop"] })} className="mt-7 w-full bg-negative hover:bg-negative/85">
-            Sign out
-          </Button>
-          <DrawerClose asChild>
-            <Button variant="secondary" className="mt-2 w-full">
+        </>
+      );
+    case "key": {
+      const key = keys.find((k) => k.id === view.id)!;
+      return (
+        <>
+          <TrayHeader
+            icon={<Hero Icon={key.Icon} color={key.accent} />}
+            title={key.title}
+            description={
+              <>
+                <span className="block text-label text-foreground">{key.detail}</span>
+                <span className="mt-2 block">{key.about}</span>
+              </>
+            }
+          />
+          <TrayActions>
+            <Button variant="secondary" size="lg" className="h-12" onClick={close}>
+              Done
+            </Button>
+          </TrayActions>
+        </>
+      );
+    }
+    case "signout":
+      return (
+        <>
+          <TrayHeader
+            icon={<Hero Icon={SignOutIcon} color="var(--color-negative)" />}
+            title="Sign out of Fuse?"
+            description="Your keys stay safe while you’re away. Sign back in with Apple any time."
+          />
+          <TrayActions>
+            <Button variant="secondary" size="lg" className="h-12" onClick={close}>
               Cancel
             </Button>
-          </DrawerClose>
-        </div>
-      </DrawerContent>
-    </Drawer>
-  );
+            <Button
+              size="lg"
+              onClick={() => router.replace("/onboarding-welcome", { transitionTypes: ["pop"] })}
+              className="h-12 bg-negative hover:bg-negative/85"
+            >
+              Sign out
+            </Button>
+          </TrayActions>
+        </>
+      );
+  }
 }
 
 export function SettingsView() {
   const [open, setOpen] = useState(false);
-  // Kept after close so the tray's content doesn't vanish mid-exit.
-  const [tray, setTray] = useState<TrayRow>();
+  // Outlives `open` until the close animation ends, so the tray doesn't empty mid-exit.
+  const [stack, setStack] = useState<View[]>([]);
+  const view = stack.at(-1);
+
+  function show(root: TrayRoot) {
+    setStack([{ name: root }]);
+    setOpen(true);
+  }
 
   return (
     <div className="mt-6 max-w-xl lg:grid lg:max-w-none lg:grid-cols-[20rem_minmax(0,1fr)] lg:items-start lg:gap-12">
       <div>
-        <div className="flex items-center gap-4 px-1">
-          <span aria-hidden className="grid size-16 shrink-0 place-items-center rounded-full bg-black text-[21px] font-semibold text-white">
+        <div className="flex items-center gap-4">
+          <span aria-hidden className="grid size-14 shrink-0 place-items-center rounded-full bg-ink text-heading text-white">
             {profile.initials}
           </span>
           <div className="min-w-0">
-            <p className="truncate text-[22px] leading-7 font-bold tracking-[-0.02em]">{profile.name}</p>
+            <p className="truncate text-heading">{profile.name}</p>
             <CopyButton text={profile.address} label={`Copy address ${profile.address}`}>
-              <span className="text-[15px] leading-5 text-[#adadad]">{shortAddress(profile.address)}</span>
+              <span className="text-body text-muted-foreground">{shortAddress(profile.address)}</span>
             </CopyButton>
           </div>
         </div>
 
-        <Link
-          href="/fuse-plus"
-          transitionTypes={["push"]}
-          className={`${card} mt-6 flex items-center gap-3 p-4 outline-none transition-transform duration-150 ease-out focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.96]`}
-        >
-          <span className="grid size-10 shrink-0 place-items-center">
-            <FusePlusIcon />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="flex items-center gap-2 text-[15px] leading-5 font-medium">
-              {plus.title}
-              <span className="rounded-full bg-black/[0.06] px-2 py-0.5 text-[12px] leading-4 font-medium text-black/60">{plus.status}</span>
-            </span>
-            <span className="mt-0.5 block text-[13px] leading-[18px] text-pretty text-[#adadad]">{plus.benefits}</span>
-          </span>
-          <Chevron />
-        </Link>
+        <PlusCard />
       </div>
 
       <div>
-        {sections.map((section) => (
-          <section key={section.title} className="mt-6 lg:first:mt-0">
-            <h2 className={`px-4 ${sectionLabel}`}>{section.title}</h2>
-            <div className={`${card} p-1.5`}>
+        {sections.map((section, i) => (
+          <section key={section.title ?? i} className={section.title ? "mt-8" : "mt-4 lg:mt-0"}>
+            {section.title && <h2 className={sectionLabel}>{section.title}</h2>}
+            <div className="-mx-3">
               {section.rows.map((item) => (
-                <SettingsRow
-                  key={item.label}
-                  item={item}
-                  onOpen={(next) => {
-                    setTray(next);
-                    setOpen(true);
-                  }}
-                />
+                <SettingsRow key={item.label} item={item} onOpen={show} />
               ))}
             </div>
           </section>
         ))}
-
-        <SignOut />
-        <p className="mt-6 text-center text-[13px] text-[#c8c8c8]">{version}</p>
+        <p className="mt-8 text-center text-caption text-faint">{version}</p>
       </div>
 
-      <Drawer open={open} onOpenChange={setOpen}>
-        <FloatingSheetContent>
-          {tray && (
-            <div className="px-4 pb-6">
-              <FloatingSheetHeader icon={<Glyph Icon={tray.Icon} color={tray.color} size={54} />} title={tray.label}>
-                <p className="mt-1 text-[20px] leading-7 font-semibold tracking-[-0.01em]">{tray.detail}</p>
-                <p className="mt-2 max-w-[300px] font-medium text-pretty text-[#969696]">{tray.about}</p>
-              </FloatingSheetHeader>
-            </div>
-          )}
-        </FloatingSheetContent>
-      </Drawer>
+      <Tray
+        open={open}
+        onOpenChange={setOpen}
+        view={view ? viewKey(view) : ""}
+        onBack={stack.length > 1 ? () => setStack((s) => s.slice(0, -1)) : undefined}
+        onClosed={() => setStack([])}
+      >
+        {view && <TrayBody view={view} push={(next) => setStack((s) => [...s, next])} close={() => setOpen(false)} />}
+      </Tray>
     </div>
   );
 }
