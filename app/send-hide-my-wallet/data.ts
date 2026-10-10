@@ -1,4 +1,4 @@
-import { EyeSlashIcon, LightningIcon, WalletIcon } from "@phosphor-icons/react/ssr";
+import { EyeSlashIcon, LightningIcon, WalletIcon } from "@/components/icons";
 
 export const transfer = {
   usd: 250,

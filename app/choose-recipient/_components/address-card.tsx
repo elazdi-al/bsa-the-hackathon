@@ -1,10 +1,10 @@
 "use client";
 
-import { FileIcon, XCircleIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { RESOLVE_DELAY_MS, lookupRecipient, looksLikeRecipient, reviewHref, sendDraft, type Resolution } from "../data";
+import { CloseIcon, PasteIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { iconPop } from "./motion";
 import { StatusLine, type Status } from "./status-line";
@@ -34,7 +34,7 @@ export function AddressCard() {
   }
 
   return (
-    // The whole card focuses the input; pressing one of its buttons leaves the card still.
+    // The whole field focuses the input; pressing one of its buttons leaves it alone.
     <form
       onSubmit={(event) => {
         event.preventDefault();
@@ -43,9 +43,9 @@ export function AddressCard() {
       onClick={(event) => {
         if (!(event.target as Element).closest("button")) inputRef.current?.focus();
       }}
-      className="mx-[15px] mt-[10px] rounded-[22px] border bg-surface px-4 pt-[17px] pb-4 transition-[scale,background-color,border-color] duration-200 ease-out not-has-[button:active]:active:scale-[1.01] not-has-[button:active]:active:bg-white has-[input:focus]:border-fuse-blue/40 has-[input:focus]:bg-white"
+      className="px-6 pt-4"
     >
-      <div className="flex h-[22px] items-center gap-3">
+      <div className="flex h-14 items-center gap-2 rounded-2xl bg-secondary pr-2.5 pl-4 ring-fuse-blue/40 transition-[background-color,box-shadow] duration-150 ease-out ring-inset has-[input:focus]:bg-background has-[input:focus]:ring-[1.5px]">
         <input
           ref={inputRef}
           data-vaul-no-drag
@@ -53,7 +53,7 @@ export function AddressCard() {
           onChange={(event) => setValue(event.target.value)}
           aria-label="Address or .sol handle"
           aria-describedby={STATUS_ID}
-          placeholder="Address or .sol handle"
+          placeholder="Solana address or .sol handle"
           type="text"
           inputMode="text"
           enterKeyHint="go"
@@ -61,7 +61,7 @@ export function AddressCard() {
           autoComplete="off"
           autoCorrect="off"
           spellCheck={false}
-          className="h-full min-w-0 flex-1 bg-transparent text-[16px] text-black caret-fuse-blue outline-none placeholder:text-black/30"
+          className="h-full min-w-0 flex-1 bg-transparent text-label font-normal caret-fuse-blue outline-none placeholder:text-muted-foreground"
         />
         <AnimatePresence initial={false}>
           {value && (
@@ -75,25 +75,25 @@ export function AddressCard() {
               animate="shown"
               exit="hidden"
               whileTap={{ scale: 0.96 }}
-              className="relative mb-1 grid size-4 place-items-center rounded-full text-black/20 after:absolute after:-inset-3.5 focus-visible:outline-2 focus-visible:outline-fuse-blue"
+              className="relative grid size-5 shrink-0 place-items-center rounded-full bg-faint text-background after:absolute after:-inset-3 focus-visible:outline-2 focus-visible:outline-fuse-blue"
             >
-              <XCircleIcon weight="fill" size={19} />
+              <CloseIcon size={16} />
             </motion.button>
           )}
         </AnimatePresence>
-      </div>
-
-      <StatusLine id={STATUS_ID} status={status} />
-
-      <div className="mt-[11px] flex gap-2">
-        <Button type="submit" size="sm" disabled={!resolved}>
-          Continue
-        </Button>
-        <Button type="button" size="sm" variant="secondary" onClick={paste} className="gap-1.5">
-          <FileIcon weight="fill" size={14} />
+        <Button type="button" size="sm" variant="secondary" onClick={paste} className="h-8 gap-1.5 bg-background px-3 text-caption font-semibold hover:bg-background/70">
+          <PasteIcon size={16} className="text-muted-foreground" />
           Paste
         </Button>
       </div>
+
+      <div className="px-4">
+        <StatusLine id={STATUS_ID} status={status} />
+      </div>
+
+      <Button type="submit" disabled={!resolved} className="mt-3 w-full">
+        Continue
+      </Button>
     </form>
   );
 }

@@ -1,6 +1,7 @@
-import { CheckIcon, ScanSmileyIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion, stagger, type Variants } from "motion/react";
+import { CheckIcon, FaceIdIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { hideMyWalletWords } from "../data";
 import { blurSwap, easeOut, labelSpring } from "./motion";
 
@@ -24,7 +25,8 @@ export function SendButton({ hidden, phase, onSend }: Props) {
       onClick={onSend}
       disabled={phase !== "review"}
       focusableWhenDisabled
-      className="relative w-full tracking-[-0.3px] aria-disabled:active:scale-100"
+      size="lg"
+      className="relative w-full aria-disabled:active:scale-100"
     >
       <span
         aria-hidden
@@ -39,7 +41,7 @@ export function SendButton({ hidden, phase, onSend }: Props) {
           {phase === "review" && (
             <>
               <motion.span layout="position" transition={labelSpring} className="flex items-center gap-2">
-                <ScanSmileyIcon aria-hidden weight="bold" className="size-[18px]" />
+                <FaceIdIcon size={20} />
                 Send
               </motion.span>
               <AnimatePresence mode="popLayout" initial={false}>
@@ -63,14 +65,14 @@ export function SendButton({ hidden, phase, onSend }: Props) {
             </>
           )}
           {phase === "sending" && (
-            <span className="flex items-center gap-2.5">
-              <span className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+            <span className="flex items-center gap-2">
+              <Spinner aria-hidden className="size-5" />
               Sending
             </span>
           )}
           {phase === "sent" && (
             <span className="flex items-center gap-2">
-              <CheckIcon aria-hidden weight="bold" className="size-[18px]" />
+              <CheckIcon size={20} />
               Sent
             </span>
           )}

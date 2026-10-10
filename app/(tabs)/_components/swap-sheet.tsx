@@ -1,10 +1,10 @@
 "use client";
 
-import { ArrowsDownUpIcon, CheckIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { CoinLogo } from "@/app/coin-breakdown/_components/coin-logos";
 import { coins, type CoinId } from "@/app/coin-breakdown/data";
+import { CheckIcon, FlipIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { BackButton } from "@/components/ui/back-button";
 import { Drawer, DrawerClose, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
@@ -36,7 +36,7 @@ function Token({ side }: { side: Side }) {
   );
 }
 
-const card = "rounded-[24px] border border-black/[0.06] bg-surface p-4 transition-[border-color,background-color] duration-150 ease-out";
+const card = "rounded-[24px] border bg-surface p-4 transition-[border-color,background-color] duration-150 ease-out";
 
 export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onOpenChange: (o: boolean) => void; onClosed: () => void }) {
   const [from, setFrom] = useState<Side>("sol");
@@ -99,7 +99,7 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
 
         <div className="overflow-y-auto px-5 pt-3">
           <section className={`${card} has-[input:focus]:border-fuse-blue/40 has-[input:focus]:bg-white`} aria-label="From">
-            <div className="flex items-center justify-between text-[14px] text-black/40">
+            <div className="flex items-center justify-between text-[14px] text-muted-foreground">
               <span>From</span>
               <span className="flex items-center gap-2">
                 <span className="tabular-nums">
@@ -108,7 +108,7 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
                 <button
                   type="button"
                   onClick={() => setText(String(info[from].balance))}
-                  className="grid h-6 place-items-center rounded-full bg-black/[0.06] px-2.5 text-[12px] font-semibold text-black outline-none transition-[scale,background-color] duration-150 ease-out relative after:absolute after:-inset-x-2 after:-inset-y-2.5 hover:bg-black/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:scale-[0.96]"
+                  className="grid h-6 place-items-center rounded-full bg-secondary px-2.5 text-[12px] font-semibold text-foreground outline-none transition-[scale,background-color] duration-150 ease-out relative after:absolute after:-inset-x-2 after:-inset-y-2.5 hover:bg-black/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:scale-[0.96]"
                 >
                   Max
                 </button>
@@ -123,7 +123,7 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
                 value={text}
                 disabled={phase !== "idle"}
                 onChange={(e) => /^\d*\.?\d*$/.test(e.target.value) && setText(e.target.value)}
-                className={`min-w-0 flex-1 bg-transparent text-[34px] leading-10 font-bold tracking-[-0.03em] tabular-nums outline-none placeholder:text-black/20 ${over ? "text-negative" : ""}`}
+                className={`min-w-0 flex-1 bg-transparent text-[34px] leading-10 font-bold tracking-[-0.03em] tabular-nums outline-none placeholder:text-cents ${over ? "text-negative" : ""}`}
               />
               <Token side={from} />
             </div>
@@ -140,19 +140,19 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
               transition={snappy}
               className="grid size-11 place-items-center rounded-full border-4 border-white bg-black text-white outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-35"
             >
-              <ArrowsDownUpIcon size={18} weight="bold" />
+              <FlipIcon size={20} />
             </motion.button>
           </div>
 
           <section className={card} aria-label="To">
-            <div className="flex items-center justify-between text-[14px] text-black/40">
+            <div className="flex items-center justify-between text-[14px] text-muted-foreground">
               <span>To</span>
               <span className="tabular-nums">
                 {fmt(info[to].balance)} {info[to].symbol}
               </span>
             </div>
             <div className="mt-3 flex items-center gap-3">
-              <output className={`min-w-0 flex-1 truncate text-[34px] leading-10 font-bold tracking-[-0.03em] tabular-nums ${amount > 0 ? "" : "text-black/20"}`}>
+              <output className={`min-w-0 flex-1 truncate text-[34px] leading-10 font-bold tracking-[-0.03em] tabular-nums ${amount > 0 ? "" : "text-cents"}`}>
                 {amount > 0 ? fmt(out, to === "sol" ? 4 : 2) : "0"}
               </output>
               <Token side={to} />
@@ -161,15 +161,15 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
 
           <dl className="mt-4 space-y-1 px-1 text-[15px] leading-5 tracking-[-0.24px]">
             <div className="flex justify-between">
-              <dt className="text-black/35">Rate</dt>
+              <dt className="text-muted-foreground">Rate</dt>
               <dd className="tabular-nums">
                 {from === "sol" ? rateLine : `1 USDC ≈ ${(1 / rate).toFixed(5)} SOL`}
               </dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-black/35">Network fee</dt>
+              <dt className="text-muted-foreground">Network fee</dt>
               <dd>
-                <span className="text-black/35">
+                <span className="text-muted-foreground">
                   Fuse
                   <sup aria-hidden className="text-[11px]">
                     +
@@ -191,7 +191,7 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
             <AnimatePresence initial={false} mode="popLayout">
               <motion.span key={label} className="flex items-center gap-2" {...labelSwap}>
                 {phase === "busy" && <Spinner className="size-5" />}
-                {phase === "done" && <CheckIcon size={20} weight="bold" />}
+                {phase === "done" && <CheckIcon size={20} />}
                 {label}
               </motion.span>
             </AnimatePresence>

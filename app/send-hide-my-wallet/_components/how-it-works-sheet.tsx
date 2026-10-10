@@ -1,15 +1,7 @@
-import { QuestionIcon } from "@phosphor-icons/react";
+import { HelpIcon, ShieldIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
-import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
+import { Drawer, DrawerClose, DrawerContent, DrawerHeader, DrawerTrigger } from "@/components/ui/drawer";
 import { howItWorks } from "../data";
-import { ShieldLeftHalf } from "./icons";
 
 export function HowItWorksSheet() {
   return (
@@ -17,37 +9,39 @@ export function HowItWorksSheet() {
       <DrawerTrigger asChild>
         <button
           type="button"
-          className="relative flex items-center gap-1 rounded-sm text-black/35 outline-offset-2 outline-fuse-blue transition-opacity after:absolute after:-inset-x-2 after:-inset-y-3 focus-visible:outline-2 active:opacity-60"
+          className="relative flex items-center gap-1 rounded-sm text-body text-muted-foreground outline-offset-2 outline-fuse-blue transition-opacity after:absolute after:-inset-x-2 after:-inset-y-3 focus-visible:outline-2 active:opacity-60"
         >
-          How it works?
-          <QuestionIcon aria-hidden weight="duotone" className="size-4" />
+          How it works
+          <HelpIcon size={16} />
         </button>
       </DrawerTrigger>
       <DrawerContent>
-        <div className="overflow-y-auto px-5 pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] tracking-[-0.24px]">
-          <div className="px-3">
-            <span className="grid size-[54px] place-items-center rounded-full bg-fuse-blue/12 text-fuse-blue">
-              <ShieldLeftHalf className="h-[26px] w-[22px]" />
-            </span>
-            <DrawerTitle className="mt-4 text-[20px]">Hide My Wallet</DrawerTitle>
-            <DrawerDescription className="mt-1 text-black/45">
-              Send without revealing the wallet your money lives in.
-            </DrawerDescription>
-            <ul className="mt-6 flex flex-col gap-4">
-              {howItWorks.map(({ icon: Icon, title, body }) => (
-                <li key={title} className="flex gap-3.5">
-                  <Icon aria-hidden weight="duotone" className="mt-px size-[22px] shrink-0 text-fuse-blue" />
-                  <p className="text-[15px] leading-5">
-                    <span className="font-medium">{title}</span>
-                    <span className="block text-pretty text-black/45">{body}</span>
-                  </p>
-                </li>
-              ))}
-            </ul>
+        <div className="overflow-y-auto pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+          <DrawerHeader
+            icon={
+              <span className="grid size-14 place-items-center rounded-full bg-fuse-blue/12 text-fuse-blue">
+                <ShieldIcon size={32} />
+              </span>
+            }
+            title="Hide My Wallet"
+            description="Send without revealing the wallet your money lives in."
+          />
+          <ul className="mt-6 flex flex-col gap-5 px-6">
+            {howItWorks.map(({ icon: Icon, title, body }) => (
+              <li key={title} className="flex gap-4">
+                <Icon className="shrink-0 text-fuse-blue" />
+                <p>
+                  <span className="block text-label">{title}</span>
+                  <span className="block text-body text-pretty text-muted-foreground">{body}</span>
+                </p>
+              </li>
+            ))}
+          </ul>
+          <div className="px-6">
+            <DrawerClose asChild>
+              <Button className="mt-8 w-full">Got it</Button>
+            </DrawerClose>
           </div>
-          <DrawerClose asChild>
-            <Button className="mt-7 w-full">Got it</Button>
-          </DrawerClose>
         </div>
       </DrawerContent>
     </Drawer>

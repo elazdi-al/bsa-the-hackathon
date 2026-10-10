@@ -18,7 +18,7 @@ export const withdrawal = {
   step: 2,
   rows: [
     { label: "To", value: "Revolut ••••1342" },
-    { label: "Account owner name", value: "Thomas A. Anderson" },
+    { label: "Account owner", value: "Thomas A. Anderson" },
     { label: "Transfer fee", value: "$8.50" },
   ] satisfies Row[],
   paymentRail: "ACH Same Day",

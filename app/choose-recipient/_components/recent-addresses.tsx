@@ -1,27 +1,28 @@
-import { CardholderIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
+import { rowPress, sectionLabel } from "@/app/(tabs)/_components/list";
+import { WalletIcon } from "@/components/icons";
 import { RECENT_ADDRESSES, reviewHref, shortAddress } from "../data";
 
 export function RecentAddresses() {
   return (
-    <section aria-labelledby="recent-title" className="mt-4">
-      <h2 id="recent-title" className="px-8 text-[13px] leading-[18px] font-medium text-[#adadad]">
-        Recent addresses
+    <section aria-labelledby="recent-title" className="mt-8 px-3">
+      <h2 id="recent-title" className={`px-3 ${sectionLabel}`}>
+        Recent
       </h2>
-      <ul className="mt-1.5">
+      <ul>
         {RECENT_ADDRESSES.map(({ address, note }) => (
           <li key={address}>
             <Link
               href={reviewHref(address)}
               transitionTypes={["push"]}
-              className="mx-4 flex items-center gap-3 rounded-[18px] px-[14px] py-1.5 transition-colors duration-150 ease-out focus-visible:outline-2 focus-visible:outline-fuse-blue active:bg-black/[0.04] [@media(hover:hover)]:hover:bg-black/[0.025]"
+              className={`flex min-h-16 items-center gap-4 rounded-2xl px-3 py-2.5 focus-visible:outline-2 focus-visible:outline-fuse-blue ${rowPress}`}
             >
-              <span className="grid size-[42px] shrink-0 place-items-center rounded-full bg-black/[0.09] shadow-[inset_0_0_0_1px_rgb(0_0_0/0.03)]">
-                <CardholderIcon weight="fill" size={20} />
+              <span className="grid size-11 shrink-0 place-items-center rounded-full bg-secondary text-muted-foreground">
+                <WalletIcon />
               </span>
-              <span className="flex flex-col">
-                <span className="text-[16px] leading-5 font-medium">{shortAddress(address)}</span>
-                <span className="text-[13px] leading-[18px] text-[#adadad]">{note}</span>
+              <span className="flex min-w-0 flex-col">
+                <span className="truncate text-label">{shortAddress(address)}</span>
+                <span className="truncate text-body text-muted-foreground">{note}</span>
               </span>
             </Link>
           </li>

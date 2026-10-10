@@ -27,13 +27,13 @@ export function Welcome() {
 
         <motion.h1
           variants={rise}
-          className="mt-5 text-center text-[22px] leading-7 font-semibold tracking-[-0.01em] text-balance text-white"
+          className="mt-5 text-center text-title text-balance text-white"
         >
           Welcome to Fuse Plus
         </motion.h1>
         <motion.p
           variants={rise}
-          className="mx-auto mt-2 max-w-[290px] text-center text-[15px] leading-[21px] text-pretty text-white/40"
+          className="mx-auto mt-2 max-w-[290px] text-center text-body text-pretty text-white/55"
         >
           Your membership to earn more, pay less, and access premium benefits.
         </motion.p>

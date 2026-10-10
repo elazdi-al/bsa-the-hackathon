@@ -14,7 +14,7 @@ const enter =
 export default function Page() {
   return (
     <Screen>
-      <main className="relative grid min-h-dvh w-full place-items-center overflow-hidden bg-[#f2f2f2] px-6 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+      <main className="relative grid min-h-dvh w-full place-items-center overflow-hidden bg-background px-6 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
         {/* Where Fuse Plus keeps its close: the top right of the content column, not the window's corner. */}
         <div className="absolute inset-x-0 top-0 mx-auto flex max-w-md justify-end px-4 pt-[calc(env(safe-area-inset-top)+8px)]">
           <BackButton kind="close" fallback="/settings" />
@@ -25,21 +25,21 @@ export default function Page() {
             <IdentityIllustration />
           </div>
 
-          <h1 className={`${enter} mt-10 text-[20px] leading-6 font-semibold delay-[60ms]`}>
+          <h1 className={`${enter} mt-10 text-title text-balance delay-[60ms]`}>
             <span className="mb-1 flex items-center justify-center gap-2">
-              <BridgeLogo className="size-[22px]" />
+              <BridgeLogo className="size-7" />
               {verification.provider}
             </span>{" "}
             <span className="block">{verification.title}</span>
           </h1>
 
-          <p className={`${enter} mt-3.5 max-w-[310px] text-[13px] leading-[19px] text-black/40 delay-[120ms]`}>
+          <p className={`${enter} mt-3 max-w-[330px] text-body text-pretty text-muted-foreground delay-[120ms]`}>
             {verification.notice}
             <br />
             {verification.followUp}{" "}
             <a
               href={`mailto:${verification.supportEmail}`}
-              className="rounded-sm underline decoration-black/10 underline-offset-2 transition-colors duration-150 hover:text-black/60 focus-visible:outline-2 focus-visible:outline-black/40"
+              className="rounded-sm underline decoration-faint underline-offset-2 transition-colors duration-150 hover:text-foreground focus-visible:outline-2 focus-visible:outline-fuse-blue"
             >
               {verification.supportEmail}
             </a>

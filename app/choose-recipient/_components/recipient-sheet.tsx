@@ -4,8 +4,7 @@ import { MotionConfig } from "motion/react";
 import { useState } from "react";
 import { snappy } from "@/app/(tabs)/_components/transitions";
 import { useBack } from "@/components/navigation";
-import { BackButton } from "@/components/ui/back-button";
-import { Drawer, DrawerClose, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
+import { Drawer, DrawerContent, DrawerHeader } from "@/components/ui/drawer";
 import { sendDraft } from "../data";
 import { AddressCard } from "./address-card";
 import { RecentAddresses } from "./recent-addresses";
@@ -37,12 +36,7 @@ export function RecipientSheet({ open, onOpenChange, onClosed }: Props) {
           overlayClassName="[view-transition-name:recipient-overlay]"
           className="h-[calc(100dvh-env(safe-area-inset-top)-12px)] pb-[env(safe-area-inset-bottom)] tracking-[-0.02em] [view-transition-name:recipient-sheet] sm:h-auto sm:pb-5"
         >
-          <header className="relative flex h-11 shrink-0 items-center justify-center">
-            <DrawerTitle>Choose recipient</DrawerTitle>
-            <DrawerClose asChild>
-              <BackButton kind="close" className="absolute right-4" />
-            </DrawerClose>
-          </header>
+          <DrawerHeader title="Choose recipient" />
           <AddressCard />
           <RecentAddresses />
         </DrawerContent>

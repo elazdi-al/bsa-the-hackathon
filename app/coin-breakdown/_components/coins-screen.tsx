@@ -1,8 +1,8 @@
 "use client";
 
-import { ImagesSquareIcon, SquaresFourIcon, type Icon } from "@phosphor-icons/react";
 import { MotionConfig, motion } from "motion/react";
 import { useEffect, useState } from "react";
+import { GridIcon, ImagesIcon, type Icon } from "@/components/icons";
 import { Tabs, TabsContent, TabsIndicator, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { coins, type CoinId } from "../data";
 import { CoinRow } from "./coin-row";
@@ -13,8 +13,8 @@ const tabs = ["Dashboard", "Coins", "NFTs"] as const;
 type Tab = (typeof tabs)[number];
 
 const empty: Record<Exclude<Tab, "Coins">, { icon: Icon; title: string }> = {
-  Dashboard: { icon: SquaresFourIcon, title: "Your dashboard is on its way" },
-  NFTs: { icon: ImagesSquareIcon, title: "No NFTs yet" },
+  Dashboard: { icon: GridIcon, title: "Your dashboard is on its way" },
+  NFTs: { icon: ImagesIcon, title: "No NFTs yet" },
 };
 
 export function CoinsScreen() {
@@ -47,12 +47,12 @@ export function CoinsScreen() {
                 <TabsTrigger
                   key={t}
                   value={t}
-                  className="h-auto flex-none border-0 px-0 pt-0 pb-1 text-[18px]/6 font-medium tracking-[-0.01em] text-[#9a9a9a] transition-colors duration-200 before:absolute before:-inset-x-2 before:-inset-y-2.5 after:hidden hover:text-[#9a9a9a] focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-4 aria-selected:text-black"
+                  className="h-auto flex-none border-0 px-0 pt-0 pb-1 text-label text-muted-foreground transition-colors duration-200 before:absolute before:-inset-x-2 before:-inset-y-2.5 after:hidden hover:text-muted-foreground focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-offset-4 aria-selected:text-foreground"
                 >
                   {t}
                 </TabsTrigger>
               ))}
-              <TabsIndicator className="bottom-0 left-[calc(var(--active-tab-left)_+_var(--active-tab-width)/2_-_9.5px)] h-[2.5px] w-[19px] rounded-full bg-[#111]" />
+              <TabsIndicator className="bottom-0 left-[calc(var(--active-tab-left)_+_var(--active-tab-width)/2_-_9.5px)] h-[2.5px] w-[19px] rounded-full bg-foreground" />
             </TabsList>
           </Recede>
 
@@ -61,7 +61,7 @@ export function CoinsScreen() {
               <TabsContent
                 key={t}
                 value={t}
-                className="pt-[28px] text-base transition-[opacity,filter] duration-350 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none data-ending-style:absolute data-ending-style:inset-x-0 data-ending-style:top-0 data-ending-style:opacity-0 data-ending-style:blur-[4px] data-ending-style:duration-150 data-starting-style:opacity-0 data-starting-style:blur-[4px]"
+                className="pt-[28px] transition-[opacity,filter] duration-350 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none data-ending-style:absolute data-ending-style:inset-x-0 data-ending-style:top-0 data-ending-style:opacity-0 data-ending-style:blur-[4px] data-ending-style:duration-150 data-starting-style:opacity-0 data-starting-style:blur-[4px]"
               >
                 {t === "Coins" ? (
                   <ul>
@@ -86,19 +86,18 @@ export function CoinsScreen() {
   );
 }
 
-// History's empty state, on this screen's grey.
 function EmptyState({ icon: Icon, title }: { icon: Icon; title: string }) {
   return (
     <div className="flex flex-col items-center px-10 py-16 text-center">
       <motion.span
         aria-hidden
-        className="grid size-[54px] place-items-center rounded-full bg-black/[0.04] text-[#b2b2b2]"
+        className="block text-faint"
         animate={{ y: [0, -4, 0] }}
         transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
       >
-        <Icon weight="fill" size={26} />
+        <Icon size={48} />
       </motion.span>
-      <p className="mt-4 text-[15px] leading-5 font-medium text-balance text-[#8a8a8a]">{title}</p>
+      <p className="mt-4 text-body text-balance text-muted-foreground">{title}</p>
     </div>
   );
 }

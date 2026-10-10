@@ -16,7 +16,7 @@ export const bloom: Variants = {
   shown: { opacity: 1, scale: 1, filter: sharp, transition: reveal },
 };
 
-// The card itself only fades up; blurring a surface this large is costly, so its rows carry the blur.
+// The section itself only fades up; blurring a block this large is costly, so its rows carry the blur.
 export const surface: Variants = {
   hidden: { opacity: 0, y: 16 },
   shown: {

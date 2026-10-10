@@ -1,5 +1,6 @@
-import { FlowerIcon, SealCheckIcon, SealWarningIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "motion/react";
+import { VerifiedIcon, WarningIcon } from "@/components/icons";
+import { Spinner } from "@/components/ui/spinner";
 import { shortAddress, type Resolution } from "../data";
 import { blurSwap, iconPop } from "./motion";
 
@@ -9,7 +10,7 @@ export function StatusLine({ id, status }: { id: string; status: Status }) {
   const { icon, text } = describe(status);
 
   return (
-    <p id={id} aria-live="polite" className="relative mt-[3px] h-4 text-[12px] leading-4 text-black/35">
+    <p id={id} aria-live="polite" className="relative mt-2 h-5 text-body text-muted-foreground">
       <AnimatePresence initial={false}>
         <motion.span
           key={status.kind === "resolved" ? status.address : status.kind}
@@ -17,7 +18,7 @@ export function StatusLine({ id, status }: { id: string; status: Status }) {
           initial="hidden"
           animate="shown"
           exit="hidden"
-          className="absolute inset-0 flex items-center gap-1"
+          className="absolute inset-0 flex items-center gap-1.5"
         >
           {icon && (
             <motion.span variants={iconPop} className="grid size-4 place-items-center">
@@ -34,20 +35,20 @@ export function StatusLine({ id, status }: { id: string; status: Status }) {
 function describe(status: Status) {
   switch (status.kind) {
     case "hint":
-      return { icon: null, text: "Enter Solana address or .sol handle" };
+      return { icon: null, text: null };
     case "resolving":
       return {
-        icon: <FlowerIcon weight="fill" size={14} className="text-fuse-blue motion-safe:animate-spin" />,
+        icon: <Spinner aria-hidden className="text-fuse-blue motion-reduce:animate-none" />,
         text: "Resolving...",
       };
     case "resolved":
       return {
-        icon: <SealCheckIcon weight="fill" size={16} className="text-positive" />,
+        icon: <VerifiedIcon size={16} className="text-positive" />,
         text: shortAddress(status.address),
       };
     case "notFound":
       return {
-        icon: <SealWarningIcon weight="fill" size={16} className="text-negative" />,
+        icon: <WarningIcon size={16} className="text-negative" />,
         text: "Handle not found",
       };
   }

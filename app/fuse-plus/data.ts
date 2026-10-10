@@ -1,5 +1,5 @@
 export type Benefit = {
-  icon: "bolt" | "bank" | "visa";
+  icon: "bolt" | "bank" | "card";
   title: string;
   body: string;
 };
@@ -16,7 +16,7 @@ export const benefits: Benefit[] = [
     body: "Receive payments from anyone with a bank account for a 0.1% conversion fee.",
   },
   {
-    icon: "visa",
+    icon: "card",
     title: "Fuse Card",
     body: "A virtual Visa debit card to spend stablecoins anywhere, with zero fees.",
   },

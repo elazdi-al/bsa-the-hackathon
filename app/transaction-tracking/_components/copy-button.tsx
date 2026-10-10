@@ -1,6 +1,6 @@
-import { CheckCircleIcon, CopyIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState, type ReactNode } from "react";
+import { CheckCircleIcon, CopyIcon } from "@/components/icons";
 
 // The app's icon swap, as in the Receive sheet.
 const iconHidden = { opacity: 0, scale: 0.25, filter: "blur(4px)" };
@@ -34,7 +34,7 @@ export function CopyButton({ text, label, children }: { text: string; label: str
         className="relative z-10 flex items-center gap-1.5 rounded-md transition-transform duration-150 ease-out outline-none after:absolute after:-inset-x-2 after:-inset-y-3 focus-visible:ring-2 focus-visible:ring-fuse-blue active:scale-[0.96]"
       >
         {children}
-        <span className="grid size-4 place-items-center text-[#a5a5a5]">
+        <span className="grid size-4 place-items-center text-muted-foreground">
           <AnimatePresence initial={false} mode="popLayout">
             <motion.span
               key={copied ? "check" : "copy"}
@@ -44,7 +44,7 @@ export function CopyButton({ text, label, children }: { text: string; label: str
               exit={iconHidden}
               transition={iconSwap}
             >
-              {copied ? <CheckCircleIcon size={16} weight="fill" className="text-positive" /> : <CopyIcon size={16} weight="duotone" />}
+              {copied ? <CheckCircleIcon size={16} className="text-positive" /> : <CopyIcon size={16} />}
             </motion.span>
           </AnimatePresence>
         </span>

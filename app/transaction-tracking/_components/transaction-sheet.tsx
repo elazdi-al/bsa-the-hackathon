@@ -1,9 +1,9 @@
 "use client";
 
-import { LightningIcon } from "@phosphor-icons/react";
 import { AnimatePresence, MotionConfig, motion, type Variants } from "motion/react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Money } from "@/app/(tabs)/_components/money";
+import { LightningIcon } from "@/components/icons";
 import { useBack } from "@/components/navigation";
 import { Button } from "@/components/ui/button";
 import { Drawer, FloatingSheetContent, FloatingSheetHeader } from "@/components/ui/drawer";
@@ -25,8 +25,8 @@ const row: Variants = {
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <motion.div variants={row} className="flex flex-wrap items-center justify-between gap-x-4 py-[7px]">
-      <dt className="text-[#909090]">{label}</dt>
+    <motion.div variants={row} className="flex flex-wrap items-center justify-between gap-x-4 py-2">
+      <dt className="text-muted-foreground">{label}</dt>
       <dd className="ml-auto font-medium">{children}</dd>
     </motion.div>
   );
@@ -52,7 +52,6 @@ export function TransactionSheet({
           if (!isOpen) onClosed?.();
         }}
       >
-        {/* The shared handle sits outside the layout animation and would jump when the tracker folds, so the header draws its own. */}
         <FloatingSheetContent className="bg-transparent">
           <Tracking />
         </FloatingSheetContent>
@@ -92,17 +91,17 @@ function Tracking() {
   return (
     <>
       {/* The surface carries the height spring, so the drawer box stays transparent; content only translates, so text never stretches. */}
-      <motion.div layout aria-hidden className="absolute inset-0 -z-10 bg-[#f2f2f2]" style={{ borderRadius: 34 }} />
+      <motion.div layout aria-hidden className="absolute inset-0 -z-10 bg-background" style={{ borderRadius: 36 }} />
       {/* Layout-animated so its clip box follows the surface instead of cutting the header off mid-fold. */}
-      <motion.div layout layoutScroll className="min-h-0 overflow-y-auto px-4 pb-[13px]">
+      <motion.div layout layoutScroll className="min-h-0 overflow-y-auto px-4 pb-4">
         <motion.div layout="position">
           <FloatingSheetHeader icon={<UsdcCoin />} title={withdrawal.title}>
             {/* The same header as History's other detail sheets: signed dollars, then the token amount. */}
-            <p className="mt-1 text-[27.5px] leading-[34px] font-bold tracking-[-0.01em]">
+            <p className="mt-1 text-amount">
               −<Money value={withdrawal.usd} />
             </p>
-            <p className="text-[13.5px] text-[#969696] tabular-nums">{withdrawal.amount}</p>
-            <p className="mt-1 font-medium text-[#969696]">{withdrawal.date}</p>
+            <p className="mt-1 text-body text-muted-foreground tabular-nums">{withdrawal.amount}</p>
+            <p className="text-body text-muted-foreground">{withdrawal.date}</p>
           </FloatingSheetHeader>
         </motion.div>
 
@@ -112,7 +111,7 @@ function Tracking() {
           onToggle={() => setTracker((t) => ({ ...t, expanded: !t.expanded }))}
         />
 
-        <motion.dl layout="position" className="mt-2 px-4">
+        <motion.dl layout="position" className="px-4">
           {withdrawal.rows.map((r) => (
             <Row key={r.label} label={r.label}>
               {r.value}
@@ -130,10 +129,9 @@ function Tracking() {
               initial="hidden"
               animate="shown"
               exit="hidden"
-              className="px-4 pt-3"
+              className="px-4"
             >
-              <hr className="h-px border-0 bg-[repeating-linear-gradient(90deg,#d4d4d4_0_8px,transparent_8px_16px)]" />
-              <dl className="mt-2">
+              <dl>
                 <Row label="Payment rail">{withdrawal.paymentRail}</Row>
                 <Row label="Transaction id">
                   <CopyButton text={withdrawal.txHash} label="Copy transaction id">
@@ -141,9 +139,10 @@ function Tracking() {
                   </CopyButton>
                 </Row>
                 <Row label="Network fee">
-                  <span className="flex items-center gap-1.5 text-positive">
-                    <LightningIcon size={15} weight="fill" />
-                    {withdrawal.networkFee} <span className="font-normal text-[#a5a5a5]">· covered by Fuse⁺</span>
+                  <span className="flex items-center gap-1 text-positive">
+                    <LightningIcon size={16} />
+                    {withdrawal.networkFee}
+                    <span className="font-normal text-muted-foreground">· covered by Fuse⁺</span>
                   </span>
                 </Row>
               </dl>
@@ -152,12 +151,12 @@ function Tracking() {
         </AnimatePresence>
 
         <Button
-          variant="ghost"
+          variant="secondary"
           render={<motion.button layout="position" />}
           onClick={() => setDetailsOpen((open) => !open)}
           aria-expanded={detailsOpen}
           aria-controls="more-details"
-          className="h-11 w-full gap-1 text-[13.5px]"
+          className="mt-4 w-full gap-1"
         >
           <span className="grid justify-items-end">
             {(["Show", "Hide"] as const).map((word) => {

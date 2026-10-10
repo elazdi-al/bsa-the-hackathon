@@ -8,8 +8,6 @@ import { Recede } from "./motion";
 type RowState = "idle" | "open" | "receded";
 
 const amount = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-// The house light-grey cents, a step darker so they keep their contrast on this screen's grey.
-const cents = "text-black/[0.12]";
 
 export function CoinRow({ coin, state, onToggle }: { coin: Coin; state: RowState; onToggle: () => void }) {
   const open = state === "open";
@@ -27,19 +25,19 @@ export function CoinRow({ coin, state, onToggle }: { coin: Coin; state: RowState
         >
           <CoinAvatar coin={coin} open={open} />
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[17px]/[22px] font-semibold tracking-[-0.01em]">{coin.name}</span>
-            <span className="mt-0.5 block truncate text-[15px]/5 text-[#858585] tabular-nums">
+            <span className="block truncate text-label">{coin.name}</span>
+            <span className="mt-0.5 block truncate text-body text-muted-foreground tabular-nums">
               {amount.format(coin.amount)} {coin.symbol}
             </span>
           </span>
-          <span className="shrink-0 text-right text-[15px] font-medium tabular-nums">
-            <span className="block leading-[22px]">
-              <Money value={coin.value} centsClassName={cents} />
+          <span className="shrink-0 text-right tabular-nums">
+            <span className="block text-label">
+              <Money value={coin.value} />
             </span>
             {coin.change !== undefined && (
-              <span className={`mt-0.5 block leading-5 ${coin.change < 0 ? "text-negative" : "text-positive"}`}>
+              <span className={`mt-0.5 block text-body ${coin.change < 0 ? "text-negative" : "text-positive"}`}>
                 {coin.change < 0 ? "−" : "+"}
-                <Money value={Math.abs(coin.change)} centsClassName={cents} />
+                <Money value={Math.abs(coin.change)} />
               </span>
             )}
           </span>
@@ -57,7 +55,7 @@ function CoinAvatar({ coin, open }: { coin: Coin; open: boolean }) {
   const gap = 3.5;
 
   return (
-    <span className="relative size-[42px] shrink-0">
+    <span className="relative size-11 shrink-0">
       {coin.stake && (
         <motion.svg
           viewBox="0 0 42 42"
@@ -69,7 +67,7 @@ function CoinAvatar({ coin, open }: { coin: Coin; open: boolean }) {
           className="absolute inset-0 size-full rotate-90 -scale-x-100"
         >
           <g fill="none" strokeWidth="2.2" strokeLinecap="round">
-            <circle cx="21" cy="21" r="19.9" pathLength={100} stroke="#dddddd" strokeDasharray={`${100 - available - gap * 2} 100`} strokeDashoffset={-(available + gap)} />
+            <circle cx="21" cy="21" r="19.9" pathLength={100} className="stroke-cents" strokeDasharray={`${100 - available - gap * 2} 100`} strokeDashoffset={-(available + gap)} />
             <circle cx="21" cy="21" r="19.9" pathLength={100} strokeDasharray={`${available} 100`} className="stroke-fuse-blue" />
           </g>
         </motion.svg>
@@ -109,22 +107,22 @@ function Breakdown({ id, coin }: { id: string; coin: Coin }) {
       initial="hidden"
       animate="shown"
       exit="gone"
-      className="absolute inset-x-0 top-full z-10 pt-[3px] pr-[22px] pl-20 text-[15px] font-medium tabular-nums max-[375px]:pl-14"
+      className="absolute inset-x-0 top-full z-10 pt-[3px] pr-[22px] pl-[82px] text-body font-medium tabular-nums max-[375px]:pl-14"
     >
       <motion.div variants={bar} className="flex h-1 gap-1">
         <span className="rounded-full bg-fuse-blue" style={{ width: `${availableShare(coin) * 100}%` }} />
-        {staked > 0 && <span className="flex-1 rounded-full bg-[#dadada]" />}
+        {staked > 0 && <span className="flex-1 rounded-full bg-cents" />}
       </motion.div>
 
       <div className="mt-[13px]">
         <Line dot="bg-fuse-blue" label="Available" value={unit(available)} />
-        <Line dot="bg-[#dcdcdc]" label={coin.stake?.label ?? "Total Staked"} value={unit(staked)} />
+        <Line dot="bg-cents" label={coin.stake?.label ?? "Total Staked"} value={unit(staked)} />
         {coin.stake && (
           <>
             <motion.div
               variants={line}
               aria-hidden
-              className="my-[7px] ml-6 h-px bg-[linear-gradient(to_right,#d4d4d4_50%,transparent_0)] bg-size-[10px_1px]"
+              className="my-[7px] ml-6 h-px bg-[linear-gradient(to_right,var(--color-cents)_50%,transparent_0)] bg-size-[10px_1px]"
             />
             <Line label={coin.stake.principalLabel} value={unit(coin.stake.principal)} />
             <Line label="Earned" value={`+ ${unit(coin.stake.earned)}`} valueClass="text-positive" />

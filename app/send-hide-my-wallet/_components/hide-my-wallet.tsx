@@ -4,10 +4,10 @@ import { MotionConfig } from "motion/react";
 import { useRouter } from "next/navigation";
 import { sendDraft } from "@/app/choose-recipient/data";
 import { useEffect, useId, useState } from "react";
+import { ShieldIcon } from "@/components/icons";
 import { Switch } from "@/components/ui/switch";
 import { transfer } from "../data";
 import { HowItWorksSheet } from "./how-it-works-sheet";
-import { ShieldLeftHalf } from "./icons";
 import { SendButton, type Phase } from "./send-button";
 
 const SENDING_MS = 1400;
@@ -38,11 +38,11 @@ export function HideMyWallet({ to, label }: { to?: string; label: string }) {
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="flex items-center gap-[15px] pr-1.5 pl-3">
-        <ShieldLeftHalf className="h-6 w-5 shrink-0 text-fuse-blue" />
-        <div className="min-w-0 flex-1 text-[14px] leading-[17px] tracking-[-0.15px]">
-          <p id={titleId}>
-            <span className="font-medium">Send with</span> Hide My Wallet
+      <div className="flex items-center gap-4">
+        <ShieldIcon className="shrink-0 text-fuse-blue" />
+        <div className="min-w-0 flex-1">
+          <p id={titleId} className="text-label">
+            Hide My Wallet
           </p>
           <HowItWorksSheet />
         </div>
@@ -53,7 +53,7 @@ export function HideMyWallet({ to, label }: { to?: string; label: string }) {
           aria-labelledby={titleId}
         />
       </div>
-      <div className="mt-[26px]">
+      <div className="mt-6">
         <SendButton hidden={hidden} phase={phase} onSend={() => setPhase("sending")} />
       </div>
     </MotionConfig>
