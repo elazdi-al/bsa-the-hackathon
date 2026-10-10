@@ -14,7 +14,7 @@ import { verifyTicket } from "../../lib/wallet/tickets.ts";
 import { openVault } from "../../lib/wallet/vault.ts";
 
 const vault = openVault(process.env.PARTNER_DB ?? "data/partner.db", process.env.PARTNER_SHARE_KEY);
-const PORT = Number(new URL(process.env.PARTNER_URL ?? "http://localhost:4002").port);
+const PORT = Number(process.env.PARTNER_PORT ?? (new URL(process.env.PARTNER_URL ?? "http://localhost:4002").port || 4002));
 const MAX_BODY = 64 * 1024;
 
 class Refusal extends Error {}

@@ -62,7 +62,7 @@ export function requireWallet(address: Address): Wallet {
   return wallet;
 }
 
-export const liveCredentials = (wallet: Wallet) => credentials(wallet.address, () => wallet.config);
+export const liveCredentials = (wallet: Wallet, deployed?: Promise<boolean>) => credentials(wallet.address, () => wallet.config, deployed);
 
 /** Calls the partner. Silence or a refusal becomes an HttpError, never a raw failure. */
 async function partner<T extends z.ZodType>(path: string, reply: T, body?: unknown): Promise<z.infer<T>> {
@@ -125,7 +125,9 @@ export async function prepare(wallet: Wallet, kind: Kind, callData: Hex) {
     publicClient.getCode({ address: wallet.address }),
     publicClient.readContract({ address: addresses.entryPoint, abi: entryPoint07Abi, functionName: "getNonce", args: [wallet.address, 0n] }),
     publicClient.estimateFeesPerGas(),
-    publicClient.getBlock(),
+    // The pending block, not the latest: an idle local chain's latest block can be minutes old, which would
+    // start the sponsorship already expired.
+    publicClient.getBlock({ blockTag: "pending" }),
   ]);
   const userOp: UserOperation<"0.7"> = {
     sender: wallet.address,
@@ -158,10 +160,22 @@ export async function prepare(wallet: Wallet, kind: Kind, callData: Hex) {
   return { hash, userOp: rpc };
 }
 
+/** An operation Swissquote prepared and hasn't submitted yet, while its sponsorship lasts. */
 export function loadOperation(wallet: Wallet, hash: Hex, kind?: Kind) {
   const row = store().operation(hash, wallet.address);
   if (!row || (kind && row.kind !== kind)) throw new HttpError(404, "No such operation.");
+  if (Date.now() - row.createdAt > Number(SPONSORSHIP_TTL) * 1000) throw new HttpError(410, "This approval expired. Start again.");
   return formatUserOperation(row.userOp) as UserOperation<"0.7">;
+}
+
+/**
+ * Loads an operation for submission and forgets it, so it's submitted once. Once on-chain, its hash and
+ * passkey assertion are public, and they must not keep unlocking Share B.
+ */
+export function takeOperation(wallet: Wallet, hash: Hex) {
+  const userOp = loadOperation(wallet, hash);
+  store().removeOperation(hash);
+  return userOp;
 }
 
 // ponytail: one transaction at a time keeps Swissquote's own nonces in order; a nonce manager lifts it.

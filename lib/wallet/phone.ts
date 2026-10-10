@@ -78,7 +78,8 @@ export function createPhone({ api = "", partner, authenticator, storage }: { api
       headers: body === undefined ? undefined : { "content-type": "application/json" },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
-    const json = await res.json();
+    // A proxy or a crashed server can answer with HTML; that's a failed request, not a parse error.
+    const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new ApiError(res.status, json);
     return json;
   }

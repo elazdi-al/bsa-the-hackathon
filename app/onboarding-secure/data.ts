@@ -27,7 +27,7 @@ export const KEYS: readonly WalletKey[] = [
   {
     id: "key",
     title: "Wallet Key",
-    body: "Split between these three, so no one keeps it whole. Any two can rebuild it, and payments still need your Passkey.",
+    body: "Split between these three, so no one stores it whole. Any two can rebuild it, and payments still need your Passkey.",
     Icon: KeyIcon,
     accent: "var(--color-orange)",
     cta: { idle: "Split Wallet Key", busy: "Splitting Wallet Key" },
@@ -35,7 +35,7 @@ export const KEYS: readonly WalletKey[] = [
   {
     id: "recovery",
     title: "Recovery Key",
-    body: "Restores your wallet if you lose this phone, after a 48-hour hold you can cancel. Keep it at home, off this phone.",
+    body: "Restores your wallet on a new phone, after an ID check and a 48-hour hold you can cancel. Once saved, keep it at home, off this phone.",
     Icon: RestoreIcon,
     accent: "var(--color-purple)",
     cta: { idle: "Save Recovery Key", busy: "Saving Recovery Key" },

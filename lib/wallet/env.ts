@@ -41,9 +41,16 @@ export const addresses = {
 
 type Credentials = Pick<Config, "signer" | "passkey" | "recoveryKey">;
 
-/** The wallet's live credentials: on-chain once deployed, else its initial config. */
-export async function credentials(wallet: Address, initial: () => Credentials | Promise<Credentials>): Promise<Credentials> {
-  if (!(await publicClient.getCode({ address: wallet }))) return initial();
+/** Whether the account is on-chain yet: the first operation deploys it. */
+export const isDeployed = async (wallet: Address) => !!(await publicClient.getCode({ address: wallet }));
+
+/** The wallet's live credentials: on-chain once deployed, else its initial config. `deployed` saves a read when known. */
+export async function credentials(
+  wallet: Address,
+  initial: () => Credentials | Promise<Credentials>,
+  deployed = isDeployed(wallet),
+): Promise<Credentials> {
+  if (!(await deployed)) return initial();
   const read = <F extends "signer" | "passkey" | "recoveryKey">(functionName: F) =>
     publicClient.readContract({ address: wallet, abi: accountAbi, functionName });
   const [signer, [x, y], recoveryKey] = await Promise.all([read("signer"), read("passkey"), read("recoveryKey")]);
@@ -54,8 +61,8 @@ export async function credentials(wallet: Address, initial: () => Credentials | 
 export const chainNow = async () => Number((await publicClient.getBlock({ blockTag: "pending" })).timestamp);
 
 /** The recovery waiting out its delay, if any. */
-export async function pendingRecovery(wallet: Address) {
-  if (!(await publicClient.getCode({ address: wallet }))) return null;
+export async function pendingRecovery(wallet: Address, deployed = isDeployed(wallet)) {
+  if (!(await deployed)) return null;
   const [signer, passkey, executeAfter] = await publicClient.readContract({ address: wallet, abi: accountAbi, functionName: "pendingRecovery" });
   return executeAfter ? { signer, passkey, executeAfter } : null;
 }
