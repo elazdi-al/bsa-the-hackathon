@@ -54,14 +54,25 @@ const menuItem = "flex h-12 items-center gap-3.5 rounded-full pl-4 text-[20px] f
 export function BottomBar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  // Back from the send review, the recipient sheet it came from is still open underneath.
-  const [sheet, setSheet] = useState<Sheet | null>(() => (typeof window !== "undefined" && sendDraft.get() ? "send" : null));
+  const [sheet, setSheet] = useState<Sheet | null>(null);
   const fab = useRef<HTMLButtonElement>(null);
 
   const close = () => {
     setOpen(false);
     fab.current?.focus();
   };
+
+  // Back from the send review, the recipient sheet slides back up once the page has popped in: during the
+  // view transition the page's snapshot paints over anything portalled, so it would land unseen.
+  useEffect(() => {
+    if (!sendDraft.get()) return;
+    let live = true;
+    const { activeViewTransition } = document as Document & { activeViewTransition?: ViewTransition | null };
+    Promise.resolve(activeViewTransition?.finished).then(() => live && setSheet("send"));
+    return () => {
+      live = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!open) return;
