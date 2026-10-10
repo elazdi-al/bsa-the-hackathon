@@ -3,8 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useReducer, useRef, useState, type ReactNode } from "react";
 import type { Address, Hex } from "viem";
+import { keepSession } from "@/app/(tabs)/_components/session";
 import { chainNow, refreshWallet, useWallet, type WalletSnapshot } from "@/app/(tabs)/_components/wallet";
-import { FaceIdIcon, IdCardIcon, RestoreIcon, type Icon } from "@/components/icons";
+import { FaceIdIcon, IdCardIcon, RestoreIcon, ShieldIcon, type Icon } from "@/components/icons";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { ApiError, phone, readRecoveryKey, type Credential, type Identity } from "@/lib/wallet/phone";
@@ -12,13 +13,18 @@ import { IdentityIllustration } from "./identity-illustration";
 
 /**
  * The steps to start a recovery. `notice` says why the key step is back. `pending`: the Recovery Key's wallet already has a
- * recovery running that this phone didn't start; its holder may cancel it through Swissquote before going on.
+ * recovery running that this phone didn't start; its holder may cancel it through Swissquote before going on. `refused`:
+ * Swissquote said no, and `retry` is where trying again starts.
  */
 type Step =
   | { name: "key"; notice?: string }
   | { name: "pending"; secret: Hex; address: Address; executeAfter: number; skew: number }
-  | { name: "identity"; secret: Hex }
-  | { name: "restore"; secret: Hex; identity: Identity };
+  | { name: "identity"; secret: Hex; id: OnFile }
+  | { name: "restore"; secret: Hex; id: OnFile }
+  | { name: "refused"; reason: keyof typeof REFUSED; retry: Step };
+
+/** MOCKED: the owner's ID on file, standing in for their own ID card and face. */
+type OnFile = Identity & { name: string };
 
 /**
  * Where this phone stands, from the shared wallet store. `answer`: it holds the wallet and someone is recovering it.
@@ -35,9 +41,27 @@ function standing(snapshot: WalletSnapshot): Standing {
   return { name: controls ? "home" : "outside" };
 }
 
+/** Why Swissquote won't start this recovery. Each leaves the wallet as it was. */
+const REFUSED = {
+  key: {
+    title: "This Recovery Key doesn't open a wallet",
+    body: "No Swissquote Wallet uses it. Choose the Recovery Key file you saved when you set up your wallet.",
+    retry: "Choose another file",
+  },
+  identity: {
+    title: "This ID doesn't match",
+    body: "Swissquote compared it with the ID on file for this wallet's owner. Your wallet is unchanged.",
+    retry: "Try again",
+  },
+  unlinked: {
+    title: "Swissquote can't check your ID",
+    body: "This wallet was set up before Swissquote linked wallets to its clients, so there is no ID on file to compare with. Your wallet is unchanged.",
+    retry: "Back",
+  },
+} as const;
+
 const FAILED = {
   file: "That isn't a Recovery Key. Choose the file you saved, or paste all of its text.",
-  unknown: "No wallet uses this Recovery Key. Check you chose the right file.",
   offline: "Can't reach Swissquote. Try again.",
   passkey: "Your passkey wasn't created. Try again.",
   key: "Your Wallet Key wasn't split. Try again.",
@@ -131,16 +155,17 @@ export function RecoveryFlow() {
     return secret;
   };
 
-  // ponytail: mocked ID check, it calls nothing. A real provider returns references to the scanned document and selfie.
-  const verify = async (secret: Hex) => {
-    setBusy("Checking your ID");
+  // MOCKED: the scan reads the owner's ID on file. A real provider scans the document and the face in front of the phone;
+  // Swissquote matches either way when the recovery starts.
+  const verify = async (secret: Hex, id: OnFile) => {
+    setBusy("Scanning your ID");
     await new Promise((resolve) => setTimeout(resolve, 1500));
     setBusy(undefined);
-    setStep({ name: "restore", secret, identity: { document: "mock-id-document", selfie: "mock-selfie" } });
+    setStep({ name: "restore", secret, id });
   };
 
   // Face ID needs the click's user activation, so the passkey comes first, before anything else awaits.
-  const restore = async (secret: Hex, identity: Identity) => {
+  const restore = async (secret: Hex, id: OnFile) => {
     setError(undefined);
     let failed: string = FAILED.passkey;
     try {
@@ -154,10 +179,13 @@ export function RecoveryFlow() {
       setBusy("Starting recovery");
       // Before the await: the recovery can start on-chain even if the read after it fails.
       recoveryKey.current = secret;
-      await phone.startRecovery(secret, identity);
+      keepSession((await phone.startRecovery(secret, { document: id.document, selfie: id.selfie })).signedIn);
       await refreshWallet();
-    } catch {
-      setError(failed);
+    } catch (e) {
+      const refused = e instanceof ApiError ? e.body.refused : undefined;
+      if (refused === "identity") setStep({ name: "refused", reason: refused, retry: { name: "identity", secret, id } });
+      else if (refused === "unlinked") setStep({ name: "refused", reason: refused, retry: { name: "key" } });
+      else setError(failed);
     }
     setBusy(undefined);
   };
@@ -191,10 +219,12 @@ export function RecoveryFlow() {
         if (e instanceof ApiError && e.status === 404) return null;
         throw e;
       });
-      if (!found) return setError(FAILED.unknown);
-      const { address, pendingRecovery, chainTime } = found;
+      if (!found) return setStep({ name: "refused", reason: "key", retry: { name: "key" } });
+      const { address, pendingRecovery, chainTime, idOnFile } = found;
       const skew = Math.round(chainTime - Date.now() / 1000);
-      setStep(pendingRecovery ? { name: "pending", secret, address, executeAfter: pendingRecovery.executeAfter, skew } : { name: "identity", secret });
+      if (pendingRecovery) return setStep({ name: "pending", secret, address, executeAfter: pendingRecovery.executeAfter, skew });
+      if (!idOnFile) return setStep({ name: "refused", reason: "unlinked", retry: { name: "key" } });
+      setStep({ name: "identity", secret, id: idOnFile });
     });
 
   const cancelTheirs = (secret: Hex, address: Address) =>
@@ -297,10 +327,13 @@ export function RecoveryFlow() {
           key="identity"
           art={<IdentityIllustration />}
           title="Confirm it's you"
-          body="Scan your ID, then take a selfie. Swissquote checks them before your wallet can be recovered."
+          body="Scan your ID, then take a selfie. Swissquote matches them to the ID it has on file for you."
           error={error}
         >
-          <Button size="lg" onClick={() => verify(step.secret)} disabled={!!busy} aria-busy={!!busy}>
+          <p className="text-caption text-muted-foreground">
+            Mock ID: <span className="text-foreground">{step.id.name}</span>, {step.id.document}
+          </p>
+          <Button size="lg" onClick={() => verify(step.secret, step.id)} disabled={!!busy} aria-busy={!!busy}>
             {lead(IdCardIcon)}
             {label("Scan ID")}
           </Button>
@@ -316,12 +349,29 @@ export function RecoveryFlow() {
           body="Face ID creates a new Passkey, and this phone gets a new Wallet Key. Then a 48-hour hold starts, which you can cancel."
           error={error}
         >
-          <Button size="lg" onClick={() => restore(step.secret, step.identity)} disabled={!!busy} aria-busy={!!busy}>
+          <Button size="lg" onClick={() => restore(step.secret, step.id)} disabled={!!busy} aria-busy={!!busy}>
             {lead(FaceIdIcon)}
             {label("Restore with Face ID")}
           </Button>
         </Step>
       );
+
+    case "refused": {
+      const { title, body, retry } = REFUSED[step.reason];
+      return (
+        <Step key={`refused-${step.reason}`} art={<Tile Glyph={ShieldIcon} className="bg-muted-foreground" />} title={title} body={body}>
+          <Button
+            size="lg"
+            onClick={() => {
+              if (step.retry.name === "key") setText("");
+              setStep(step.retry);
+            }}
+          >
+            {retry}
+          </Button>
+        </Step>
+      );
+    }
   }
 }
 

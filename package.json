@@ -23,6 +23,7 @@
     "warp": "node --env-file-if-exists=.env.local --disable-warning=ExperimentalWarning scripts/cli.ts warp",
     "sunset": "node --env-file-if-exists=.env.local --disable-warning=ExperimentalWarning scripts/cli.ts sunset",
     "exit": "node --env-file-if-exists=.env.local --disable-warning=ExperimentalWarning scripts/cli.ts exit",
+    "attack": "node --env-file-if-exists=.env.local --disable-warning=ExperimentalWarning scripts/cli.ts attack",
     "partner": "node --env-file-if-exists=.env.local services/partner/server.ts",
     "e2e": "node --env-file-if-exists=.env.local scripts/e2e.ts",
     "e2e:ui": "node --env-file-if-exists=.env.local scripts/ui-e2e.ts",

@@ -164,7 +164,7 @@ while (!(await answers(`${APP_URL}/api/config`))) await sleep(500);
 const ZERO = "0x0000000000000000000000000000000000000000";
 const routes = [
   "/onboarding-welcome", "/onboarding-secure", "/home", "/history", "/settings", "/choose-recipient", `/send?to=${ZERO}`,
-  "/transaction-tracking", "/recover", "/coin-breakdown", "/plus", "/dapps", "/api/dapps", "/api/shares", "/api/wallets", "/api/recovery",
+  "/transaction-tracking", "/recover", "/coin-breakdown", "/plus", "/dapps", "/api/dapps", "/api/shares", "/api/wallets", "/api/recovery", "/api/session",
   `/api/wallets/${ZERO}`, `/api/wallets/${ZERO}/activity`, `/api/wallets/${ZERO}/operations`, `/api/wallets/${ZERO}/operations/${ZERO}`,
   `/api/wallets/${ZERO}/share`, `/api/wallets/${ZERO}/recovery`,
 ];
@@ -184,6 +184,7 @@ Swissquote Wallet is running. Open ${APP_URL}/onboarding-welcome
   npm run warp [hours]               move chain time ahead (default 48)
   npm run sunset [on|off]            close Swissquote's services, or run them again (default on)
   npm run exit <from> <to> [amount]  send USDC without Swissquote once it is closed (default all)
+  npm run attack <account>           an attacker with the phone and email is stopped at every step
 
 Ctrl-C stops everything.
 `);

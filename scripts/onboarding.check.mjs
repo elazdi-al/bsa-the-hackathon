@@ -99,6 +99,9 @@ const isRegistration = (r) => new URL(r.url()).pathname === "/api/wallets" && r.
   assert.equal(wallet.signer, signer, "the wallet is controlled by the key this phone split");
   assert.deepEqual(wallet.passkey, passkey, "the wallet checks this phone's passkey");
   assert.equal(wallet.recoveryKey, privateKeyToAddress(secret), "the wallet recovers with the saved key");
+  const { client } = await page.evaluate(() => JSON.parse(localStorage.getItem("swissquote.session")));
+  await page.getByText(`Signed in to Swissquote as ${client.name} · Mock`).waitFor();
+  assert.equal(wallet.owner?.client, client.number, "Swissquote recorded the signed-in client against the wallet");
   console.log(`registered ${address}: signer ${signer}, recovery key ${wallet.recoveryKey}`);
   await page.context().close();
 }

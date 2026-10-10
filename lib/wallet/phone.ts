@@ -37,6 +37,8 @@ import {
   encodeRecoverySignature,
   factoryAbi,
   type Config as AccountConfig,
+  findWalletMessage,
+  ownershipMessage,
   type Passkey,
   type PasskeyAssertion,
 } from "./account.ts";
@@ -79,11 +81,23 @@ export type WalletState = {
   pendingRecovery: { signer: Address; executeAfter: number } | null;
   /** The chain's time when read, in seconds. A local chain can run ahead of this phone's clock. */
   chainTime: number;
+  /** Swissquote's record that the wallet is its client's; null for a wallet made before Swissquote linked them. */
+  owner: Owner | null;
 };
+
+/**
+ * The Swissquote client this phone is signed in as, in the Swissquote app the wallet runs inside. MOCKED: each
+ * phone signs in as its own made-up client.
+ */
+export type SignedIn = { session: string; client: { number: string; name: string } };
+
+/** The wallet key's signed statement that the wallet belongs to `client`, which Swissquote keeps as its ownership proof. */
+export type Owner = { client: string; createdAt: number; statement: string; signature: Hex };
 
 /** A USDC transfer in or out of the wallet. `value` is in base units. */
 export type Transfer = { hash: Hex; from: Address; to: Address; value: string; timestamp: number };
 
+/** What an ID check reads: the ID document, and the face its liveness check saw. */
 export type Identity = { document: string; selfie: string };
 
 type Storage = Pick<globalThis.Storage, "getItem" | "setItem" | "removeItem">;
@@ -189,11 +203,16 @@ export function createPhone({
     if (!ours) throw new Error("Swissquote returned a different operation than this phone built.");
   }
 
-  /** The freshly split key names the recovery key that may release its shares, at both holders. */
-  async function bind(signer: Address, recoveryKey: Address): Promise<Hex> {
+  /** The freshly split key signs a statement; the phone keeps it in memory for three hours at most. */
+  function signWithKey(message: string): Promise<Hex> {
     const key = cachedKey();
     if (!key) throw new Error("Split the wallet key again; this phone no longer has it in memory.");
-    const signature = await privateKeyToAccount(key).signMessage({ message: bindRecoveryKeyMessage(signer, recoveryKey) });
+    return privateKeyToAccount(key).signMessage({ message });
+  }
+
+  /** The freshly split key names the recovery key that may release its shares, at both holders. */
+  async function bind(signer: Address, recoveryKey: Address): Promise<Hex> {
+    const signature = await signWithKey(bindRecoveryKeyMessage(signer, recoveryKey));
     await call(`${partner}/shares/${signer}/recovery-key`, { recoveryKey, signature });
     return signature;
   }
@@ -277,11 +296,17 @@ export function createPhone({
       return { secret, address: privateKeyToAddress(secret) };
     },
 
-    async register(recoveryKey: Address): Promise<Address> {
+    /** MOCKED: the Swissquote app's sign-in. Without a session Swissquote knows, the phone signs in as a new client. */
+    signIn: (session?: string) => call<SignedIn>("/api/session", { session }),
+
+    /** Registers the wallet for the signed-in client. The wallet key signs that the wallet is theirs, naming its address. */
+    async register(recoveryKey: Address, { session, client }: SignedIn): Promise<Address> {
       const d = device();
       if (!d) throw new Error("Split the wallet key first.");
       const signature = await bind(d.signer, recoveryKey);
-      const wallet = await call<{ address: Address; config: AccountConfig }>("/api/wallets", { signer: d.signer, recoveryKey, signature });
+      const { address } = await call<{ address: Address }>(`/api/wallets?${new URLSearchParams({ signer: d.signer, recoveryKey })}`);
+      const ownership = await signWithKey(ownershipMessage(client.number, address));
+      const wallet = await call<{ address: Address; config: AccountConfig }>("/api/wallets", { signer: d.signer, recoveryKey, signature, session, ownership });
       save({ ...d, address: wallet.address, config: wallet.config });
       return wallet.address;
     },
@@ -343,13 +368,14 @@ export function createPhone({
     /**
      * Lost phone, after splitKey on the new phone. The recovery key signs the recovery; Swissquote
      * (B) and the partner (C) each check that and release their share to this phone, which rebuilds
-     * the old key for this one signature. No one else ever holds B and C together.
+     * the old key for this one signature. No one else ever holds B and C together. Swissquote's ID check, matched
+     * to the wallet owner's KYC record, signs this phone in to Swissquote as the owner.
      */
-    async startRecovery(secret: Hex, identity: Identity): Promise<{ address: Address; executeAfter: number }> {
+    async startRecovery(secret: Hex, identity: Identity): Promise<{ address: Address; executeAfter: number; signedIn: SignedIn }> {
       const d = device();
       if (!d) throw new Error("Split the new wallet key first.");
       const recovery = privateKeyToAccount(secret);
-      const prepared = await call<Prepared & { address: Address }>("/api/recovery", {
+      const prepared = await call<Prepared & { address: Address; signedIn: SignedIn }>("/api/recovery", {
         recoveryKey: recovery.address,
         signer: d.signer,
         signature: await bind(d.signer, recovery.address),
@@ -365,14 +391,23 @@ export function createPhone({
       });
       save({ ...d, address: prepared.address, restoring: true });
       const { pendingRecovery } = await call<WalletState>(`/api/wallets/${prepared.address}`);
-      return { address: prepared.address, executeAfter: pendingRecovery!.executeAfter };
+      return { address: prepared.address, executeAfter: pendingRecovery!.executeAfter, signedIn: prepared.signedIn };
     },
 
-    /** The wallet a recovery key restores, and the recovery already pending for it, if someone started one. */
-    findRecovery: (secret: Hex) =>
-      call<{ address: Address; pendingRecovery: { executeAfter: number } | null; chainTime: number }>(
-        `/api/recovery?${new URLSearchParams({ recoveryKey: privateKeyToAddress(secret) })}`,
-      ),
+    /**
+     * The wallet a recovery key restores, the recovery already pending for it if someone started one, and its
+     * owner's ID on file. MOCKED: that ID stands in for the owner's own ID card and face, which a real check scans.
+     */
+    async findRecovery(secret: Hex) {
+      const at = Math.floor(Date.now() / 1000);
+      const signature = await privateKeyToAccount(secret).signMessage({ message: findWalletMessage(at) });
+      return call<{
+        address: Address;
+        pendingRecovery: { executeAfter: number } | null;
+        chainTime: number;
+        idOnFile: (Identity & { name: string }) | null;
+      }>(`/api/recovery?${new URLSearchParams({ signature, at: String(at) })}`);
+    },
 
     /**
      * Swissquote cancels the pending recovery for the client, who proves it with the recovery key. Works
@@ -402,7 +437,7 @@ async function seal(share: Share, secret: Uint8Array | undefined, signer: Addres
   return { x: share.x, iv: bytesToHex(iv), sealed: bytesToHex(new Uint8Array(sealed)) };
 }
 
-async function unseal(stored: StoredShare, secret: Uint8Array | undefined, signer: Address): Promise<Share> {
+export async function unseal(stored: StoredShare, secret: Uint8Array | undefined, signer: Address): Promise<Share> {
   if ("y" in stored) return stored;
   if (!secret) throw new Error("Face ID did not unlock Share A.");
   const params = { name: "AES-GCM", iv: bytes(stored.iv), additionalData: aad(signer) };

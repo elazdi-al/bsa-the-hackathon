@@ -4,16 +4,32 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { DatabaseSync } from "node:sqlite";
 import { setTimeout as sleep } from "node:timers/promises";
 import { P256 } from "ox";
-import { BaseError, erc20Abi, formatEther, formatUnits, HttpRequestError, isAddress, isAddressEqual, numberToHex, parseEther, type Address, type Hex } from "viem";
+import {
+  BaseError,
+  erc20Abi,
+  formatEther,
+  formatUnits,
+  HttpRequestError,
+  isAddress,
+  isAddressEqual,
+  numberToHex,
+  parseEther,
+  recoverMessageAddress,
+  type Address,
+  type Hex,
+} from "viem";
 import { entryPoint07Abi } from "viem/account-abstraction";
 import { generatePrivateKey, privateKeyToAddress } from "viem/accounts";
 import { foundry } from "viem/chains";
+import { ownershipMessage } from "../lib/wallet/account.ts";
 import { addresses, chain, credentials, partnerUrl, pendingRecovery, publicClient } from "../lib/wallet/env.ts";
-import { ApiError, readRecoveryKey, RECOVERY_FILE, type Device } from "../lib/wallet/phone.ts";
+import { ApiError, readRecoveryKey, RECOVERY_FILE, type Device, type SignedIn } from "../lib/wallet/phone.ts";
 import { setSunset } from "../lib/wallet/sunset.ts";
+import { attack } from "./attack.ts";
 import { APP, mintUsdc, newPhone, sendEth } from "./software-phone.ts";
 
-type AccountFile = { passkey: Hex; recoveryKey: Hex; device: Device | null };
+/** `signedIn`: the Swissquote client the account's phone is signed in as (mocked). */
+type AccountFile = { passkey: Hex; recoveryKey: Hex; device: Device | null; signedIn?: SignedIn };
 type Role = "active" | "recovering" | "inactive";
 
 const ACCOUNTS = "data/accounts";
@@ -61,10 +77,25 @@ function walletRows() {
   if (!existsSync(path)) return [];
   const db = new DatabaseSync(path, { readOnly: true });
   try {
-    return db.prepare("select address, config from wallets order by created_at").all() as { address: Address; config: string }[];
+    // Swissquote's own view: each wallet's owner from its client records, which only the bank sees.
+    return db
+      .prepare(
+        `select address, config, owners.client, owners.signature, clients.kyc from wallets
+         left join owners on owners.wallet = wallets.address left join clients on clients.number = owners.client
+         order by wallets.created_at`,
+      )
+      .all() as { address: Address; config: string; client: string | null; signature: Hex | null; kyc: string | null }[];
   } finally {
     db.close();
   }
+}
+
+/** Who owns the wallet, and whether the key the wallet was created with signed the ownership statement Swissquote keeps. */
+async function ownerLine(wallet: Address, signer: Address, client: string, signature: Hex, kyc: string | null) {
+  const by = await recoverMessageAddress({ message: ownershipMessage(client, wallet), signature });
+  const name = kyc ? `${JSON.parse(kyc).name}, ` : "";
+  const proof = isAddressEqual(by, signer) ? "ownership signed by the wallet key" : "OWNERSHIP SIGNATURE DOES NOT MATCH THE WALLET KEY";
+  return `owner: ${name}Swissquote client ${client} (mock), ${proof}`;
 }
 
 function usdcAmount(text: string) {
@@ -119,14 +150,15 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
         publicClient.getBalance({ address: addresses.swissquote }),
         publicClient.readContract({ address: addresses.entryPoint, abi: entryPoint07Abi, functionName: "balanceOf", args: [addresses.paymaster] }),
         Promise.all(
-          rows.map(async ({ address, config }) => {
-            const [balance, code, live, pending] = await Promise.all([
+          rows.map(async ({ address, config, client, signature, kyc }) => {
+            const [balance, code, live, pending, owner] = await Promise.all([
               usdcOf(address),
               publicClient.getCode({ address }),
               credentials(address, () => JSON.parse(config)),
               pendingRecovery(address),
+              client && signature && ownerLine(address, JSON.parse(config).signer, client, signature, kyc),
             ]);
-            return { address, balance, deployed: !!code, signer: live.signer, pendingRecovery: pending };
+            return { address, balance, deployed: !!code, signer: live.signer, pendingRecovery: pending, owner };
           }),
         ),
       ]);
@@ -168,6 +200,7 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
       if (!wallets.length) console.log("  No wallets yet.");
       wallets.forEach((wallet, i) => {
         console.log(walletLines[i]);
+        console.log(`    ${wallet.owner ?? "no owner record: made before Swissquote linked wallets to clients"}`);
         if (!wallet.pendingRecovery) return;
         const left = wallet.pendingRecovery.executeAfter - clock.time;
         console.log(`    recovery pending, ${left > 0 ? `can finish in ${duration(left)}` : "can finish now"}`);
@@ -216,8 +249,9 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
       mkdirSync(ACCOUNTS, { recursive: true });
       const account: AccountFile = { passkey: P256.randomPrivateKey(), recoveryKey: generatePrivateKey(), device: null };
       const phone = accountPhone(file, account);
+      account.signedIn = await phone.signIn();
       await phone.splitKey(await phone.createPasskey());
-      const wallet = await phone.register(privateKeyToAddress(account.recoveryKey));
+      const wallet = await phone.register(privateKeyToAddress(account.recoveryKey), account.signedIn);
       const keyFile = `${ACCOUNTS}/${name} Recovery Key.txt`;
       writeFileSync(keyFile, RECOVERY_FILE.text(account.recoveryKey));
       await mintUsdc(wallet, "100");
@@ -225,6 +259,7 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
         table(
           [
             ["Wallet", wallet],
+            ["Client", `${account.signedIn.client.name}, Swissquote client ${account.signedIn.client.number} (mock)`],
             ["Account", file],
             ["Recovery Key", keyFile],
             ["Balance", usdc(await usdcOf(wallet))],
@@ -276,8 +311,13 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
       mkdirSync(ACCOUNTS, { recursive: true });
       const account: AccountFile = { passkey: P256.randomPrivateKey(), recoveryKey: secret, device: null };
       const phone = accountPhone(file, account);
+      // MOCKED: the owner's ID on file stands in for their own ID card and face.
+      const { idOnFile } = await phone.findRecovery(secret);
+      if (!idOnFile) throw new Error("That wallet isn't linked to a Swissquote client, so its ID check can't pass.");
       await phone.splitKey(await phone.createPasskey());
-      const { address, executeAfter } = await phone.startRecovery(secret, { document: "id-card-scan", selfie: "selfie" });
+      const { address, executeAfter, signedIn } = await phone.startRecovery(secret, idOnFile);
+      account.signedIn = signedIn;
+      writeFileSync(file, JSON.stringify(account, null, 2));
       const { time } = await chainClock();
       console.log(
         table(
@@ -329,6 +369,19 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
           "",
         ),
       );
+    },
+  },
+
+  attack: {
+    usage: "attack <account>",
+    about: "An attacker with the account's phone and email inbox tries to take its wallet. Every attempt must fail.",
+    async run([name]) {
+      const { phone, recoveryKey } = loadAccount(name);
+      const device = phone.device();
+      if (!device?.address) throw new Error(`${name} has no wallet.`);
+      if ((await phone.state()).pendingRecovery) throw new Error(`A recovery is pending for ${name}'s wallet. Cancel it first: npm run cancel ${name}.`);
+      await attack({ phone: structuredClone(device), homeKey: recoveryKey });
+      console.log(`Every attempt on ${name}'s wallet failed.`);
     },
   },
 

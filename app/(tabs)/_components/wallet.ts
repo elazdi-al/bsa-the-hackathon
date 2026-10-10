@@ -17,6 +17,8 @@ export type Wallet = {
   skew: number;
   /** This phone started a recovery that hasn't handed it the wallet: one still running, or one called off. */
   restoring: boolean;
+  /** The Swissquote client number the wallet key signed the wallet belongs to, kept by Swissquote; null if none. */
+  owner: string | null;
   /** USDC in and out, newest first, once a screen asked for it with `useActivity`. */
   activity?: Transfer[];
 };
@@ -63,6 +65,7 @@ async function load() {
         skew: last && Math.abs(last.skew - skew) <= 2 ? last.skew : skew,
         activity: activity ?? last?.activity,
         restoring: !controls && !!device.restoring,
+        owner: state.owner?.client ?? null,
       },
     });
   } catch (error) {

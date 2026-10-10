@@ -24,6 +24,10 @@ export const accountAbi = parseAbi([
   "function passkey() view returns (bytes32 x, bytes32 y)",
   "function recoveryKey() view returns (address)",
   "function pendingRecovery() view returns (address signer, Passkey passkey, uint48 executeAfter)",
+  "error Unauthorized()",
+  "error RecoveryPending()",
+  "error NoRecoveryPending()",
+  "error RecoveryNotReady(uint48 executeAfter)",
 ]);
 
 export const factoryAbi = parseAbi([
@@ -78,3 +82,12 @@ export const cancelRecoveryMessage = (wallet: Address, executeAfter: number) =>
 /** What the wallet key signs to name the recovery key that may release its shares. */
 export const bindRecoveryKeyMessage = (signer: Address, recoveryKey: Address) =>
   `Wallet key ${signer.toLowerCase()} is recovered with ${recoveryKey.toLowerCase()}.`;
+
+/**
+ * What the wallet key signs at creation: the wallet belongs to this Swissquote client. Swissquote keeps the signature
+ * as the wallet's ownership proof, the one a Travel Rule check asks for.
+ */
+export const ownershipMessage = (client: string, wallet: Address) => `Wallet ${wallet.toLowerCase()} belongs to Swissquote client ${client}.`;
+
+/** What the recovery key signs to find the wallet it restores. `at`, in seconds, keeps a logged signature from working later. */
+export const findWalletMessage = (at: number) => `Find the Swissquote Wallet this Recovery Key restores, at ${at}.`;
