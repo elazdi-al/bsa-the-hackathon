@@ -37,7 +37,7 @@ export function AddressCard() {
     <form
       onSubmit={(event) => {
         event.preventDefault();
-        if (resolved) router.push("/send-hide-my-wallet");
+        if (resolved) router.push("/send-hide-my-wallet", { transitionTypes: ["push"] });
       }}
       onClick={(event) => {
         if (!(event.target as Element).closest("button")) inputRef.current?.focus();

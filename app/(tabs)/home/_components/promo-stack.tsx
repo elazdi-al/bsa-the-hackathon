@@ -129,6 +129,7 @@ function PromoCard({ promo, children }: { promo: Promo; children: ReactNode }) {
   return promo.href ? (
     <Link
       href={promo.href}
+      transitionTypes={["push"]}
       aria-label={promo.title.join(" ")}
       className="absolute inset-0 rounded-[22px] outline-none focus-visible:ring-2 focus-visible:ring-black/20 focus-visible:ring-inset"
     >

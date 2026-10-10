@@ -13,6 +13,7 @@ export function RecentAddresses() {
           <li key={label}>
             <Link
               href="/send-hide-my-wallet"
+              transitionTypes={["push"]}
               className="mx-4 flex items-center gap-3 rounded-[24px] px-[14px] py-1.5 transition-colors duration-150 ease-out focus-visible:outline-2 focus-visible:outline-fuse-blue active:bg-black/[0.03]"
             >
               <span className="grid size-[42px] shrink-0 place-items-center rounded-full border border-black/[0.05]">

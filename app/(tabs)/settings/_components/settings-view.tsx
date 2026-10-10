@@ -80,7 +80,7 @@ function LinkRow({ Glyph, color, label, href, trailing, danger, external }: { Gl
   return external ? (
     <a href={href} className={cls}>{inner}</a>
   ) : (
-    <Link href={href} className={cls}>{inner}</Link>
+    <Link href={href} transitionTypes={danger ? undefined : ["push"]} className={cls}>{inner}</Link>
   );
 }
 
@@ -155,6 +155,7 @@ export function SettingsView() {
 
       <Link
         href="/fuse-plus"
+        transitionTypes={["push"]}
         className="mt-6 flex items-center gap-3.5 rounded-[22px] bg-black p-4 text-white outline-none transition-colors duration-150 ease-out focus-visible:ring-2 focus-visible:ring-black/20 focus-visible:ring-offset-2 active:bg-[#222]"
       >
         <span aria-hidden className="grid size-11 shrink-0 place-items-center rounded-[13px] bg-white/10">

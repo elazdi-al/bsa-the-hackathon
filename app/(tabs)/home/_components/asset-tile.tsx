@@ -3,7 +3,7 @@ import type { Tile } from "../data";
 import { BlurMoney } from "./blur-money";
 import { tileIcons } from "./icons";
 
-export const tileSurface = "rounded-[22px] border border-black/[0.035] bg-[#fafafa]";
+export const tileSurface = "rounded-[22px] border border-black/[0.035] bg-surface";
 
 export function AssetTile({ tile, index }: { tile: Tile; index: number }) {
   const Icon = tileIcons[tile.id];
@@ -21,6 +21,7 @@ export function AssetTile({ tile, index }: { tile: Tile; index: number }) {
   return tile.href ? (
     <Link
       href={tile.href}
+      transitionTypes={["push"]}
       className={`${className} outline-none transition-transform duration-150 focus-visible:ring-2 focus-visible:ring-black/20 active:scale-[0.96]`}
     >
       {body}
