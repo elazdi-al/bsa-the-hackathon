@@ -2,16 +2,41 @@
 // wallet key from A and Swissquote's B, then keeps the key in memory only: for three hours at
 // most, and never past the app closing. It builds every call itself, and before Face ID signs it
 // checks that Swissquote's operation carries that call, is sponsored, and hashes to what it signs.
+// If Swissquote's services are gone for good, it rebuilds the key from A and the partner's C and pays
+// its own gas, without asking Swissquote anything.
 import { P256, WebAuthnP256 } from "ox";
-import { bytesToHex, encodeFunctionData, erc20Abi, hexToBytes, isAddressEqual, numberToHex, parseUnits, sha256, type Address, type Hex } from "viem";
-import { formatUserOperation, getUserOperationHash, type RpcUserOperation } from "viem/account-abstraction";
+import {
+  bytesToHex,
+  createPublicClient,
+  encodeFunctionData,
+  erc20Abi,
+  hexToBytes,
+  http,
+  isAddressEqual,
+  numberToHex,
+  parseUnits,
+  sha256,
+  type Address,
+  type Hex,
+} from "viem";
+import {
+  entryPoint07Abi,
+  formatUserOperation,
+  formatUserOperationRequest,
+  getUserOperationHash,
+  type RpcUserOperation,
+  type UserOperation,
+} from "viem/account-abstraction";
 import { generatePrivateKey, privateKeyToAccount, privateKeyToAddress } from "viem/accounts";
 import {
+  ACCOUNT_GAS,
   accountAbi,
   bindRecoveryKeyMessage,
   cancelRecoveryMessage,
   encodeNormalSignature,
   encodeRecoverySignature,
+  factoryAbi,
+  type Config as AccountConfig,
   type Passkey,
   type PasskeyAssertion,
 } from "./account.ts";
@@ -33,9 +58,17 @@ type StoredShare = Share | { x: Share["x"]; iv: Hex; sealed: Hex };
 
 /**
  * What this phone keeps. Never the wallet key itself. `restoring`: this phone started a recovery of `address`
- * that hasn't handed it the wallet yet.
+ * that hasn't handed it the wallet yet. `config`: what deploys the account, so an exit can deploy it without Swissquote.
  */
-export type Device = { credentialId: string; passkey: Passkey; share: StoredShare; signer: Address; address?: Address; restoring?: boolean };
+export type Device = {
+  credentialId: string;
+  passkey: Passkey;
+  share: StoredShare;
+  signer: Address;
+  address?: Address;
+  restoring?: boolean;
+  config?: AccountConfig;
+};
 
 export type WalletState = {
   address: Address;
@@ -57,6 +90,17 @@ type Storage = Pick<globalThis.Storage, "getItem" | "setItem" | "removeItem">;
 type Config = { chainId: number; entryPoint: Address; usdc: Address };
 export type Prepared = { hash: Hex; userOp: RpcUserOperation<"0.7">; summary?: string[]; review?: ComplianceDecision; expiresAt?: string };
 
+/** What leaving without Swissquote needs, pinned in the app like `partner`: never fetched from Swissquote. */
+export type ExitRoute = {
+  rpc: string;
+  entryPoint: Address;
+  factory: Address;
+  usdc: Address;
+  /** Carries the signed operation to the EntryPoint: any account with ETH calling handleOps, or a public ERC-4337 bundler. Resolves once on-chain. */
+  submit(userOp: UserOperation<"0.7">): Promise<Hex>;
+};
+export type ExitStatus = { alive: boolean; open: boolean; closedFor: number; exitAfter: number };
+
 export class ApiError extends Error {
   status: number;
   body: Record<string, unknown>;
@@ -73,7 +117,19 @@ const DEVICE = "swissquote.wallet.device";
  * `partner` is pinned in the app build, never taken from Swissquote, so Swissquote cannot redirect
  * Share C to itself during the split.
  */
-export function createPhone({ api = "", partner, authenticator, storage }: { api?: string; partner: string; authenticator: Authenticator; storage: Storage }) {
+export function createPhone({
+  api = "",
+  partner,
+  authenticator,
+  storage,
+  exit,
+}: {
+  api?: string;
+  partner: string;
+  authenticator: Authenticator;
+  storage: Storage;
+  exit?: ExitRoute;
+}) {
   let cached: { key: Hex; expiresAt: number; timer: ReturnType<typeof setTimeout> } | undefined;
   let config: Promise<Config> | undefined;
 
@@ -159,8 +215,7 @@ export function createPhone({ api = "", partner, authenticator, storage }: { api
     const { assertion, secret } = await authenticator.sign(wallet.credentialId, prepared.hash);
     let key = cachedKey();
     if (!key) {
-      const wire = { metadata: assertion.metadata, signature: { r: numberToHex(assertion.signature.r), s: numberToHex(assertion.signature.s) } };
-      const { share } = await call<{ share: Share }>(`/api/wallets/${wallet.address}/share`, { hash: prepared.hash, assertion: wire });
+      const { share } = await call<{ share: Share }>(`/api/wallets/${wallet.address}/share`, { hash: prepared.hash, assertion: wire(assertion) });
       key = rebuild(await unseal(wallet.share, secret, wallet.signer), share, wallet.signer);
       remember(key);
     }
@@ -226,14 +281,58 @@ export function createPhone({ api = "", partner, authenticator, storage }: { api
       const d = device();
       if (!d) throw new Error("Split the wallet key first.");
       const signature = await bind(d.signer, recoveryKey);
-      const { address } = await call<{ address: Address }>("/api/wallets", { signer: d.signer, recoveryKey, signature });
-      save({ ...d, address });
-      return address;
+      const wallet = await call<{ address: Address; config: AccountConfig }>("/api/wallets", { signer: d.signer, recoveryKey, signature });
+      save({ ...d, address: wallet.address, config: wallet.config });
+      return wallet.address;
     },
 
     async sendUsdc(to: Address, amount: string): Promise<Hex> {
       const { usdc } = await getConfig();
       return approve(await prepare({ to: usdc, data: encodeFunctionData({ abi: erc20Abi, functionName: "transfer", args: [to, parseUnits(amount, 6)] }) }));
+    },
+
+    /** Whether the partner has opened the exit: Swissquote unreachable or closed for long enough. */
+    exitStatus: () => call<ExitStatus>(`${partner}/exit`),
+
+    /**
+     * Pays out with Swissquote gone: the wallet pays its own gas, the partner releases C for the operation Face ID
+     * approves, and the exit route carries it on-chain. Only the chain and the partner are asked anything.
+     */
+    async exitUsdc(to: Address, amount: string): Promise<Hex> {
+      if (!exit) throw new Error("This phone has no way out without Swissquote.");
+      const wallet = requireWallet();
+      const transfer = encodeFunctionData({ abi: erc20Abi, functionName: "transfer", args: [to, parseUnits(amount, 6)] });
+      const callData = encodeFunctionData({ abi: accountAbi, functionName: "execute", args: [exit.usdc, 0n, transfer] });
+      const client = createPublicClient({ transport: http(exit.rpc) });
+      const [chainId, code, nonce, fees] = await Promise.all([
+        client.getChainId(),
+        client.getCode({ address: wallet.address }),
+        client.readContract({ address: exit.entryPoint, abi: entryPoint07Abi, functionName: "getNonce", args: [wallet.address, 0n] }),
+        client.estimateFeesPerGas(),
+      ]);
+      if (!code && !wallet.config) throw new Error("This phone can't deploy the wallet. It has no record of its setup.");
+      const userOp: UserOperation<"0.7"> = {
+        sender: wallet.address,
+        nonce,
+        callData,
+        ...(code
+          ? {}
+          : { factory: exit.factory, factoryData: encodeFunctionData({ abi: factoryAbi, functionName: "createAccount", args: [wallet.config!, 0n] }) }),
+        ...ACCOUNT_GAS,
+        maxFeePerGas: fees.maxFeePerGas,
+        maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
+        signature: "0x",
+      };
+      const hash = getUserOperationHash({ chainId, entryPointAddress: exit.entryPoint, entryPointVersion: "0.7", userOperation: userOp });
+      const { assertion, secret } = await authenticator.sign(wallet.credentialId, hash);
+      let key = cachedKey();
+      if (!key) {
+        const { share } = await call<{ share: Share }>(`${partner}/exit`, { userOp: formatUserOperationRequest(userOp), assertion: wire(assertion) });
+        key = rebuild(await unseal(wallet.share, secret, wallet.signer), share, wallet.signer);
+        remember(key);
+      }
+      const signature = encodeNormalSignature(await privateKeyToAccount(key).sign({ hash }), assertion);
+      return exit.submit({ ...userOp, signature });
     },
 
     /** This phone still controls the wallet: it cancels a recovery someone started. */
@@ -309,6 +408,9 @@ async function unseal(stored: StoredShare, secret: Uint8Array | undefined, signe
   const params = { name: "AES-GCM", iv: bytes(stored.iv), additionalData: aad(signer) };
   return { x: stored.x, y: bytesToHex(new Uint8Array(await crypto.subtle.decrypt(params, await aesKey(secret), bytes(stored.sealed)))) };
 }
+
+// JSON has no bigint, so the assertion's r and s travel as hex.
+const wire = ({ metadata, signature }: PasskeyAssertion) => ({ metadata, signature: { r: numberToHex(signature.r), s: numberToHex(signature.s) } });
 
 /** Any two shares rebuild the wallet key, checked against the address the account expects. */
 function rebuild(first: Share, second: Share, signer: Address): Hex {

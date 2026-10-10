@@ -2,14 +2,16 @@
 // saved in data/accounts/<name>.json with its passkey, Recovery Key and device record.
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
+import { setTimeout as sleep } from "node:timers/promises";
 import { P256 } from "ox";
-import { BaseError, erc20Abi, formatEther, formatUnits, HttpRequestError, isAddress, isAddressEqual, numberToHex, type Address, type Hex } from "viem";
+import { BaseError, erc20Abi, formatEther, formatUnits, HttpRequestError, isAddress, isAddressEqual, numberToHex, parseEther, type Address, type Hex } from "viem";
 import { entryPoint07Abi } from "viem/account-abstraction";
 import { generatePrivateKey, privateKeyToAddress } from "viem/accounts";
 import { foundry } from "viem/chains";
 import { addresses, chain, credentials, partnerUrl, pendingRecovery, publicClient } from "../lib/wallet/env.ts";
 import { ApiError, readRecoveryKey, RECOVERY_FILE, type Device } from "../lib/wallet/phone.ts";
-import { APP, mintUsdc, newPhone } from "./software-phone.ts";
+import { setSunset } from "../lib/wallet/sunset.ts";
+import { APP, mintUsdc, newPhone, sendEth } from "./software-phone.ts";
 
 type AccountFile = { passkey: Hex; recoveryKey: Hex; device: Device | null };
 type Role = "active" | "recovering" | "inactive";
@@ -341,6 +343,59 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
       await publicClient.request({ method: "evm_mine", params: [] } as never);
       const { time } = await chainClock();
       console.log(`Chain time is now ${when(time)}, ${drift(time)}.`);
+    },
+  },
+
+  sunset: {
+    usage: "sunset [on|off]",
+    about: "Close Swissquote's services, as if gone for good, or run them again.",
+    async run([state = "on"]) {
+      if (state !== "on" && state !== "off") throw new Error(`${state} is not on or off.`);
+      setSunset(state === "on");
+      console.log(state === "on" ? "Swissquote's services are closed until npm run sunset off." : "Swissquote's services are running again.");
+    },
+  },
+
+  exit: {
+    usage: "exit <account> <to> [amount=all]",
+    about: "Send USDC without Swissquote, once its services have been closed long enough.",
+    async run([name, toArg, amount = "all"]) {
+      if (amount !== "all") usdcAmount(amount);
+      const { phone } = loadAccount(name);
+      const wallet = walletOf(name);
+      const to = walletOf(toArg);
+      let status = await phone.exitStatus();
+      if (!status.alive && !status.open) {
+        const left = status.exitAfter - status.closedFor;
+        if (left > 60) throw new Error(`Swissquote's services have been closed for ${duration(status.closedFor)}. The exit opens in ${duration(left)}.`);
+        console.log(`Swissquote's services have been closed for ${status.closedFor} s. The exit opens in ${left} s.`);
+        while (!status.alive && !status.open) {
+          await sleep(1000);
+          status = await phone.exitStatus();
+        }
+      }
+      if (status.alive) throw new Error("Swissquote's services are running. Pay with npm run send, or close them with npm run sunset.");
+      if (amount === "all") {
+        const balance = await usdcOf(wallet);
+        if (!balance) throw new Error(`${name}'s wallet holds no USDC.`);
+        amount = formatUnits(balance, 6);
+      }
+      if ((await publicClient.getBalance({ address: wallet })) < parseEther("0.005")) {
+        await sendEth(wallet, "0.01");
+        console.log("Sent 0.01 ETH to the wallet for gas. The client would send it from any exchange.");
+      }
+      const hash = await phone.exitUsdc(to, amount);
+      const [fromBalance, toBalance] = await Promise.all([usdcOf(wallet), usdcOf(to)]);
+      console.log(
+        table(
+          [
+            ["Transaction", hash],
+            [name, usdc(fromBalance)],
+            [toArg, usdc(toBalance)],
+          ],
+          "",
+        ),
+      );
     },
   },
 };

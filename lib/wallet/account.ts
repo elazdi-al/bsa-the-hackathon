@@ -1,4 +1,4 @@
-// SwissquoteAccount ABIs and signature encoding, shared by the phone, the Wallet API and the partner.
+// SwissquoteAccount ABIs, gas limits and signature encoding, shared by the phone, the Wallet API and the partner.
 import type { WebAuthnP256 } from "ox";
 import { concat, encodeAbiParameters, numberToHex, parseAbi, parseAbiParameter, type Address, type Hex } from "viem";
 
@@ -36,6 +36,10 @@ export const paymasterAbi = parseAbi([
   "struct PackedUserOperation { address sender; uint256 nonce; bytes initCode; bytes callData; bytes32 accountGasLimits; uint256 preVerificationGas; bytes32 gasFees; bytes paymasterAndData; bytes signature; }",
   "function getHash(PackedUserOperation userOp, uint48 validUntil, uint48 validAfter) view returns (bytes32)",
 ]);
+
+// ponytail: fixed limits sized for a first operation that deploys the account plus a token
+// transfer with on-chain P-256 verification; estimate per operation once dApp calls need more.
+export const ACCOUNT_GAS = { callGasLimit: 300_000n, verificationGasLimit: 1_000_000n, preVerificationGas: 50_000n };
 
 const webAuthnAuth = parseAbiParameter(
   "(bytes32 r, bytes32 s, uint256 challengeIndex, uint256 typeIndex, bytes authenticatorData, string clientDataJSON)",

@@ -12,6 +12,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { connect } from "node:net";
 import { parseEnv } from "node:util";
 import { privateKeyToAddress } from "viem/accounts";
+import { setSunset } from "../lib/wallet/sunset.ts";
 import { localDappPolicy } from "../services/dapps/local-policy.ts";
 
 const ports = {
@@ -105,6 +106,8 @@ if (!resume) {
   rmSync("data", { recursive: true, force: true });
   mkdirSync("data");
 }
+// A resumed --prod run keeps data/, and with it a sunset left on last time.
+setSunset(false);
 
 console.log(`Starting anvil on ${RPC_URL}`);
 run("anvil", "anvil", ["--silent", "--port", String(ports.anvil.port), ...(prod ? ["--state", STATE, "--state-interval", "5"] : [])]);
@@ -139,6 +142,8 @@ const env = {
   PARTNER_URL,
   NEXT_PUBLIC_PARTNER_URL: process.env.PUBLIC_PARTNER_URL ?? PARTNER_URL,
   APP_URL,
+  // Seconds Swissquote must stay closed before the partner opens the exit. Production waits 30 days.
+  EXIT_AFTER: "5",
   COMPLIANCE_MODE: "demo",
   COMPLIANCE_POLICY_FILE: POLICY_FILE,
 };
@@ -177,6 +182,8 @@ Swissquote Wallet is running. Open ${APP_URL}/onboarding-welcome
   npm run finish <account>           finish a recovery after the 48 hours
   npm run cancel <account>           cancel a recovery with the Recovery Key
   npm run warp [hours]               move chain time ahead (default 48)
+  npm run sunset [on|off]            close Swissquote's services, or run them again (default on)
+  npm run exit <from> <to> [amount]  send USDC without Swissquote once it is closed (default all)
 
 Ctrl-C stops everything.
 `);

@@ -4,6 +4,8 @@ const app = process.env.CAPACITOR === "1";
 
 const nextConfig: NextConfig = {
   devIndicators: false,
+  // The independent service probes /api/config to tell whether Swissquote is up; that would fill next dev's log.
+  logging: { incomingRequests: { ignore: [/^\/api\/config$/] } },
   turbopack: {
     rules: {
       "*.css": {
