@@ -1,6 +1,6 @@
 # Shamir key sharing and wallet recovery
 
-This guide explains Fuse's 2-of-3 key sharing, payment authorization, and lost-device recovery. It follows the merged implementation in this repository. [protocol.md](../protocol.md) is the protocol specification and takes precedence if the implementation differs.
+This guide explains Swissquote Wallet's 2-of-3 key sharing, payment authorization, and lost-device recovery. It follows the merged implementation in this repository. [protocol.md](../protocol.md) is the protocol specification and takes precedence if the implementation differs.
 
 The central rule is that rebuilding the wallet key does not, by itself, authorize a payment. The smart account requires a second signature: the user's passkey for a payment, or the user's separate Recovery Key for starting recovery.
 
@@ -135,7 +135,9 @@ The passkey then approves that exact hash. If the Wallet Key is absent from the 
 
 The account accepts `MODE_NORMAL` only when both the Wallet Key signature and WebAuthn assertion validate. Normal mode cannot directly start recovery. The contract sees signatures and registered public keys, not Shamir shares or which two holders supplied them.
 
-Swissquote submits through EntryPoint v0.7 and sponsors gas using its paymaster. The merged backend performs submission itself; this path does not require an external bundler.
+Swissquote submits through EntryPoint v0.7 and sponsors gas using its paymaster. The backend performs submission itself; this path does not require an external bundler.
+
+A payment above 1,000 USDC follows the same signing path, but Swissquote releases it 24 hours later in chain time, after running compliance again. The client can cancel it until then. These are Swissquote's assistance rules; the account itself enforces only the signatures. <!-- verify: track/stepup -->
 
 ### The key cache
 
@@ -151,9 +153,9 @@ The required inputs are the Recovery Key kept at home, Swissquote's assistance, 
 
 ### 1. Prepare the new device
 
-The user loads or pastes the saved Recovery Key file into `/pending-verification`. The new device creates a new passkey and splits a fresh Wallet Key into A', B', and C'. The new shares are stored with their respective holders, and the new Wallet Key binds them to the existing Recovery Key's address.
+The user loads or pastes the saved Recovery Key file into `/recover`. The new device creates a new passkey and splits a fresh Wallet Key into A', B', and C'. The new shares are stored with their respective holders, and the new Wallet Key binds them to the existing Recovery Key's address.
 
-The app also collects an identity-check step. This is mocked in the current build: the API accepts nonempty document and selfie strings rather than performing bank KYC or liveness verification.
+The app also runs an identity check. It is mocked: **Scan ID** sends fixed document and selfie strings, which Swissquote matches against the client's mocked KYC record. There is no real document scan or liveness check. <!-- verify: track/identity -->
 
 ### 2. Prepare the recovery operation
 
@@ -248,15 +250,16 @@ The recovered phone uses A' plus B' for subsequent payments. Old shares may stil
 | Old phone with usable passkey and shares or cached key | Can make normal payments and cancel pending recovery until replacement credentials take effect |
 | Swissquote guardian | Can cancel a pending recovery, but this guardian permission does not grant normal spending authority |
 | Any finalizer after the deadline | Can install the already-authorized pending credentials; cannot choose new ones |
+| The partner in exit mode, after Swissquote is gone for 30 days | Releases C only for a normal operation the account's passkey approved; the phone still needs A and the passkey to sign <!-- verify: track/exit --> |
 
-Availability is a separate issue from signing authority. Swissquote can refuse B, sponsorship, or submission, and the partner can refuse C. Swissquote can also prevent recovery by cancelling as guardian. The contract does not freeze assets when a service refuses assistance, but the app provides no general alternative path around unavailable holders.
+Availability is a separate issue from signing authority. Swissquote can refuse B, sponsorship, or submission, and the partner can refuse C. Swissquote can also prevent recovery by cancelling as guardian. The contract does not freeze assets when a service refuses assistance. The one path around an unavailable holder is exit mode. If Swissquote's services are gone for 30 days, the partner releases C for a normal operation approved by the account's on-chain passkey, and the phone rebuilds the key from A and C and submits to the EntryPoint itself, paying its own gas. Exit mode does not cover a running Swissquote that refuses one client, or a phone lost while Swissquote is gone. <!-- verify: track/exit -->
 
 ## Storage and current implementation limits
 
 - With WebAuthn PRF support, Share A is AES-GCM sealed under the passkey-derived secret and bound to the signer address. Without PRF, `phone.ts` currently stores A unsealed in browser storage. The passkey requirement for on-chain payments remains, but local share confidentiality is weaker.
 - Swissquote and the partner store their shares in separate SQLite vaults, AES-GCM sealed under separate environment-provided keys. These are software vaults, not HSMs.
 - The saved Recovery Key file contains a private signing key. The app sends its public address and signatures to the holders, rather than deliberately uploading the private key. Recovery temporarily loads that secret on the new device to sign.
-- The identity step is a demonstration, not a real identity check. Possession of the Recovery Key can therefore be sufficient to attempt the assisted flow in this build when both holders are available. The second signature and 48-hour contract delay still apply.
+- The identity step is a demonstration, not a real identity check. It matches fixed strings against a mocked KYC record, so it shows the gate, not identity assurance. The second signature and the 48-hour contract delay still apply. <!-- verify: track/identity -->
 - A stolen, usable passkey and signing material can authorize normal payments while the old credentials remain active, including during a pending recovery. Recovery is not a freeze.
 - If A is lost and B or C is unavailable, the implemented recovery path cannot reconstruct the old Wallet Key. Losing the Recovery Key as well also removes the implemented authorization path.
 - A malicious app or compromised new device can access reconstructed keys or the loaded Recovery Key. Share distribution does not protect secrets from the runtime that reconstructs and uses them.
