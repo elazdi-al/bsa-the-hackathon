@@ -114,6 +114,15 @@ assert.equal(await usdcOf(FRIEND), parseUnits("20", 6));
 console.log("3. 1,500 USDC is held for 24 hours: the client sees when it leaves, then cancels it from Home with Face ID");
 await swissquote.writeContract({ address: addresses.usdc, abi: parseAbi(["function mint(address, uint256)"]), functionName: "mint", args: [wallet, parseUnits("3000", 6)] });
 const held = await schedule(phone1, FRIEND, "1500");
+console.log("   Send counts the 1,500 USDC as spoken for: 1,580 of the wallet's 3,080 is available");
+await phone1.goto(`${APP}/send?to=${FRIEND}`);
+await phone1.getByText("$1,580.00 available").waitFor(SLOW);
+await phone1.getByLabel("Amount in USDC").fill("1600");
+await phone1.getByText("Only $1,580.00 available.").waitFor(SLOW);
+assert.ok(await phone1.getByRole("button", { name: "Continue" }).isDisabled());
+// Home reopens the recipient chooser with the send left half-way; the client closes it.
+await phone1.goto(`${APP}/home`);
+await phone1.getByRole("button", { name: "Close" }).click(SLOW);
 await held.getByRole("button", { name: "Cancel payment" }).click(SLOW);
 await held.waitFor({ state: "detached", ...SLOW });
 assert.equal(await usdcOf(FRIEND), parseUnits("20", 6));

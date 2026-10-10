@@ -2,7 +2,7 @@ import type { Address } from "viem";
 import * as z from "zod";
 import { requestSchema } from "@/lib/compliance/schema";
 import { parse, route } from "@/lib/wallet/api/http.ts";
-import { assist, prepare, requireWallet } from "@/lib/wallet/api/operations.ts";
+import { assist, prepare, requireAvailable, requireWallet } from "@/lib/wallet/api/operations.ts";
 import { hex } from "@/lib/wallet/schema.ts";
 
 /**
@@ -13,5 +13,6 @@ export const POST = route(async (request: Request, ctx: RouteContext<"/api/walle
   const wallet = requireWallet((await ctx.params).address as Address);
   const { callData, dapp } = await parse(request, z.object({ callData: hex, dapp: requestSchema.shape.dapp }).strict());
   const { summary, hold, review } = await assist(wallet, callData, dapp);
+  await requireAvailable(wallet, callData);
   return Response.json({ ...(await prepare(wallet, "normal", callData, hold, review?.expiresAt)), summary, review }, { headers: { "cache-control": "no-store" } });
 });

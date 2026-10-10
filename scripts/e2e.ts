@@ -105,13 +105,11 @@ await phone.sendUsdc(ANNA, "1");
 await phone.sendUsdc(ANNA, "1");
 assert.equal(shareRequests.length, 1, "B is fetched once, then the rebuilt key is reused");
 
-console.log("4. Swissquote refuses to sponsor a sanctioned recipient or more than the 10,000 USDC cap");
-await mintUsdc(wallet, "15000");
-for (const [to, amount] of [[SANCTIONED, "1"], [ANNA, "10001"]] as const) {
-  const { decision } = (await refused(phone.sendUsdc(to, amount), 403)) as { decision: { status: string; reasons: string[] } };
-  assert.equal(decision.status, "DENY_ASSISTANCE");
-  console.log(`   ${amount} USDC: ${decision.status}, ${decision.reasons.join(" ")}`);
-}
+console.log("4. Swissquote refuses to sponsor a sanctioned recipient");
+await mintUsdc(wallet, "3000");
+const sanctioned = (await refused(phone.sendUsdc(SANCTIONED, "1"), 403)) as { decision: { status: string; reasons: string[] } };
+assert.equal(sanctioned.decision.status, "DENY_ASSISTANCE");
+console.log(`   1 USDC: ${sanctioned.decision.status}, ${sanctioned.decision.reasons.join(" ")}`);
 
 console.log("5. Over 1,000 USDC: one Face ID, then Swissquote holds it for 24 hours, and the EntryPoint refuses it sooner");
 const { usdc } = await phone.config();
@@ -129,6 +127,11 @@ const early = publicClient.simulateContract({
   blockTag: "pending",
 });
 await assert.rejects(early, /AA32 paymaster expired or not due/, "the signed payment can't go on-chain before its release, whoever submits it");
+console.log("   the 2,000 USDC held isn't available: of the wallet's 3,078 USDC, a payment of 1,100 is refused");
+assert.equal(
+  ((await refused(phone.sendUsdc(ANNA, "1100"), 403)) as { error: string }).error,
+  "Only 1,078 USDC is available. 2,000 USDC is set aside for payments that haven't left yet.",
+);
 
 console.log("6. A small payment meanwhile leaves at once: the held one has a nonce key of its own");
 assert.ok("transactionHash" in (await phone.sendUsdc(ANNA, "1")));
@@ -154,10 +157,13 @@ assert.deepEqual((await phone.state()).held, []);
 assert.equal(await usdcOf(ANNA), before + parseUnits("2000", 6));
 await refused(phone.cancelPayment(third.hash), 404);
 
-console.log("10. The daily limit counts it: 3,500 USDC more today is refused");
-const { decision } = (await refused(phone.sendUsdc(ANNA, "3500"), 403)) as { decision: { status: string; reasons: string[] } };
-assert.equal(decision.status, "DENY_ASSISTANCE");
-console.log(`   3500 USDC: ${decision.status}, ${decision.reasons.join(" ")}`);
+console.log("10. The daily limit counts it: 3,500 USDC more today is refused, as is anything over the 10,000 USDC cap");
+await mintUsdc(wallet, "15000");
+for (const amount of ["3500", "10001"]) {
+  const { decision } = (await refused(phone.sendUsdc(ANNA, amount), 403)) as { decision: { status: string; reasons: string[] } };
+  assert.equal(decision.status, "DENY_ASSISTANCE");
+  console.log(`   ${amount} USDC: ${decision.status}, ${decision.reasons.join(" ")}`);
+}
 
 console.log("11. An attacker with the stolen phone and the email inbox is stopped at every step");
 await attack({ phone: structuredClone(phone.device()!), homeKey: recoveryKey.secret });
@@ -270,14 +276,14 @@ const apiBefore = apiRequests.length;
 newOne.forgetKey();
 await newOne.exitUsdc(ANNA, formatUnits(await usdcOf(wallet), 6));
 assert.equal(await usdcOf(wallet), 0n, "the whole balance left the wallet");
-assert.equal(await usdcOf(ANNA), parseUnits("15100", 6), "everything the wallet was ever given reached Anna");
+assert.equal(await usdcOf(ANNA), parseUnits("18100", 6), "everything the wallet was ever given reached Anna");
 assert.equal(exitRequests.length, exitsBefore + 1, "one Face ID, one request for Share C");
 assert.equal(await isDeployed(freshWallet), false, "a wallet that never paid has no account on-chain yet");
 await sendEth(freshWallet, "0.01");
 fresh.forgetKey();
 await fresh.exitUsdc(ANNA, "10");
 assert.ok(await isDeployed(freshWallet), "the exit deploys the account on the way out");
-assert.equal(await usdcOf(ANNA), parseUnits("15110", 6));
+assert.equal(await usdcOf(ANNA), parseUnits("18110", 6));
 assert.equal(exitRequests.length, exitsBefore + 2, "the partner checked the deploying operation's config before releasing C");
 assert.deepEqual(apiRequests.slice(apiBefore), [], "neither exit called Swissquote's API");
 setSunset(false);

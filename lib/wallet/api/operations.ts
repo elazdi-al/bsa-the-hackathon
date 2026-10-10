@@ -10,6 +10,7 @@ import {
   decodeFunctionData,
   encodeFunctionData,
   erc20Abi,
+  formatUnits,
   http,
   isAddressEqual,
   parseEventLogs,
@@ -267,15 +268,35 @@ export async function hold(wallet: Wallet, hash: Hex, userOp: UserOperation<"0.7
   return { hash, releaseAt: validAfter };
 }
 
+/** The USDC transfer an `execute` carries, if that is what it is. Every held payment is one. */
+function transferOf(callData: Hex) {
+  const [to, , data] = decodeFunctionData({ abi: accountAbi, data: callData }).args as readonly [Address, bigint, Hex];
+  if (!isAddressEqual(to, addresses.usdc)) return;
+  const call = decodeFunctionData({ abi: erc20Abi, data });
+  return call.functionName === "transfer" ? { to: call.args[0], value: call.args[1] } : undefined;
+}
+
 /** A held payment as the client sees it: who it pays, how much, and when it leaves. */
 export function heldPayments(wallet: Wallet) {
   return store()
     .held(wallet.address)
     .map(({ hash, userOp, releaseAt, stopped }) => {
-      const [, , data] = decodeFunctionData({ abi: accountAbi, data: userOp.callData }).args as readonly [Address, bigint, Hex];
-      const [to, value] = decodeFunctionData({ abi: erc20Abi, data }).args as readonly [Address, bigint];
+      const { to, value } = transferOf(userOp.callData)!;
       return { hash, to, value: value.toString(), releaseAt, stopped };
     });
+}
+
+const usdcAmount = (units: bigint) => new Intl.NumberFormat("en-US").format(Number(formatUnits(units, 6)));
+
+/** Money a held payment will take when it leaves is not available to a new one. */
+export async function requireAvailable(wallet: Wallet, callData: Hex) {
+  const held = heldPayments(wallet).filter((p) => !p.stopped).reduce((sum, p) => sum + BigInt(p.value), 0n);
+  const transfer = held ? transferOf(callData) : undefined;
+  if (!transfer) return;
+  const balance = await publicClient.readContract({ address: addresses.usdc, abi: erc20Abi, functionName: "balanceOf", args: [wallet.address] });
+  if (transfer.value > balance - held) {
+    throw new HttpError(403, `Only ${usdcAmount(balance - held)} USDC is available. ${usdcAmount(held)} USDC is set aside for payments that haven't left yet.`);
+  }
 }
 
 // Payments mid-release, so a cancel can't race one already on its way.

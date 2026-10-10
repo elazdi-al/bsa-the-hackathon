@@ -3,10 +3,10 @@
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { encodeFunctionData, erc20Abi, parseUnits, type Address } from "viem";
+import { encodeFunctionData, erc20Abi, formatUnits, parseUnits, type Address } from "viem";
 import { grouped, retyped } from "@/app/(tabs)/_components/amount";
 import { usd } from "@/app/(tabs)/_components/money";
-import { phoneDate, refreshWallet, useWallet, type WalletSnapshot } from "@/app/(tabs)/_components/wallet";
+import { phoneDate, refreshWallet, useWallet, type Wallet, type WalletSnapshot } from "@/app/(tabs)/_components/wallet";
 import { recipientFor, sendDraft } from "@/app/choose-recipient/data";
 import { ClockIcon, WalletIcon } from "@/components/icons";
 import { useBack } from "@/components/navigation";
@@ -26,16 +26,19 @@ const UNAVAILABLE: Record<Exclude<WalletSnapshot["status"], "ready">, string> = 
   offline: "Can't reach Swissquote. Check your connection.",
 };
 
+/** What a new payment may spend: the balance less what held payments take when they leave. */
+const available = ({ usdc, held }: Wallet) => usdc - held.filter((p) => !p.stopped).reduce((sum, p) => sum + Number(formatUnits(BigInt(p.value), 6)), 0);
+
 /** What stops Continue and Send, as a calm line; "" holds them without a word while the wallet loads, undefined lets them run. */
 function blocker(snapshot: WalletSnapshot, amount: number): string | undefined {
   if (snapshot.status !== "ready") return UNAVAILABLE[snapshot.status];
-  const { controls, locked, recovery, restoring, usdc } = snapshot.wallet;
+  const { controls, locked, recovery, restoring } = snapshot.wallet;
   if (!controls) {
     if (recovery?.mine) return "You can send once your wallet is restored on this phone.";
     return restoring ? "Your recovery was cancelled, so this phone can't send yet." : "Your wallet moved to another phone, so this one can't send from it.";
   }
   if (locked) return "Swissquote locked this phone after it was reported lost.";
-  if (amount > usdc) return `Only ${usd.format(usdc)} available.`;
+  if (amount > available(snapshot.wallet)) return `Only ${usd.format(available(snapshot.wallet))} available.`;
 }
 
 /** Swissquote's refusal and its reasons, a known failure in plain words, or the error as is. */
@@ -183,7 +186,7 @@ function Review({ to, address, children }: { to: string; address: Address; child
           </label>
           {/* One line tall whatever it says: a blocker that wraps spills into the padding below, so nothing moves. */}
           <p className="mt-2 h-lh text-body text-balance text-muted-foreground tabular-nums">
-            {blocked ?? (snapshot.status === "ready" && `${usd.format(snapshot.wallet.usdc)} available`)}
+            {blocked ?? (snapshot.status === "ready" && `${usd.format(available(snapshot.wallet))} available`)}
           </p>
         </div>
 
