@@ -1,10 +1,10 @@
 // The protocol end to end against `npm run local`, with phones simulated in Node through the
 // app's own phone module: create a wallet, send, get refused, lose the phone, cancel recoveries
-// both ways, recover after the 48-hour delay and send from the new phone.
+// both ways, have Swissquote lock the stolen phone, recover after the 48-hour delay and send from the new phone.
 //
 //   npm run e2e
 import assert from "node:assert/strict";
-import { erc20Abi, formatUnits, numberToHex, parseUnits, type Address } from "viem";
+import { encodeFunctionData, erc20Abi, formatUnits, numberToHex, parseUnits, type Address } from "viem";
 import { generatePrivateKey, privateKeyToAccount, privateKeyToAddress } from "viem/accounts";
 import { bindRecoveryKeyMessage } from "../lib/wallet/account.ts";
 import { addresses, publicClient } from "../lib/wallet/env.ts";
@@ -80,12 +80,31 @@ console.log("6. The old phone cancels it from the app (passkey + key)");
 await phone.cancelRecovery();
 assert.equal((await phone.state()).pendingRecovery, null);
 
-console.log("7. Started again, Swissquote cancels it for the client as guardian");
+console.log("7. The client reports the old phone stolen: Swissquote locks its credentials");
+const setLock = (method: "POST" | "DELETE") =>
+  realFetch(`${APP}/api/wallets/${wallet}/lock`, { method, headers: { "content-type": "application/json" }, body: JSON.stringify({ identity }) });
+const { usdc } = await phone.config();
+const prepared = await phone.prepare({ to: usdc, data: encodeFunctionData({ abi: erc20Abi, functionName: "transfer", args: [ANNA, parseUnits("1", 6)] }) });
+assert.equal((await setLock("POST")).status, 200, "locked");
+assert.equal((await phone.state()).locked, true);
+await refused(phone.sendUsdc(ANNA, "1"), 423);
+const shares = shareRequests.length;
+await refused(phone.approve(prepared), 423);
+assert.equal(shareRequests.length, shares, "the cached key signed; submission refused it");
+phone.forgetKey();
+await refused(phone.approve(prepared), 423);
+assert.equal(shareRequests.length, shares + 1, "Share B refused it");
+assert.equal((await setLock("DELETE")).status, 200, "unlocked");
+await phone.sendUsdc(ANNA, "1");
+assert.equal((await setLock("POST")).status, 200, "locked again");
+
+console.log("8. Started again: the locked phone can't cancel it, Swissquote still cancels it as guardian");
 await newOne.startRecovery(recoveryKey.secret, identity);
+await refused(phone.cancelRecovery(), 423);
 await newOne.cancelRecoveryWithSwissquote(recoveryKey.secret);
 assert.equal((await newOne.state()).pendingRecovery, null);
 
-console.log("8. Started again: finalizing before 48 hours fails, after it succeeds");
+console.log("9. Started again: finalizing before 48 hours fails, after it succeeds");
 await newOne.startRecovery(recoveryKey.secret, identity);
 await refused(newOne.finalizeRecovery(), 409);
 await publicClient.request({ method: "evm_increaseTime", params: [numberToHex(48 * 3600)] } as never);
@@ -95,9 +114,13 @@ const state = await newOne.state();
 assert.equal(state.signer, newOne.device()!.signer);
 assert.equal(state.address, wallet);
 
-console.log("9. New phone sends 5 USDC from the same address; the old phone's credentials are dead");
+console.log("10. The new phone sends 5 USDC with no unlock; the old credentials stay dead");
 await newOne.sendUsdc(ANNA, "5");
 await refused(phone.sendUsdc(ANNA, "1"), 422);
+phone.forgetKey();
+await refused(phone.sendUsdc(ANNA, "1"), 403);
+assert.equal((await phone.state()).locked, false, "the lock on the old credentials no longer applies");
+assert.equal((await newOne.state()).locked, false);
 console.log(`   Anna has ${formatUnits(await usdcOf(ANNA), 6)} USDC, the wallet ${formatUnits(await usdcOf(wallet), 6)} USDC`);
-assert.equal(await usdcOf(ANNA), parseUnits("27", 6));
+assert.equal(await usdcOf(ANNA), parseUnits("28", 6));
 console.log("All good.");
