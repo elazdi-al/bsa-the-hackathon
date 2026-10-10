@@ -39,11 +39,16 @@ export type WalletState = {
   recoveryKey: Address;
   usdc: string;
   pendingRecovery: { signer: Address; executeAfter: number } | null;
+  /** The chain's time when read, in seconds. A local chain can run ahead of this phone's clock. */
+  chainTime: number;
 };
+
+/** A USDC transfer in or out of the wallet. `value` is in base units. */
+export type Transfer = { hash: Hex; from: Address; to: Address; value: string; timestamp: number };
 
 export type Identity = { document: string; selfie: string };
 
-type Storage = Pick<globalThis.Storage, "getItem" | "setItem">;
+type Storage = Pick<globalThis.Storage, "getItem" | "setItem" | "removeItem">;
 type Config = { chainId: number; entryPoint: Address; usdc: Address };
 export type Prepared = { hash: Hex; userOp: RpcUserOperation<"0.7">; summary?: string[] };
 
@@ -163,6 +168,13 @@ export function createPhone({ api = "", partner, authenticator, storage }: { api
     approve,
     hasWallet: () => !!device()?.address,
     state: () => call<WalletState>(`/api/wallets/${requireWallet().address}`),
+    activity: () => call<{ transfers: Transfer[] }>(`/api/wallets/${requireWallet().address}/activity`).then((r) => r.transfers),
+
+    /** Removes the wallet from this phone: Share A, the passkey's record and the cached key. The wallet itself stays on-chain. */
+    forget() {
+      forgetKey();
+      storage.removeItem(DEVICE);
+    },
 
     /** Face ID creates the passkey that approves every payment. */
     // A unique name gives a unique WebAuthn user id, so a recovery passkey never replaces an older one on the same device.
@@ -303,5 +315,6 @@ export const phone = createPhone({
   storage: {
     getItem: (key) => localStorage.getItem(key),
     setItem: (key, value) => localStorage.setItem(key, value),
+    removeItem: (key) => localStorage.removeItem(key),
   },
 });

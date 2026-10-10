@@ -37,7 +37,7 @@ The wallet key is a secp256k1 key split 2-of-3 with Shamir secret sharing. Share
 
 - `POST /api/shares` stores Share B and gives the phone a signed ticket for the independent service.
 - `POST /api/wallets` registers a wallet. The wallet key must sign the Recovery Key binding.
-- `GET /api/wallets/:address` reads a wallet. `GET /api/config` returns the chain ID and the EntryPoint and USDC addresses.
+- `GET /api/wallets/:address` reads a wallet: its keys, USDC balance, any pending recovery and the chain's time. `GET /api/wallets/:address/activity` lists its USDC transfers. `GET /api/config` returns the chain ID and the EntryPoint and USDC addresses.
 - `POST /api/wallets/:address/operations` runs compliance and sponsorship for a call.
 - `POST /api/wallets/:address/share` releases Share B for a passkey-approved operation.
 - `POST /api/wallets/:address/operations/:hash` submits the signed operation.
@@ -51,9 +51,10 @@ The wallet key is a secp256k1 key split 2-of-3 with Shamir secret sharing. Share
 **App** (Next.js 16).
 
 - Create: `/onboarding-welcome`, then `/onboarding-secure`. Creates the passkey, splits the wallet key, saves the Recovery Key file and registers the wallet.
-- Home: the real address and USDC balance. On the old phone, a pending recovery shows an alert with Cancel.
+- Home, History, Receive and Settings read one shared wallet store (`app/(tabs)/_components/wallet.ts`). It refreshes every few seconds and when the app regains focus, so a payment, a recovery started elsewhere or a warped chain shows without a reload. Cash and its activity are real; Investments, Earn, Card, Swap and Swissquote Plus are demo data.
+- Home: the real balance. On the old phone a pending recovery shows an alert with Cancel; a wallet recovered elsewhere, or one the chain no longer knows, offers to remove it from the phone.
 - Send: `/choose-recipient`, `/send`, `/transaction-tracking`.
-- Recover: `/recover`. Loads the Recovery Key file, runs the mocked ID check, creates a new passkey and split, then shows the 48-hour countdown with Finish and Cancel.
+- Recover: `/recover`. Loads the Recovery Key file, runs the mocked ID check, creates a new passkey and split, then counts down the 48-hour hold in chain time, with Finish and Cancel.
 
 ## Threat model
 

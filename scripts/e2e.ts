@@ -35,7 +35,7 @@ function newPhone() {
     api: API,
     partner: process.env.PARTNER_URL ?? "http://localhost:4002",
     authenticator: softwareAuthenticator(),
-    storage: { getItem: (k) => items.get(k) ?? null, setItem: (k, v) => void items.set(k, v) },
+    storage: { getItem: (k) => items.get(k) ?? null, setItem: (k, v) => void items.set(k, v), removeItem: (k) => void items.delete(k) },
   });
 }
 

@@ -198,7 +198,8 @@ export function submit(userOp: UserOperation<"0.7">, signature: Hex): Promise<He
 export function callAccount(wallet: Address, functionName: "cancelRecovery" | "finalizeRecovery"): Promise<Hex> {
   return serialize(async () => {
     const { request } = await publicClient
-      .simulateContract({ account: swissquote(), address: wallet, abi: accountAbi, functionName })
+      // Against the pending block: the delay is measured in chain time, which the latest block of an idle local chain lags.
+      .simulateContract({ account: swissquote(), address: wallet, abi: accountAbi, functionName, blockTag: "pending" })
       .catch((error: unknown) => {
         throw new HttpError(409, functionName === "finalizeRecovery" ? "The recovery can't be finalized yet." : "There is no recovery to cancel.", {
           detail: revertReason(error),

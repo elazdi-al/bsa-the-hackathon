@@ -50,6 +50,9 @@ export async function credentials(wallet: Address, initial: () => Credentials | 
   return { signer, passkey: { x, y }, recoveryKey };
 }
 
+/** The chain's time now, in seconds. The pending block's: a local chain mines only on demand, so its latest block can be minutes old. */
+export const chainNow = async () => Number((await publicClient.getBlock({ blockTag: "pending" })).timestamp);
+
 /** The recovery waiting out its delay, if any. */
 export async function pendingRecovery(wallet: Address) {
   if (!(await publicClient.getCode({ address: wallet }))) return null;
