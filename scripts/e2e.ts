@@ -4,9 +4,9 @@
 //
 //   npm run e2e
 import assert from "node:assert/strict";
-import { erc20Abi, formatUnits, numberToHex, parseUnits, type Address } from "viem";
+import { erc20Abi, formatUnits, numberToHex, parseUnits, recoverMessageAddress, type Address } from "viem";
 import { generatePrivateKey, privateKeyToAccount, privateKeyToAddress } from "viem/accounts";
-import { bindRecoveryKeyMessage } from "../lib/wallet/account.ts";
+import { bindRecoveryKeyMessage, ownershipMessage } from "../lib/wallet/account.ts";
 import { addresses, publicClient } from "../lib/wallet/env.ts";
 import { ApiError } from "../lib/wallet/phone.ts";
 import { APP, mintUsdc, newPhone } from "./software-phone.ts";
@@ -29,13 +29,19 @@ async function refused(promise: Promise<unknown>, status: number) {
 
 const usdcOf = (owner: Address) => publicClient.readContract({ address: addresses.usdc, abi: erc20Abi, functionName: "balanceOf", args: [owner] });
 
-console.log("1. Create: passkey, 2-of-3 Shamir split (A phone, B Swissquote, C partner), recovery key");
+console.log("1. Create, signed in to Swissquote (mock): passkey, 2-of-3 Shamir split (A phone, B Swissquote, C partner), recovery key");
 const phone = newPhone();
+const signedIn = await phone.signIn();
+assert.deepEqual(await phone.signIn(signedIn.session), signedIn, "a known session stays signed in as its client");
 await phone.splitKey(await phone.createPasskey());
 assert.ok("sealed" in phone.device()!.share, "Share A is sealed under the passkey's PRF output");
 const recoveryKey = phone.createRecoveryKey();
-const wallet = await phone.register(recoveryKey.address);
-console.log(`   wallet ${wallet}`);
+const wallet = await phone.register(recoveryKey.address, signedIn);
+console.log(`   wallet ${wallet}, owned by ${signedIn.client.name}, Swissquote client ${signedIn.client.number}`);
+const { owner } = await phone.state();
+assert.equal(owner?.client, signedIn.client.number, "Swissquote recorded the client number against the wallet");
+assert.equal(owner.statement, ownershipMessage(signedIn.client.number, wallet));
+assert.equal(await recoverMessageAddress({ message: owner.statement, signature: owner.signature }), phone.device()!.signer, "the wallet key signed it");
 const attacker = privateKeyToAccount(generatePrivateKey());
 const hijack = await realFetch(`${APP}/api/wallets`, {
   method: "POST",
@@ -44,6 +50,8 @@ const hijack = await realFetch(`${APP}/api/wallets`, {
     signer: phone.device()!.signer,
     recoveryKey: attacker.address,
     signature: await attacker.signMessage({ message: bindRecoveryKeyMessage(phone.device()!.signer, attacker.address) }),
+    session: signedIn.session,
+    ownership: await attacker.signMessage({ message: ownershipMessage(signedIn.client.number, wallet) }),
   }),
 });
 assert.equal(hijack.status, 403, "only the wallet key can name its recovery key");
@@ -68,10 +76,14 @@ for (const [to, amount] of [[SANCTIONED, "1"], [ANNA, "2000"]] as const) {
 
 console.log("5. Lose the phone. New phone: ID check, new passkey and split; the recovery key signs, B and C rebuild the old key on the new phone");
 const newOne = newPhone();
-const identity = { document: "id-card-scan", selfie: "selfie" };
+// MOCKED: the owner's ID on file stands in for their own ID card and face.
+const { idOnFile } = await newOne.findRecovery(recoveryKey.secret);
+assert.equal(idOnFile?.name, signedIn.client.name);
+const identity = idOnFile;
 await newOne.splitKey(await newOne.createPasskey());
 const started = await newOne.startRecovery(recoveryKey.secret, identity);
 assert.equal(started.address, wallet);
+assert.equal(started.signedIn.client.number, signedIn.client.number, "the ID check signs the new phone in as the owner");
 const now = Number((await publicClient.getBlock()).timestamp);
 assert.ok(started.executeAfter >= now + 48 * 3600 - 5, "the delay is 48 hours");
 console.log(`   recovery pending until ${new Date(started.executeAfter * 1000).toISOString()}`);

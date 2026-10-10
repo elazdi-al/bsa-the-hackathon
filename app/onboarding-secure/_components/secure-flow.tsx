@@ -4,7 +4,9 @@ import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useReducer, useRef } from "react";
 import type { Hex } from "viem";
+import { signedIn, useSignedIn } from "@/app/(tabs)/_components/session";
 import { blurred, sharp, smooth } from "@/app/(tabs)/_components/transitions";
+import { SwissquoteMark } from "@/components/swissquote-mark";
 import { phone, RECOVERY_FILE } from "@/lib/wallet/phone";
 import { FAILED, KEYS, SETUP } from "../data";
 import { flowReducer, initialFlow, keyState, pendingTimer, toneOf, type Keys } from "../flow";
@@ -37,6 +39,7 @@ function saveRecoveryKey(secret: Hex): Promise<void> {
 
 export function SecureFlow() {
   const router = useRouter();
+  const client = useSignedIn()?.client;
   const [step, dispatch] = useReducer(flowReducer, initialFlow);
   // Set in the same tick as the tap, so a double tap can't open two passkey prompts before React re-renders.
   const pressing = useRef(false);
@@ -61,7 +64,9 @@ export function SecureFlow() {
   }, [ready, router]);
 
   const register = async (keys: Keys) => {
-    const address = await phone.register(keys.recoveryKey).catch(() => null);
+    const address = await signedIn()
+      .then((session) => phone.register(keys.recoveryKey, session))
+      .catch(() => null);
     dispatch(address ? { type: "registered", address } : { type: "failed", error: FAILED.setup });
   };
 
@@ -118,6 +123,16 @@ export function SecureFlow() {
               : "justify-end pt-[env(safe-area-inset-top)] pb-[max(calc(env(safe-area-inset-bottom)+12px),36px)] sm:justify-start sm:pt-[24svh]"
           }`}
         >
+          {/* Holds its line while the sign-in resolves, so the list below never jumps. */}
+          <motion.p layout="position" {...entrance(0.85)} className="mb-4 px-4 text-caption text-muted-foreground">
+            <span className={`flex items-center gap-2 transition-opacity duration-200 ease-out ${client ? "" : "opacity-0"}`}>
+              <SwissquoteMark size={16} className="shrink-0" />
+              <span className="truncate">
+                Signed in to Swissquote as <span className="text-foreground">{client?.name ?? "\u00a0"}</span> · Mock
+              </span>
+            </span>
+          </motion.p>
+
           <motion.ul {...entrance(0.9)} className="relative flex flex-col">
             <AnimatePresence mode="popLayout" initial={false}>
               {KEYS.map((item) => (

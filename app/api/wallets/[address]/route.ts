@@ -1,4 +1,6 @@
 import { erc20Abi, type Address } from "viem";
+import { ownershipMessage } from "@/lib/wallet/account.ts";
+import { store } from "@/lib/wallet/api/db.ts";
 import { route } from "@/lib/wallet/api/http.ts";
 import { liveCredentials, requireWallet } from "@/lib/wallet/api/operations.ts";
 import { addresses, chainNow, isDeployed, pendingRecovery, publicClient } from "@/lib/wallet/env.ts";
@@ -18,5 +20,12 @@ export const GET = route(async (_request: Request, ctx: RouteContext<"/api/walle
     usdc: usdc.toString(),
     pendingRecovery: pending && { signer: pending.signer, executeAfter: pending.executeAfter },
     chainTime,
+    owner: owner(wallet.address),
   });
 });
+
+/** Swissquote's ownership record: the client the wallet was created for, and the wallet key's signed statement saying so. */
+function owner(address: Address) {
+  const record = store().owner(address);
+  return record ? { client: record.client, createdAt: record.createdAt, statement: ownershipMessage(record.client, address), signature: record.signature } : null;
+}

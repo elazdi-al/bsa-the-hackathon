@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useReducer, useRef, useState, type ReactNode } from "react";
 import type { Address, Hex } from "viem";
+import { keepSession } from "@/app/(tabs)/_components/session";
 import { chainNow, refreshWallet, useWallet, type WalletSnapshot } from "@/app/(tabs)/_components/wallet";
 import { FaceIdIcon, IdCardIcon, RestoreIcon, type Icon } from "@/components/icons";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -17,13 +18,16 @@ import { IdentityIllustration } from "./identity-illustration";
 type Step =
   | { name: "key"; notice?: string }
   | { name: "pending"; secret: Hex; address: Address; executeAfter: number; skew: number }
-  | { name: "identity"; secret: Hex }
+  | { name: "identity"; secret: Hex; id: OnFile }
   | { name: "restore"; secret: Hex; identity: Identity };
 
 /**
  * Where this phone stands, from the shared wallet store. `answer`: it holds the wallet and someone is recovering it.
  * `wait`: it is the phone recovering. `outside`: no wallet here, or one it neither holds nor is recovering.
  */
+/** MOCKED: the owner's ID on file, standing in for their own ID card and face. */
+type OnFile = Identity & { name: string };
+
 type Standing = { name: "loading" | "home" | "outside" } | { name: "answer" | "wait"; executeAfter: number; skew: number };
 
 function standing(snapshot: WalletSnapshot): Standing {
@@ -38,6 +42,7 @@ function standing(snapshot: WalletSnapshot): Standing {
 const FAILED = {
   file: "That isn't a Recovery Key. Choose the file you saved, or paste all of its text.",
   unknown: "No wallet uses this Recovery Key. Check you chose the right file.",
+  unlinked: "This wallet isn't linked to a Swissquote client, so there is no ID to check against.",
   offline: "Can't reach Swissquote. Try again.",
   passkey: "Your passkey wasn't created. Try again.",
   key: "Your Wallet Key wasn't split. Try again.",
@@ -131,12 +136,13 @@ export function RecoveryFlow() {
     return secret;
   };
 
-  // ponytail: mocked ID check, it calls nothing. A real provider returns references to the scanned document and selfie.
-  const verify = async (secret: Hex) => {
-    setBusy("Checking your ID");
+  // MOCKED: the scan reads the owner's ID on file. A real provider scans the document and the face in front of the phone;
+  // Swissquote matches either way when the recovery starts.
+  const verify = async (secret: Hex, { name: _, ...identity }: OnFile) => {
+    setBusy("Scanning your ID");
     await new Promise((resolve) => setTimeout(resolve, 1500));
     setBusy(undefined);
-    setStep({ name: "restore", secret, identity: { document: "mock-id-document", selfie: "mock-selfie" } });
+    setStep({ name: "restore", secret, identity });
   };
 
   // Face ID needs the click's user activation, so the passkey comes first, before anything else awaits.
@@ -154,7 +160,7 @@ export function RecoveryFlow() {
       setBusy("Starting recovery");
       // Before the await: the recovery can start on-chain even if the read after it fails.
       recoveryKey.current = secret;
-      await phone.startRecovery(secret, identity);
+      keepSession((await phone.startRecovery(secret, identity)).signedIn);
       await refreshWallet();
     } catch {
       setError(failed);
@@ -192,9 +198,11 @@ export function RecoveryFlow() {
         throw e;
       });
       if (!found) return setError(FAILED.unknown);
-      const { address, pendingRecovery, chainTime } = found;
+      const { address, pendingRecovery, chainTime, idOnFile } = found;
       const skew = Math.round(chainTime - Date.now() / 1000);
-      setStep(pendingRecovery ? { name: "pending", secret, address, executeAfter: pendingRecovery.executeAfter, skew } : { name: "identity", secret });
+      if (pendingRecovery) return setStep({ name: "pending", secret, address, executeAfter: pendingRecovery.executeAfter, skew });
+      if (!idOnFile) return setError(FAILED.unlinked);
+      setStep({ name: "identity", secret, id: idOnFile });
     });
 
   const cancelTheirs = (secret: Hex, address: Address) =>
@@ -300,7 +308,10 @@ export function RecoveryFlow() {
           body="Scan your ID, then take a selfie. Swissquote checks them before your wallet can be recovered."
           error={error}
         >
-          <Button size="lg" onClick={() => verify(step.secret)} disabled={!!busy} aria-busy={!!busy}>
+          <p className="text-caption text-muted-foreground">
+            Mock ID: <span className="text-foreground">{step.id.name}</span>, {step.id.document}
+          </p>
+          <Button size="lg" onClick={() => verify(step.secret, step.id)} disabled={!!busy} aria-busy={!!busy}>
             {lead(IdCardIcon)}
             {label("Scan ID")}
           </Button>
