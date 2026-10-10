@@ -2,6 +2,7 @@
 
 import { MotionConfig } from "motion/react";
 import { useRouter } from "next/navigation";
+import { sendDraft } from "@/app/choose-recipient/data";
 import { useEffect, useId, useState } from "react";
 import { Switch } from "@/components/ui/switch";
 import { HowItWorksSheet } from "./how-it-works-sheet";
@@ -11,11 +12,15 @@ import { SendButton, type Phase } from "./send-button";
 const SENDING_MS = 1400;
 const SENT_MS = 900;
 
-export function HideMyWallet() {
+export function HideMyWallet({ to }: { to?: string }) {
   const router = useRouter();
   const titleId = useId();
   const [hidden, setHidden] = useState(false);
   const [phase, setPhase] = useState<Phase>("review");
+
+  useEffect(() => {
+    if (to) sendDraft.set(to);
+  }, [to]);
 
   useEffect(() => {
     if (phase === "review") return;

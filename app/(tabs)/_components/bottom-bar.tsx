@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { RecipientSheet } from "@/app/choose-recipient/_components/recipient-sheet";
+import { sendDraft } from "@/app/choose-recipient/data";
 import { transitionFor } from "@/components/navigation";
 import { column } from "./column";
 import { ReceiveSheet } from "./receive-sheet";
@@ -60,6 +61,11 @@ export function BottomBar() {
     setOpen(false);
     fab.current?.focus();
   };
+
+  // Back from the send review: reopen the recipient sheet it came from.
+  useEffect(() => {
+    if (sendDraft.get()) setSheet("send");
+  }, []);
 
   useEffect(() => {
     if (!open) return;

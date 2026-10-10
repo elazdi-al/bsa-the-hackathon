@@ -1,12 +1,20 @@
+import { CardholderIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { recipientFor } from "@/app/choose-recipient/data";
 import { Screen } from "@/components/navigation";
 import { BackButton } from "@/components/ui/back-button";
 import { HideMyWallet } from "./_components/hide-my-wallet";
-import { recipient, transfer } from "./data";
+import { recipient, transfer, type Recipient } from "./data";
 
 export const metadata: Metadata = { title: "Send · Fuse" };
 
-export default function Page() {
+export default async function Page({ searchParams }: { searchParams: Promise<{ to?: string | string[] }> }) {
+  const { to } = await searchParams;
+  const chosen = typeof to === "string" ? recipientFor(to) : null;
+  if (to !== undefined && !chosen) redirect("/choose-recipient");
+  const shown: Recipient = chosen ?? recipient;
+
   return (
     <Screen>
       <main className="flex min-h-dvh flex-col bg-white pt-[env(safe-area-inset-top)] pb-[max(2rem,env(safe-area-inset-bottom))]">
@@ -29,15 +37,17 @@ export default function Page() {
               aria-hidden
               className="grid size-[42px] shrink-0 place-items-center rounded-full bg-[#e8e6e7] text-[23px] shadow-[inset_0_0_0_1px_rgb(0_0_0/0.03)]"
             >
-              {recipient.avatar}
+              {shown.avatar ?? <CardholderIcon weight="fill" size={20} />}
             </span>
             <p className="min-w-0 flex-1 text-[15px] leading-5 tracking-[-0.24px]">
-              <span className="block font-semibold">{recipient.name}</span>
-              <span className="block text-black/35">{recipient.wallet}</span>
+              <span className="block truncate font-semibold">{shown.name}</span>
+              <span className="block truncate text-black/35">{shown.detail}</span>
             </p>
-            <span className="flex h-[26px] items-center rounded-full px-2.5 text-[12px] tabular-nums shadow-[0_0_0_1px_rgb(0_0_0/0.07)]">
-              {recipient.sends} sends
-            </span>
+            {shown.sends ? (
+              <span className="flex h-[26px] items-center rounded-full px-2.5 text-[12px] tabular-nums shadow-[0_0_0_1px_rgb(0_0_0/0.07)]">
+                {shown.sends} sends
+              </span>
+            ) : null}
           </section>
 
           <hr className="mt-6 h-px border-0 bg-[repeating-linear-gradient(90deg,#e4e4e4_0_8px,transparent_8px_17px)]" />
@@ -57,7 +67,7 @@ export default function Page() {
           </dl>
 
           <div className="mt-auto pt-10 md:mt-0">
-            <HideMyWallet />
+            <HideMyWallet to={typeof to === "string" ? to : undefined} />
           </div>
         </div>
       </main>

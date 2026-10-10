@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useBack } from "@/components/navigation";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
+import { sendDraft } from "../data";
 import { AddressCard } from "./address-card";
 import { swapSpring } from "./motion";
 import { RecentAddresses } from "./recent-addresses";
@@ -22,7 +23,10 @@ export function RecipientSheet({ open, onOpenChange, onClosed }: Props) {
     <MotionConfig reducedMotion="user" transition={swapSpring}>
       <Drawer
         open={open}
-        onOpenChange={onOpenChange}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) sendDraft.clear();
+          onOpenChange(isOpen);
+        }}
         onAnimationEnd={(isOpen) => {
           if (!isOpen) onClosed();
         }}

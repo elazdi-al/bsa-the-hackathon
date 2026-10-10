@@ -1,6 +1,6 @@
 import { CardholderIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
-import { RECENT_ADDRESSES } from "../data";
+import { RECENT_ADDRESSES, reviewHref, shortAddress } from "../data";
 
 export function RecentAddresses() {
   return (
@@ -9,10 +9,10 @@ export function RecentAddresses() {
         Recent addresses
       </h2>
       <ul className="mt-1.5">
-        {RECENT_ADDRESSES.map(({ label, note }) => (
-          <li key={label}>
+        {RECENT_ADDRESSES.map(({ address, note }) => (
+          <li key={address}>
             <Link
-              href="/send-hide-my-wallet"
+              href={reviewHref(address)}
               transitionTypes={["push"]}
               className="mx-4 flex items-center gap-3 rounded-[24px] px-[14px] py-1.5 transition-colors duration-150 ease-out focus-visible:outline-2 focus-visible:outline-fuse-blue active:bg-black/[0.03]"
             >
@@ -20,7 +20,7 @@ export function RecentAddresses() {
                 <CardholderIcon weight="fill" size={20} />
               </span>
               <span className="flex flex-col">
-                <span className="text-[16px] leading-5 font-medium">{label}</span>
+                <span className="text-[16px] leading-5 font-medium">{shortAddress(address)}</span>
                 <span className="text-[13px] leading-[18px] tracking-[-0.06em] text-black/30">{note}</span>
               </span>
             </Link>

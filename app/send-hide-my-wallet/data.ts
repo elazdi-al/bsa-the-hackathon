@@ -5,12 +5,10 @@ export const transfer = {
   token: "250.00 USDC",
 };
 
-export const recipient = {
-  name: "Solana wallet",
-  wallet: "Ledger",
-  avatar: "🏀",
-  sends: 4,
-};
+export type Recipient = { name: string; detail: string; avatar?: string; sends?: number };
+
+/** The reference clip's recipient, shown when the review is visited without one. */
+export const recipient: Recipient = { name: "Solana wallet", detail: "Ledger", avatar: "🏀", sends: 4 };
 
 export const hideMyWalletWords = ["with", "Hide", "My", "Wallet"] as const;
 

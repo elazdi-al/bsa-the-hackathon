@@ -4,7 +4,7 @@ import { FileIcon, XCircleIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { RESOLVE_DELAY_MS, lookupRecipient, looksLikeRecipient, type Resolution } from "../data";
+import { RESOLVE_DELAY_MS, lookupRecipient, looksLikeRecipient, reviewHref, sendDraft, type Resolution } from "../data";
 import { Button } from "@/components/ui/button";
 import { iconPop } from "./motion";
 import { StatusLine, type Status } from "./status-line";
@@ -14,7 +14,8 @@ const STATUS_ID = "recipient-status";
 export function AddressCard() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [value, setValue] = useState("");
+  // The sheet renders in a portal, client-only, so reading sessionStorage here is safe.
+  const [value, setValue] = useState(() => sendDraft.get() ?? "");
   const status = useResolution(value.trim());
   const resolved = status.kind === "resolved";
 
@@ -37,7 +38,7 @@ export function AddressCard() {
     <form
       onSubmit={(event) => {
         event.preventDefault();
-        if (resolved) router.push("/send-hide-my-wallet", { transitionTypes: ["push"] });
+        if (resolved) router.push(reviewHref(value.trim()), { transitionTypes: ["push"] });
       }}
       onClick={(event) => {
         if (!(event.target as Element).closest("button")) inputRef.current?.focus();
@@ -97,7 +98,10 @@ export function AddressCard() {
 }
 
 function useResolution(query: string): Status {
-  const [settled, setSettled] = useState<{ query: string; result: Resolution } | null>(null);
+  // A value that arrives filled in (back from the review) was already resolved: show it settled.
+  const [settled, setSettled] = useState(() =>
+    looksLikeRecipient(query) ? { query, result: lookupRecipient(query) } : null,
+  );
   const resolvable = looksLikeRecipient(query);
 
   useEffect(() => {
