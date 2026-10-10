@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "cn";
 import Link from "next/link";
 import { useState } from "react";
 import { buttonVariants } from "@/components/ui/button";
@@ -80,7 +81,8 @@ function AccountSheet({ tile }: { tile: Tile }) {
       <Link
         href={`/history?account=${tile.id}`}
         transitionTypes={["tab-forward"]}
-        className={buttonVariants({ variant: "ghost", className: "mt-2 h-11 w-full text-[13.5px]" })}
+        // The ghost hover is the sheet's own grey; a black tint shows on it.
+        className={cn(buttonVariants({ variant: "ghost" }), "mt-2 h-11 w-full text-[13.5px] hover:bg-black/[0.04]")}
       >
         See all activity
       </Link>
