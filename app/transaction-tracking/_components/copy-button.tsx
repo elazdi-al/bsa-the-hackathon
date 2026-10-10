@@ -31,7 +31,7 @@ export function CopyButton({ text, label, children }: { text: string; label: str
         type="button"
         aria-label={label}
         onClick={copy}
-        className="relative z-10 flex items-center gap-1.5 rounded-md transition-transform duration-150 ease-out outline-none after:absolute after:-inset-x-2 after:-inset-y-3 focus-visible:ring-2 focus-visible:ring-[#1171ee] active:scale-[0.96]"
+        className="relative z-10 flex items-center gap-1.5 rounded-md transition-transform duration-150 ease-out outline-none after:absolute after:-inset-x-2 after:-inset-y-3 focus-visible:ring-2 focus-visible:ring-fuse-blue active:scale-[0.96]"
       >
         {children}
         <span className="grid size-4 place-items-center text-[#a5a5a5]">

@@ -46,7 +46,7 @@ export function EmailForm({ sending, onSubmit, onFocusChange }: Props) {
         onChange={(e) => setEmail(e.target.value)}
         onFocus={() => onFocusChange(true)}
         onBlur={() => onFocusChange(false)}
-        className="min-w-0 flex-1 bg-transparent text-[17px] text-black caret-[#0a84ff] outline-none placeholder:text-black/40"
+        className="min-w-0 flex-1 bg-transparent text-[17px] text-black caret-fuse-blue outline-none placeholder:text-black/40"
       />
       <Button
         type="submit"

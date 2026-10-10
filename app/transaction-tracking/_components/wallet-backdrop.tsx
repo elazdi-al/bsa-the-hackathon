@@ -17,7 +17,7 @@ export function WalletBackdrop() {
                 <span className="block h-3 rounded-full bg-[#cfcfd4]" style={{ width: row.amount }} />
               </span>
               <span className="flex flex-col items-end space-y-2">
-                <span className={`block h-3.5 w-16 rounded-full ${row.change === "up" ? "bg-[#7fdc9a]" : "bg-[#9b9ba1]"}`} />
+                <span className={`block h-3.5 w-16 rounded-full ${row.change === "up" ? "bg-positive/60" : "bg-[#9b9ba1]"}`} />
                 <span className="block h-3 w-12 rounded-full bg-[#cfcfd4]" />
               </span>
             </li>

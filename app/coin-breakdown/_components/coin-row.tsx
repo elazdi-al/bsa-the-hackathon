@@ -34,7 +34,7 @@ export function CoinRow({ coin, state, onToggle }: { coin: Coin; state: RowState
           <span className="shrink-0 text-right text-[15px] font-medium">
             <span className="block leading-[22px]">{usd.format(coin.value)}</span>
             {coin.change !== undefined && (
-              <span className={`mt-0.5 block leading-5 ${coin.change < 0 ? "text-[#ec4d73]" : "text-[#34c759]"}`}>
+              <span className={`mt-0.5 block leading-5 ${coin.change < 0 ? "text-negative" : "text-positive"}`}>
                 {signedUsd(coin.change)}
               </span>
             )}
@@ -66,7 +66,7 @@ function CoinAvatar({ coin, open }: { coin: Coin; open: boolean }) {
         >
           <g fill="none" strokeWidth="2.2" strokeLinecap="round">
             <circle cx="21" cy="21" r="19.9" pathLength={100} stroke="#dddddd" strokeDasharray={`${100 - available - gap * 2} 100`} strokeDashoffset={-(available + gap)} />
-            <circle cx="21" cy="21" r="19.9" pathLength={100} stroke="#2676d9" strokeDasharray={`${available} 100`} />
+            <circle cx="21" cy="21" r="19.9" pathLength={100} strokeDasharray={`${available} 100`} className="stroke-fuse-blue" />
           </g>
         </motion.svg>
       )}
@@ -108,12 +108,12 @@ function Breakdown({ id, coin }: { id: string; coin: Coin }) {
       className="absolute inset-x-0 top-full z-10 pt-[3px] pr-[22px] pl-20 text-[15px] font-medium max-[375px]:pl-14"
     >
       <motion.div variants={bar} className="flex h-1 gap-1">
-        <span className="rounded-full bg-[#2676d9]" style={{ width: `${availableShare(coin) * 100}%` }} />
+        <span className="rounded-full bg-fuse-blue" style={{ width: `${availableShare(coin) * 100}%` }} />
         {staked > 0 && <span className="flex-1 rounded-full bg-[#dadada]" />}
       </motion.div>
 
       <div className="mt-[13px]">
-        <Line dot="bg-[#2676d9]" label="Available" value={unit(available)} />
+        <Line dot="bg-fuse-blue" label="Available" value={unit(available)} />
         <Line dot="bg-[#dcdcdc]" label={coin.stake?.label ?? "Total Staked"} value={unit(staked)} />
         {coin.stake && (
           <>
@@ -123,7 +123,7 @@ function Breakdown({ id, coin }: { id: string; coin: Coin }) {
               className="my-[7px] ml-6 h-px bg-[linear-gradient(to_right,#d4d4d4_50%,transparent_0)] bg-size-[10px_1px]"
             />
             <Line label={coin.stake.principalLabel} value={unit(coin.stake.principal)} />
-            <Line label="Earned" value={`+ ${unit(coin.stake.earned)}`} valueClass="text-[#34c759]" />
+            <Line label="Earned" value={`+ ${unit(coin.stake.earned)}`} valueClass="text-positive" />
           </>
         )}
       </div>

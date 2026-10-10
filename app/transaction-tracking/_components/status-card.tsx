@@ -37,7 +37,7 @@ const icons: Record<StepId, Icon | typeof PayoutIcon> = {
 
 function tone(index: number, current: number) {
   if (index !== current) return "text-[#a3a3a3]";
-  return index === steps.length - 1 ? "text-[#30d158]" : "text-[#1171ee]";
+  return index === steps.length - 1 ? "text-positive" : "text-fuse-blue";
 }
 
 /** A step's glyph and label. Stable layout ids let the current one travel between the tracker and the folded row. */
@@ -71,7 +71,7 @@ export function StatusCard({ tracker, summary, onToggle }: { tracker: Tracker; s
           onClick={onToggle}
           aria-expanded={expanded}
           aria-controls="status-steps"
-          className="font-medium outline-none after:absolute after:-inset-x-4 after:top-0 after:-bottom-[7px] after:rounded-[18px] focus-visible:after:ring-2 focus-visible:after:ring-[#1171ee]"
+          className="font-medium outline-none after:absolute after:-inset-x-4 after:top-0 after:-bottom-[7px] after:rounded-[18px] focus-visible:after:ring-2 focus-visible:after:ring-fuse-blue"
         >
           Status<span className="sr-only">: {steps[step].label}</span>
         </button>

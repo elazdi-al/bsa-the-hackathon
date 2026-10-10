@@ -80,7 +80,7 @@ export function SetupRow({ ref, ready }: { ref?: Ref<HTMLLIElement>; ready: bool
             {...iconSwap}
             className="absolute inset-0 grid place-items-center"
           >
-            {ready ? <CheckCircleIcon size={27} weight="fill" className="text-[#34c759]" /> : <SetupSpinner />}
+            {ready ? <CheckCircleIcon size={27} weight="fill" className="text-positive" /> : <SetupSpinner />}
           </motion.span>
         </AnimatePresence>
       </span>
