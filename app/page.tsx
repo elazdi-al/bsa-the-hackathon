@@ -22,7 +22,7 @@ export default function Index() {
       <ul className="mt-10 divide-y divide-black/[0.06]">
         {screens.map((s) => (
           <li key={s.slug}>
-            <Link href={`/${s.slug}`} className="flex items-baseline justify-between gap-6 py-3.5 text-[14px] text-black transition-opacity hover:opacity-60">
+            <Link href={`/${s.slug}`} className="flex items-baseline justify-between gap-6 py-3.5 text-[14px] text-black transition-opacity outline-none hover:opacity-60 focus-visible:ring-2 focus-visible:ring-black/20">
               <span>{s.title}</span>
               <span className="shrink-0 text-[12px] text-black/40 tabular-nums">{s.refs}</span>
             </Link>

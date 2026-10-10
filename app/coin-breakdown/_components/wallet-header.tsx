@@ -13,8 +13,8 @@ export function WalletHeader() {
     <header className="flex items-center gap-4 px-[22px]">
       <Link
         href="/home"
-        aria-label="Home"
-        className="grid size-[42px] shrink-0 place-items-center rounded-full bg-[#e6e6e6] transition-transform duration-150 ease-out active:scale-[0.96]"
+        aria-label="Back to Home"
+        className="relative grid size-[42px] shrink-0 place-items-center rounded-full bg-[#e6e6e6] outline-none transition-transform duration-150 ease-out after:absolute after:-inset-0.5 focus-visible:ring-2 focus-visible:ring-black/20 active:scale-[0.96]"
       >
         <FuseMark />
       </Link>
@@ -28,7 +28,7 @@ export function WalletHeader() {
       <Link
         href="/history"
         aria-label="History"
-        className="-mr-2.5 grid size-11 place-items-center rounded-full text-[#b7b7b7] transition-transform duration-150 ease-out active:scale-[0.96]"
+        className="-mr-2.5 grid size-11 place-items-center rounded-full text-[#b7b7b7] outline-none transition-transform duration-150 ease-out focus-visible:ring-2 focus-visible:ring-black/20 active:scale-[0.96]"
       >
         <ClockIcon weight="duotone" mirrored className="size-6" />
       </Link>
@@ -57,7 +57,7 @@ function CopyAddress() {
         type="button"
         onClick={copy}
         aria-label={`Copy address ${wallet.address}`}
-        className="relative -my-1 -mt-px flex items-center gap-1.5 py-1 text-[15px]/5 text-[#8a8a8a] transition-transform duration-150 ease-out active:scale-[0.96]"
+        className="relative -my-1 -mt-px flex items-center gap-1.5 py-1 text-[15px]/5 rounded-sm text-[#8a8a8a] outline-none transition-transform duration-150 ease-out focus-visible:ring-2 focus-visible:ring-black/20 active:scale-[0.96]"
       >
         {short(wallet.address)}
         <span className="grid size-4 place-items-center">

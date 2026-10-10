@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Welcome } from "./_components/welcome";
 
-export const metadata: Metadata = { title: "Fuse Plus" };
+export const metadata: Metadata = { title: "Fuse Plus · Fuse" };
 
 export const viewport: Viewport = { themeColor: "#4a5776" };
 

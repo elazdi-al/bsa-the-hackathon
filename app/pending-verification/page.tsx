@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { XCircleIcon } from "@phosphor-icons/react/dist/ssr";
 import { BridgeLogo } from "./_components/bridge-logo";
 import { IdentityIllustration } from "./_components/identity-illustration";
 import { verification } from "./data";
+
+export const metadata: Metadata = { title: "Verification · Fuse" };
 
 // House entrance: each block sharpens in from a soft blur; the delay classes stagger them.
 const enter =
@@ -14,7 +17,7 @@ export default function Page() {
       <Link
         href="/settings"
         aria-label="Close"
-        className="absolute top-[calc(env(safe-area-inset-top)+8px)] right-2 grid size-11 place-items-center rounded-full text-black/20 transition-[color,scale] duration-150 ease-out hover:text-black/30 focus-visible:outline-2 focus-visible:outline-black/40 active:scale-[0.96]"
+        className="absolute top-[calc(env(safe-area-inset-top)+8px)] right-2 grid size-11 place-items-center rounded-full text-black/20 transition-[color,scale] duration-150 ease-out hover:text-black/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black/40 active:scale-[0.96]"
       >
         <XCircleIcon weight="fill" size={30} />
       </Link>

@@ -1,8 +1,11 @@
 import { CaretLeftIcon } from "@phosphor-icons/react/ssr";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { HideMyWallet } from "./_components/hide-my-wallet";
 import { recipient, transfer } from "./data";
+
+export const metadata: Metadata = { title: "Send · Fuse" };
 
 export default function Page() {
   return (
@@ -14,7 +17,7 @@ export default function Page() {
           aria-label="Back"
           variant="secondary"
           size="icon"
-          className="absolute left-4 size-10"
+          className="absolute left-3"
         >
           <CaretLeftIcon aria-hidden weight="bold" className="size-[18px]" />
         </Button>

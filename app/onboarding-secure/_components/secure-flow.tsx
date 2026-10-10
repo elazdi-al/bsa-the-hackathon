@@ -69,7 +69,7 @@ export function SecureFlow() {
             <Link
               href="/onboarding-welcome"
               aria-label="Close"
-              className={`-mt-[11px] -mr-[11px] grid size-11 place-items-center rounded-full transition-[color,scale] duration-150 ease-out active:scale-[0.96] ${
+              className={`-mt-[11px] -mr-[11px] grid size-11 place-items-center rounded-full outline-none transition-[color,scale] duration-150 ease-out focus-visible:ring-2 active:scale-[0.96] ${onGradient ? "focus-visible:ring-white/60" : "focus-visible:ring-black/20"} ${
                 onGradient ? "text-white/55" : "text-black/40"
               }`}
             >
