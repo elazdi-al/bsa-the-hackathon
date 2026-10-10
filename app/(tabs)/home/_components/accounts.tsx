@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { FaceIdIcon, PhoneIcon, RestoreIcon, WarningIcon, type Icon } from "@/components/icons";
+import { FaceIdIcon, LockIcon, PhoneIcon, RestoreIcon, WarningIcon, type Icon } from "@/components/icons";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Drawer, FloatingSheetContent, FloatingSheetHeader } from "@/components/ui/drawer";
 import { Spinner } from "@/components/ui/spinner";
@@ -85,7 +85,7 @@ export function Accounts() {
 const restoreDate = (wallet: Wallet, executeAfter: number) =>
   onPhoneClock(wallet, executeAfter).toLocaleString("en-GB", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
 
-type Alert = { kind: "recovering" | "restoring" | "cancelled" | "moved" | "missing"; Icon: Icon; tone: string; title: string; line: string };
+type Alert = { kind: "locked" | "recovering" | "restoring" | "cancelled" | "moved" | "missing"; Icon: Icon; tone: string; title: string; line: string };
 
 /** What Home has to say about the wallet itself, if anything. */
 function alertFor(wallet: WalletSnapshot): Alert | undefined {
@@ -98,7 +98,16 @@ function alertFor(wallet: WalletSnapshot): Alert | undefined {
       line: "The network it lived on was reset.",
     };
   if (wallet.status !== "ready") return undefined;
-  const { controls, recovery, restoring } = wallet.wallet;
+  const { controls, locked, recovery, restoring } = wallet.wallet;
+  // Ahead of a recovery someone started: a locked phone can't cancel it, so the client cancels through Swissquote.
+  if (locked)
+    return {
+      kind: "locked",
+      Icon: LockIcon,
+      tone: "text-muted-foreground",
+      title: "Swissquote locked this phone",
+      line: "It was reported lost, so it can’t send from your wallet. If you found it, call Swissquote to unlock it.",
+    };
   if (controls)
     return recovery && !recovery.mine
       ? {
@@ -170,9 +179,11 @@ function WalletAlert({ alert: { kind, Icon, tone, title, line } }: { alert: Aler
             {kind === "restoring" ? "View progress" : "Recover again"}
           </Link>
         ) : (
-          <Button size="sm" onClick={remove} className="mt-3">
-            Remove from this phone
-          </Button>
+          kind !== "locked" && (
+            <Button size="sm" onClick={remove} className="mt-3">
+              Remove from this phone
+            </Button>
+          )
         )}
       </div>
     </section>
