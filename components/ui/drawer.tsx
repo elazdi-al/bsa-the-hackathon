@@ -33,6 +33,7 @@ function DrawerOverlay({
   className,
   ...props
 }: React.ComponentProps<typeof DrawerPrimitive.Overlay>) {
+  // globals.css dims the scrollbar gutter to this same black/25.
   return (
     <DrawerPrimitive.Overlay
       data-slot="drawer-overlay"
