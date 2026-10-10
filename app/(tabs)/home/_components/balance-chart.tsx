@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowSquareDownRightIcon, ArrowSquareUpRightIcon } from "@phosphor-icons/react";
+import { ArrowSquareUpRightIcon } from "@phosphor-icons/react";
 import { motion } from "motion/react";
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -43,7 +43,6 @@ export function BalanceChart() {
   // Always the change since the first bar of the range, so releasing a scrub lands on the same meaning.
   const change = ((values[shown] - values[0]) / values[0]) * 100;
   const up = change >= 0;
-  const Arrow = up ? ArrowSquareUpRightIcon : ArrowSquareDownRightIcon;
 
   function scrubTo(e: PointerEvent) {
     const rect = chart.current!.getBoundingClientRect();
@@ -87,8 +86,13 @@ export function BalanceChart() {
             </span>
           ))}
         </h2>
-        <p className={`flex items-center gap-1 text-[14px] font-medium tabular-nums ${up ? "text-positive" : "text-negative"}`}>
-          <Arrow weight="fill" size={17} aria-hidden />
+        {/* A quarter turn makes the up-right arrow the down-right one, so crossing zero turns it instead of swapping glyphs. */}
+        <p
+          className={`flex items-center gap-1 text-[14px] font-medium tabular-nums transition-[color] duration-200 ease-out ${up ? "text-positive" : "text-negative"}`}
+        >
+          <motion.span aria-hidden className="flex" initial={false} animate={{ rotate: up ? 0 : 90 }} transition={snappy}>
+            <ArrowSquareUpRightIcon weight="fill" size={17} />
+          </motion.span>
           <span className="sr-only">{up ? "Up" : "Down"}</span>
           {Math.abs(change).toFixed(2)}%
         </p>
