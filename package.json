@@ -7,6 +7,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "ios": "CAPACITOR=1 next build && cap sync ios",
+    "ios:open": "cap open ios",
     "typecheck": "next typegen && tsc --noEmit",
     "local": "node scripts/local.ts",
     "partner": "node --env-file-if-exists=.env.local services/partner/server.ts",
@@ -22,6 +24,8 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
+    "@capacitor/core": "~8.5.3",
+    "@capacitor/ios": "~8.5.3",
     "@noble/curves": "^2.4.0",
     "@phosphor-icons/react": "^2.1.10",
     "class-variance-authority": "^0.7.1",
@@ -39,6 +43,7 @@
     "zod": "4.6.5"
   },
   "devDependencies": {
+    "@capacitor/cli": "~8.5.3",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^24.19.2",
     "@types/react": "^19",
