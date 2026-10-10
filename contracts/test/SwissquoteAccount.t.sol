@@ -7,7 +7,6 @@ import {EntryPoint} from "account-abstraction/core/EntryPoint.sol";
 import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
 import {VerifyingPaymaster} from "account-abstraction/samples/VerifyingPaymaster.sol";
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
@@ -15,20 +14,10 @@ import {WebAuthn} from "@openzeppelin/contracts/utils/cryptography/WebAuthn.sol"
 import {SwissquoteAccount} from "../src/SwissquoteAccount.sol";
 import {SwissquoteAccountFactory} from "../src/SwissquoteAccountFactory.sol";
 import {SpendingLimitRule} from "../src/rules/SpendingLimitRule.sol";
-
-contract TestUSDC is ERC20("USD Coin", "USDC") {
-    function mint(address to, uint256 amount) external {
-        _mint(to, amount);
-    }
-
-    function decimals() public pure override returns (uint8) {
-        return 6;
-    }
-}
+import {TestUSDC} from "../src/TestUSDC.sol";
 
 contract SwissquoteAccountTest is Test {
     uint256 constant P256_N = 0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551;
-    uint48 constant DELAY = 48 hours;
 
     EntryPoint entryPoint;
     SwissquoteAccountFactory factory;
@@ -37,10 +26,10 @@ contract SwissquoteAccountTest is Test {
     TestUSDC usdc;
     SwissquoteAccount account;
 
-    // The 2-of-3 MPC key is a single ECDSA key on-chain, so one test key stands in for it.
-    uint256 mpcKey = 0xA11CE;
+    // The Shamir-split wallet key is a single ECDSA key on-chain.
+    uint256 walletKey = 0xA11CE;
     uint256 passkeyKey = 0xFACE1D; // P-256
-    uint256 confirmationKey = 0xC0FFEE;
+    uint256 recoveryKey = 0xC0FFEE;
     uint256 paymasterSigner = 0x5157;
     address guardian = makeAddr("swissquote-guardian");
     address bundler = makeAddr("bundler");
@@ -62,7 +51,7 @@ contract SwissquoteAccountTest is Test {
 
     function test_sponsoredTransferDeploysAccount() public {
         PackedUserOperation memory op = _op(_transfer(anna, 20e6), true);
-        _signNormal(op, mpcKey, passkeyKey);
+        _signNormal(op, walletKey, passkeyKey);
         _handle(op);
 
         assertEq(usdc.balanceOf(anna), 20e6);
@@ -71,10 +60,10 @@ contract SwissquoteAccountTest is Test {
         assertLt(entryPoint.balanceOf(address(paymaster)), 10 ether, "Swissquote paid the gas");
     }
 
-    function test_mpcAloneCannotTransfer() public {
-        // Swissquote + partner can produce the MPC signature, but not the client's passkey.
+    function test_walletKeyAloneCannotTransfer() public {
+        // Swissquote and the independent service can rebuild the wallet key, but not the client's passkey.
         PackedUserOperation memory op = _op(_transfer(anna, 20e6), true);
-        _signNormal(op, mpcKey, 0xBAD);
+        _signNormal(op, walletKey, 0xBAD);
         _expectSigError();
         _handle(op);
     }
@@ -89,7 +78,7 @@ contract SwissquoteAccountTest is Test {
     function test_unsponsoredOpIsRejected() public {
         PackedUserOperation memory op = _op(_transfer(anna, 20e6), true);
         op.paymasterAndData = abi.encodePacked(op.paymasterAndData, bytes1(0)); // tamper
-        _signNormal(op, mpcKey, passkeyKey);
+        _signNormal(op, walletKey, passkeyKey);
         vm.expectRevert();
         _handle(op);
     }
@@ -97,9 +86,9 @@ contract SwissquoteAccountTest is Test {
     function test_ownershipProofViaErc1271() public {
         _deploy();
         bytes32 h = keccak256("Swissquote client 123456 controls this wallet");
-        bytes memory sig = abi.encodePacked(MODE_NORMAL(), abi.encode(_ecdsa(mpcKey, h), _webauthn(passkeyKey, h)));
+        bytes memory sig = abi.encodePacked(MODE_NORMAL(), abi.encode(_ecdsa(walletKey, h), _webauthn(passkeyKey, h)));
         assertEq(account.isValidSignature(h, sig), account.isValidSignature.selector);
-        sig = abi.encodePacked(MODE_NORMAL(), abi.encode(_ecdsa(mpcKey, h), _webauthn(0xBAD, h)));
+        sig = abi.encodePacked(MODE_NORMAL(), abi.encode(_ecdsa(walletKey, h), _webauthn(0xBAD, h)));
         assertEq(account.isValidSignature(h, sig), bytes4(0xffffffff));
     }
 
@@ -107,35 +96,35 @@ contract SwissquoteAccountTest is Test {
 
     function test_recoveryFlow() public {
         _deploy();
-        uint256 newMpc = 0xB0B;
+        uint256 newKey = 0xB0B;
         uint256 newPasskey = 0xBEEF;
 
-        _initiateRecovery(newMpc, newPasskey, mpcKey, confirmationKey);
+        _initiateRecovery(newKey, newPasskey, walletKey, recoveryKey);
         (,, uint48 executeAfter) = account.pendingRecovery();
-        assertEq(executeAfter, block.timestamp + DELAY);
+        assertEq(executeAfter, block.timestamp + 48 hours);
 
         vm.expectRevert(abi.encodeWithSelector(SwissquoteAccount.RecoveryNotReady.selector, executeAfter));
         account.finalizeRecovery();
 
         vm.warp(executeAfter);
         account.finalizeRecovery(); // anyone may finalize
-        assertEq(account.signer(), vm.addr(newMpc));
+        assertEq(account.signer(), vm.addr(newKey));
 
         // Old phone's credentials are dead, new ones work, same address and balance.
         PackedUserOperation memory op = _op(_transfer(anna, 5e6), false);
-        _signNormal(op, mpcKey, passkeyKey);
+        _signNormal(op, walletKey, passkeyKey);
         _expectSigError();
         _handle(op);
 
-        _signNormal(op, newMpc, newPasskey);
+        _signNormal(op, newKey, newPasskey);
         _handle(op);
         assertEq(usdc.balanceOf(anna), 25e6);
     }
 
-    function test_recoveryNeedsConfirmationKey() public {
+    function test_recoveryNeedsRecoveryKey() public {
         _deploy();
         PackedUserOperation memory op = _op(_initiateRecoveryCall(0xB0B, 0xBEEF), false);
-        _signRecovery(op, mpcKey, 0xBAD);
+        _signRecovery(op, walletKey, 0xBAD);
         _expectSigError();
         _handle(op);
     }
@@ -143,14 +132,14 @@ contract SwissquoteAccountTest is Test {
     function test_recoveryModeCannotMoveFunds() public {
         _deploy();
         PackedUserOperation memory op = _op(_transfer(anna, 5e6), false);
-        _signRecovery(op, mpcKey, confirmationKey);
+        _signRecovery(op, walletKey, recoveryKey);
         _expectSigError();
         _handle(op);
     }
 
     function test_guardianCancelsRecovery() public {
         _deploy();
-        _initiateRecovery(0xB0B, 0xBEEF, mpcKey, confirmationKey);
+        _initiateRecovery(0xB0B, 0xBEEF, walletKey, recoveryKey);
 
         vm.expectRevert(SwissquoteAccount.Unauthorized.selector);
         vm.prank(anna);
@@ -159,18 +148,18 @@ contract SwissquoteAccountTest is Test {
         vm.prank(guardian);
         account.cancelRecovery();
 
-        vm.warp(block.timestamp + DELAY);
+        vm.warp(block.timestamp + account.RECOVERY_DELAY());
         vm.expectRevert(SwissquoteAccount.NoRecoveryPending.selector);
         account.finalizeRecovery();
-        assertEq(account.signer(), vm.addr(mpcKey));
+        assertEq(account.signer(), vm.addr(walletKey));
     }
 
     function test_clientCancelsRecoveryFromPhone() public {
         _deploy();
-        _initiateRecovery(0xB0B, 0xBEEF, mpcKey, confirmationKey);
+        _initiateRecovery(0xB0B, 0xBEEF, walletKey, recoveryKey);
 
         PackedUserOperation memory op = _op(abi.encodeCall(SwissquoteAccount.cancelRecovery, ()), false);
-        _signNormal(op, mpcKey, passkeyKey);
+        _signNormal(op, walletKey, passkeyKey);
         _handle(op);
 
         (,, uint48 executeAfter) = account.pendingRecovery();
@@ -212,11 +201,10 @@ contract SwissquoteAccountTest is Test {
     }
 
     function _config() internal view returns (SwissquoteAccount.Config memory c) {
-        c.signer = vm.addr(mpcKey);
+        c.signer = vm.addr(walletKey);
         c.passkey = _passkey(passkeyKey);
-        c.confirmationKey = vm.addr(confirmationKey);
+        c.recoveryKey = vm.addr(recoveryKey);
         c.guardian = guardian;
-        c.recoveryDelay = DELAY;
         c.rules = new address[](1);
         c.rules[0] = address(limitRule);
     }
@@ -230,25 +218,25 @@ contract SwissquoteAccountTest is Test {
         return abi.encodeCall(SwissquoteAccount.execute, (address(usdc), 0, abi.encodeCall(IERC20.transfer, (to, amount))));
     }
 
-    function _initiateRecoveryCall(uint256 newMpc, uint256 newPasskey) internal pure returns (bytes memory) {
-        return abi.encodeCall(SwissquoteAccount.initiateRecovery, (vm.addr(newMpc), _passkey(newPasskey)));
+    function _initiateRecoveryCall(uint256 newKey, uint256 newPasskey) internal pure returns (bytes memory) {
+        return abi.encodeCall(SwissquoteAccount.initiateRecovery, (vm.addr(newKey), _passkey(newPasskey)));
     }
 
-    function _initiateRecovery(uint256 newMpc, uint256 newPasskey, uint256 mpc, uint256 confirm) internal {
-        PackedUserOperation memory op = _op(_initiateRecoveryCall(newMpc, newPasskey), false);
-        _signRecovery(op, mpc, confirm);
+    function _initiateRecovery(uint256 newKey, uint256 newPasskey, uint256 key, uint256 recovery) internal {
+        PackedUserOperation memory op = _op(_initiateRecoveryCall(newKey, newPasskey), false);
+        _signRecovery(op, key, recovery);
         _handle(op);
     }
 
     function _deploy() internal {
         PackedUserOperation memory op = _op(_transfer(anna, 20e6), true);
-        _signNormal(op, mpcKey, passkeyKey);
+        _signNormal(op, walletKey, passkeyKey);
         _handle(op);
     }
 
     function _exec(address target, bytes memory data) internal returns (bool success) {
         PackedUserOperation memory op = _op(abi.encodeCall(SwissquoteAccount.execute, (target, 0, data)), false);
-        _signNormal(op, mpcKey, passkeyKey);
+        _signNormal(op, walletKey, passkeyKey);
         vm.recordLogs();
         _handle(op);
         Vm.Log[] memory logs = vm.getRecordedLogs();
@@ -283,14 +271,14 @@ contract SwissquoteAccountTest is Test {
         op.paymasterAndData = abi.encodePacked(op.paymasterAndData, r, s, v);
     }
 
-    function _signNormal(PackedUserOperation memory op, uint256 mpc, uint256 passkey) internal view {
+    function _signNormal(PackedUserOperation memory op, uint256 key, uint256 passkey) internal view {
         bytes32 h = entryPoint.getUserOpHash(op);
-        op.signature = abi.encodePacked(uint8(0), abi.encode(_ecdsa(mpc, h), _webauthn(passkey, h)));
+        op.signature = abi.encodePacked(uint8(0), abi.encode(_ecdsa(key, h), _webauthn(passkey, h)));
     }
 
-    function _signRecovery(PackedUserOperation memory op, uint256 mpc, uint256 confirm) internal view {
+    function _signRecovery(PackedUserOperation memory op, uint256 key, uint256 recovery) internal view {
         bytes32 h = entryPoint.getUserOpHash(op);
-        op.signature = abi.encodePacked(uint8(1), abi.encode(_ecdsa(mpc, h), _ecdsa(confirm, h)));
+        op.signature = abi.encodePacked(uint8(1), abi.encode(_ecdsa(key, h), _ecdsa(recovery, h)));
     }
 
     function _ecdsa(uint256 key, bytes32 h) internal pure returns (bytes memory) {

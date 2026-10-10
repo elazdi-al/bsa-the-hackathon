@@ -13,15 +13,16 @@ import {IRule} from "./IRule.sol";
 
 /// Swissquote Wallet smart account, ERC-4337 with EntryPoint v0.7.
 ///
-/// Every UserOperation signature starts with a mode byte:
+/// `signer` is the wallet key, split 2-of-3 with Shamir between the phone (A), Swissquote (B)
+/// and an independent service (C). Every UserOperation signature starts with a mode byte:
 ///
-/// - MODE_NORMAL: a 2-of-3 MPC ECDSA signature AND a WebAuthn assertion from the client's
-///   passkey, both over the userOpHash. Swissquote and the partner hold two MPC shares
-///   between them but never the passkey, so together they still cannot move funds.
-/// - MODE_RECOVERY: the MPC signature (Swissquote + partner shares) AND a signature from
-///   the client's offline confirmation key. It may only call initiateRecovery. The new
-///   credentials apply after recoveryDelay, during which the client (through a normal
-///   operation from the phone) or the guardian (Swissquote services) can cancel.
+/// - MODE_NORMAL: a wallet-key signature AND a WebAuthn assertion from the client's passkey,
+///   both over the userOpHash. Swissquote and the independent service can rebuild the key
+///   together but never hold the passkey, so even colluding they cannot move funds.
+/// - MODE_RECOVERY: a wallet-key signature (rebuilt from B + C) AND a signature from the
+///   client's recovery key kept at home. It may only call initiateRecovery. The new
+///   credentials apply after RECOVERY_DELAY, during which the client (a normal operation from
+///   the phone) or the guardian (Swissquote, for the client) can cancel.
 contract SwissquoteAccount is BaseAccount, Initializable {
     using EnumerableSet for EnumerableSet.AddressSet;
 
@@ -31,11 +32,10 @@ contract SwissquoteAccount is BaseAccount, Initializable {
     }
 
     struct Config {
-        address signer; // address of the 2-of-3 MPC key
+        address signer; // address of the Shamir-split wallet key
         Passkey passkey; // P-256 public key of the client's device passkey
-        address confirmationKey; // offline key the client keeps at home
+        address recoveryKey; // offline key the client keeps at home
         address guardian; // may cancel a pending recovery
-        uint48 recoveryDelay;
         address[] rules;
     }
 
@@ -53,22 +53,21 @@ contract SwissquoteAccount is BaseAccount, Initializable {
 
     uint8 public constant MODE_NORMAL = 0;
     uint8 public constant MODE_RECOVERY = 1;
+    uint48 public constant RECOVERY_DELAY = 48 hours;
 
     IEntryPoint private immutable ENTRY_POINT;
 
     address public signer;
     Passkey public passkey;
-    address public confirmationKey;
+    address public recoveryKey;
     address public guardian;
-    uint48 public recoveryDelay;
     PendingRecovery public pendingRecovery;
     EnumerableSet.AddressSet private _rules;
 
     event RuleAdded(address indexed rule);
     event RuleRemoved(address indexed rule);
     event GuardianChanged(address guardian);
-    event ConfirmationKeyChanged(address confirmationKey);
-    event RecoveryDelayChanged(uint48 delay);
+    event RecoveryKeyChanged(address recoveryKey);
     event RecoveryInitiated(address signer, bytes32 passkeyX, bytes32 passkeyY, uint48 executeAfter);
     event RecoveryCancelled(address by);
     event RecoveryFinalized(address signer, bytes32 passkeyX, bytes32 passkeyY);
@@ -91,9 +90,8 @@ contract SwissquoteAccount is BaseAccount, Initializable {
     function initialize(Config calldata config) external initializer {
         signer = config.signer;
         passkey = config.passkey;
-        confirmationKey = config.confirmationKey;
+        recoveryKey = config.recoveryKey;
         guardian = config.guardian;
-        recoveryDelay = config.recoveryDelay;
         for (uint256 i; i < config.rules.length; ++i) {
             _rules.add(config.rules[i]);
         }
@@ -152,16 +150,16 @@ contract SwissquoteAccount is BaseAccount, Initializable {
             return _isValidNormal(userOpHash, sig[1:]) ? SIG_VALIDATION_SUCCESS : SIG_VALIDATION_FAILED;
         }
         if (mode == MODE_RECOVERY && bytes4(userOp.callData) == this.initiateRecovery.selector) {
-            (bytes memory mpcSig, bytes memory confirmationSig) = abi.decode(sig[1:], (bytes, bytes));
-            bool ok = _isSignedBy(signer, userOpHash, mpcSig) && _isSignedBy(confirmationKey, userOpHash, confirmationSig);
+            (bytes memory keySig, bytes memory recoverySig) = abi.decode(sig[1:], (bytes, bytes));
+            bool ok = _isSignedBy(signer, userOpHash, keySig) && _isSignedBy(recoveryKey, userOpHash, recoverySig);
             return ok ? SIG_VALIDATION_SUCCESS : SIG_VALIDATION_FAILED;
         }
         return SIG_VALIDATION_FAILED;
     }
 
     function _isValidNormal(bytes32 hash, bytes calldata sig) internal view returns (bool) {
-        (bytes memory mpcSig, WebAuthn.WebAuthnAuth memory auth) = abi.decode(sig, (bytes, WebAuthn.WebAuthnAuth));
-        return _isSignedBy(signer, hash, mpcSig) && WebAuthn.verify(abi.encodePacked(hash), auth, passkey.x, passkey.y);
+        (bytes memory keySig, WebAuthn.WebAuthnAuth memory auth) = abi.decode(sig, (bytes, WebAuthn.WebAuthnAuth));
+        return _isSignedBy(signer, hash, keySig) && WebAuthn.verify(abi.encodePacked(hash), auth, passkey.x, passkey.y);
     }
 
     function _isSignedBy(address expected, bytes32 hash, bytes memory sig) internal pure returns (bool) {
@@ -179,7 +177,7 @@ contract SwissquoteAccount is BaseAccount, Initializable {
 
     function initiateRecovery(address newSigner, Passkey calldata newPasskey) external onlyEntryPointOrSelf {
         if (pendingRecovery.executeAfter != 0) revert RecoveryPending();
-        uint48 executeAfter = uint48(block.timestamp) + recoveryDelay;
+        uint48 executeAfter = uint48(block.timestamp) + RECOVERY_DELAY;
         pendingRecovery = PendingRecovery(newSigner, newPasskey, executeAfter);
         emit RecoveryInitiated(newSigner, newPasskey.x, newPasskey.y, executeAfter);
     }
@@ -224,13 +222,8 @@ contract SwissquoteAccount is BaseAccount, Initializable {
         emit GuardianChanged(guardian_);
     }
 
-    function setConfirmationKey(address confirmationKey_) external onlyEntryPointOrSelf {
-        confirmationKey = confirmationKey_;
-        emit ConfirmationKeyChanged(confirmationKey_);
-    }
-
-    function setRecoveryDelay(uint48 delay) external onlyEntryPointOrSelf {
-        recoveryDelay = delay;
-        emit RecoveryDelayChanged(delay);
+    function setRecoveryKey(address recoveryKey_) external onlyEntryPointOrSelf {
+        recoveryKey = recoveryKey_;
+        emit RecoveryKeyChanged(recoveryKey_);
     }
 }
