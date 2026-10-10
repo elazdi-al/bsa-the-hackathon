@@ -13,7 +13,7 @@ export const benefits: Benefit[] = [
   {
     icon: "bank",
     title: "Bank Account",
-    body: "Receive payments from anyone with a bank account for a 0.1% conversion fee",
+    body: "Receive payments from anyone with a bank account for a 0.1% conversion fee.",
   },
   {
     icon: "visa",
