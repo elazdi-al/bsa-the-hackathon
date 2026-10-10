@@ -2,12 +2,15 @@
 // app. Writes .env.local for the app, the partner, the CLI (npm run status, fund, ...) and npm run e2e.
 //
 //   npm run local            (PORT, RPC_PORT and PARTNER_PORT pick other ports)
-//   npm run local -- --prod  a public demo behind a tunnel: a production build instead of next dev.
-//                            PUBLIC_PARTNER_URL is the partner's public URL, where phones post Share C.
+//   npm run local -- --prod  a public demo behind a tunnel: a production build instead of next dev, and the chain,
+//                            the share vaults and their keys kept in data/ across restarts, so a redeploy keeps every
+//                            wallet. Delete data/ for a fresh chain, as after a contract change. PUBLIC_PARTNER_URL is
+//                            the partner's public URL, where phones post Share C.
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { connect } from "node:net";
+import { parseEnv } from "node:util";
 import { privateKeyToAddress } from "viem/accounts";
 
 const ports = {
@@ -23,6 +26,7 @@ const prod = process.argv.includes("--prod");
 const SWISSQUOTE_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
 const MARKER = "# Written by npm run local.";
 const POLICY_FILE = "data/compliance-policy.json";
+const STATE = "data/chain.json";
 
 function fail(message: string): never {
   console.error(message);
@@ -91,22 +95,32 @@ const rpcUp = () =>
   answers(RPC_URL, { method: "POST", headers: { "content-type": "application/json" }, body: '{"jsonrpc":"2.0","id":1,"method":"eth_chainId"}' });
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+// --prod picks up the chain it saved last time, with the contracts, vault keys and policy that go with it.
+const resume = prod && existsSync(STATE) && existsSync(".env.local");
+const previous = resume ? parseEnv(readFileSync(".env.local", "utf8")) : {};
+if (!resume) {
+  // The chain is new, so the share vaults and CLI accounts from any previous run describe wallets that no longer exist.
+  rmSync("data", { recursive: true, force: true });
+  mkdirSync("data");
+}
+
 console.log(`Starting anvil on ${RPC_URL}`);
-run("anvil", "anvil", ["--silent", "--port", String(ports.anvil.port)]);
+run("anvil", "anvil", ["--silent", "--port", String(ports.anvil.port), ...(prod ? ["--state", STATE, "--state-interval", "5"] : [])]);
 while (!(await rpcUp())) await sleep(200);
 
-// The chain is new, so the share vaults and CLI accounts from any previous run describe wallets that no longer exist.
-rmSync("data", { recursive: true, force: true });
-mkdirSync("data");
+const deployed = resume ? (Object.fromEntries(Object.entries(previous).filter(([k]) => k.endsWith("_ADDRESS"))) as Record<string, string>) : deployContracts();
+if (resume) console.log(`Resumed the chain in ${STATE}`);
 
-console.log("Deploying the contracts");
-const deploy = spawnSync(
-  "forge",
-  ["script", "script/Deploy.s.sol", "--rpc-url", RPC_URL, "--private-key", SWISSQUOTE_KEY, "--broadcast"],
-  { cwd: "contracts", encoding: "utf8", env: { ...process.env, SWISSQUOTE_ADDRESS: privateKeyToAddress(SWISSQUOTE_KEY), PAYMASTER_DEPOSIT: "10000000000000000000" } },
-);
-if (deploy.status !== 0) fail(`${deploy.stdout}\n${deploy.stderr}\nThe contracts did not deploy.`);
-const deployed = Object.fromEntries([...deploy.stdout.matchAll(/([A-Z_]+_ADDRESS)=(0x[0-9a-fA-F]{40})/g)].map((m) => [m[1], m[2]]));
+function deployContracts() {
+  console.log("Deploying the contracts");
+  const deploy = spawnSync(
+    "forge",
+    ["script", "script/Deploy.s.sol", "--rpc-url", RPC_URL, "--private-key", SWISSQUOTE_KEY, "--broadcast"],
+    { cwd: "contracts", encoding: "utf8", env: { ...process.env, SWISSQUOTE_ADDRESS: privateKeyToAddress(SWISSQUOTE_KEY), PAYMASTER_DEPOSIT: "10000000000000000000" } },
+  );
+  if (deploy.status !== 0) fail(`${deploy.stdout}\n${deploy.stderr}\nThe contracts did not deploy.`);
+  return Object.fromEntries([...deploy.stdout.matchAll(/([A-Z_]+_ADDRESS)=(0x[0-9a-fA-F]{40})/g)].map((m) => [m[1], m[2]]));
+}
 
 // Swissquote sponsors USDC transfers on this chain; the compliance demo providers do the screening.
 const usdc = deployed.USDC_ADDRESS.toLowerCase();
@@ -131,8 +145,8 @@ const env = {
   SWISSQUOTE_KEY,
   SWISSQUOTE_ADDRESS: privateKeyToAddress(SWISSQUOTE_KEY),
   ...deployed,
-  SWISSQUOTE_SHARE_KEY: randomBytes(32).toString("hex"),
-  PARTNER_SHARE_KEY: randomBytes(32).toString("hex"),
+  SWISSQUOTE_SHARE_KEY: previous.SWISSQUOTE_SHARE_KEY ?? randomBytes(32).toString("hex"),
+  PARTNER_SHARE_KEY: previous.PARTNER_SHARE_KEY ?? randomBytes(32).toString("hex"),
   PARTNER_URL,
   NEXT_PUBLIC_PARTNER_URL: process.env.PUBLIC_PARTNER_URL ?? PARTNER_URL,
   APP_URL,
