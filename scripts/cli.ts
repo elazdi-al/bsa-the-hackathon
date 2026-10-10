@@ -73,8 +73,6 @@ function query<T>(sql: string): T[] {
   const db = new DatabaseSync(path, { readOnly: true });
   try {
     return db.prepare(sql).all() as T[];
-  } catch {
-    return [];
   } finally {
     db.close();
   }
