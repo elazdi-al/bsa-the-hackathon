@@ -22,11 +22,10 @@ const actions: Action[] = [
   { label: "Swap", icon: <ArrowsClockwiseIcon weight="bold" size={30} className="text-[#2059f2]" />, sheet: "swap" },
 ];
 
-// History and Settings have no screen yet, so they render as disabled buttons.
 const tabs = [
   { href: "/home", label: "Home", Icon: HouseSimpleIcon },
-  { href: null, label: "History", Icon: ClockIcon },
-  { href: null, label: "Settings", Icon: GearSixIcon },
+  { href: "/history", label: "History", Icon: ClockIcon },
+  { href: "/settings", label: "Settings", Icon: GearSixIcon },
 ] as const;
 
 const rowPitch = 68; // menu row height + gap; the last row sits exactly on the FAB
@@ -91,12 +90,6 @@ export function BottomBar() {
       <nav aria-label="Main" style={{ viewTransitionName: "tab-bar" }} className="bg-linear-to-t from-white from-70% to-white/0 pt-6 pb-(--bar-pb)">
         <div className={`${column} flex items-center`}>
           {tabs.map(({ href, label, Icon }) => {
-            if (!href)
-              return (
-                <button key={label} type="button" disabled aria-label={label} className={`${navIcon} text-black/35`}>
-                  <Icon weight="fill" size={25} />
-                </button>
-              );
             const active = pathname === href;
             return (
               <Link
