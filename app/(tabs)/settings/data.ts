@@ -3,8 +3,6 @@ import { BellIcon, CoinIcon, HelpIcon, KeyIcon, SignOutIcon, type Icon } from "@
 
 export type { KeyId };
 
-export const profile = { name: "Thomas A. Anderson" };
-
 /** The trays a row can open; each is the root of its own view stack. */
 export type TrayRoot = "keys" | "remove";
 

@@ -4,14 +4,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { shortAddress } from "@/app/choose-recipient/data";
-import { ChevronRightIcon, ShieldIcon, SignOutIcon, type Icon } from "@/components/icons";
+import { ChevronRightIcon, ShieldIcon, SignOutIcon, VerifiedIcon, type Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Tray, TrayActions, TrayHeader } from "@/components/ui/tray";
 import { cn } from "@/lib/utils";
 import { rowPress } from "../../_components/list";
+import { useSignedIn } from "../../_components/session";
 import { forgetWallet, shownAddress, useWallet } from "../../_components/wallet";
-import { keys, profile, sections, version, type KeyId, type Row, type TrayRoot } from "../data";
+import { keys, sections, version, type KeyId, type Row, type TrayRoot } from "../data";
 
 type View = { name: TrayRoot } | { name: "key"; id: KeyId };
 
@@ -61,9 +62,12 @@ function SettingsRow({ item, onOpen }: { item: Row; onOpen: (root: TrayRoot) => 
   }
 }
 
+const reveal = (shown: unknown) => cn("transition-[opacity,visibility] duration-200 ease-out", !shown && "invisible opacity-0");
+
 /** The member's card: their plan, name and address on the brand blue, like the card in a wallet. It opens Swissquote Plus. */
 function MemberCard() {
   const address = shownAddress(useWallet());
+  const name = useSignedIn()?.client.name;
   return (
     <Link
       href="/plus"
@@ -72,12 +76,24 @@ function MemberCard() {
     >
       <span className="text-label">Swissquote Plus</span>
       <span className="min-w-0">
-        <span className="block truncate text-heading">{profile.name}</span>
-        <span className={cn("block text-body text-white/70 transition-[opacity,visibility] duration-200 ease-out", !address && "invisible opacity-0")}>
+        <span className={cn("block truncate text-heading", reveal(name))}>{name ?? "\u00a0"}</span>
+        <span className={cn("block text-body text-white/70", reveal(address))}>
           {address ? shortAddress(address) : "0x0000...0000"}
         </span>
       </span>
     </Link>
+  );
+}
+
+/** Swissquote holds the wallet key's signed statement that this wallet is the client's, so it vouches for it. */
+function Verified() {
+  const snapshot = useWallet();
+  const verified = snapshot.status === "ready" && snapshot.wallet.verified;
+  return (
+    <p className={cn("mt-3 flex items-center gap-1.5 px-1 text-caption text-muted-foreground", reveal(verified))}>
+      <VerifiedIcon size={16} className="shrink-0 text-positive" />
+      Verified as yours by Swissquote · Mock
+    </p>
   );
 }
 
@@ -180,7 +196,10 @@ export function SettingsView() {
 
   return (
     <div className="mt-6 max-w-xl lg:grid lg:max-w-none lg:grid-cols-[20rem_minmax(0,1fr)] lg:items-start lg:gap-12">
-      <MemberCard />
+      <div>
+        <MemberCard />
+        <Verified />
+      </div>
 
       <div>
         {sections.map((rows, i) => (
