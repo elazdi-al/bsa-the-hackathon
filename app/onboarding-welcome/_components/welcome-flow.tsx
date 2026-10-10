@@ -1,49 +1,45 @@
 "use client";
 
-import { AnimatePresence, MotionConfig, motion } from "motion/react";
+import { MotionConfig, motion } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { blurred, leave, sharp, snappy } from "@/app/(tabs)/_components/transitions";
-import { RestoreIcon } from "@/components/icons";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
+import { type MouseEvent, useEffect, useState } from "react";
+import { blurred, leave, sharp } from "@/app/(tabs)/_components/transitions";
+import { RestoreIcon, WalletIcon } from "@/components/icons";
+import { buttonVariants } from "@/components/ui/button";
 import { GlimmField } from "./glimm-field";
-import { AppleLogo, FuseLogo } from "./glyphs";
+import { FuseLogo } from "./glyphs";
 import { WordWheel } from "./word-wheel";
-
-/** Apple signs in, then leaves; Recover leaves straight away. Both hand off the same way. */
-type Step = "welcome" | "signing" | "leaving" | "recovering";
 
 const NEXT_ROUTE = "/onboarding-secure";
 
-/** The hand-off: a house exit held a little longer, and the push waits for it. */
-const handOff = { ...leave, duration: 0.3 };
-
-const blurSwap = {
-  initial: { opacity: 0, scale: 0.9, filter: blurred },
-  animate: { opacity: 1, scale: 1, filter: sharp },
-  exit: { opacity: 0, scale: 0.9, filter: blurred, transition: leave },
-  transition: snappy,
-};
+/** The hand-off: content and gradient dissolve to white, and the push waits for both. */
+const handOff = { ...leave, duration: 0.45 };
 
 const cta = "focus-visible:outline-white";
 
 export function WelcomeFlow() {
   const router = useRouter();
-  const [step, setStep] = useState<Step>("welcome");
-  const busy = step === "signing" || step === "leaving";
-  const exiting = step === "leaving" || step === "recovering";
+  const [exiting, setExiting] = useState(false);
 
   useEffect(() => {
-    if (step === "welcome") return;
-    const id = step === "signing" ? setTimeout(() => setStep("leaving"), 1200) : setTimeout(() => router.push(NEXT_ROUTE), handOff.duration * 1000);
+    if (!exiting) return;
+    const id = setTimeout(() => router.push(NEXT_ROUTE), handOff.duration * 1000);
     return () => clearTimeout(id);
-  }, [step, router]);
+  }, [exiting, router]);
+
+  // Create and Recover both continue on the next screen, so both leave the same way. Modified clicks open it as usual.
+  const exit = (e: MouseEvent) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+    e.preventDefault();
+    setExiting(true);
+  };
 
   return (
     <MotionConfig reducedMotion="user">
-      <GlimmField />
+      <motion.div aria-hidden className="pointer-events-none absolute inset-0" animate={{ opacity: exiting ? 0 : 1 }} transition={handOff}>
+        <GlimmField />
+      </motion.div>
 
       <motion.div
         inert={exiting}
@@ -70,31 +66,11 @@ export function WelcomeFlow() {
         </section>
 
         <div className="mt-8 flex flex-col gap-3 px-5 pb-[max(40px,calc(env(safe-area-inset-bottom)+12px))] min-[360px]:px-[30px]">
-          <Button
-            variant="inverse"
-            size="lg"
-            disabled={busy}
-            focusableWhenDisabled
-            aria-busy={busy}
-            onClick={() => setStep("signing")}
-            className={`grid place-items-center ${cta}`}
-          >
-            <AnimatePresence initial={false}>
-              <motion.span key={busy ? "busy" : "idle"} {...blurSwap} className="col-start-1 row-start-1 flex items-center gap-2">
-                {busy ? <Spinner aria-hidden className="size-[17px]" /> : <AppleLogo className="-mt-px size-[17px]" />}
-                {busy ? "Signing in" : "Continue with Apple"}
-              </motion.span>
-            </AnimatePresence>
-          </Button>
-          <Link
-            href={NEXT_ROUTE}
-            onClick={(e) => {
-              if (e.metaKey || e.ctrlKey || e.shiftKey) return;
-              e.preventDefault();
-              setStep("recovering");
-            }}
-            className={buttonVariants({ size: "lg", className: `bg-white/15 text-white hover:bg-white/20 ${cta}` })}
-          >
+          <Link href={NEXT_ROUTE} onClick={exit} className={buttonVariants({ variant: "inverse", size: "lg", className: cta })}>
+            <WalletIcon size={20} />
+            Create new wallet
+          </Link>
+          <Link href={NEXT_ROUTE} onClick={exit} className={buttonVariants({ size: "lg", className: `bg-white/15 text-white hover:bg-white/20 ${cta}` })}>
             <RestoreIcon size={20} />
             Recover existing wallet
           </Link>

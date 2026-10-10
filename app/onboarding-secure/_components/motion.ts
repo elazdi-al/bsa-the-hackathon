@@ -9,6 +9,9 @@ export const blurSwap = {
   transition: snappy,
 };
 
+/** Every moving part of the list shares one layout spring, so nothing drifts past anything else. */
+export const layoutSpring = { type: "spring", duration: 0.5, bounce: 0 } satisfies Transition;
+
 /** The app's icon swap, as in the Receive sheet. */
 export const iconSwap = {
   initial: { opacity: 0, scale: 0.25, filter: "blur(4px)" },

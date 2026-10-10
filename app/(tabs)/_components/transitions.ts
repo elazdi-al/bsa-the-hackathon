@@ -1,6 +1,6 @@
 import type { Transition } from "motion/react";
 
-const easeOut = [0.23, 1, 0.32, 1] as const;
+export const easeOut = [0.23, 1, 0.32, 1] as const;
 
 /** Small UI state changes: pills, presses, menu items. */
 export const snappy = { type: "spring", duration: 0.35, bounce: 0 } satisfies Transition;

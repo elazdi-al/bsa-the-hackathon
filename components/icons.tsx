@@ -193,6 +193,8 @@ export const PayoutIcon = duo({ fill: circle(9.5, 14.5, 6.5) }, { bar: "M12.5 11
 
 export const FaceIdIcon = duo({ bar: corners }, { bar: "M9 9v1.5M15 9v1.5M9 15c1.7 1.4 4.3 1.4 6 0" });
 
+export const PhoneIcon = duo({ fill: rr(5.75, 2, 12.5, 20, 3.5) }, { fill: rr(8.25, 4.5, 7.5, 15, 1.25) });
+
 export const CloudIcon = duo({ fill: circle(9.5, 10.5, 5.5) }, { fill: [rr(3, 12, 18, 8.5, 4.25), circle(15.5, 12, 4.5)] }, true);
 
 export const EnvelopeIcon = duo({ fill: rr(3, 5, 18, 14, 4) }, { fill: poly([[4, 5.5], [20, 5.5], [12, 12.5]], 2.5) }, true);

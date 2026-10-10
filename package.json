@@ -13,7 +13,13 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
+    "@better-auth/passkey": "^1.7.7",
+    "@noble/curves": "^2.4.0",
+    "@noble/hashes": "^2.4.0",
     "@phosphor-icons/react": "^2.1.10",
+    "@simplewebauthn/browser": "^13.3.0",
+    "@simplewebauthn/server": "^13.3.3",
+    "better-auth": "^1.7.7",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.4.0",
     "glimm": "^0.3.1",
@@ -30,7 +36,7 @@
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
-    "@types/node": "^20",
+    "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "playwright": "^1.64.0",

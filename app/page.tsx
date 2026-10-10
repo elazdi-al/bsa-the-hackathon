@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 const screens = [
-  { slug: "onboarding-welcome", title: "Onboarding: welcome & Sign in with Apple", refs: "02-onboarding.mp4 (0–4.5s)" },
+  { slug: "onboarding-welcome", title: "Onboarding: welcome & Create new wallet", refs: "02-onboarding.mp4 (0–4.5s)" },
   { slug: "onboarding-secure", title: "Onboarding: secure your wallet", refs: "02-onboarding.mp4 (4.5–24.7s)" },
   { slug: "home", title: "Home", refs: "03, 08, 01" },
   { slug: "history", title: "Transaction history", refs: "—" },

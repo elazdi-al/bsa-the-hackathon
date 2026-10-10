@@ -7,6 +7,8 @@
 //   --step <action>              repeatable, run in order after load:
 //                                  wait:<ms> | click:<selector> | hover:<selector>
 //                                  type:<selector>:<text> | press:<key> | tap:<x>,<y>
+//                                  webauthn (adds a CDP virtual platform authenticator)
+//                                  block:<url glob> (aborts matching requests)
 //   --frames <n> --interval <ms> capture n frames after the steps; files are named <out>-<elapsedMs>ms.png
 //   --base <url>                 default http://localhost:3000
 
@@ -54,7 +56,21 @@ for (const step of opts.steps) {
   } else if (action === "tap") {
     const [x, y] = arg.split(",").map(Number);
     await page.mouse.click(x, y);
-  } else throw new Error(`unknown step ${step}`);
+  } else if (action === "webauthn") {
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("WebAuthn.enable");
+    await cdp.send("WebAuthn.addVirtualAuthenticator", {
+      options: {
+        protocol: "ctap2",
+        transport: "internal",
+        hasResidentKey: true,
+        hasUserVerification: true,
+        isUserVerified: true,
+        automaticPresenceSimulation: true,
+      },
+    });
+  } else if (action === "block") await page.route(arg, (r) => r.abort());
+  else throw new Error(`unknown step ${step}`);
 }
 
 if (opts.frames > 0) {

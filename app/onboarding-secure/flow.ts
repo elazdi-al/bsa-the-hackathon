@@ -1,60 +1,79 @@
+import type { registerWallet } from "@/lib/auth-client";
 import type { KeyId, Tone } from "./data";
 
+/** The three public credentials W registers at setup. */
+export type Keys = Parameters<typeof registerWallet>[0];
+type Hex = Keys["mpcKey"];
+
+type Pending = { status: "idle"; error?: string } | { status: "working" };
+
+/** Each step carries what the steps before it made, so setup starts with all three keys in hand. */
 export type Step =
-  | { name: "device" | "twofa"; status: "idle" | "creating" }
-  | { name: "recovery"; status: "email" | "sending" | "code" | "verifying"; email: string }
-  | { name: "setup"; status: "working" | "ready" };
+  | ({ name: "passkey" } & Pending)
+  | ({ name: "key"; keys: Pick<Keys, "credentialId"> } & Pending)
+  | { name: "key"; status: "split"; keys: Pick<Keys, "credentialId" | "mpcKey"> }
+  | ({ name: "recovery"; keys: Pick<Keys, "credentialId" | "mpcKey"> } & Pending)
+  | ({ name: "setup"; keys: Keys } & ({ status: "idle"; error: string } | { status: "working" }))
+  | { name: "setup"; status: "registered" | "ready"; address: Hex };
 
 export type FlowAction =
-  | { type: "create" }
-  | { type: "created" }
-  | { type: "sendCode"; email: string }
-  | { type: "codeSent" }
-  | { type: "verify" }
-  | { type: "verified" }
-  | { type: "walletReady" };
+  | { type: "start" }
+  | { type: "passkeyCreated"; credentialId: string }
+  | { type: "keySplit"; mpcKey: Hex }
+  | { type: "recoverySaved"; recoveryKey: Hex }
+  | { type: "registered"; address: Hex }
+  | { type: "failed"; error: string }
+  | { type: "cancelled" }
+  | { type: "advance" };
 
-export const initialFlow: Step = { name: "device", status: "idle" };
+export const initialFlow: Step = { name: "passkey", status: "idle" };
 
 export function flowReducer(step: Step, action: FlowAction): Step {
   switch (action.type) {
-    case "create":
-      if ((step.name === "device" || step.name === "twofa") && step.status === "idle")
-        return { name: step.name, status: "creating" };
+    case "start": {
+      if (step.status !== "idle") return step;
+      const { error, ...rest } = step;
+      return { ...rest, status: "working" };
+    }
+    case "failed":
+      if (step.status === "working") return { ...step, status: "idle", error: action.error };
       return step;
-    case "created":
-      if (step.name === "device" && step.status === "creating") return { name: "twofa", status: "idle" };
-      if (step.name === "twofa" && step.status === "creating") return { name: "recovery", status: "email", email: "" };
+    case "cancelled":
+      if (step.name === "recovery" && step.status === "working") return { name: "recovery", status: "idle", keys: step.keys };
       return step;
-    case "sendCode":
-      if (step.name === "recovery" && step.status === "email") return { ...step, status: "sending", email: action.email };
+    case "passkeyCreated":
+      if (step.name === "passkey" && step.status === "working")
+        return { name: "key", status: "idle", keys: { credentialId: action.credentialId } };
       return step;
-    case "codeSent":
-      if (step.name === "recovery" && step.status === "sending") return { ...step, status: "code" };
+    case "keySplit":
+      if (step.name === "key" && step.status === "working")
+        return { name: "key", status: "split", keys: { ...step.keys, mpcKey: action.mpcKey } };
       return step;
-    case "verify":
-      if (step.name === "recovery" && step.status === "code") return { ...step, status: "verifying" };
+    case "advance":
+      if (step.name === "key" && step.status === "split") return { name: "recovery", status: "idle", keys: step.keys };
+      if (step.name === "setup" && step.status === "registered") return { ...step, status: "ready" };
       return step;
-    case "verified":
-      if (step.name === "recovery" && step.status === "verifying") return { name: "setup", status: "working" };
+    case "recoverySaved":
+      if (step.name === "recovery" && step.status === "working")
+        return { name: "setup", status: "working", keys: { ...step.keys, recoveryKey: action.recoveryKey } };
       return step;
-    case "walletReady":
-      if (step.name === "setup" && step.status === "working") return { name: "setup", status: "ready" };
+    case "registered":
+      if (step.name === "setup" && step.status === "working") return { name: "setup", status: "registered", address: action.address };
       return step;
   }
 }
 
-/** The mock latency of whatever the flow is currently waiting on. */
+/**
+ * The beats after real work: the Wallet Key holds while its three shares land, and setup keeps its
+ * working copy on screen once W has the keys, since registration usually returns before it can be read.
+ */
 export function pendingTimer(step: Step): { ms: number; action: FlowAction } | null {
-  if ((step.name === "device" || step.name === "twofa") && step.status === "creating")
-    return { ms: step.name === "device" ? 1300 : 1500, action: { type: "created" } };
-  if (step.name === "recovery" && step.status === "sending") return { ms: 1200, action: { type: "codeSent" } };
-  if (step.name === "recovery" && step.status === "verifying") return { ms: 1000, action: { type: "verified" } };
-  if (step.name === "setup" && step.status === "working") return { ms: 2400, action: { type: "walletReady" } };
+  if (step.name === "key" && step.status === "split") return { ms: 1400, action: { type: "advance" } };
+  if (step.name === "setup" && step.status === "registered") return { ms: 1200, action: { type: "advance" } };
   return null;
 }
 
-const ORDER: readonly KeyId[] = ["device", "twofa", "recovery"];
+const ORDER: readonly KeyId[] = ["passkey", "key", "recovery"];
 
 export function keyState(step: Step, id: KeyId): "done" | "active" | "pending" {
   if (step.name === "setup") return "done";
@@ -62,12 +81,8 @@ export function keyState(step: Step, id: KeyId): "done" | "active" | "pending" {
   return diff < 0 ? "done" : diff === 0 ? "active" : "pending";
 }
 
+const TONES: Record<Step["name"], Tone> = { passkey: "blue", key: "orange", recovery: "violet", setup: "white" };
+
 export function toneOf(step: Step): Tone {
-  return step.name === "device"
-    ? "blue"
-    : step.name === "twofa"
-      ? "orange"
-      : step.name === "recovery"
-        ? "violet"
-        : "white";
+  return TONES[step.name];
 }

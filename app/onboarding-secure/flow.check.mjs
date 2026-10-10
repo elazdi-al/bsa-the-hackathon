@@ -1,34 +1,86 @@
 // Walks the onboarding state machine end to end: `node app/onboarding-secure/flow.check.mjs`
 import assert from "node:assert/strict";
-import { flowReducer, initialFlow, keyState, pendingTimer } from "./flow.ts";
+import { flowReducer, initialFlow, keyState, pendingTimer, toneOf } from "./flow.ts";
 
 const run = (step, ...actions) => actions.reduce(flowReducer, step);
-const fire = (step, ms) => {
+const fire = (step) => {
   const timer = pendingTimer(step);
-  assert.equal(timer?.ms, ms, `${step.name}/${step.status} waits ${ms}ms`);
+  assert.ok(timer && timer.ms > 0, `${step.name}/${step.status} holds on a timer`);
   return flowReducer(step, timer.action);
 };
 
-let s = run(initialFlow, { type: "verify" }, { type: "codeSent" }, { type: "created" }, { type: "walletReady" });
+const credentialId = "AbC-123_xyz";
+const mpcKey = `0x02${"ab".repeat(32)}`;
+const recoveryKey = `0x${"cd".repeat(32)}`;
+const address = `0x${"ef".repeat(20)}`;
+
+let s = run(
+  initialFlow,
+  { type: "keySplit", mpcKey },
+  { type: "recoverySaved", recoveryKey },
+  { type: "registered", address },
+  { type: "passkeyCreated", credentialId },
+  { type: "failed", error: "x" },
+  { type: "cancelled" },
+  { type: "advance" },
+);
 assert.equal(s, initialFlow, "out-of-order actions are ignored");
+assert.deepEqual(s, { name: "passkey", status: "idle" });
 assert.equal(pendingTimer(s), null);
+assert.equal(toneOf(s), "blue");
 
-s = fire(run(s, { type: "create" }), 1300);
-assert.deepEqual(s, { name: "twofa", status: "idle" });
-assert.equal(keyState(s, "device"), "done");
+s = run(s, { type: "start" });
+assert.equal(pendingTimer(s), null, "the passkey waits on the WebAuthn ceremony, not a timer");
+s = run(s, { type: "failed", error: "Your passkey wasn't created. Try again." });
+assert.deepEqual(s, { name: "passkey", status: "idle", error: "Your passkey wasn't created. Try again." });
+s = run(s, { type: "start" });
+assert.deepEqual(s, { name: "passkey", status: "working" }, "start clears the error");
+assert.equal(run(s, { type: "start" }), s, "a working step can't start twice");
+s = run(s, { type: "passkeyCreated", credentialId });
+assert.deepEqual(s, { name: "key", status: "idle", keys: { credentialId } });
+assert.deepEqual(["passkey", "key", "recovery"].map((id) => keyState(s, id)), ["done", "active", "pending"]);
+assert.equal(toneOf(s), "orange");
 
-s = fire(run(s, { type: "create" }), 1500);
-assert.deepEqual(s, { name: "recovery", status: "email", email: "" });
+s = run(s, { type: "start" }, { type: "failed", error: "The key wasn't split." });
+assert.deepEqual(s, { name: "key", status: "idle", error: "The key wasn't split.", keys: { credentialId } }, "a failure keeps the credential");
+s = run(s, { type: "start" });
+assert.equal(pendingTimer(s), null, "the split waits on the key generation, not a timer");
+s = run(s, { type: "keySplit", mpcKey });
+assert.deepEqual(s, { name: "key", status: "split", keys: { credentialId, mpcKey } });
+assert.equal(keyState(s, "key"), "active", "the card stays open while the three shares land");
+assert.equal(run(s, { type: "start" }, { type: "failed", error: "x" }), s, "a split key can't be split again or fail");
 
-s = fire(run(s, { type: "sendCode", email: "vova@sqds.io" }), 1200);
-assert.deepEqual(s, { name: "recovery", status: "code", email: "vova@sqds.io" });
+s = fire(s);
+assert.deepEqual(s, { name: "recovery", status: "idle", keys: { credentialId, mpcKey } });
+assert.equal(toneOf(s), "violet");
 
-s = fire(run(s, { type: "verify" }), 1000);
-assert.deepEqual(s, { name: "setup", status: "working" });
-assert.equal(keyState(s, "recovery"), "done");
+s = run(s, { type: "start" }, { type: "cancelled" });
+assert.deepEqual(s, { name: "recovery", status: "idle", keys: { credentialId, mpcKey } }, "closing the share sheet is not an error");
+s = run(s, { type: "start" }, { type: "failed", error: "Your Recovery Key wasn't saved. Try again." });
+assert.equal(s.error, "Your Recovery Key wasn't saved. Try again.");
+s = run(s, { type: "start" });
+assert.equal(pendingTimer(s), null, "the recovery key waits on the save");
+s = run(s, { type: "recoverySaved", recoveryKey });
+assert.deepEqual(s, { name: "setup", status: "working", keys: { credentialId, mpcKey, recoveryKey } });
+assert.deepEqual(["passkey", "key", "recovery"].map((id) => keyState(s, id)), ["done", "done", "done"]);
+assert.equal(toneOf(s), "white");
+assert.equal(pendingTimer(s), null, "setup waits on the registration");
 
-s = fire(s, 2400);
-assert.deepEqual(s, { name: "setup", status: "ready" });
+s = run(s, { type: "cancelled" });
+assert.equal(s.status, "working", "only the share sheet cancels");
+s = run(s, { type: "failed", error: "Your wallet wasn't set up. Try again." });
+assert.deepEqual(
+  s,
+  { name: "setup", status: "idle", error: "Your wallet wasn't set up. Try again.", keys: { credentialId, mpcKey, recoveryKey } },
+  "a failed registration keeps all three keys for the retry",
+);
+s = run(s, { type: "start" });
+assert.deepEqual(s, { name: "setup", status: "working", keys: { credentialId, mpcKey, recoveryKey } });
+s = run(s, { type: "registered", address });
+assert.deepEqual(s, { name: "setup", status: "registered", address }, "W has the keys; the setup row holds its beat");
+assert.equal(run(s, { type: "start" }, { type: "failed", error: "x" }), s, "a registered wallet can't fail");
+s = fire(s);
+assert.deepEqual(s, { name: "setup", status: "ready", address });
 assert.equal(pendingTimer(s), null, "ready has no timer");
-assert.equal(run(s, { type: "walletReady" }, { type: "create" }), s);
+assert.equal(run(s, { type: "start" }, { type: "failed", error: "x" }, { type: "registered", address: "0x00" }), s);
 console.log("flow ok");

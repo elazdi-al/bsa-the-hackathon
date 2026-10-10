@@ -115,7 +115,7 @@ function TrayBody({ view, push, close }: { view: View; push: (next: View) => voi
           <TrayHeader
             icon={<Hero Icon={ShieldIcon} color="var(--color-fuse-blue)" />}
             title="Your keys"
-            description="Any two of your three keys approve a payment, so losing one never locks you out."
+            description="Your Passkey approves every payment and your Wallet Key signs it. Your Recovery Key gets you back in."
           />
           <div className="mt-6 space-y-2">
             {keys.map(({ id, title, detail, Icon, accent }) => (
@@ -164,7 +164,7 @@ function TrayBody({ view, push, close }: { view: View; push: (next: View) => voi
           <TrayHeader
             icon={<Hero Icon={SignOutIcon} color="var(--color-negative)" />}
             title="Sign out of Fuse?"
-            description="Your keys stay safe while you’re away. Sign back in with Apple any time."
+            description="Your keys stay safe while you’re away. Sign back in with Swissquote any time."
           />
           <TrayActions>
             <Button variant="secondary" size="lg" className="h-12" onClick={close}>

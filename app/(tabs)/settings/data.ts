@@ -24,14 +24,14 @@ type Behaviour =
 export type Row = Behaviour & { label: string; detail?: string; Icon: Icon; status?: Status; destructive?: boolean };
 
 const about: Record<KeyId, { detail: string; about: string }> = {
-  device: {
-    detail: "Face ID on this iPhone",
-    about: "Encrypted on this phone and unlocked with Face ID. A lost phone alone can’t move your money.",
+  passkey: { detail: "Face ID on this iPhone", about: "Approves every payment you make. Without it, nothing leaves your wallet." },
+  key: {
+    detail: "Phone, Swissquote and backup",
+    about: "This phone, Swissquote and a backup service each hold one part. Any two of them sign with your Passkey. Nobody holds the whole key.",
   },
-  twofa: { detail: "iCloud", about: "Encrypted in your iCloud. Together with your Device Key, it approves every payment you make." },
   recovery: {
-    detail: "vova@sqds.io",
-    about: "If you lose your phone, this key and your 2FA Key get you back into Fuse. We send a code to this email when you use it.",
+    detail: "Saved as a file",
+    about: "Restores your wallet if you lose this phone, after a 48-hour hold you can cancel. Swissquote never needs to see it.",
   },
 };
 

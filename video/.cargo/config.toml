@@ -1,0 +1,3 @@
+[env]
+# Prebuilt FFmpeg links x264 ABI 165; compile it against the local x264 instead.
+FFMPEG_FORCE_BUILD = "1"
