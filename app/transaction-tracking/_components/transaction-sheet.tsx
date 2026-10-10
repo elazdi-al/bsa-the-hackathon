@@ -135,15 +135,15 @@ function Tracking() {
               <hr className="h-px border-0 bg-[repeating-linear-gradient(90deg,#d4d4d4_0_8px,transparent_8px_16px)]" />
               <dl className="mt-2">
                 <Row label="Payment rail">{withdrawal.paymentRail}</Row>
-                <Row label="Onchain transaction">
-                  <CopyButton text={withdrawal.txHash} label="Copy onchain transaction">
+                <Row label="Transaction id">
+                  <CopyButton text={withdrawal.txHash} label="Copy transaction id">
                     {withdrawal.txHash.slice(0, 4)}...{withdrawal.txHash.slice(-4)}
                   </CopyButton>
                 </Row>
                 <Row label="Network fee">
                   <span className="flex items-center gap-1.5 text-positive">
                     <LightningIcon size={15} weight="fill" />
-                    {withdrawal.networkFee}
+                    {withdrawal.networkFee} <span className="font-normal text-[#a5a5a5]">· covered by Fuse⁺</span>
                   </span>
                 </Row>
               </dl>
