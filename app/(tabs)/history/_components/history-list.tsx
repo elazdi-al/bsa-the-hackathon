@@ -11,12 +11,14 @@ import {
   SparkleIcon,
   type Icon,
 } from "@phosphor-icons/react";
+import { motion } from "motion/react";
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import { useLayoutEffect, useState, type ReactNode } from "react";
 import { CopyButton } from "@/app/transaction-tracking/_components/copy-button";
 import { Drawer, FloatingSheetContent, FloatingSheetHeader } from "@/components/ui/drawer";
 import { Money } from "../../_components/money";
-import { fullDate, groups, summary, type Kind, type Tx } from "../data";
+import { blurred, reveal, sharp } from "../../_components/transitions";
+import { dayLabel, fullDate, groups, now, summary, type Kind, type Tx } from "../data";
 
 // One scheme: a coloured glyph on a circle tinted with the same colour.
 const kinds: Record<Kind, { Icon: Icon; glyph: string; tint: string }> = {
@@ -60,10 +62,12 @@ export function RowBody({ tx, when = tx.time }: { tx: Tx; when?: string }) {
       <Glyph kind={tx.kind} size={40} />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[15px] leading-5 font-medium">{tx.title}</span>
-        <span className="mt-0.5 block truncate text-[13px] leading-[18px] text-[#adadad]">
-          {when} · {tx.detail}
+        <span className="mt-0.5 flex items-center gap-1.5 text-[13px] leading-[18px] text-[#adadad]">
+          <span className="truncate">
+            {when} · {tx.detail}
+          </span>
           {tx.status === "Pending" && (
-            <span className="ml-1.5 rounded-full bg-pending/12 px-1.5 py-px text-[11px] font-medium text-pending">Pending</span>
+            <span className="shrink-0 rounded-full bg-pending/12 px-1.5 py-px text-[11px] font-medium text-pending">Pending</span>
           )}
         </span>
       </span>
@@ -126,10 +130,48 @@ function Sheet({ tx }: { tx: Tx }) {
   );
 }
 
+const arrive = {
+  initial: { opacity: 0, filter: blurred, scale: 0.96 },
+  animate: { opacity: 1, filter: sharp, scale: 1 },
+  transition: { ...reveal, delay: 0.15 },
+};
+
+/** The send that just completed, from `?sent=<recipient>&amount=<usd>` (see the send review). */
+function justSent(search: string): Tx | null {
+  const params = new URLSearchParams(search);
+  const to = params.get("sent")?.trim();
+  const usd = Math.round(Number(params.get("amount")) * 100) / 100;
+  if (!to || !Number.isFinite(usd) || usd <= 0) return null;
+  return {
+    id: "just-sent",
+    account: "cash",
+    kind: "send",
+    title: `Sent to ${to}`,
+    detail: "Wallet",
+    date: now.date,
+    time: now.time,
+    usd,
+    flow: "out",
+    crypto: `${usd.toLocaleString("en-US", { minimumFractionDigits: 2 })} USDC`,
+    status: "Pending",
+    rows: [{ label: "To", value: to }],
+    fee: true,
+  };
+}
+
 export function HistoryList() {
   const [open, setOpen] = useState(false);
   // Kept after close so the sheet's content doesn't vanish mid-exit.
   const [tx, setTx] = useState<Tx | null>(null);
+  const [sent, setSent] = useState<Tx | null>(null);
+
+  // Before paint, so the list never jumps. The params go once read: a refresh or Back must not send it twice.
+  useLayoutEffect(() => {
+    const next = justSent(location.search);
+    if (!next) return;
+    setSent(next);
+    history.replaceState(null, "", "/history");
+  }, []);
 
   return (
     <>
@@ -142,26 +184,31 @@ export function HistoryList() {
           <section key={g.label} className="mb-5" aria-label={g.label}>
             <h2 className="px-3 pb-1 text-[13px] leading-[18px] font-medium text-[#adadad]">{g.label}</h2>
             <ul>
-              {g.items.map((t) => (
-                <li key={t.id}>
-                  {t.href ? (
-                    <Link href={t.href} className={rowClass}>
-                      <RowBody tx={t} />
-                    </Link>
-                  ) : (
-                    <button
-                      type="button"
-                      className={rowClass}
-                      onClick={() => {
-                        setTx(t);
-                        setOpen(true);
-                      }}
-                    >
-                      <RowBody tx={t} />
-                    </button>
-                  )}
-                </li>
-              ))}
+              {(sent && dayLabel(sent.date) === g.label ? [sent, ...g.items] : g.items).map((t) => {
+                const row = t.href ? (
+                  <Link href={t.href} className={rowClass}>
+                    <RowBody tx={t} />
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    className={rowClass}
+                    onClick={() => {
+                      setTx(t);
+                      setOpen(true);
+                    }}
+                  >
+                    <RowBody tx={t} when={t === sent ? "Just now" : undefined} />
+                  </button>
+                );
+                return t === sent ? (
+                  <motion.li key={t.id} {...arrive}>
+                    {row}
+                  </motion.li>
+                ) : (
+                  <li key={t.id}>{row}</li>
+                );
+              })}
             </ul>
           </section>
         ))}
