@@ -98,7 +98,10 @@ export const filters = {
 
 /** Day groups in the order of `txs`. */
 export function byDay(txs: Tx[]) {
-  return Array.from(Map.groupBy(txs, (t) => t.date), ([date, items]) => ({ date, label: dayLabel(date), items }));
+  // Not Map.groupBy: it needs Safari 17.4, and this list must open on older iPhones too.
+  const days = new Map<string, Tx[]>();
+  for (const t of txs) days.set(t.date, [...(days.get(t.date) ?? []), t]);
+  return Array.from(days, ([date, items]) => ({ date, label: dayLabel(date), items }));
 }
 
 export function monthSummary(txs: Tx[]) {
