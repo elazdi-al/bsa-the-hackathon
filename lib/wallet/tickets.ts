@@ -1,29 +1,21 @@
-// EIP-712 tickets Swissquote's Wallet API signs for the signer services. They let the
-// partner verify Swissquote's decisions with a public address, without a shared secret.
+// EIP-712 tickets Swissquote's Wallet API signs for the share services. They let the
+// independent service verify Swissquote's decisions with a public address, without a shared secret.
 import { verifyTypedData, type Address, type Hex, type LocalAccount } from 'viem'
 
 const domain = (chainId: number) => ({ name: 'Swissquote Wallet', version: '1', chainId })
 
 const types = {
-  /** A KYC-verified client may run a key ceremony bound to this passkey. */
+  /** This wallet's phone may hand its new key's shares to the services, bound to this passkey. */
   Ceremony: [
     { name: 'clientId', type: 'string' },
-    { name: 'ceremonyId', type: 'bytes32' },
     { name: 'passkeyX', type: 'bytes32' },
     { name: 'passkeyY', type: 'bytes32' },
     { name: 'expiry', type: 'uint64' },
   ],
-  /** The client passed the identity check; Swissquote approves this recovery UserOperation. */
-  RecoveryApproval: [
-    { name: 'wallet', type: 'address' },
-    { name: 'userOpHash', type: 'bytes32' },
-    { name: 'expiry', type: 'uint64' },
-  ],
 } as const
 
-export type Ceremony = { clientId: string; ceremonyId: Hex; passkeyX: Hex; passkeyY: Hex; expiry: number }
-export type RecoveryApproval = { wallet: Address; userOpHash: Hex; expiry: number }
-type Messages = { Ceremony: Ceremony; RecoveryApproval: RecoveryApproval }
+export type Ceremony = { clientId: string; passkeyX: Hex; passkeyY: Hex; expiry: number }
+type Messages = { Ceremony: Ceremony }
 export type Ticket<K extends keyof Messages> = { message: Messages[K]; signature: Hex }
 
 export async function signTicket<K extends keyof Messages>(

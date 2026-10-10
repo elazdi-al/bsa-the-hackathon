@@ -1,4 +1,4 @@
-// Chain and deployment config for server-side code (Wallet API, signer services, scripts).
+// Chain and deployment config for server-side code (Wallet API, share services, scripts).
 import { createPublicClient, http, type Address } from 'viem'
 import { entryPoint07Address } from 'viem/account-abstraction'
 import { baseSepolia } from 'viem/chains'
@@ -22,9 +22,6 @@ export const addresses = {
   get paymaster() {
     return required('PAYMASTER_ADDRESS')
   },
-  get spendingLimitRule() {
-    return required('SPENDING_LIMIT_RULE_ADDRESS')
-  },
   /** Address of Swissquote's API key: paymaster signer, ticket signer and recovery guardian. */
   get swissquote() {
     return required('SWISSQUOTE_ADDRESS')
@@ -32,7 +29,8 @@ export const addresses = {
   usdc: (process.env.USDC_ADDRESS ?? '0x036CbD53842c5426634e7929541eC2318f3dCF7e') as Address,
 }
 
-export const signerUrls = {
-  swissquote: process.env.SWISSQUOTE_SIGNER_URL ?? 'http://localhost:4001',
-  partner: process.env.PARTNER_SIGNER_URL ?? 'http://localhost:4002',
+/** Shamir share services: Share B at Swissquote, Share C at the independent service. */
+export const services = {
+  swissquote: process.env.SWISSQUOTE_SHARES_URL ?? 'http://localhost:4001',
+  partner: process.env.PARTNER_SHARES_URL ?? 'http://localhost:4002',
 }

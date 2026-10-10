@@ -42,14 +42,14 @@ export function SecureFlow() {
     return () => clearTimeout(id);
   }, [step]);
 
-  // Device Key: Face ID creates the passkey. Swissquote Key: the 2-of-3 key ceremony with Swissquote and the partner.
+  // Device Key: Face ID creates the passkey. Swissquote Key: the wallet key, split 2-of-3 with Swissquote and the independent service.
   async function create() {
     if (step.name !== "device" && step.name !== "twofa") return;
     dispatch({ type: "create" });
     setError("");
     try {
       if (step.name === "device") {
-        // No session (no Swissquote sign-in needed) or no wallet yet: go ahead. The key ceremony starts the session.
+        // No session or no wallet yet: go ahead. Splitting the wallet key starts the session.
         await api("GET", "/api/wallet").then(
           () => Promise.reject(new Error("You already have a wallet. Recover it instead.")),
           (e) => (e instanceof ApiError && (e.status === 401 || e.status === 404) ? undefined : Promise.reject(e)),

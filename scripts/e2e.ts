@@ -1,9 +1,9 @@
-// End-to-end run of the wallet backend over HTTP, with the phone simulated in Node:
-// create a wallet, send gasless, get refused, lose the phone, beat an attacker, recover
-// (with a Swissquote cancel along the way) and send again with the new phone.
-// Needs the Wallet API, both signers, a chain and a bundler running (see WALLET.md).
+// End-to-end run of the wallet backend over HTTP, with the phones simulated in Node:
+// create a wallet (2-of-3 Shamir), send gasless, lose the phone, recover with Shares B + C and the
+// recovery key (cancelled once from the old phone, once by Swissquote), wait out the 48-hour delay
+// and send again with the new phone.
+// Needs the Wallet API, both share services, a chain and a bundler running (see WALLET.md).
 // On a local anvil fork it funds the wallet and fast-forwards the recovery delay itself.
-import * as dkls from '@silencelaboratories/dkls-wasm-ll-node'
 import { P256, WebAuthnP256 } from 'ox'
 import {
   encodeAbiParameters,
@@ -17,12 +17,21 @@ import {
   type Hex,
 } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
-import { runKeyCeremony, signOperation, type PasskeySigner, type Prepared } from '../lib/wallet/client.ts'
+import { accountAbi, kitProof } from '../lib/wallet/account.ts'
+import {
+  createKey,
+  rebuildKey,
+  releaseShareB,
+  signNormal,
+  signRecovery,
+  type PasskeySigner,
+  type Prepared,
+} from '../lib/wallet/client.ts'
 import { addresses, publicClient } from '../lib/wallet/env.ts'
+import type { Share } from '../lib/wallet/shamir.ts'
 
 const API = process.env.API_URL ?? 'http://localhost:3000'
 const ANNA = privateKeyToAccount(generatePrivateKey()).address
-const SANCTIONED: Address = '0x098B716B8Aaf21512996dC57EB0615e2383E2f96' // flagged by TRM
 
 /** A browser session with its cookie jar. */
 function session() {
@@ -45,12 +54,6 @@ async function ok(call: Promise<{ status: number; data: any }>) {
   return data
 }
 
-async function refused(call: Promise<{ status: number; data: any }>, status: number) {
-  const res = await call
-  if (res.status !== status) throw new Error(`expected ${status}, got ${res.status}: ${JSON.stringify(res.data)}`)
-  return res.data
-}
-
 /** A phone's passkey, in software. The browser uses WebAuthnP256.sign (Face ID) instead. */
 function phonePasskey() {
   const privateKey = P256.randomPrivateKey()
@@ -61,6 +64,7 @@ function phonePasskey() {
   }
   return { passkey: { x: numberToHex(x, { size: 32 }), y: numberToHex(y, { size: 32 }) }, sign }
 }
+type Phone = ReturnType<typeof phonePasskey> & { api: Api; share: Share; key?: Hex }
 
 const transfer = (to: Address, usdc: string) => ({
   to: addresses.usdc,
@@ -76,23 +80,28 @@ async function waitFor(api: Api, hash: Hex) {
   }
 }
 
-async function send(api: Api, sign: PasskeySigner, share: Uint8Array, to: Address, usdc: string) {
-  const prepared = (await ok(api('POST', '/api/wallet/operations', { calls: [transfer(to, usdc)] }))) as Prepared & {
-    decision: { summary: string[] }
-  }
-  console.log(`  ${prepared.decision.summary.join('\n  ')}`)
-  const signature = await signOperation(dkls, share, prepared, sign)
-  await ok(api('POST', `/api/wallet/operations/${prepared.hash}`, { signature }))
-  console.log(`  done: ${await waitFor(api, prepared.hash)}`)
+/** Passkey approves; the phone rebuilds the wallet key from Shares A + B unless it has it cached. */
+async function operate(phone: Phone, call: { to: Address; data: Hex }) {
+  const prepared = (await ok(phone.api('POST', '/api/wallet/operations', { call }))) as Prepared
+  const assertion = await phone.sign(prepared.hash)
+  if (!phone.key) {
+    phone.key = rebuildKey(phone.share, await releaseShareB(prepared, assertion), prepared.signer)
+    console.log('  wallet key rebuilt from Shares A + B, cached on the phone')
+  } else console.log('  cached wallet key, no Shamir round')
+  await ok(phone.api('POST', `/api/wallet/operations/${prepared.hash}`, { signature: await signNormal(prepared, phone.key, assertion) }))
+  console.log(`  done: ${await waitFor(phone.api, prepared.hash)}`)
 }
 
-async function startRecovery(api: Api, signer: Address, passkey: { x: Hex; y: Hex }, recoveryKit: ReturnType<typeof privateKeyToAccount>) {
-  await ok(api('POST', '/api/recovery', { document: 'id-card-scan', selfie: 'claire' }))
-  const { hash } = await ok(api('POST', '/api/wallet/operations', { recovery: { signer, passkey } }))
-  const confirmationSignature = await recoveryKit.sign({ hash }) // the confirmation key from home
-  await ok(api('POST', `/api/wallet/operations/${hash}`, { confirmationSignature }))
-  console.log(`  recovery started: ${await waitFor(api, hash)}`)
+/** The new phone: new passkey, new wallet key split 2-of-3, initiateRecovery signed by Shares B + C and the recovery key. */
+async function startRecovery(phone: Omit<Phone, 'share'>, recoveryKey: ReturnType<typeof privateKeyToAccount>) {
+  const { share, signer } = await createKey(await ok(phone.api('POST', '/api/wallet/ceremony', { passkey: phone.passkey, purpose: 'recovery' })))
+  const prepared = (await ok(phone.api('POST', '/api/wallet/operations', { recovery: { signer, passkey: phone.passkey } }))) as Prepared
+  await ok(phone.api('POST', `/api/wallet/operations/${prepared.hash}`, { signature: await signRecovery(prepared, recoveryKey) }))
+  console.log(`  recovery started: ${await waitFor(phone.api, prepared.hash)}`)
+  return { share, signer }
 }
+
+const pending = async (api: Api) => (await ok(api('GET', '/api/recovery'))) as { pending: boolean; executeAfter: number }
 
 const isAnvil = await publicClient.request({ method: 'anvil_nodeInfo' } as never).then(() => true, () => false)
 const usdcBalance = (address: Address) =>
@@ -100,15 +109,13 @@ const usdcBalance = (address: Address) =>
 
 // ---------------------------------------------------------------- create
 
-const claire = session()
-await ok(claire('POST', '/api/session', { email: 'claire@example.com', password: 'claire' }))
-
-console.log('1. Key ceremony: phone (A), Swissquote (B), partner (C)')
-const phone1 = phonePasskey()
-const key1 = await runKeyCeremony(dkls, await ok(claire('POST', '/api/wallet/ceremony', { passkey: phone1.passkey, purpose: 'create' })))
-const recoveryKit = privateKeyToAccount(generatePrivateKey())
-const wallet = await ok(claire('POST', '/api/wallet', { signer: key1.signer, passkey: phone1.passkey, confirmationKey: recoveryKit.address }))
-console.log(`  wallet ${wallet.address}, MPC key ${key1.signer}`)
+console.log('1. The phone splits a new wallet key 2-of-3: A stays, B to Swissquote, C to the independent service')
+const phone1 = { ...phonePasskey(), api: session() }
+const key1 = await createKey(await ok(phone1.api('POST', '/api/wallet/ceremony', { passkey: phone1.passkey, purpose: 'create' })))
+const recoveryKey = privateKeyToAccount(generatePrivateKey())
+const wallet = await ok(phone1.api('POST', '/api/wallet', { signer: key1.signer, passkey: phone1.passkey, confirmationKey: recoveryKey.address }))
+const old: Phone = { ...phone1, share: key1.share }
+console.log(`  wallet ${wallet.address}, wallet key ${key1.signer}`)
 
 if (isAnvil) {
   // Circle's FiatToken keeps balances in slot 9.
@@ -122,33 +129,39 @@ if (isAnvil) {
   while ((await usdcBalance(wallet.address)) < parseUnits('25', 6)) await new Promise((r) => setTimeout(r, 5000))
 }
 
-console.log('2. Send 20 USDC: deploys the account, Swissquote pays the gas')
-await send(claire, phone1.sign, key1.share, ANNA, '20')
+console.log('2. Send 10 USDC: deploys the account, Swissquote pays the gas')
+await operate(old, transfer(ANNA, '10'))
+console.log('   and 10 more with the cached key')
+await operate(old, transfer(ANNA, '10'))
 
-console.log('3. Policy refuses a sanctioned recipient and asks for step-up above CHF 1,000')
-console.log(`  ${(await refused(claire('POST', '/api/wallet/operations', { calls: [transfer(SANCTIONED, '1')] }), 403)).decision.reasons}`)
-console.log(`  ${(await refused(claire('POST', '/api/wallet/operations', { calls: [transfer(ANNA, '2000')] }), 403)).stepUp}`)
+console.log('3. Swissquote refuses Share B without the passkey')
+{
+  const prepared = (await ok(old.api('POST', '/api/wallet/operations', { call: transfer(ANNA, '1') }))) as Prepared
+  const refused = await releaseShareB(prepared, await phonePasskey().sign(prepared.hash)).then(() => false, (e: Error) => e.message)
+  if (!refused) throw new Error('Share B was released to a stranger')
+  console.log(`  ${refused}`)
+}
 
 // ---------------------------------------------------------------- lose the phone
 
-console.log('4. Attacker with the email and password fails the liveness check')
-const attacker = session()
-await ok(attacker('POST', '/api/session', { email: 'claire@example.com', password: 'claire' }))
-console.log(`  ${(await refused(attacker('POST', '/api/recovery', { selfie: 'attacker' }), 403)).error}`)
+console.log('4. New phone: the recovery key finds the wallet, then a recovery signed by Shares B + C and the recovery key')
+const phone2 = { ...phonePasskey(), api: session() }
+const at = Math.floor(Date.now() / 1000)
+await ok(phone2.api('POST', '/api/recovery', { at, signature: await recoveryKey.signMessage({ message: kitProof(at) }) }))
+await startRecovery(phone2, recoveryKey)
 
-console.log('5. Claire, new phone: ID check, new key ceremony, recovery signed by B + C + her home key')
-const phone2 = phonePasskey()
-await ok(claire('POST', '/api/recovery', { document: 'id-card-scan', selfie: 'claire' }))
-const key2 = await runKeyCeremony(dkls, await ok(claire('POST', '/api/wallet/ceremony', { passkey: phone2.passkey, purpose: 'recovery' })))
-await startRecovery(claire, key2.signer, phone2.passkey, recoveryKit)
+console.log('5. The old phone cancels it from the app (wallet key + passkey)')
+await operate(old, { to: wallet.address, data: encodeFunctionData({ abi: accountAbi, functionName: 'cancelRecovery' }) })
+if ((await pending(phone2.api)).pending) throw new Error('recovery still pending')
 
-console.log('6. Swissquote cancels it for her (e-banking), then she starts again')
-await ok(claire('DELETE', '/api/recovery'))
-if ((await ok(claire('GET', '/api/recovery'))).pending) throw new Error('recovery still pending')
-await startRecovery(claire, key2.signer, phone2.passkey, recoveryKit)
+console.log('6. Started again, Swissquote cancels it for the user, then the user starts once more')
+await startRecovery(phone2, recoveryKey)
+await ok(phone2.api('DELETE', '/api/recovery'))
+if ((await pending(phone2.api)).pending) throw new Error('recovery still pending')
+const key2 = await startRecovery(phone2, recoveryKey)
 
-const { executeAfter } = await ok(claire('GET', '/api/recovery'))
-console.log(`7. Waiting out the recovery delay (until ${new Date(executeAfter * 1000).toISOString()})`)
+const { executeAfter } = await pending(phone2.api)
+console.log(`7. Waiting out the 48-hour recovery delay (until ${new Date(executeAfter * 1000).toISOString()})`)
 const wait = executeAfter - Number((await publicClient.getBlock()).timestamp) + 1
 if (isAnvil) {
   await publicClient.request({ method: 'evm_increaseTime', params: [numberToHex(wait)] } as never)
@@ -156,10 +169,10 @@ if (isAnvil) {
 } else {
   await new Promise((r) => setTimeout(r, wait * 1000))
 }
-const finalized = await ok(claire('PATCH', '/api/recovery'))
+const finalized = await ok(phone2.api('PATCH', '/api/recovery'))
 console.log(`  finalized, wallet key is now ${finalized.signer}`)
 
 console.log('8. New phone sends 5 USDC: same address, same balance')
-await send(claire, phone2.sign, key2.share, ANNA, '5')
+await operate({ ...phone2, share: key2.share }, transfer(ANNA, '5'))
 console.log(`  Anna has ${formatUnits(await usdcBalance(ANNA), 6)} USDC, wallet ${formatUnits(await usdcBalance(wallet.address), 6)} USDC`)
 console.log('All good.')

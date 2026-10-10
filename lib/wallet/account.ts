@@ -1,5 +1,5 @@
 // SwissquoteAccount ABIs and signature encoding. Isomorphic: used by the phone, the
-// Wallet API and both signer services.
+// Wallet API and both share services.
 import type { WebAuthnP256 } from 'ox'
 import { concat, encodeAbiParameters, numberToHex, parseAbi, parseAbiParameter, type Address, type Hex } from 'viem'
 
@@ -8,31 +8,21 @@ export type Passkey = { x: Hex; y: Hex }
 /** A WebAuthn assertion, as returned by ox's WebAuthnP256.sign. */
 export type PasskeyAssertion = Pick<WebAuthnP256.sign.ReturnType, 'metadata' | 'signature'>
 
-export type Call = { to: Address; value: bigint; data: Hex }
-
 const structs = [
   'struct Passkey { bytes32 x; bytes32 y; }',
-  'struct Config { address signer; Passkey passkey; address confirmationKey; address guardian; uint48 recoveryDelay; address[] rules; }',
-  'struct Call { address target; uint256 value; bytes data; }',
+  'struct Config { address signer; Passkey passkey; address confirmationKey; address guardian; }',
 ] as const
 
 export const accountAbi = parseAbi([
   ...structs,
   'function execute(address target, uint256 value, bytes data)',
-  'function executeBatch(Call[] calls)',
   'function initiateRecovery(address newSigner, Passkey newPasskey)',
   'function cancelRecovery()',
   'function finalizeRecovery()',
-  'function addRule(address rule)',
-  'function removeRule(address rule)',
-  'function setGuardian(address guardian)',
-  'function setConfirmationKey(address confirmationKey)',
-  'function setRecoveryDelay(uint48 delay)',
   'function signer() view returns (address)',
   'function passkey() view returns (bytes32 x, bytes32 y)',
   'function confirmationKey() view returns (address)',
   'function pendingRecovery() view returns (address signer, Passkey passkey, uint48 executeAfter)',
-  'function isValidSignature(bytes32 hash, bytes signature) view returns (bytes4)',
 ])
 
 export const factoryAbi = parseAbi([
@@ -46,21 +36,19 @@ export const paymasterAbi = parseAbi([
   'function getHash(PackedUserOperation userOp, uint48 validUntil, uint48 validAfter) view returns (bytes32)',
 ])
 
-export const spendingLimitRuleAbi = parseAbi(['function setLimit(address token, uint256 daily)'])
-
 const webAuthnAuth = parseAbiParameter(
   '(bytes32 r, bytes32 s, uint256 challengeIndex, uint256 typeIndex, bytes authenticatorData, string clientDataJSON)',
 )
 
-/** MODE_NORMAL: MPC signature and passkey assertion, both over the userOpHash. */
-export function encodeNormalSignature(mpcSignature: Hex, assertion: PasskeyAssertion): Hex {
+/** MODE_NORMAL: wallet key signature and passkey assertion, both over the userOpHash. */
+export function encodeNormalSignature(keySignature: Hex, assertion: PasskeyAssertion): Hex {
   const { metadata, signature } = assertion
   return concat([
     '0x00',
     encodeAbiParameters(
       [{ type: 'bytes' }, webAuthnAuth],
       [
-        mpcSignature,
+        keySignature,
         {
           r: numberToHex(signature.r, { size: 32 }),
           s: numberToHex(signature.s, { size: 32 }),
@@ -74,14 +62,14 @@ export function encodeNormalSignature(mpcSignature: Hex, assertion: PasskeyAsser
   ])
 }
 
-/** MODE_RECOVERY: MPC signature (Swissquote + partner shares) and the client's confirmation key. */
-export function encodeRecoverySignature(mpcSignature: Hex, confirmationSignature: Hex): Hex {
-  return concat(['0x01', encodeAbiParameters([{ type: 'bytes' }, { type: 'bytes' }], [mpcSignature, confirmationSignature])])
+/** MODE_RECOVERY: wallet key signature (rebuilt from Shares B + C) and the user's recovery key. */
+export function encodeRecoverySignature(keySignature: Hex, confirmationSignature: Hex): Hex {
+  return concat(['0x01', encodeAbiParameters([{ type: 'bytes' }, { type: 'bytes' }], [keySignature, confirmationSignature])])
 }
 
 /**
- * What the Recovery Kit's confirmation key signs (EIP-191) to prove a wallet without a Swissquote
- * account is yours. `at` is the time in seconds, so a signature seen once cannot be replayed later.
+ * What the recovery key signs (EIP-191) on a new phone to find its wallet. `at` is the time in
+ * seconds, so a signature seen once cannot be replayed later.
  */
 export const kitProof = (at: number) => `Recover my Swissquote Wallet, ${at}`
 

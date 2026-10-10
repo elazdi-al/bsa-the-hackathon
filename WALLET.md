@@ -62,7 +62,7 @@ On Base Sepolia, `npm run e2e` prints the new wallet's address and waits until y
 
 ## Wallet API
 
-All routes use a session cookie. Signing in to Swissquote (`POST /api/session`, mocked: `claire@example.com` / `claire`) is optional: without it, the first key ceremony starts a session for the new wallet, which has no Swissquote account behind it. Such a wallet works like any other, with two differences: Face ID alone approves larger payments (there is no Swissquote PIN or KYC photo for the step-up; screening and blocks still apply), and recovery proves ownership with the Recovery Kit instead of the ID check.
+All routes use a session cookie. Signing in to Swissquote (`POST /api/session`, mocked: `claire@example.com` / `claire`) is optional: without it, the first key ceremony starts a session for the new wallet, which has no Swissquote account behind it. Such a wallet works like any other, with two differences: Face ID alone approves larger payments (there is no Swissquote PIN or KYC photo for the step-up; screening and blocks still apply), and on a new phone its Recovery Kit finds it, since there is no sign-in.
 
 | Route | Does |
 | --- | --- |
@@ -72,7 +72,7 @@ All routes use a session cookie. Signing in to Swissquote (`POST /api/session`, 
 | `POST /api/wallet/operations` | `{ calls }`: policy, gas estimate, paymaster signature. `{ recovery: { signer, passkey } }`: builds `initiateRecovery` |
 | `POST /api/wallet/operations/:hash` | Normal: `{ signature }` from `signOperation`. Recovery: `{ confirmationSignature }`, then Swissquote and the partner co-sign |
 | `GET /api/wallet/operations/:hash` | Status from the bundler |
-| `POST /api/recovery` | Identity check: mocked ID and liveness for Swissquote clients, or `{ at, signature }` from the Recovery Kit (`kitProof`) for a wallet without an account, which also restores its session on the new browser |
+| `POST /api/recovery` | Only for a wallet without a Swissquote account: `{ at, signature }` from the Recovery Kit (`kitProof`) finds it and restores its session on the new browser |
 | `GET` / `DELETE` / `PATCH /api/recovery` | Pending recovery / Swissquote cancels as guardian / finalize after the delay |
 
 ## Screens
@@ -83,10 +83,10 @@ Start at `/onboarding-welcome`. Swissquote clients can sign in at `/sign-in` fir
 | --- | --- | --- |
 | Create | `/onboarding-welcome`, `/onboarding-secure` | Device Key: `createPasskey`. Swissquote Key: `POST /api/wallet/ceremony`, `runKeyCeremony` in the browser (`dkls-wasm-ll-web`). Recovery Key: a new confirmation key, `POST /api/wallet`, then "Save Recovery Kit" downloads it as a text file |
 | Send | `/choose-recipient`, `/send-hide-my-wallet`, `/transaction-tracking` | `POST /api/wallet/operations` shows the policy summary, or the PIN (and selfie) step-up, or the block. Face ID then `signOperation`, `POST /api/wallet/operations/:hash`, and the tracker polls `GET` |
-| Recover | `/pending-verification` | `POST /api/recovery` (the ID check, or the Recovery Kit for a wallet without an account), a new passkey and ceremony (`purpose: recovery`), the recovery operation signed with the kit's key, then a countdown from `GET /api/recovery` with cancel (`DELETE`) and finish (`PATCH`) |
+| Recover | `/pending-verification` | The Recovery Kit (`POST /api/recovery` for a wallet without an account), a new passkey and ceremony (`purpose: recovery`), the recovery operation signed with the kit's key, then a countdown from `GET /api/recovery` with cancel (`DELETE`) and finish (`PATCH`) |
 
 Share A is stored in IndexedDB, AES-GCM encrypted under the passkey's WebAuthn PRF output, so one Face ID both approves a send and decrypts the share (`lib/wallet/browser.ts`). Where the authenticator has no PRF, the key is a non-extractable WebCrypto key stored next to the ciphertext: page scripts can use it but not read it, so it protects less than PRF. The confirmation key exists only in the downloaded Recovery Kit.
 
 ## Mocked
 
-Swissquote sign-in and KYC records, the ID and liveness check, the PIN step-up, the HSM (shares are AES-GCM encrypted in SQLite), and the channel between Swissquote and the partner (a pre-shared key instead of mTLS).
+Swissquote sign-in and KYC records, the PIN step-up, the HSM (shares are AES-GCM encrypted in SQLite), and the channel between Swissquote and the partner (a pre-shared key instead of mTLS).

@@ -30,6 +30,15 @@ export function Accounts() {
 
   return (
     <>
+      {wallet?.recovering && (
+        <Link
+          href="/pending-verification"
+          className="mt-3.5 block rounded-[18px] bg-negative/[0.06] p-4 text-[14px] leading-[19px] tracking-[-0.15px]"
+        >
+          <span className="block font-semibold text-negative">A recovery of your wallet is pending</span>
+          <span className="block text-black/50">Not you? Cancel it from this phone before it completes.</span>
+        </Link>
+      )}
       <section aria-label="Accounts" className="mt-3.5 grid auto-rows-[152px] grid-cols-2 gap-2.5 md:grid-cols-4 lg:mt-6 lg:grid-cols-2">
         {shown.map((tile, i) => (
           <AssetTile key={tile.id} tile={tile} index={i} onOpen={() => show(tile.id)} />

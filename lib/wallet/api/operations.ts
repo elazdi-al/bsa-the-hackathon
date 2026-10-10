@@ -1,5 +1,4 @@
-// Builds, sponsors and submits UserOperations for clients' SwissquoteAccounts.
-import { randomUUID } from 'node:crypto'
+// Builds, sponsors and submits UserOperations for users' SwissquoteAccounts.
 import {
   concat,
   createWalletClient,
@@ -20,9 +19,7 @@ import {
 } from 'viem/account-abstraction'
 import { privateKeyToAccount } from 'viem/accounts'
 import { factoryAbi, paymasterAbi, type Passkey } from '../account.ts'
-import { addresses, bundlerUrl, chain, entryPoint, publicClient, rpcUrl, signerUrls } from '../env.ts'
-import { PARTNER, remoteParty, run, SIGN_STEPS, SWISSQUOTE, toEthSignature } from '../mpc.ts'
-import { signTicket } from '../tickets.ts'
+import { addresses, bundlerUrl, chain, entryPoint, publicClient, rpcUrl, services } from '../env.ts'
 import { HttpError, type Client } from './clients.ts'
 import { db, json } from './db.ts'
 
@@ -40,14 +37,7 @@ const MAX_GAS_PER_OP = 2_000_000n
 
 // ---------------------------------------------------------------- wallet registry
 
-export type WalletConfig = {
-  signer: Address
-  passkey: Passkey
-  confirmationKey: Address
-  guardian: Address
-  recoveryDelay: number
-  rules: Address[]
-}
+export type WalletConfig = { signer: Address; passkey: Passkey; confirmationKey: Address; guardian: Address }
 export type Wallet = { address: Address; signer: Address; config: WalletConfig }
 
 export function getWallet(clientId: string): Wallet | undefined {
@@ -63,45 +53,44 @@ export function requireWallet(clientId: string): Wallet {
   return wallet
 }
 
-const IDENTITY_CHECK_TTL = 15 * 60_000
-
-/** Recovery steps need a recent pass of the (mocked) ID and liveness check. */
-export function requireIdentityCheck(client: Client) {
-  const check = db().prepare('select passed_at from identity_checks where client_id = ?').get(client.id) as
-    | { passed_at: number }
-    | undefined
-  if (!check || Date.now() - check.passed_at > IDENTITY_CHECK_TTL) throw new HttpError(403, 'pass the identity check first')
-}
-
-export function walletConfig(signer: Address, passkey: Passkey, confirmationKey: Address): WalletConfig {
-  return {
-    signer,
-    passkey,
-    confirmationKey,
-    guardian: swissquote().address,
-    recoveryDelay: Number(process.env.RECOVERY_DELAY ?? 48 * 3600),
-    rules: [addresses.spendingLimitRule],
-  }
-}
+export const walletConfig = (signer: Address, passkey: Passkey, confirmationKey: Address): WalletConfig => ({
+  signer,
+  passkey,
+  confirmationKey,
+  guardian: swissquote().address,
+})
 
 export const predictAddress = (config: WalletConfig) =>
   publicClient.readContract({ address: addresses.factory, abi: factoryAbi, functionName: 'getAddress', args: [config, 0n] })
 
-/** The co-signer holds a share for this key, made in a ceremony this client was ticketed for. */
+/** Swissquote holds Share B of this key, handed over under this client's ticket for this passkey. */
 export async function requireShare(client: Client, signer: Address, passkey: Passkey) {
-  const res = await fetch(`${signerUrls.swissquote}/shares/${signer}`)
+  const res = await fetch(`${services.swissquote}/shares/${signer}`)
   const share = res.ok ? ((await res.json()) as { clientId: string; passkey: Passkey }) : undefined
   if (share?.clientId !== client.id || share.passkey.x !== passkey.x || share.passkey.y !== passkey.y) {
-    throw new HttpError(403, 'this key did not come from your key ceremony with Swissquote')
+    throw new HttpError(403, 'Swissquote holds no share of this key for you')
   }
 }
 
 // ---------------------------------------------------------------- operations
 
-export type Kind = 'normal' | 'recovery'
+/**
+ * Accounts deploy with their first transaction. Recovery needs the account on-chain (the share
+ * services read its key and recovery key there), so Swissquote deploys an unused one first.
+ */
+export async function ensureDeployed(wallet: Wallet) {
+  if (await publicClient.getCode({ address: wallet.address })) return
+  const hash = await operator().writeContract({
+    address: addresses.factory,
+    abi: factoryAbi,
+    functionName: 'createAccount',
+    args: [wallet.config, 0n],
+  })
+  await publicClient.waitForTransactionReceipt({ hash })
+}
 
-/** Estimates gas, signs Swissquote's sponsorship and stores the operation for submission. */
-export async function prepare(client: Client, wallet: Wallet, kind: Kind, callData: Hex, stubSignature: Hex) {
+/** Estimates gas, signs Swissquote's sponsorship (it pays the gas) and stores the operation for submission. */
+export async function prepare(client: Client, wallet: Wallet, callData: Hex, stubSignature: Hex) {
   const [code, nonce, gasPrice, block] = await Promise.all([
     publicClient.getCode({ address: wallet.address }),
     publicClient.readContract({ address: entryPoint, abi: entryPoint07Abi, functionName: 'getNonce', args: [wallet.address, 0n] }),
@@ -149,8 +138,8 @@ export async function prepare(client: Client, wallet: Wallet, kind: Kind, callDa
 
   const hash = getUserOperationHash({ chainId: chain.id, entryPointAddress: entryPoint, entryPointVersion: '0.7', userOperation: userOp })
   const rpc = formatUserOperationRequest(userOp)
-  db().prepare('insert into operations values (?, ?, ?, ?, ?)').run(hash, client.id, kind, json(rpc), Date.now())
-  return { hash, userOp: rpc }
+  db().prepare('insert into operations values (?, ?, ?)').run(hash, client.id, json(rpc))
+  return { hash, userOp: rpc, signer: wallet.signer, services }
 }
 
 /** paymasterData for eth-infinitism's VerifyingPaymaster: abi.encode(validUntil, validAfter) ++ signature. */
@@ -161,11 +150,11 @@ async function sponsorship(validUntil: bigint, signature: Hex) {
 }
 
 export function loadOperation(client: Client, hash: Hex) {
-  const row = db().prepare('select * from operations where hash = ? and client_id = ?').get(hash, client.id) as
-    | { kind: Kind; user_op: string }
+  const row = db().prepare('select user_op from operations where hash = ? and client_id = ?').get(hash, client.id) as
+    | { user_op: string }
     | undefined
   if (!row) throw new HttpError(404, 'unknown operation')
-  return { kind: row.kind, userOp: formatUserOperation(JSON.parse(row.user_op)) as UserOperation<'0.7'> }
+  return formatUserOperation(JSON.parse(row.user_op)) as UserOperation<'0.7'>
 }
 
 export async function submit(userOp: UserOperation<'0.7'>, signature: Hex) {
@@ -174,25 +163,4 @@ export async function submit(userOp: UserOperation<'0.7'>, signature: Hex) {
     .catch((error: Error) => {
       throw new HttpError(422, 'the bundler rejected the operation', { detail: error.message.split('\n')[0] })
     })
-}
-
-/** Swissquote (Share B) and the partner (Share C) sign a recovery the client confirmed with their home key. */
-export async function signRecovery(wallet: Wallet, hash: Hex, userOp: UserOperation<'0.7'>, confirmationSignature: Hex) {
-  const approval = await signTicket(swissquote(), chain.id, 'RecoveryApproval', {
-    wallet: wallet.address,
-    userOpHash: hash,
-    expiry: Math.floor(Date.now() / 1000) + 300,
-  })
-  const request = { kind: 'recovery', signer: wallet.signer, userOp: formatUserOperationRequest(userOp), confirmationSignature, approval }
-  const session = randomUUID()
-  const [result] = await run(
-    [
-      remoteParty(SWISSQUOTE, `${signerUrls.swissquote}/sign/${session}`, { request }),
-      remoteParty(PARTNER, `${signerUrls.partner}/sign/${session}`, { request }),
-    ],
-    SIGN_STEPS,
-  ).catch((error: Error) => {
-    throw new HttpError(403, 'the signers refused the recovery', { detail: error.message })
-  })
-  return toEthSignature(result.signature!, hash, wallet.signer)
 }
