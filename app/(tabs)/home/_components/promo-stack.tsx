@@ -59,7 +59,13 @@ export function PromoStack({ className, onOpenAccount }: { className: string; on
     <div className={`relative ${className}`}>
       <AnimatePresence initial={false}>
         {current ? (
-          <motion.section key="stack" aria-label="Promotions" className={`absolute inset-0 overflow-hidden ${tileSurface}`} {...layer}>
+          <motion.section
+            key="stack"
+            aria-label="Promotions"
+            // The whole tile presses when its card does, not when the dismiss button does.
+            className={`absolute inset-0 overflow-hidden transition-[scale] duration-150 ease-out has-[[data-card]:active]:scale-[0.96] ${tileSurface}`}
+            {...layer}
+          >
             <AnimatePresence initial={false} custom={last}>
               <motion.div
                 key={current.id}
@@ -128,11 +134,11 @@ export function PromoStack({ className, onOpenAccount }: { className: string; on
 function PromoCard({ promo, onOpenAccount, children }: { promo: Promo; onOpenAccount: (id: TileId) => void; children: ReactNode }) {
   const className = "absolute inset-0 rounded-[22px] outline-none focus-visible:ring-2 focus-visible:ring-black/20 focus-visible:ring-inset";
   return "href" in promo ? (
-    <Link href={promo.href} transitionTypes={["push"]} aria-label={promo.title.join(" ")} className={className}>
+    <Link data-card href={promo.href} transitionTypes={["push"]} aria-label={promo.title.join(" ")} className={className}>
       {children}
     </Link>
   ) : (
-    <button type="button" aria-haspopup="dialog" aria-label={promo.title.join(" ")} onClick={() => onOpenAccount(promo.account)} className={className}>
+    <button data-card type="button" aria-haspopup="dialog" aria-label={promo.title.join(" ")} onClick={() => onOpenAccount(promo.account)} className={className}>
       {children}
     </button>
   );
