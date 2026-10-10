@@ -8,6 +8,7 @@ import { Money } from "@/app/(tabs)/_components/money";
 import { LightningIcon, type Icon } from "@/components/icons";
 import { useBack } from "@/components/navigation";
 import { Button } from "@/components/ui/button";
+import { DemoTag } from "@/components/ui/demo-tag";
 import { Drawer, FloatingSheetContent, FloatingSheetHeader } from "@/components/ui/drawer";
 import { withdrawal, type Tracked } from "../data";
 import { CopyButton } from "./copy-button";
@@ -129,6 +130,7 @@ export function Tracking({ tx, step, badge }: { tx: Tracked; step: number; badge
             </p>
             <p className="mt-1 text-body text-muted-foreground tabular-nums">{tx.amount}</p>
             <p className="text-body text-muted-foreground">{tx.date}</p>
+            {tx.demo && <DemoTag className="mt-3" />}
           </FloatingSheetHeader>
         </motion.div>
 

@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from "motion/react";
 import { VerifiedIcon, WarningIcon } from "@/components/icons";
+import { DemoTag } from "@/components/ui/demo-tag";
 import { Spinner } from "@/components/ui/spinner";
 import { shortAddress, type Resolution } from "../data";
 import { blurSwap, iconPop } from "./motion";
@@ -44,12 +45,17 @@ function describe(status: Status) {
     case "resolved":
       return {
         icon: <VerifiedIcon size={16} className="text-positive" />,
-        text: shortAddress(status.address),
+        text: (
+          <>
+            {shortAddress(status.address)}
+            {status.demo && <DemoTag />}
+          </>
+        ),
       };
     case "notFound":
       return {
         icon: <WarningIcon size={16} className="text-negative" />,
-        text: "Name not found",
+        text: "Name not found in this demo",
       };
     case "mistyped":
       return {

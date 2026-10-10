@@ -42,13 +42,13 @@ export function historyFor(total: number, now: number, balanceAt: (time: number)
 
 export type TileId = "cash" | "investments" | "earn" | "card";
 /** A tile either pushes its own screen or opens an account sheet that says what the account is. `value` is undefined until known. */
-export type Tile = { id: TileId; label: string; value: number | undefined } & ({ href: string } | { about: string });
+export type Tile = { id: TileId; label: string; value: number | undefined; demo?: true } & ({ href: string } | { about: string });
 
 export const tiles: Tile[] = [
-  { id: "cash", label: "Cash", value: 5000, about: "USDC you can spend or send" },
-  { id: "investments", label: "Investments", value: 7531, href: "/coin-breakdown" },
-  { id: "earn", label: "Earn", value: 10000, about: "Earning up to 5.45% APY" },
-  { id: "card", label: "Card", value: 1000, about: "Your Swissquote virtual Visa" },
+  { id: "cash", label: "Cash", value: undefined, about: "USDC you can spend or send" },
+  { id: "investments", label: "Investments", value: undefined, href: "/coin-breakdown", demo: true },
+  { id: "earn", label: "Earn", value: undefined, about: "Interest on your USDC", demo: true },
+  { id: "card", label: "Card", value: undefined, about: "A virtual Visa card for your USDC", demo: true },
 ];
 
 /** The sum of the tiles, or undefined while any of them isn't known yet. */
@@ -59,7 +59,7 @@ export type Promo = { id: "plus" | "earn"; title: [string, string] } & ({ href: 
 
 export const promos: Promo[] = [
   { id: "plus", title: ["Welcome to", "Swissquote Plus"], href: "/plus" },
-  { id: "earn", title: ["Earn up to", "5.45% APY"], account: "earn" },
+  { id: "earn", title: ["Earn interest on", "your USDC"], account: "earn" },
 ];
 
 export const promoInterval = 3200;

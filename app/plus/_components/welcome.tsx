@@ -4,6 +4,7 @@ import { MotionConfig, motion } from "motion/react";
 import { useBack } from "@/components/navigation";
 import { BackButton } from "@/components/ui/back-button";
 import { Button } from "@/components/ui/button";
+import { DemoTag } from "@/components/ui/demo-tag";
 import { Benefits } from "./benefits";
 import { GlowPlus } from "./glow-plus";
 import { rise, sequence } from "./motion";
@@ -25,9 +26,13 @@ export function Welcome() {
 
         <GlowPlus />
 
+        <motion.div variants={rise} className="mt-5 flex justify-center">
+          <DemoTag className="text-white/60" />
+        </motion.div>
+
         <motion.h1
           variants={rise}
-          className="mt-5 text-center text-title text-balance text-white"
+          className="mt-2 text-center text-title text-balance text-white"
         >
           Welcome to Swissquote Plus
         </motion.h1>

@@ -15,6 +15,7 @@ export type Tracked = {
   txHash: string;
   networkFee: string;
   feePaidBy: string;
+  demo?: true;
 };
 
 export const withdrawal: Tracked & { step: number } = {
@@ -39,6 +40,7 @@ export const withdrawal: Tracked & { step: number } = {
   txHash: "0x8a55c56a9e65bdd7272062049178313a783f72f5f04276892279affd49ea0c4c",
   networkFee: "Free",
   feePaidBy: "paid by Swissquote",
+  demo: true,
 };
 
 /** A send from the wallet. Face ID approval resolves once it is on-chain. */

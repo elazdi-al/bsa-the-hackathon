@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { FaceIdIcon, PhoneIcon, RestoreIcon, WarningIcon, type Icon } from "@/components/icons";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { DemoTag } from "@/components/ui/demo-tag";
 import { Drawer, FloatingSheetContent, FloatingSheetHeader } from "@/components/ui/drawer";
 import { Spinner } from "@/components/ui/spinner";
 import { phone } from "@/lib/wallet/phone";
@@ -202,6 +203,7 @@ function AccountSheet({ tile, wallet }: { tile: Tile; wallet: WalletSnapshot }) 
       >
         <p className="mt-1 text-amount">{tile.value === undefined ? <MoneyPlaceholder /> : <Money value={tile.value} />}</p>
         {"about" in tile && <p className="mt-1 text-body text-pretty text-muted-foreground">{tile.about}</p>}
+        {tile.demo && <DemoTag className="mt-3" />}
       </FloatingSheetHeader>
 
       <section aria-label="Recent activity" className="mt-8">

@@ -4,6 +4,7 @@ import { AnimatePresence, motion, stagger, type Variants } from "motion/react";
 import Link from "next/link";
 import { useEffect, useReducer, type ReactNode } from "react";
 import { CloseIcon, RestoreIcon } from "@/components/icons";
+import { DemoTag } from "@/components/ui/demo-tag";
 import { promoInterval, promos, type Promo, type TileId } from "../data";
 import { EarnAppIcon, PlusAppIcon } from "./icons";
 import { blurred, leave, reveal, sharp, smooth } from "../../_components/transitions";
@@ -77,9 +78,12 @@ export function PromoStack({ className, onOpenAccount }: { className: string; on
               >
                 <PromoCard promo={current} onOpenAccount={onOpenAccount}>
                   <motion.span variants={part}>{icons[current.id]}</motion.span>
-                  <motion.span variants={part} className="flex flex-col">
+                  <motion.span variants={part} className="flex min-w-0 flex-col">
                     <span className="text-body text-muted-foreground">{current.title[0]}</span>
-                    <span className="text-label">{current.title[1]}</span>
+                    <span className="flex items-center gap-2 text-label">
+                      <span className="truncate">{current.title[1]}</span>
+                      <DemoTag />
+                    </span>
                   </motion.span>
                 </PromoCard>
               </motion.div>
@@ -125,13 +129,14 @@ export function PromoStack({ className, onOpenAccount }: { className: string; on
 }
 
 function PromoCard({ promo, onOpenAccount, children }: { promo: Promo; onOpenAccount: (id: TileId) => void; children: ReactNode }) {
-  const className = "absolute inset-0 flex items-center gap-3 rounded-[22px] pr-24 pl-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
+  const label = `${promo.title.join(" ")}, demo`;
+  const className = "absolute inset-0 flex items-center gap-3 rounded-[22px] pr-20 pl-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
   return "href" in promo ? (
-    <Link data-card href={promo.href} transitionTypes={["push"]} aria-label={promo.title.join(" ")} className={className}>
+    <Link data-card href={promo.href} transitionTypes={["push"]} aria-label={label} className={className}>
       {children}
     </Link>
   ) : (
-    <button data-card type="button" aria-haspopup="dialog" aria-label={promo.title.join(" ")} onClick={() => onOpenAccount(promo.account)} className={className}>
+    <button data-card type="button" aria-haspopup="dialog" aria-label={label} onClick={() => onOpenAccount(promo.account)} className={className}>
       {children}
     </button>
   );

@@ -6,6 +6,7 @@ import { useState } from "react";
 import { shortAddress } from "@/app/choose-recipient/data";
 import { ChevronRightIcon, ShieldIcon, SignOutIcon, type Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import { DemoTag } from "@/components/ui/demo-tag";
 import { Switch } from "@/components/ui/switch";
 import { Tray, TrayActions, TrayHeader } from "@/components/ui/tray";
 import { cn } from "@/lib/utils";
@@ -28,7 +29,10 @@ function SettingsRow({ item, onOpen }: { item: Row; onOpen: (root: TrayRoot) => 
     <>
       <item.Icon className={`shrink-0 ${item.destructive ? "text-negative" : "text-muted-foreground"}`} />
       <span className="min-w-0 flex-1">
-        <span className={`block truncate text-label ${item.destructive ? "text-negative" : ""}`}>{item.label}</span>
+        <span className={cn("flex items-center gap-2 text-label", item.destructive && "text-negative")}>
+          <span className="truncate">{item.label}</span>
+          {item.demo && <DemoTag />}
+        </span>
         {item.detail && <span className="block truncate text-body text-muted-foreground">{item.detail}</span>}
       </span>
       {item.kind === "info" && <span className="shrink-0 text-label font-medium text-muted-foreground">{item.value}</span>}
@@ -70,7 +74,10 @@ function MemberCard() {
       transitionTypes={["push"]}
       className={`flex aspect-video flex-col justify-between rounded-[28px] bg-linear-135/oklch from-[oklch(0.64_0.18_250)] to-brand p-5 text-white transition-transform duration-150 ease-out active:scale-[0.96] ${focusRing} focus-visible:ring-offset-2`}
     >
-      <span className="text-label">Swissquote Plus</span>
+      <span className="flex items-center justify-between gap-2">
+        <span className="text-label">Swissquote Plus</span>
+        <DemoTag className="bg-white/20 text-white" />
+      </span>
       <span className="min-w-0">
         <span className="block truncate text-heading">{profile.name}</span>
         <span className={cn("block text-body text-white/70 transition-[opacity,visibility] duration-200 ease-out", !address && "invisible opacity-0")}>
