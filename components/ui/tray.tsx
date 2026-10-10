@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 import { AnimatePresence, animate, motion, useIsPresent, useMotionValue, useReducedMotion } from "motion/react"
 import { Drawer as DrawerPrimitive } from "vaul"
 import { BackIcon, CloseIcon } from "@/components/icons"
@@ -49,7 +49,7 @@ function Tray({
     <Drawer open={open} onOpenChange={onOpenChange}>
       <FloatingSheetContent
         ref={card}
-        className="inset-x-4 mx-auto max-w-[400px] overflow-hidden rounded-[36px] bg-white text-[15px] leading-5 sm:max-w-[400px] sm:rounded-[36px] motion-reduce:data-[state=closed]:[animation-name:fadeOut]! motion-reduce:data-[state=open]:[animation-name:fadeIn]!"
+        className="overflow-hidden motion-reduce:data-[state=closed]:[animation-name:fadeOut]! motion-reduce:data-[state=open]:[animation-name:fadeIn]!"
         onOpenAutoFocus={(e) => {
           e.preventDefault()
           focusTitle(card.current)

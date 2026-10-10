@@ -1,9 +1,9 @@
 "use client"
 
 import * as React from "react"
-import { cn } from "cn"
 import { OTPInput, OTPInputContext } from "input-otp"
 import { motion } from "motion/react"
+import { cn } from "@/lib/utils"
 
 function InputOTP({
   className,
@@ -52,7 +52,7 @@ function InputOTPSlot({
       data-slot="input-otp-slot"
       data-active={isActive}
       className={cn(
-        "relative flex h-[52px] min-w-0 flex-1 items-center justify-center rounded-xl text-[22px] font-medium tabular-nums shadow-[inset_0_0_0_1px_rgb(0_0_0/0.06)] transition-[box-shadow,color] duration-200 data-[active=true]:shadow-[inset_0_0_0_1.5px_rgb(0_0_0/0.14)]",
+        "relative flex h-[52px] min-w-0 flex-1 items-center justify-center rounded-[14px] bg-secondary text-heading tabular-nums transition-[box-shadow,color] duration-200 data-[active=true]:shadow-[inset_0_0_0_2px_var(--color-foreground)]",
         className
       )}
       {...props}

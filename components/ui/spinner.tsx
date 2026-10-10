@@ -1,9 +1,23 @@
-import { cn } from "cn"
-import { CircleNotchIcon } from "@phosphor-icons/react"
+import { cn } from "@/lib/utils"
 
+// A quarter arc over a faint ring, in the icon set's 2.75 stroke.
 function Spinner({ className, ...props }: React.ComponentProps<"svg">) {
   return (
-    <CircleNotchIcon data-slot="spinner" weight="bold" role="status" aria-label="Loading" className={cn("size-4 animate-spin", className)} {...props} />
+    <svg
+      data-slot="spinner"
+      role="status"
+      aria-label="Loading"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.75}
+      strokeLinecap="round"
+      className={cn("size-4 animate-spin", className)}
+      {...props}
+    >
+      <circle cx="12" cy="12" r="9" opacity={0.25} />
+      <path d="M12 3a9 9 0 0 1 9 9" />
+    </svg>
   )
 }
 

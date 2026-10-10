@@ -1,7 +1,7 @@
 "use client"
 
 import { Switch as SwitchPrimitive } from "@base-ui/react/switch"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 
 // Flat track and knob. The knob stretches toward its travel while pressed and settles on release.
 function Switch({ className, ...props }: SwitchPrimitive.Root.Props) {
