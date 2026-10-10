@@ -78,6 +78,19 @@
     @apply font-sans;
     -webkit-font-smoothing: antialiased;
     text-rendering: geometricPrecision;
+    /* Tabs that scroll and tabs that don't keep the same column and bar position. */
+    scrollbar-gutter: stable;
+    background-color: var(--background);
+    transition: background-color 0.5s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  /* The gutter keeps the scrollbar's space while a sheet locks scrolling, so the lock (react-remove-scroll) must not add it again. */
+  body[data-scroll-locked] {
+    margin-right: 0 !important;
+  }
+  /* Nothing paints into the empty gutter but the root background, so it takes the sheet overlay's dim
+     (black/25, components/ui/drawer.tsx) itself, on vaul's fade curve. */
+  html:has([data-vaul-overlay][data-state="open"]) {
+    background-color: color-mix(in srgb, black 25%, var(--background));
   }
   body {
     @apply bg-background text-foreground;
