@@ -1,5 +1,5 @@
 import { encodeFunctionData, maxUint256, zeroAddress, type Address } from "viem";
-import { erc20Abi, vaultAbi } from "../../lib/compliance/decode";
+import { erc20Abi, swapAbi, vaultAbi } from "../../lib/compliance/decode";
 import { parsePolicy, parseRequest } from "../../lib/compliance/schema";
 import type { CompliancePolicy, ComplianceRequest, DecodedAction, ScreeningProvider, SimulationProvider, SimulationResult, UsageProvider } from "../../lib/compliance/types";
 
@@ -10,8 +10,10 @@ export const DEMO = {
   recipient: "0x2222222222222222222222222222222222222222" as Address,
   unknown: "0x3333333333333333333333333333333333333333" as Address,
   sanctioned: "0x098b716b8aaf21512996dc57eb0615e2383e2f96" as Address,
-  /** Fixture address only. No deployed vault is claimed here. */
+  weth: "0x4200000000000000000000000000000000000006" as Address,
+  /** Fixture addresses only. No deployed vault or pool is claimed here. */
   vault: "0x4444444444444444444444444444444444444444" as Address,
+  pool: "0x5555555555555555555555555555555555555555" as Address,
   origin: "https://savings.demo.swissquote.example",
 };
 
@@ -20,8 +22,10 @@ export function demoPolicy(): CompliancePolicy {
     version: "hackathon-demo-1", decisionTtlSeconds: 120, screeningMaxAgeSeconds: 120,
     supportedChainIds: [DEMO.chainId], nativeTransfers: [],
     tokens: [
-      { chainId: DEMO.chainId, address: DEMO.usdc, symbol: "USDC", decimals: 6, approvedSpenders: [DEMO.vault],
+      { chainId: DEMO.chainId, address: DEMO.usdc, symbol: "USDC", decimals: 6, approvedSpenders: [DEMO.vault, DEMO.pool],
         maxTransactionAmount: "10000000000", stepUpAmount: "1000000000", dailyLimitAmount: "5000000000" },
+      { chainId: DEMO.chainId, address: DEMO.weth, symbol: "WETH", decimals: 18, approvedSpenders: [DEMO.pool],
+        maxTransactionAmount: "4000000000000000000", stepUpAmount: "400000000000000000", dailyLimitAmount: "2000000000000000000" },
       { chainId: DEMO.chainId, address: DEMO.vault, symbol: "sqUSDC", decimals: 6, approvedSpenders: [],
         maxTransactionAmount: "10000000000", stepUpAmount: "1000000000" },
     ],
@@ -29,6 +33,8 @@ export function demoPolicy(): CompliancePolicy {
       { chainId: DEMO.chainId, address: DEMO.usdc, name: "USDC", kind: "ERC20", allowedFunctions: ["transfer", "approve"], origins: [DEMO.origin] },
       { chainId: DEMO.chainId, address: DEMO.vault, name: "Demo savings vault", kind: "ERC4626", asset: DEMO.usdc, shareToken: DEMO.vault,
         allowedFunctions: ["deposit", "withdraw", "redeem"], origins: [DEMO.origin] },
+      { chainId: DEMO.chainId, address: DEMO.weth, name: "WETH", kind: "ERC20", allowedFunctions: ["transfer", "approve"], origins: [] },
+      { chainId: DEMO.chainId, address: DEMO.pool, name: "Demo swap pool", kind: "SWAP", tokens: [DEMO.usdc, DEMO.weth], allowedFunctions: ["swap"], origins: [] },
     ],
   });
 }
@@ -47,22 +53,24 @@ export class DemoSimulationProvider implements SimulationProvider {
     const add = (asset: Address | "native", amount: bigint) => deltas.set(asset, (deltas.get(asset) ?? 0n) + amount);
     for (const action of actions) {
       if (action.debit) add(action.debit.asset, -BigInt(action.debit.amount));
-      if (action.creditAsset) add(action.creditAsset, BigInt(action.amount));
+      if (action.creditAsset) add(action.creditAsset, BigInt(action.minCreditAmount ?? action.amount));
       if (action.type === "WITHDRAW") add(action.contract, -BigInt(action.amount));
     }
     return {
-      status: "SUCCESS", provider: "demo-one-to-one-vault-simulation", mode: "demo", checkedAt: this.now().toISOString(),
+      status: "SUCCESS", provider: "demo-intent-simulation", mode: "demo", checkedAt: this.now().toISOString(),
       calls: request.calls.map((_, index) => ({ index, success: true })),
       assetChanges: [...deltas].map(([asset, amount]) => {
         const token = this.policy.tokens.find((item) => item.chainId === request.chainId && item.address === asset);
         return { asset, amount: amount.toString(), ...(token ? { symbol: token.symbol, decimals: token.decimals } : {}) };
       }),
-      approvalChanges: actions.flatMap((action) => action.approval ? [{ ...action.approval, owner: request.account }] : []),
+      approvalChanges: actions.flatMap((action) => action.approval ? [{ ...action.approval, owner: request.account }]
+        : action.type === "SWAP" ? [{ token: action.debit!.asset as Address, owner: request.account, spender: action.contract, amount: "0" }] : []),
       transfers: actions.flatMap((action) => {
         if (!action.debit && action.type !== "WITHDRAW") return [];
         const outgoing = { asset: action.debit?.asset ?? action.contract, from: request.account,
-          to: action.type === "DEPOSIT" ? action.contract : ["WITHDRAW", "REDEEM"].includes(action.type) ? zeroAddress : action.recipient!,
+          to: action.type === "DEPOSIT" || action.type === "SWAP" ? action.contract : ["WITHDRAW", "REDEEM"].includes(action.type) ? zeroAddress : action.recipient!,
           amount: action.debit?.amount ?? action.amount };
+        if (action.type === "SWAP") return [outgoing, { asset: action.creditAsset!, from: action.contract, to: request.account, amount: action.minCreditAmount! }];
         const vault = this.policy.contracts.find((item) => item.chainId === request.chainId && item.address === action.contract);
         return [outgoing, ...(["WITHDRAW", "REDEEM"].includes(action.type) && vault?.asset ? [{
           asset: vault.asset, from: action.contract, to: action.recipient!, amount: action.amount,
@@ -94,6 +102,10 @@ export function demoRequest(name: string, nonce = "0"): ComplianceRequest {
     "vault-deposit": { ...base, dapp: { origin: DEMO.origin }, calls: [
       { to: DEMO.usdc, data: encodeFunctionData({ abi: erc20Abi, functionName: "approve", args: [DEMO.vault, 250_000_000n] }) },
       { to: DEMO.vault, data: encodeFunctionData({ abi: vaultAbi, functionName: "deposit", args: [250_000_000n, DEMO.account] }) },
+    ] },
+    swap: { ...base, calls: [
+      { to: DEMO.usdc, data: encodeFunctionData({ abi: erc20Abi, functionName: "approve", args: [DEMO.pool, 100_000_000n] }) },
+      { to: DEMO.pool, data: encodeFunctionData({ abi: swapAbi, functionName: "swap", args: [DEMO.usdc, 100_000_000n, 39_600_000_000_000_000n] }) },
     ] },
   };
   if (!examples[name]) throw new Error(`Unknown demo scenario: ${name}`);

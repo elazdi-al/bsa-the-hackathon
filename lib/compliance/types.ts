@@ -31,10 +31,12 @@ export interface ContractPolicy {
   chainId: number;
   address: Address;
   name: string;
-  kind: "ERC20" | "ERC4626";
+  kind: "ERC20" | "ERC4626" | "SWAP";
   allowedFunctions: string[];
   asset?: Address;
   shareToken?: Address;
+  /** The two registered tokens a SWAP pool trades. */
+  tokens?: [Address, Address];
   origins: string[];
 }
 export interface CompliancePolicy {
@@ -55,13 +57,15 @@ export interface Finding {
 }
 export interface DecodedAction {
   callIndex: number;
-  type: "TRANSFER" | "APPROVAL" | "DEPOSIT" | "WITHDRAW" | "REDEEM" | "NATIVE_TRANSFER";
+  type: "TRANSFER" | "APPROVAL" | "DEPOSIT" | "WITHDRAW" | "REDEEM" | "NATIVE_TRANSFER" | "SWAP";
   contract: Address;
   functionName: string;
   summary: string;
   addresses: Address[];
   debit?: { asset: Address | "native"; amount: string };
   creditAsset?: Address;
+  /** The least of creditAsset the account receives. Only a swap states one. */
+  minCreditAmount?: string;
   recipient?: Address;
   spender?: Address;
   amount: string;
