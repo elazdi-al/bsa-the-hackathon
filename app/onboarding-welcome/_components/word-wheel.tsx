@@ -1,4 +1,4 @@
-import { AnimatePresence, motion, type Transition } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion, type Transition } from "motion/react";
 import { useEffect, useState } from "react";
 import { blurred } from "@/app/(tabs)/_components/transitions";
 import { WORDS } from "../data";
@@ -15,11 +15,14 @@ const BLUR = [0, 0.5, 1];
 
 export function WordWheel() {
   const [tick, setTick] = useState(0);
+  // Without the roll the words would just blink in place, so reduced motion holds the first one.
+  const still = useReducedMotion();
 
   useEffect(() => {
+    if (still) return;
     const id = setInterval(() => setTick((t) => t + 1), INTERVAL);
     return () => clearInterval(id);
-  }, []);
+  }, [still]);
 
   return (
     <div className="relative min-h-[280px] flex-1 overflow-hidden">
