@@ -80,7 +80,7 @@ Every payment Swissquote sponsors goes through the compliance engine in-process.
 The engine runs, in order:
 
 1. Decode the calldata. Only reviewed functions pass: ERC-20 `transfer` and finite `approve`, ERC-4626 `deposit`, `withdraw` and `redeem`, and batches of up to 16 calls.
-2. Allowlist and limits. The contract, function and token must be in the policy. Limits are integer token base units, never floating-point or CHF estimates. The local policy (written by `npm run local`) allows USDC `transfer`, with step-up above 1,000 USDC, a 5,000 USDC daily limit and a 10,000 USDC cap per transaction.
+2. Allowlist and limits. The contract, function and token must be in the policy. Limits are integer token base units, never floating-point or CHF estimates. The local policy (written by `npm run local`) allows USDC `transfer`, with step-up above 1,000 USDC, a 5,000 USDC daily limit and a 10,000 USDC cap per transaction. On the local chain the daily limit counts what the account sent in the last 24 hours of chain time.
 3. Sanctions screening. TRM Labs' address sanctions endpoint in live mode, fixtures in demo mode.
 4. Simulation. viem's `simulateCalls` over `eth_simulateV1`, from the account's address, in live mode.
 5. A signed, expiring Ed25519 decision, appended to a SHA-256 hash-chained audit log. A failed append blocks the decision.
@@ -167,6 +167,7 @@ Checks:
 ```bash
 npm run check              # Shamir, onboarding flow and amount unit checks
 npm run check:onboarding   # onboarding in Chromium, against the running app
+npm run e2e:ui             # create, send, recover, cancel and finish in Chromium, against the running app
 npm run contracts:test     # Foundry tests for the account
 npm run test:compliance    # compliance engine, tampering, providers, HTTP, audit
 npm run typecheck
