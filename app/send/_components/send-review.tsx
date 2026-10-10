@@ -57,14 +57,18 @@ function failure(e: unknown): string[] {
 
 export function SendReview({ children }: { children: ReactNode }) {
   const to = useSearchParams().get("to");
+  const wallet = useWallet();
+  // The picker refuses the wallet's own address; a typed-in link to it goes back there too.
+  const own = wallet.status === "ready" ? wallet.wallet.address.toLowerCase() : undefined;
   const shown = to === null ? null : recipientFor(to);
+  const usable = shown && shown.address.toLowerCase() !== own;
   const router = useRouter();
 
   useEffect(() => {
-    if (!shown) router.replace("/choose-recipient");
-  }, [shown, router]);
+    if (!usable) router.replace("/choose-recipient");
+  }, [usable, router]);
 
-  if (to === null || !shown) return null;
+  if (to === null || !shown || !usable) return null;
   return (
     <Review to={to} address={shown.address as Address}>
       <section aria-label="Recipient" className="flex items-center gap-4">
