@@ -4,7 +4,7 @@ A self-custody wallet that Swissquote could launch for its clients. The client h
 
 ## 1. Summary
 
-Swissquote Wallet lives inside the Swissquote app. The client's crypto sits in a Safe smart account on-chain. One threshold key controls it, split into three shares:
+Swissquote Wallet lives inside the Swissquote app. In the demo, the client enters an email and password on a mocked Swissquote sign-in screen, lands on their Swissquote account and opens Wallet from the Crypto tab. The client's crypto sits in a Safe smart account on-chain. One threshold key controls it, split into three shares:
 
 - the **Device Key**, on the client's phone, unlocked with Face ID;
 - the **Swissquote Key**, held by Swissquote's co-signing service;
@@ -22,7 +22,7 @@ The demo signs and sends real transactions on Base Sepolia (an Ethereum layer-2 
 | --- | --- | --- | --- |
 | Custody model, pros and cons, threat model | 2-of-3 threshold ECDSA controlling a Safe account | 3 | Real |
 | Architecture diagram, mocked parts marked | Diagram and component table | 4 | Real and mocked parts labelled |
-| Wallet creation linked to the client's identity | Key ceremony inside the Swissquote session, signed ownership declaration | 6.1 | Real, bank login mocked |
+| Wallet creation linked to the client's identity | Key ceremony inside the Swissquote session, signed ownership declaration | 6.1 | Real, email-and-password bank login mocked |
 | Authentication, small vs high value | Passkey per transaction, three risk tiers | 6.2 | Real passkeys, step-up factors mocked |
 | A real transaction on a blockchain | USDC transfers on Base Sepolia | 6.3, 12 | Real |
 | Recovery from a lost, stolen or destroyed phone | Swissquote Key and Recovery Key, ID check, 48-hour hold, key rotation on-chain | 6.4 | Real, ID check mocked |
@@ -116,6 +116,8 @@ The three questions from the brief:
 ```mermaid
 flowchart LR
   subgraph phone["Client phone - REAL (Next.js web app)"]
+    login["Swissquote email and password sign-in - MOCKED"]
+    account["Swissquote account, Crypto tab - MOCKED"]
     app["Wallet app"]
     s1[("S1 Device Key<br/>encrypted with passkey PRF")]
   end
@@ -140,6 +142,8 @@ flowchart LR
     usdc["USDC"]
   end
 
+  login -- "demo client session" --> account
+  account -- "open Wallet" --> app
   app -- "intent, passkey approval" --> api
   app <-- "MPC signing rounds" --> cos
   app -- "encrypted S3 at setup and recovery" --> esc
@@ -156,7 +160,8 @@ flowchart LR
 
 | Component | Runs as | Holds | Demo status |
 | --- | --- | --- | --- |
-| Wallet app | Next.js web app on the phone. In production: the Swissquote iOS and Android apps | S1 (encrypted), passkey | Real |
+| Swissquote sign-in and account | Email-and-password form checked against demo client fixtures, then a Swissquote account screen with Wallet in the Crypto tab | Mock session with client ID and KYC status | Mocked, no connection to Swissquote authentication |
+| Wallet app | Next.js web app on the phone, opened from the mocked Swissquote account using its session. In production: inside the Swissquote iOS and Android apps | S1 (encrypted), passkey | Real |
 | Wallet API | Next.js route handlers, Swissquote side | Policy rules, paymaster signing key, audit log | Real |
 | Co-signer | Its own Node.js process with its own SQLite database. It runs one MPC party and re-checks every policy decision | S2 | Real process. The HSM is mocked: S2 is encrypted at rest in SQLite |
 | Escrow partner | Its own Node.js process with its own SQLite database | Encrypted S3 and an identity attestation | Real process, mocked company |
@@ -248,7 +253,7 @@ Two library caveats:
 
 The whole flow takes under a minute.
 
-1. **Sign in.** The client signs in to Swissquote (mocked). The session carries the client ID, which is already KYC-verified.
+1. **Sign in and open Wallet.** The client enters an email and password on the mocked Swissquote sign-in screen. The demo checks fixture credentials and creates a mock session carrying the client ID and KYC-verified status. The client lands on their Swissquote account, opens Wallet from the Crypto tab and taps "Create wallet". The wallet uses that same session.
 2. **Device Key.** Face ID creates a passkey for the wallet with the PRF extension turned on.
 3. **Key ceremony.** The phone and the co-signer run a DKLs23 2-of-3 key generation over an authenticated connection. The phone runs parties 1 and 3, the co-signer runs party 2. The result is one public key. Each party generated its own share, and no one ever saw the full key.
 4. **Store S1.** The app derives an AES-GCM key from the passkey's PRF output, encrypts S1 with it and stores it on the phone. In production, S1 goes into the Keychain or Android Keystore behind a biometric check.
@@ -260,7 +265,7 @@ During step 3 the phone briefly holds S1 and S3 together, before it encrypts S3.
 
 ### 6.2 Authentication
 
-- **App access.** The client opens the app with the Swissquote login session, as today.
+- **App access.** The demo starts with a mocked Swissquote email-and-password sign-in, followed by the Swissquote account screen. The client opens Wallet inside that account and uses the same session, including when returning to an existing wallet. Email and password grant account access; passkeys protect wallet shares and approve transactions.
 - **Every signature.** Face ID approves a passkey assertion whose challenge is the hash of the exact UserOperation plus the policy decision ID. The co-signer verifies the assertion with SimpleWebAuthn before it joins the MPC rounds. The client therefore approves the same transaction Swissquote checked, and a tampered app cannot swap it.
 - **Device binding.** S1 exists only on that phone, and the passkey is registered to it. In production we add App Attest or Play Integrity.
 - **Risk signals.** These feed the tier choice: new device, recent SIM change, unusual country, transaction speed and recipient risk score.
@@ -311,7 +316,7 @@ sequenceDiagram
 **Lost phone, step by step.**
 
 1. **Lock.** The client locks the wallet from e-banking or the hotline. The co-signer stops signing for the old device at once.
-2. **Start recovery.** On the new phone, the client taps "Recover existing wallet" and signs in to Swissquote.
+2. **Start recovery.** On the new phone, the client signs in to the mocked Swissquote account with email and password, opens Wallet from the Crypto tab and taps "Recover existing wallet".
 3. **Prove identity.** The client scans an ID and takes a liveness selfie. Swissquote matches both against the KYC record from account opening. A consumer wallet cannot do this, because it never saw the client's ID.
 4. **Wait.** A 48-hour hold starts. Alerts go out by push, email, SMS and e-banking message. Any still-trusted factor can cancel the recovery: the old passkey, e-banking or the hotline.
 5. **Release S3.** The co-signer approves and the escrow releases the encrypted S3. The client signs in to iCloud or Google, the recovery passkey syncs, and the app decrypts S3 on the new phone. The client can skip the escrow by scanning the Recovery Kit instead, but the 48-hour hold still applies, because S2 must sign.
@@ -493,7 +498,9 @@ With 5% of today's accounts (about 61,000 wallets), the direct margin is roughly
 
 The client is Claire, 52, from Lausanne, a Swissquote client since 2019. She holds some ETH and USDC on Swissquote and has never used a crypto wallet. Each step below is a screen she sees.
 
-1. **Discover.** In the Swissquote app, the Crypto tab shows a card: "Your own wallet. Your keys, our protection." She taps "Create wallet".
+The demo opens on a Swissquote-branded sign-in screen with "Email", "Password" and "Sign in". Claire uses demo credentials and reaches a mocked Swissquote account overview. From there she opens the Crypto tab and selects Wallet. This entry flow is labelled as a demo in the UI.
+
+1. **Discover.** Inside the Swissquote app's Crypto tab, the Wallet card reads: "Your own wallet. Your keys, our protection." She taps "Create wallet". Returning clients tap "Open wallet"; "Recover existing wallet" is available here too.
 2. **Secure your wallet.** Three steps follow, each with one sentence and one button.
    - **Device Key.** "Protected by Face ID, stored on this phone." Face ID creates it.
    - **Swissquote Key.** "Swissquote checks every payment with you and can never move your money alone."
@@ -510,7 +517,7 @@ The client is Claire, 52, from Lausanne, a Swissquote client since 2019. She hol
 12. **Security centre.** It shows the state of the three keys, the devices, her limits, "Lock wallet", the Recovery Kit, a recovery check-up and "Use without Swissquote", which explains independent mode.
 13. **Lost phone.**
     - In e-banking: "Lock wallet".
-    - On the new phone: "Recover existing wallet", then the ID check.
+    - On the new phone: Swissquote email-and-password sign-in, Crypto tab, Wallet, "Recover existing wallet", then the ID check.
     - A countdown screen: "Your wallet will be restored on 12 October at 14:05. We alerted all your devices."
     - Then: "Welcome back. Same address, same balance."
 
@@ -518,7 +525,8 @@ Most of these screens already exist in this repository as a UI prototype, built 
 
 | Proposal screen | Existing route | Change needed |
 | --- | --- | --- |
-| Welcome, recover entry | `/onboarding-welcome` | Swissquote branding. Swissquote login instead of Sign in with Apple |
+| Swissquote sign-in and account overview | New routes | Mocked Swissquote-branded email-and-password sign-in, then an account overview with a Crypto tab containing Wallet |
+| Wallet welcome, recover entry | `/onboarding-welcome` | Swissquote branding. Open from Wallet inside the authenticated Swissquote account, with "Create wallet", "Open wallet" or "Recover existing wallet" as appropriate |
 | Secure your wallet | `/onboarding-secure` | The 2FA Key becomes the Swissquote Key. The Recovery Key becomes a recovery passkey plus Recovery Kit, with email kept as an alert channel |
 | Home and the "+" menu | `/home` | Add "Add from Swissquote" and "Send to Swissquote". EVM assets instead of Solana |
 | Coins | `/coin-breakdown` | USDC, ETH and BTC instead of SOL tokens |
@@ -533,19 +541,19 @@ Most of these screens already exist in this repository as a UI prototype, built 
 
 | Time | What the judges see |
 | --- | --- |
-| 0:00 | Claire signs in to mock Swissquote and taps "Create wallet". Three keys, then "ready". The co-signer's terminal shows party 2 joining the key ceremony. |
+| 0:00 | Claire enters her demo email and password on the mocked Swissquote sign-in screen. Her Swissquote account opens; she selects Crypto, then Wallet, and taps "Create wallet". Three keys, then "ready". The co-signer's terminal shows party 2 joining the key ceremony. |
 | 0:45 | "Add from Swissquote": 100 USDC from the treasury reaches her Safe address on Base Sepolia. A Basescan link proves it. |
 | 1:15 | She sends 20 USDC to Anna, a verified client, with Face ID. On Basescan: the Safe deploys and transfers in one UserOperation, and Swissquote's paymaster pays the gas. |
 | 1:45 | She sends 2,000 USDC to a new address and gets the step-up. A send to the sanctioned address is blocked. A deposit into the savings vault shows its plain-language preview. An unlimited approval is flagged. |
-| 2:30 | "Lose the phone": the browser's storage is wiped. In a second browser the attacker uses her email. The code passes, the liveness check fails, and the recovery is refused. Claire gets an alert. |
-| 3:00 | Claire recovers in a new browser: login, liveness passed, a 60-second hold, recovery passkey, new key ceremony. `swapOwner` runs on-chain. Same address, same balance. She sends 5 USDC. |
+| 2:30 | "Lose the phone": the browser's storage is wiped. In a second browser the attacker uses compromised demo email-and-password credentials to enter the mocked Swissquote account and open Wallet recovery. Sign-in passes, the liveness check fails, and recovery is refused. Claire gets an alert. |
+| 3:00 | Claire recovers in a new browser: mocked Swissquote email-and-password sign-in, Crypto tab, Wallet recovery, liveness passed, a 60-second hold, recovery passkey, new key ceremony. `swapOwner` runs on-chain. Same address, same balance. She sends 5 USDC. |
 | 3:40 | "Swissquote is gone": we stop the co-signer process. In independent mode, the Recovery Kit and Face ID move her funds to an outside address. |
 
 ## 13. What is real and what is mocked
 
 | Real | Mocked, and labelled in the UI and README |
 | --- | --- |
-| DKLs23 2-of-3 key generation and signing across phone and co-signer | Swissquote login, core banking ledger, KYC records |
+| DKLs23 2-of-3 key generation and signing across phone and co-signer | Swissquote email-and-password sign-in, client session, account overview and Crypto tab, core banking ledger, KYC records |
 | Passkeys with PRF encryption of S1 and S3 | Identity check and liveness match (fixture photos) |
 | Co-signer and escrow as separate processes with their own databases | HSM: S2 is encrypted at rest in SQLite instead |
 | Safe, ERC-4337 UserOperations, Pimlico bundler on Base Sepolia | Escrow partner as a company: real process, invented organisation |
