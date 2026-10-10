@@ -36,8 +36,11 @@ export async function parse<T extends z.ZodType>(request: Request, schema: T): P
   return schema.parse(body);
 }
 
-/** True when `wire` is the wallet passkey's assertion, with Face ID, over `challenge`. */
-export function verifyAssertion(wire: z.infer<typeof assertion>, challenge: Hex, key: Passkey, rpId: string): boolean {
+/**
+ * True when `wire` is the wallet passkey's assertion, with Face ID, over `challenge`. Swissquote's API pins
+ * the passkey to the hostname it is reached at (`rpId`); the chain and the partner check only the key.
+ */
+export function verifyAssertion(wire: z.infer<typeof assertion>, challenge: Hex, key: Passkey, rpId?: string): boolean {
   return WebAuthnP256.verify({
     challenge,
     rpId,

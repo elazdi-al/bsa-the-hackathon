@@ -1,14 +1,16 @@
 // The independent third-party service: holds Share C of every wallet key. It stores C only for
 // a key Swissquote ticketed, learns its recovery key only from the wallet key itself, and
 // releases C only to start a recovery that Swissquote approved AND that recovery key signed.
-// It never takes part in a normal transaction.
+// It never takes part in a normal transaction. Once Swissquote has been gone for EXIT_AFTER, it also
+// releases C for a payment the wallet's passkey approved, so the client can leave without Swissquote.
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { decodeFunctionData, isAddressEqual, recoverAddress, recoverMessageAddress, type Address } from "viem";
 import { formatUserOperation, getUserOperationHash, type UserOperation } from "viem/account-abstraction";
 import * as z from "zod";
 import { accountAbi, bindRecoveryKeyMessage, factoryAbi, type Config } from "../../lib/wallet/account.ts";
+import { verifyAssertion } from "../../lib/wallet/api/http.ts";
 import { addresses, chain, credentials, publicClient } from "../../lib/wallet/env.ts";
-import { address, recoveryApproval, share, sharesTicket, signature, userOp as userOpSchema } from "../../lib/wallet/schema.ts";
+import { address, assertion, recoveryApproval, share, sharesTicket, signature, userOp as userOpSchema } from "../../lib/wallet/schema.ts";
 import { HOLDERS, signerOf, verifyShare } from "../../lib/wallet/shamir.ts";
 import { verifyTicket } from "../../lib/wallet/tickets.ts";
 import { openVault } from "../../lib/wallet/vault.ts";
@@ -16,6 +18,9 @@ import { openVault } from "../../lib/wallet/vault.ts";
 const vault = openVault(process.env.PARTNER_DB ?? "data/partner.db", process.env.PARTNER_SHARE_KEY);
 const PORT = Number(process.env.PARTNER_PORT ?? (new URL(process.env.PARTNER_URL ?? "http://localhost:4002").port || 4002));
 const MAX_BODY = 64 * 1024;
+const SWISSQUOTE = process.env.APP_URL ?? "http://localhost:3000";
+// In seconds: 30 days in production, a few seconds in the local demo.
+const EXIT_AFTER = Number(process.env.EXIT_AFTER ?? 30 * 24 * 3600);
 
 class Refusal extends Error {}
 
@@ -66,6 +71,52 @@ async function release(body: unknown) {
   return { share: stored.share };
 }
 
+vault.db.exec("create table if not exists swissquote (id integer primary key, last_alive integer not null)");
+vault.db.prepare("insert or ignore into swissquote values (1, ?)").run(Date.now());
+let lastAlive = (vault.db.prepare("select last_alive from swissquote").get() as { last_alive: number }).last_alive;
+
+async function probe(): Promise<boolean> {
+  try {
+    const res = await fetch(`${SWISSQUOTE}/api/config`, { signal: AbortSignal.timeout(5000) });
+    await res.body?.cancel();
+    if (!res.ok) return false;
+  } catch {
+    return false;
+  }
+  lastAlive = Date.now();
+  vault.db.prepare("update swissquote set last_alive = ?").run(lastAlive);
+  return true;
+}
+
+// Probing on a timer, not only when asked, so the outage counts from the last time Swissquote was
+// seen alive, not from the first exit request.
+void probe();
+setInterval(probe, Math.min(EXIT_AFTER / 5, 3600) * 1000);
+
+async function exitStatus() {
+  const alive = await probe();
+  const closedFor = alive ? 0 : Math.floor((Date.now() - lastAlive) / 1000);
+  return { alive, open: !alive && closedFor >= EXIT_AFTER, closedFor, exitAfter: EXIT_AFTER };
+}
+
+async function exit(body: unknown) {
+  const { alive, open, closedFor, exitAfter } = await exitStatus();
+  if (alive) throw new Refusal("Swissquote's services are running. Pay through the app.");
+  if (!open) throw new Refusal(`Swissquote's services have been closed for ${closedFor} s. The exit opens after ${exitAfter} s.`);
+  const input = z.object({ userOp: userOpSchema, assertion }).parse(body);
+  const op = formatUserOperation(input.userOp as never) as UserOperation<"0.7">;
+  if (decodeFunctionData({ abi: accountAbi, data: op.callData }).functionName !== "execute") throw new Refusal("The exit only makes payments.");
+  if (op.paymaster) throw new Refusal("An exit pays its own gas. It carries no paymaster.");
+  const hash = getUserOperationHash({ chainId: chain.id, entryPointAddress: addresses.entryPoint, entryPointVersion: "0.7", userOperation: op });
+  const { signer, passkey } = await credentials(op.sender, () => initialConfig(op));
+  // No rpId: the account does not check it either, and this passkey's key belongs to this wallet alone.
+  if (!verifyAssertion(input.assertion, hash, passkey)) throw new Refusal("This passkey did not approve the operation.");
+  const stored = vault.get(signer);
+  if (!stored) throw new Refusal("No Share C for that key.");
+  console.log(`released Share C of ${signer} for exit ${hash.slice(0, 10)}`);
+  return { share: stored.share };
+}
+
 async function readJson(req: IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
   let size = 0;
@@ -104,6 +155,8 @@ createServer(async (req, res) => {
         : send(res, 404, { error: "No share for that key." });
     }
     if (req.method === "POST" && route === "recovery") return send(res, 200, await release(await readJson(req)));
+    if (req.method === "GET" && route === "exit") return send(res, 200, await exitStatus());
+    if (req.method === "POST" && route === "exit") return send(res, 200, await exit(await readJson(req)));
     send(res, 404, { error: "Not found." });
   } catch (error) {
     const message = error instanceof Refusal ? error.message : error instanceof z.ZodError ? "Invalid request." : "Refused.";
