@@ -86,7 +86,7 @@ export function BottomBar() {
   }, [open]);
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-20 [--bar-pb:calc(max(env(safe-area-inset-bottom),8px)+8px)]">
+    <div data-tab-bar className="fixed inset-x-0 bottom-0 z-20 [--bar-pb:calc(max(env(safe-area-inset-bottom),8px)+8px)]">
       <nav aria-label="Main" style={{ viewTransitionName: "tab-bar" }} className="bg-linear-to-t from-white from-70% to-white/0 pt-6 pb-(--bar-pb)">
         <div className={`${column} flex items-center`}>
           {tabs.map(({ href, label, Icon }) => {
