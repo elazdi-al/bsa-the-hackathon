@@ -6,6 +6,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Drawer, FloatingSheetContent, FloatingSheetHeader } from "@/components/ui/drawer";
 import { RowBody } from "../../history/_components/tx-row";
 import { dayLabel, transactions } from "../../history/data";
+import { hairline, sectionLabel } from "../../_components/list";
 import { Money } from "../../_components/money";
 import { tiles, type Tile, type TileId } from "../data";
 import { AssetTile } from "./asset-tile";
@@ -66,8 +67,8 @@ function AccountSheet({ tile }: { tile: Tile }) {
       </FloatingSheetHeader>
 
       <section aria-label="Recent activity" className="mt-6">
-        <h3 className="px-4 pb-1 font-medium text-[#a5a5a5]">Recent activity</h3>
-        <ul className="rounded-[18px] py-1 shadow-[0_0_0_1px_rgb(0_0_0/0.035),0_2px_6px_rgb(0_0_0/0.02)]">
+        <h3 className={`px-3 ${sectionLabel}`}>Recent activity</h3>
+        <ul className={`rounded-[18px] py-1 ${hairline}`}>
           {activity.map((t) => (
             <li key={t.id} className="flex min-h-[60px] items-center gap-3 px-3 py-2">
               <RowBody tx={t} when={dayLabel(t.date)} />

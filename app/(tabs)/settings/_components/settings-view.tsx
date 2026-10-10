@@ -10,12 +10,12 @@ import { CopyButton } from "@/app/transaction-tracking/_components/copy-button";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerTitle, DrawerTrigger, FloatingSheetContent, FloatingSheetHeader } from "@/components/ui/drawer";
 import { Switch } from "@/components/ui/switch";
+import { hairline, rowPress, sectionLabel } from "../../_components/list";
 import { plus, profile, sections, version, type Row, type Status, type TrayRow } from "../data";
 
-// The account sheet's hairline card and list row, with a press state for the rows that do something.
-const card = "rounded-[22px] shadow-[0_0_0_1px_rgb(0_0_0/0.035),0_2px_6px_rgb(0_0_0/0.02)]";
-const row = "flex min-h-14 w-full items-center gap-3 rounded-2xl px-2.5 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-black/20 focus-visible:ring-inset";
-const press = "transition-colors duration-150 ease-out hover:bg-black/[0.02] active:bg-black/[0.04]";
+// Rows sit 6px inside a 22px card, so their press tint is rounded 16px to stay concentric.
+const card = `rounded-[22px] ${hairline}`;
+const row = "flex min-h-[60px] w-full items-center gap-3 rounded-[16px] px-2.5 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-black/20 focus-visible:ring-inset";
 
 /** The tinted round glyph; `large` is the 54px of sheet headers. */
 function Glyph({ Icon, color, large }: { Icon: Icon; color: string; large?: boolean }) {
@@ -57,25 +57,25 @@ function SettingsRow({ item, onOpen }: { item: Row; onOpen: (item: TrayRow) => v
       return <div className={row}>{body}</div>;
     case "tray":
       return (
-        <button type="button" aria-haspopup="dialog" onClick={() => onOpen(item)} className={`${row} ${press}`}>
+        <button type="button" aria-haspopup="dialog" onClick={() => onOpen(item)} className={`${row} ${rowPress}`}>
           {body}
         </button>
       );
     case "push":
       return (
-        <Link href={item.href} transitionTypes={["push"]} className={`${row} ${press}`}>
+        <Link href={item.href} transitionTypes={["push"]} className={`${row} ${rowPress}`}>
           {body}
         </Link>
       );
     case "mail":
       return (
-        <a href={item.href} className={`${row} ${press}`}>
+        <a href={item.href} className={`${row} ${rowPress}`}>
           {body}
         </a>
       );
     case "switch":
       return (
-        <label className={`${row} ${press} cursor-pointer`}>
+        <label className={`${row} ${rowPress} cursor-pointer`}>
           {body}
           <Switch defaultChecked={item.on} aria-label={item.label} />
         </label>
@@ -89,7 +89,7 @@ function SignOut() {
     <Drawer>
       <div className={`${card} mt-6 p-1.5`}>
         <DrawerTrigger asChild>
-          <button type="button" className={`${row} ${press}`}>
+          <button type="button" className={`${row} ${rowPress}`}>
             <Glyph Icon={SignOutIcon} color="var(--color-negative)" />
             <span className="text-[15px] leading-5 font-medium text-negative">Sign out</span>
           </button>
@@ -158,9 +158,7 @@ export function SettingsView() {
       <div>
         {sections.map((section) => (
           <section key={section.title} className="mt-6 lg:first:mt-0">
-            <h2 className="px-4 pb-2 text-[13px] leading-4 font-medium text-[#adadad]">
-              {section.title}
-            </h2>
+            <h2 className={`px-4 ${sectionLabel}`}>{section.title}</h2>
             <div className={`${card} p-1.5`}>
               {section.rows.map((item) => (
                 <SettingsRow

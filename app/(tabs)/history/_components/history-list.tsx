@@ -8,14 +8,14 @@ import { CopyButton } from "@/app/transaction-tracking/_components/copy-button";
 import { TransactionSheet } from "@/app/transaction-tracking/_components/transaction-sheet";
 import { Drawer, FloatingSheetContent, FloatingSheetHeader } from "@/components/ui/drawer";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { hairline, rowPress, sectionLabel } from "../../_components/list";
 import { Money } from "../../_components/money";
 import { blurred, leave, reveal, sharp, snappy } from "../../_components/transitions";
 import { tiles, type TileId } from "../../home/data";
 import { byDay, filters, fullDate, monthSummary, transactions, type Filter, type Tx } from "../data";
 import { Amount, Glyph, RowBody } from "./tx-row";
 
-const rowClass =
-  "flex min-h-[60px] w-full items-center gap-3 rounded-[18px] px-3 py-2 text-left outline-none transition-colors duration-150 ease-out focus-visible:ring-2 focus-visible:ring-black/20 active:bg-black/[0.04] [@media(hover:hover)]:hover:bg-black/[0.025]";
+const rowClass = `flex min-h-[60px] w-full items-center gap-3 rounded-[18px] px-3 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-black/20 ${rowPress}`;
 
 const faded = { opacity: 0, filter: "blur(4px)" };
 
@@ -125,7 +125,7 @@ export function HistoryList({ account, sent }: { account?: TileId; sent: Tx | nu
               <div className="-mx-3">
                 {groups.map((g) => (
                   <section key={g.date} aria-label={g.label} className="mb-5">
-                    <h2 className="px-3 pb-1 text-[13px] leading-[18px] font-medium text-[#adadad]">{g.label}</h2>
+                    <h2 className={`px-3 ${sectionLabel}`}>{g.label}</h2>
                     <ul>
                       {g.items.map((t) => {
                         const i = shown.indexOf(t);
@@ -224,7 +224,7 @@ function Sheet({ tx }: { tx: Tx }) {
         <p className="mt-1 font-medium text-[#969696]">{fullDate(tx)}</p>
       </FloatingSheetHeader>
 
-      <dl className="mt-6 rounded-[18px] px-4 py-2 shadow-[0_0_0_1px_rgb(0_0_0/0.035),0_2px_6px_rgb(0_0_0/0.02)]">
+      <dl className={`mt-6 rounded-[18px] px-4 py-2 ${hairline}`}>
         {tx.rows.map((r) => (
           <Detail key={r.label} label={r.label}>
             {r.value}
