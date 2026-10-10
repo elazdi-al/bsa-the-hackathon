@@ -14,6 +14,8 @@ export type Wallet = {
   recovery: { executeAfter: number; mine: boolean } | null;
   /** Chain time minus this phone's clock, in seconds: a local chain can be warped ahead. */
   skew: number;
+  /** This phone started a recovery that hasn't handed it the wallet: one still running, or one called off. */
+  restoring: boolean;
   /** USDC in and out, newest first, once a screen asked for it with `useActivity`. */
   activity?: Transfer[];
 };
@@ -30,6 +32,9 @@ const LOADING: WalletSnapshot = { status: "loading" };
 let snapshot: WalletSnapshot = LOADING;
 const listeners = new Set<() => void>();
 let wantsActivity = 0;
+// Set by forgetWallet: screens still up keep the removed wallet while they leave, and the next screen starts fresh.
+let forgotten = false;
+const getSnapshot = () => (forgotten && !listeners.size ? LOADING : snapshot);
 
 function publish(next: WalletSnapshot) {
   if (JSON.stringify(next) === JSON.stringify(snapshot)) return;
@@ -38,10 +43,12 @@ function publish(next: WalletSnapshot) {
 }
 
 async function load() {
-  if (!phone.hasWallet()) return publish({ status: "none" });
+  if (!phone.hasWallet()) return forgotten ? undefined : publish({ status: "none" });
   try {
     const [state, activity] = await Promise.all([phone.state(), wantsActivity ? phone.activity().catch(() => undefined) : undefined]);
-    const mine = phone.device()!.signer;
+    const device = phone.device()!;
+    const mine = device.signer;
+    const controls = isAddressEqual(mine, state.signer);
     const last = snapshot.status === "ready" ? snapshot.wallet : undefined;
     const skew = Math.round(state.chainTime - Date.now() / 1000);
     publish({
@@ -49,11 +56,12 @@ async function load() {
       wallet: {
         address: state.address,
         usdc: Number(formatUnits(BigInt(state.usdc), 6)),
-        controls: isAddressEqual(mine, state.signer),
+        controls,
         recovery: state.pendingRecovery && { executeAfter: state.pendingRecovery.executeAfter, mine: isAddressEqual(mine, state.pendingRecovery.signer) },
         // The chain reports whole seconds against a fractional clock, so a jitter of a second or two isn't news.
         skew: last && Math.abs(last.skew - skew) <= 2 ? last.skew : skew,
         activity: activity ?? last?.activity,
+        restoring: !controls && !!device.restoring,
       },
     });
   } catch (error) {
@@ -75,6 +83,10 @@ export function refreshWallet(): Promise<void> {
 }
 
 function subscribe(listener: () => void) {
+  if (forgotten && !listeners.size) {
+    forgotten = false;
+    snapshot = LOADING;
+  }
   listeners.add(listener);
   if (listeners.size === 1) startPolling();
   return () => {
@@ -104,7 +116,7 @@ function startPolling() {
 
 /** This phone's wallet, shared by every screen and kept fresh while one is mounted. */
 export function useWallet(): WalletSnapshot {
-  return useSyncExternalStore(subscribe, () => snapshot, () => LOADING);
+  return useSyncExternalStore(subscribe, getSnapshot, () => LOADING);
 }
 
 /** The wallet's USDC transfers; undefined until read, or with no live wallet. */
@@ -123,8 +135,15 @@ export function useActivity(): Transfer[] | undefined {
 /** Chain time now, in seconds, for a wallet read at some point: what the 48-hour hold is measured in. */
 export const chainNow = (wallet: Pick<Wallet, "skew">) => Date.now() / 1000 + wallet.skew;
 
-/** Removes the wallet from this phone and forgets what the store knew about it. */
+/** A chain timestamp in seconds as a moment on this phone's clock, which a warped local chain runs ahead of. */
+export const onPhoneClock = (wallet: Pick<Wallet, "skew">, chainSeconds: number) => new Date((chainSeconds - wallet.skew) * 1000);
+
+/** The address a screen shows: the wallet's once read, the demo one where the phone has none, nothing in between. */
+export const shownAddress = (snapshot: WalletSnapshot, demo: string) =>
+  snapshot.status === "ready" ? snapshot.wallet.address : snapshot.status === "none" ? demo : undefined;
+
+/** Removes the wallet from this phone. Navigate away right after; the screens leaving keep showing it until they're gone. */
 export function forgetWallet() {
   phone.forget();
-  publish({ status: "none" });
+  forgotten = true;
 }

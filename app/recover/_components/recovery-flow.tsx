@@ -2,16 +2,23 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useReducer, useRef, useState, type ReactNode } from "react";
-import type { Hex } from "viem";
+import type { Address, Hex } from "viem";
 import { chainNow, refreshWallet, useWallet, type WalletSnapshot } from "@/app/(tabs)/_components/wallet";
 import { FaceIdIcon, IdCardIcon, RestoreIcon, type Icon } from "@/components/icons";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { phone, readRecoveryKey, type Credential, type Identity } from "@/lib/wallet/phone";
+import { ApiError, phone, readRecoveryKey, type Credential, type Identity } from "@/lib/wallet/phone";
 import { IdentityIllustration } from "./identity-illustration";
 
-/** The steps to start a recovery. `cancelled`: this phone's last recovery was called off, here or elsewhere. */
-type Step = { name: "key"; cancelled?: boolean } | { name: "identity"; secret: Hex } | { name: "restore"; secret: Hex; identity: Identity };
+/**
+ * The steps to start a recovery. `notice` says why the key step is back. `pending`: the Recovery Key's wallet already has a
+ * recovery running that this phone didn't start; its holder may cancel it through Swissquote before going on.
+ */
+type Step =
+  | { name: "key"; notice?: string }
+  | { name: "pending"; secret: Hex; address: Address; executeAfter: number; skew: number }
+  | { name: "identity"; secret: Hex }
+  | { name: "restore"; secret: Hex; identity: Identity };
 
 /**
  * Where this phone stands, from the shared wallet store. `answer`: it holds the wallet and someone is recovering it.
@@ -30,6 +37,8 @@ function standing(snapshot: WalletSnapshot): Standing {
 
 const FAILED = {
   file: "That isn't a Recovery Key. Choose the file you saved, or paste all of its text.",
+  unknown: "No wallet uses this Recovery Key. Check you chose the right file.",
+  offline: "Can't reach Swissquote. Try again.",
   passkey: "Your passkey wasn't created. Try again.",
   key: "Your Wallet Key wasn't split. Try again.",
   start: "Your recovery didn't start. Check your Recovery Key and try again.",
@@ -91,18 +100,19 @@ export function RecoveryFlow() {
       recoveryKey.current = undefined;
       setText("");
       setAskKey(false);
-      setStep({ name: "key", cancelled: true });
+      setStep({ name: "key", notice: "Your recovery was cancelled and your wallet is unchanged. To start again, choose your Recovery Key file or paste its text." });
     }
   }, [at.name]);
 
   // The countdown reads chain time on every render; this re-renders it each second while a hold runs.
   const holding = at.name === "answer" || at.name === "wait";
+  const counting = holding || step.name === "pending";
   const [, tick] = useReducer((n: number) => n + 1, 0);
   useEffect(() => {
-    if (!holding) return;
+    if (!counting) return;
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [holding]);
+  }, [counting]);
 
   async function run(label: string, failed: string, work: () => Promise<void>) {
     setBusy(label);
@@ -174,6 +184,25 @@ export function RecoveryFlow() {
     });
   };
 
+  // Before the ID check: a recovery someone else started blocks a new one, and only the key's holder can call it off.
+  const check = (secret: Hex) =>
+    run("Checking", FAILED.offline, async () => {
+      const found = await phone.findRecovery(secret).catch((e: unknown) => {
+        if (e instanceof ApiError && e.status === 404) return null;
+        throw e;
+      });
+      if (!found) return setError(FAILED.unknown);
+      const { address, pendingRecovery, chainTime } = found;
+      const skew = Math.round(chainTime - Date.now() / 1000);
+      setStep(pendingRecovery ? { name: "pending", secret, address, executeAfter: pendingRecovery.executeAfter, skew } : { name: "identity", secret });
+    });
+
+  const cancelTheirs = (secret: Hex, address: Address) =>
+    run("Cancelling", FAILED.cancel, async () => {
+      await phone.cancelRecoveryWithSwissquote(secret, address);
+      setStep({ name: "key", notice: "That recovery is cancelled and your wallet is unchanged. Continue to recover it on this phone." });
+    });
+
   const label = (idle: string) => busy ?? idle;
   const lead = (Glyph: Icon) => (busy ? <Spinner aria-hidden className="size-5" /> : <Glyph size={20} />);
 
@@ -218,26 +247,49 @@ export function RecoveryFlow() {
           key="key"
           art={<Tile Glyph={RestoreIcon} className="bg-purple" />}
           title="Recover your wallet"
-          body={
-            step.cancelled
-              ? "Your recovery was cancelled and your wallet is unchanged. To start again, choose your Recovery Key file or paste its text."
-              : "Choose the Recovery Key file you saved at home, or paste its text."
-          }
+          body={step.notice ?? "Choose the Recovery Key file you saved at home, or paste its text."}
           error={error}
         >
           <KeyField value={text} onChange={setText} />
           <Button
             size="lg"
-            disabled={!text.trim()}
+            disabled={!text.trim() || !!busy}
+            aria-busy={!!busy}
             onClick={() => {
               const secret = readKey();
-              if (secret) setStep({ name: "identity", secret });
+              if (secret) check(secret);
             }}
           >
+            {busy && <Spinner aria-hidden className="size-5" />}
             Continue
           </Button>
         </Step>
       );
+
+    case "pending": {
+      const left = Math.max(0, Math.ceil(step.executeAfter - chainNow(step)));
+      return (
+        <Step
+          key="pending"
+          art={
+            <p role="timer" className="text-display tabular-nums">
+              {countdown(left)}
+            </p>
+          }
+          title="A recovery of your wallet is already running"
+          body={`It can finish after ${restoreDate(step.executeAfter - step.skew)}. If you didn't start it, cancel it now with your Recovery Key; Swissquote cancels it for you.`}
+          error={error}
+        >
+          <Button size="lg" variant="secondary" onClick={() => cancelTheirs(step.secret, step.address)} disabled={!!busy} aria-busy={!!busy} className="text-negative">
+            {busy && <Spinner aria-hidden className="size-5" />}
+            Cancel recovery
+          </Button>
+          <Button size="lg" variant="ghost" onClick={() => setStep({ name: "key" })} disabled={!!busy}>
+            Back
+          </Button>
+        </Step>
+      );
+    }
 
     case "identity":
       return (

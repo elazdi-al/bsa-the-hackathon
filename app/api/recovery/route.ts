@@ -4,7 +4,7 @@ import { accountAbi } from "@/lib/wallet/account.ts";
 import { store } from "@/lib/wallet/api/db.ts";
 import { HttpError, parse, route } from "@/lib/wallet/api/http.ts";
 import { bindShares, prepare } from "@/lib/wallet/api/operations.ts";
-import { pendingRecovery } from "@/lib/wallet/env.ts";
+import { chainNow, pendingRecovery } from "@/lib/wallet/env.ts";
 import { address, signature } from "@/lib/wallet/schema.ts";
 
 const body = z.object({
@@ -38,6 +38,6 @@ export const GET = route(async (request: Request) => {
   const recoveryKey = address.parse(new URL(request.url).searchParams.get("recoveryKey"));
   const wallet = store().walletByRecoveryKey(recoveryKey);
   if (!wallet) throw new HttpError(404, "No wallet uses this recovery key.");
-  const pending = await pendingRecovery(wallet.address);
-  return Response.json({ address: wallet.address, pendingRecovery: pending && { executeAfter: pending.executeAfter } });
+  const [pending, chainTime] = await Promise.all([pendingRecovery(wallet.address), chainNow()]);
+  return Response.json({ address: wallet.address, pendingRecovery: pending && { executeAfter: pending.executeAfter }, chainTime });
 });

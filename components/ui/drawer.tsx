@@ -55,7 +55,7 @@ function DrawerContent({
   // Radix hands focus back only to a DrawerTrigger. Most sheets open from a plain button, so remember
   // what was focused on open and return there; an opener that has since unmounted is the caller's job.
   const opener = React.useRef<HTMLElement | null>(null)
-  // A sheet still up when a navigation starts (Continue, Sign out) would sit in the root snapshot, under the
+  // A sheet still up when a navigation starts (Continue, Remove) would sit in the root snapshot, under the
   // outgoing screen's. Named, it and its dim dissolve on top (globals.css).
   const name = React.useId()
   return (

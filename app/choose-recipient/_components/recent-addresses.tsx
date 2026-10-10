@@ -11,7 +11,7 @@ export function RecentAddresses() {
   const snapshot = useWallet();
   const activity = useActivity();
   const recent =
-    snapshot.status === "ready" ? activity && recentSends(activity, snapshot.wallet.address) : snapshot.status === "none" ? RECENT_ADDRESSES : undefined;
+    snapshot.status === "ready" ? activity && recentSends(activity, snapshot.wallet) : snapshot.status === "none" ? RECENT_ADDRESSES : undefined;
   if (!recent?.length) return null;
 
   return (

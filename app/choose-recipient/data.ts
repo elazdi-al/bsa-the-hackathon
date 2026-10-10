@@ -1,5 +1,6 @@
-import { formatUnits, isAddressEqual, type Address } from "viem";
+import { formatUnits, isAddressEqual } from "viem";
 import type { Transfer } from "@/lib/wallet/phone";
+import { onPhoneClock, type Wallet } from "@/app/(tabs)/_components/wallet";
 
 export type RecentAddress = { address: string; note: string };
 
@@ -11,16 +12,16 @@ const sentUsd = new Intl.NumberFormat("en-US", { style: "currency", currency: "U
 const sentOn = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
 
 /** The last three addresses `wallet` paid, newest first, each with its latest send. `transfers` is newest first. */
-export function recentSends(transfers: Transfer[], wallet: Address): RecentAddress[] {
+export function recentSends(transfers: Transfer[], wallet: Pick<Wallet, "address" | "skew">): RecentAddress[] {
   const latest = new Map<string, Transfer>();
   for (const t of transfers) {
     if (latest.size === 3) break;
-    if (isAddressEqual(t.from, wallet) && !latest.has(t.to.toLowerCase())) latest.set(t.to.toLowerCase(), t);
+    if (isAddressEqual(t.from, wallet.address) && !latest.has(t.to.toLowerCase())) latest.set(t.to.toLowerCase(), t);
   }
   return [...latest.values()].map((t) => ({
     address: t.to,
     // en-GB abbreviates September as "Sept"; keep every month three letters.
-    note: `Sent ${sentUsd.format(Number(formatUnits(BigInt(t.value), 6)))} · ${sentOn.format(t.timestamp * 1000).replace("Sept", "Sep")}`,
+    note: `Sent ${sentUsd.format(Number(formatUnits(BigInt(t.value), 6)))} · ${sentOn.format(onPhoneClock(wallet, t.timestamp)).replace("Sept", "Sep")}`,
   }));
 }
 

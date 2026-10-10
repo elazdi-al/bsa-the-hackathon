@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tray, TrayActions, TrayHeader } from "@/components/ui/tray";
 import { cn } from "@/lib/utils";
 import { rowPress } from "../../_components/list";
-import { forgetWallet, useWallet } from "../../_components/wallet";
+import { forgetWallet, shownAddress, useWallet } from "../../_components/wallet";
 import { keys, profile, sections, version, type KeyId, type Row, type TrayRoot } from "../data";
 
 type View = { name: TrayRoot } | { name: "key"; id: KeyId };
@@ -68,10 +68,8 @@ function SettingsRow({ item, onOpen }: { item: Row; onOpen: (root: TrayRoot) => 
 }
 
 /** The member's card: their plan, name and address on the brand blue, like the card in a wallet. It opens Swissquote Plus. */
-function MemberCard({ removed }: { removed: boolean }) {
-  const snapshot = useWallet();
-  // The demo address in preview (no wallet on this phone); otherwise the wallet's own, once read.
-  const address = removed ? undefined : snapshot.status === "ready" ? snapshot.wallet.address : snapshot.status === "none" ? profile.address : undefined;
+function MemberCard() {
+  const address = shownAddress(useWallet(), profile.address);
   return (
     <Link
       href="/plus"
@@ -172,7 +170,6 @@ function TrayBody({ view, push, close, remove }: { view: View; push: (next: View
 export function SettingsView() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [removed, setRemoved] = useState(false);
   // Outlives `open` until the close animation ends, so the tray doesn't empty mid-exit.
   const [stack, setStack] = useState<View[]>([]);
   const view = stack.at(-1);
@@ -183,15 +180,13 @@ export function SettingsView() {
   }
 
   function remove() {
-    // Forgetting leaves the store at "none", which the card would show as the demo address while the screen leaves.
-    setRemoved(true);
     forgetWallet();
     router.replace("/onboarding-welcome", { transitionTypes: ["pop"] });
   }
 
   return (
     <div className="mt-6 max-w-xl lg:grid lg:max-w-none lg:grid-cols-[20rem_minmax(0,1fr)] lg:items-start lg:gap-12">
-      <MemberCard removed={removed} />
+      <MemberCard />
 
       <div>
         {sections.map((rows, i) => (

@@ -13,7 +13,7 @@ import { dayLabel, transactions, type Tx } from "../../history/data";
 import { transferToTx } from "../../history/live";
 import { sectionLabel } from "../../_components/list";
 import { Money } from "../../_components/money";
-import { forgetWallet, refreshWallet, useActivity, useWallet, type WalletSnapshot } from "../../_components/wallet";
+import { forgetWallet, onPhoneClock, refreshWallet, useActivity, useWallet, type Wallet, type WalletSnapshot } from "../../_components/wallet";
 import { tiles, type Tile, type TileId } from "../data";
 import { AssetTile, tileLooks } from "./asset-tile";
 import { MoneyPlaceholder } from "./blur-money";
@@ -28,30 +28,18 @@ const cashWhen: Record<Exclude<WalletSnapshot["status"], "ready">, number | unde
 };
 
 /**
- * The wallet as Home shows it. Removing it from Home leaves for the welcome screen, so until Home is gone it keeps
- * showing that wallet instead of repainting as the design preview on its way out.
- */
-function useHomeWallet(): WalletSnapshot {
-  const live = useWallet();
-  const [shown, setShown] = useState(live);
-  const removed = live.status === "none" && shown.status !== "none" && shown.status !== "loading";
-  if (live !== shown && !removed) setShown(live);
-  return shown;
-}
-
-/**
  * Home's tiles with Cash read from the wallet; Accounts and the chart share the store, so both change in one commit.
  * Until Cash is known every tile holds, so Home's numbers type in together.
  */
 export function useTiles(): Tile[] {
-  const wallet = useHomeWallet();
+  const wallet = useWallet();
   const cash = wallet.status === "ready" ? wallet.wallet.usdc : cashWhen[wallet.status];
   return useMemo(() => tiles.map((t) => ({ ...t, value: cash === undefined ? undefined : t.id === "cash" ? cash : t.value })), [cash]);
 }
 
 /** The Home grid. Tiles without a screen of their own, and the Earn promo, open an account sheet in place. */
 export function Accounts() {
-  const wallet = useHomeWallet();
+  const wallet = useWallet();
   const shown = useTiles();
   // Read while Home shows, so the Cash sheet opens on its transfers.
   useActivity();
@@ -95,10 +83,10 @@ export function Accounts() {
   );
 }
 
-const restoreDate = (executeAfter: number) =>
-  new Date(executeAfter * 1000).toLocaleString("en-GB", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+const restoreDate = (wallet: Wallet, executeAfter: number) =>
+  onPhoneClock(wallet, executeAfter).toLocaleString("en-GB", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
 
-type Alert = { kind: "recovering" | "restoring" | "moved" | "missing"; Icon: Icon; tone: string; title: string; line: string };
+type Alert = { kind: "recovering" | "restoring" | "cancelled" | "moved" | "missing"; Icon: Icon; tone: string; title: string; line: string };
 
 /** What Home has to say about the wallet itself, if anything. */
 function alertFor(wallet: WalletSnapshot): Alert | undefined {
@@ -111,7 +99,7 @@ function alertFor(wallet: WalletSnapshot): Alert | undefined {
       line: "The network it lived on was reset.",
     };
   if (wallet.status !== "ready") return undefined;
-  const { controls, recovery } = wallet.wallet;
+  const { controls, recovery, restoring } = wallet.wallet;
   if (controls)
     return recovery && !recovery.mine
       ? {
@@ -119,7 +107,7 @@ function alertFor(wallet: WalletSnapshot): Alert | undefined {
           Icon: WarningIcon,
           tone: "text-pending",
           title: "Someone started recovering your wallet",
-          line: `If it wasn’t you, cancel it before ${restoreDate(recovery.executeAfter)}.`,
+          line: `If it wasn’t you, cancel it before ${restoreDate(wallet.wallet, recovery.executeAfter)}.`,
         }
       : undefined;
   return recovery?.mine
@@ -128,15 +116,23 @@ function alertFor(wallet: WalletSnapshot): Alert | undefined {
         Icon: RestoreIcon,
         tone: "text-purple",
         title: "Your wallet is being restored",
-        line: `It completes on ${restoreDate(recovery.executeAfter)}, and this phone can send once it does.`,
+        line: `It completes on ${restoreDate(wallet.wallet, recovery.executeAfter)}, and this phone can send once it does.`,
       }
-    : {
-        kind: "moved",
-        Icon: PhoneIcon,
-        tone: "text-muted-foreground",
-        title: "Your wallet moved to another phone",
-        line: "It was recovered on another phone, so this one can’t send from it any more.",
-      };
+    : restoring
+      ? {
+          kind: "cancelled",
+          Icon: RestoreIcon,
+          tone: "text-muted-foreground",
+          title: "Your recovery was cancelled",
+          line: "Your wallet is unchanged. To restore it on this phone, recover again with your Recovery Key.",
+        }
+      : {
+          kind: "moved",
+          Icon: PhoneIcon,
+          tone: "text-muted-foreground",
+          title: "Your wallet moved to another phone",
+          line: "It was recovered on another phone, so this one can’t send from it any more.",
+        };
 }
 
 function WalletAlert({ alert: { kind, Icon, tone, title, line } }: { alert: Alert }) {
@@ -170,9 +166,9 @@ function WalletAlert({ alert: { kind, Icon, tone, title, line } }: { alert: Aler
             {busy ? <Spinner aria-hidden /> : <FaceIdIcon size={16} />}
             Cancel recovery
           </Button>
-        ) : kind === "restoring" ? (
+        ) : kind === "restoring" || kind === "cancelled" ? (
           <Link href="/recover" transitionTypes={["push"]} className={buttonVariants({ size: "sm", className: "mt-3" })}>
-            View progress
+            {kind === "restoring" ? "View progress" : "Recover again"}
           </Link>
         ) : (
           <Button size="sm" onClick={remove} className="mt-3">
@@ -189,8 +185,7 @@ function recentActivity(id: TileId, wallet: WalletSnapshot): Tx[] | undefined {
   if (id !== "cash" || wallet.status === "none") return transactions.filter((t) => t.account === id).slice(0, 4);
   if (wallet.status === "missing") return [];
   if (wallet.status !== "ready") return undefined;
-  const { activity, address } = wallet.wallet;
-  return activity?.slice(0, 4).map((t) => transferToTx(t, address));
+  return wallet.wallet.activity?.slice(0, 4).map((t) => transferToTx(t, wallet.wallet));
 }
 
 function AccountSheet({ tile, wallet }: { tile: Tile; wallet: WalletSnapshot }) {

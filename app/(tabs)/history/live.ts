@@ -1,21 +1,22 @@
 import { useEffect, useRef } from "react";
-import { formatUnits, isAddressEqual, zeroAddress, type Address } from "viem";
+import { formatUnits, isAddressEqual, zeroAddress } from "viem";
 import type { Transfer } from "@/lib/wallet/phone";
 import { shortAddress } from "@/app/choose-recipient/data";
-import { useActivity, useWallet } from "../_components/wallet";
+import { onPhoneClock, useActivity, useWallet, type Wallet } from "../_components/wallet";
 import type { Tx } from "./data";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
 /**
- * An on-chain USDC transfer as a History row on the Cash account. Its date and time are this phone's
- * local wall clock, written in the UTC-formatted fields the mock rows use, so they read as local time.
+ * An on-chain USDC transfer as a History row on the Cash account. Its date and time are this phone's local
+ * wall clock, so a send after `npm run warp` still lands under Today, written in the UTC-formatted fields the
+ * mock rows use so they read as local time.
  */
-export function transferToTx(transfer: Transfer, wallet: Address): Tx {
-  const out = isAddressEqual(transfer.from, wallet);
+export function transferToTx(transfer: Transfer, wallet: Pick<Wallet, "address" | "skew">): Tx {
+  const out = isAddressEqual(transfer.from, wallet.address);
   const other = out ? transfer.to : transfer.from;
   const minted = isAddressEqual(transfer.from, zeroAddress);
-  const at = new Date(transfer.timestamp * 1000);
+  const at = onPhoneClock(wallet, transfer.timestamp);
   const usd = Number(formatUnits(BigInt(transfer.value), 6));
   return {
     id: `${transfer.hash}:${out ? "out" : "in"}`,
@@ -42,11 +43,7 @@ export function transferToTx(transfer: Transfer, wallet: Address): Tx {
 export function useLiveTxs() {
   const wallet = useWallet();
   const transfers = useActivity();
-  // Block times on this phone's clock, so a send after `npm run warp` still lands under Today.
-  const txs =
-    wallet.status === "ready" && transfers
-      ? transfers.map((t) => transferToTx({ ...t, timestamp: t.timestamp - wallet.wallet.skew }, wallet.wallet.address))
-      : [];
+  const txs = wallet.status === "ready" && transfers ? transfers.map((t) => transferToTx(t, wallet.wallet)) : [];
   // The ids at the last commit. A row filtered out when it came in is known by the time a filter shows it.
   const known = useRef<Set<string>>(undefined);
   useEffect(() => {

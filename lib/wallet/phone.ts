@@ -29,8 +29,11 @@ export type Credential = { id: string; passkey: Passkey };
 /** Share A at rest: AES-GCM sealed under the passkey's PRF output, so only Face ID opens it. */
 type StoredShare = Share | { x: Share["x"]; iv: Hex; sealed: Hex };
 
-/** What this phone keeps. Never the wallet key itself. */
-export type Device = { credentialId: string; passkey: Passkey; share: StoredShare; signer: Address; address?: Address };
+/**
+ * What this phone keeps. Never the wallet key itself. `restoring`: this phone started a recovery of `address`
+ * that hasn't handed it the wallet yet.
+ */
+export type Device = { credentialId: string; passkey: Passkey; share: StoredShare; signer: Address; address?: Address; restoring?: boolean };
 
 export type WalletState = {
   address: Address;
@@ -168,7 +171,13 @@ export function createPhone({ api = "", partner, authenticator, storage }: { api
     prepare,
     approve,
     hasWallet: () => !!device()?.address,
-    state: () => call<WalletState>(`/api/wallets/${requireWallet().address}`),
+    async state(): Promise<WalletState> {
+      const d = requireWallet();
+      const state = await call<WalletState>(`/api/wallets/${d.address}`);
+      // However the recovery was finished, once this phone's key is the wallet's, it's no longer restoring.
+      if (d.restoring && isAddressEqual(state.signer, d.signer)) save({ ...d, restoring: undefined });
+      return state;
+    },
     activity: () => call<{ transfers: Transfer[] }>(`/api/wallets/${requireWallet().address}/activity`).then((r) => r.transfers),
 
     /** Removes the wallet from this phone: Share A, the passkey's record and the cached key. The wallet itself stays on-chain. */
@@ -245,14 +254,14 @@ export function createPhone({ api = "", partner, authenticator, storage }: { api
       await call(`/api/wallets/${prepared.address}/operations/${prepared.hash}`, {
         signature: encodeRecoverySignature(await privateKeyToAccount(key).sign({ hash: prepared.hash }), signature),
       });
-      save({ ...d, address: prepared.address });
+      save({ ...d, address: prepared.address, restoring: true });
       const { pendingRecovery } = await call<WalletState>(`/api/wallets/${prepared.address}`);
       return { address: prepared.address, executeAfter: pendingRecovery!.executeAfter };
     },
 
     /** The wallet a recovery key restores, and the recovery already pending for it, if someone started one. */
     findRecovery: (secret: Hex) =>
-      call<{ address: Address; pendingRecovery: { executeAfter: number } | null }>(
+      call<{ address: Address; pendingRecovery: { executeAfter: number } | null; chainTime: number }>(
         `/api/recovery?${new URLSearchParams({ recoveryKey: privateKeyToAddress(secret) })}`,
       ),
 

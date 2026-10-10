@@ -7,7 +7,7 @@ import { CheckIcon, CopyIcon, ReceiveIcon, ShareIcon } from "@/components/icons"
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHeader } from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
-import { useWallet } from "./wallet";
+import { shownAddress, useWallet } from "./wallet";
 
 const N = 29;
 const iconSwap = { type: "spring", duration: 0.3, bounce: 0 } as const;
@@ -87,8 +87,7 @@ export function ReceiveSheet({ open, onOpenChange, onClosed }: { open: boolean; 
 // Mounted only while the sheet is open, so the wallet store isn't polled from every tab.
 function ReceiveBody() {
   const snapshot = useWallet();
-  // The demo address in preview (no wallet on this phone); otherwise only the wallet's own, once read.
-  const address = snapshot.status === "ready" ? snapshot.wallet.address : snapshot.status === "none" ? mock.address : undefined;
+  const address = shownAddress(snapshot, mock.address);
   const [copied, setCopied] = useState(false);
   const [canShare, setCanShare] = useState(false);
 

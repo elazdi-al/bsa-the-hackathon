@@ -24,9 +24,10 @@ const UNAVAILABLE: Record<Exclude<WalletSnapshot["status"], "ready">, string> = 
 /** What stops Continue and Send, as a calm line; "" holds them without a word while the wallet loads, undefined lets them run. */
 function blocker(snapshot: WalletSnapshot, amount: number): string | undefined {
   if (snapshot.status !== "ready") return UNAVAILABLE[snapshot.status];
-  const { controls, recovery, usdc } = snapshot.wallet;
+  const { controls, recovery, restoring, usdc } = snapshot.wallet;
   if (!controls) {
-    return recovery?.mine ? "You can send once your wallet is restored on this phone." : "Your wallet moved to another phone, so this one can't send from it.";
+    if (recovery?.mine) return "You can send once your wallet is restored on this phone.";
+    return restoring ? "Your recovery was cancelled, so this phone can't send yet." : "Your wallet moved to another phone, so this one can't send from it.";
   }
   if (amount > usdc) return `You have ${usd.format(usdc)}.`;
 }
