@@ -35,10 +35,10 @@ export function RecipientSheet({ open, onOpenChange, onClosed }: Props) {
         <DrawerContent
           aria-describedby={undefined}
           overlayClassName="[view-transition-name:recipient-overlay]"
-          className="h-[calc(100dvh-env(safe-area-inset-top)-12px)] pb-[env(safe-area-inset-bottom)] tracking-[-0.05em] [view-transition-name:recipient-sheet] sm:h-auto sm:pb-5"
+          className="h-[calc(100dvh-env(safe-area-inset-top)-12px)] pb-[env(safe-area-inset-bottom)] tracking-[-0.02em] [view-transition-name:recipient-sheet] sm:h-auto sm:pb-5"
         >
           <header className="relative flex h-11 shrink-0 items-center justify-center">
-            <DrawerTitle className="tracking-[-0.03em]">Choose recipient</DrawerTitle>
+            <DrawerTitle>Choose recipient</DrawerTitle>
             <DrawerClose asChild>
               <BackButton kind="close" className="absolute right-4" />
             </DrawerClose>

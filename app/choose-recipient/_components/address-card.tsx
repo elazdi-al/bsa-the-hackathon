@@ -85,7 +85,7 @@ export function AddressCard() {
 
       <StatusLine id={STATUS_ID} status={status} />
 
-      <div className="mt-[11px] flex gap-2 tracking-[-0.035em]">
+      <div className="mt-[11px] flex gap-2">
         <Button type="submit" size="sm" disabled={!resolved}>
           Continue
         </Button>

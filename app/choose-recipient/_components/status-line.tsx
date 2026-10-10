@@ -9,7 +9,7 @@ export function StatusLine({ id, status }: { id: string; status: Status }) {
   const { icon, text } = describe(status);
 
   return (
-    <p id={id} aria-live="polite" className="relative mt-[3px] h-4 text-[12px] leading-4 tracking-[-0.03em] text-black/35">
+    <p id={id} aria-live="polite" className="relative mt-[3px] h-4 text-[12px] leading-4 text-black/35">
       <AnimatePresence initial={false}>
         <motion.span
           key={status.kind === "resolved" ? status.address : status.kind}
