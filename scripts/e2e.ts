@@ -4,20 +4,35 @@
 //
 //   npm run e2e
 import assert from "node:assert/strict";
+import { setTimeout as sleep } from "node:timers/promises";
+import { P256 } from "ox";
 import { erc20Abi, formatUnits, numberToHex, parseUnits, type Address } from "viem";
+import { formatUserOperation, getUserOperationHash } from "viem/account-abstraction";
 import { generatePrivateKey, privateKeyToAccount, privateKeyToAddress } from "viem/accounts";
 import { bindRecoveryKeyMessage } from "../lib/wallet/account.ts";
-import { addresses, publicClient } from "../lib/wallet/env.ts";
-import { ApiError } from "../lib/wallet/phone.ts";
-import { APP, mintUsdc, newPhone } from "./software-phone.ts";
+import { addresses, chain, isDeployed, partnerUrl, publicClient } from "../lib/wallet/env.ts";
+import { ApiError, softwareAuthenticator } from "../lib/wallet/phone.ts";
+import { setSunset } from "../lib/wallet/sunset.ts";
+import { APP, mintUsdc, newPhone, sendEth } from "./software-phone.ts";
 
 const ANNA = privateKeyToAddress(generatePrivateKey());
 const SANCTIONED: Address = "0x098B716B8Aaf21512996dC57EB0615e2383E2f96"; // flagged by the compliance demo screening
 
+process.on("exit", () => setSunset(false));
+
 const shareRequests: string[] = [];
+const exitRequests: string[] = [];
+const apiRequests: string[] = [];
+let tamper: ((body: any) => any) | undefined;
 const realFetch = globalThis.fetch;
-globalThis.fetch = (input, init) => {
-  if (String(input).endsWith("/share")) shareRequests.push(String(input));
+globalThis.fetch = async (input, init) => {
+  const url = String(input);
+  if (url.endsWith("/share")) shareRequests.push(url);
+  if (url.startsWith(APP)) apiRequests.push(url);
+  if (url === `${partnerUrl}/exit`) {
+    exitRequests.push(url);
+    if (tamper && init?.method === "POST") init = { ...init, body: JSON.stringify(await tamper(JSON.parse(String(init.body)))) };
+  }
   return realFetch(input, init);
 };
 
@@ -25,6 +40,12 @@ async function refused(promise: Promise<unknown>, status: number) {
   const error = await promise.then(() => undefined, (e: unknown) => e);
   assert.ok(error instanceof ApiError && error.status === status, `expected ${status}, got ${error}`);
   return error.body;
+}
+
+async function exitRefusal(body: unknown) {
+  const res = await realFetch(`${partnerUrl}/exit`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  assert.equal(res.status, 400, "the partner refuses this exit");
+  return ((await res.json()) as { error: string }).error;
 }
 
 const usdcOf = (owner: Address) => publicClient.readContract({ address: addresses.usdc, abi: erc20Abi, functionName: "balanceOf", args: [owner] });
@@ -100,4 +121,56 @@ await newOne.sendUsdc(ANNA, "5");
 await refused(phone.sendUsdc(ANNA, "1"), 422);
 console.log(`   Anna has ${formatUnits(await usdcOf(ANNA), 6)} USDC, the wallet ${formatUnits(await usdcOf(wallet), 6)} USDC`);
 assert.equal(await usdcOf(ANNA), parseUnits("27", 6));
+
+console.log("10. Swissquote's services are closed for good. The client leaves with the money: Face ID, Share A and Share C, gas from the wallet's own ETH");
+assert.match(await exitRefusal({}), /running/, "no exit while Swissquote's services run");
+const fresh = newPhone();
+await fresh.splitKey(await fresh.createPasskey());
+const freshWallet = await fresh.register(fresh.createRecoveryKey().address);
+await mintUsdc(freshWallet, "10");
+setSunset(true);
+assert.equal((await realFetch(`${APP}/api/config`)).status, 503, "Swissquote's API is closed");
+const deadline = Date.now() + 30_000;
+let status = await newOne.exitStatus();
+while (!status.open) {
+  assert.ok(Date.now() < deadline, `the exit opens within 30 s of Swissquote closing; the partner says ${JSON.stringify(status)}`);
+  await sleep(1000);
+  status = await newOne.exitStatus();
+}
+console.log(`   the partner saw Swissquote closed for ${status.closedFor} s, then opened the exit`);
+newOne.forgetKey();
+const stranger = softwareAuthenticator(P256.randomPrivateKey(), APP);
+tamper = async (body) => {
+  const userOperation = formatUserOperation(body.userOp);
+  const hash = getUserOperationHash({ chainId: chain.id, entryPointAddress: addresses.entryPoint, entryPointVersion: "0.7", userOperation });
+  const { metadata, signature } = (await stranger.sign("software", hash)).assertion;
+  return { ...body, assertion: { metadata, signature: { r: numberToHex(signature.r), s: numberToHex(signature.s) } } };
+};
+assert.match(String((await refused(newOne.exitUsdc(ANNA, "1"), 400)).error), /passkey/, "a stranger's passkey does not release Share C");
+tamper = (body) => ({
+  ...body,
+  userOp: { ...body.userOp, paymaster: addresses.paymaster, paymasterData: "0x", paymasterVerificationGasLimit: "0x186a0", paymasterPostOpGasLimit: "0x0" },
+});
+assert.match(String((await refused(newOne.exitUsdc(ANNA, "1"), 400)).error), /paymaster/, "Swissquote's paymaster does not sponsor an exit");
+tamper = undefined;
+await sendEth(wallet, "0.01");
+const exitsBefore = exitRequests.length;
+const apiBefore = apiRequests.length;
+newOne.forgetKey();
+await newOne.exitUsdc(ANNA, formatUnits(await usdcOf(wallet), 6));
+assert.equal(await usdcOf(wallet), 0n, "the whole balance left the wallet");
+assert.equal(await usdcOf(ANNA), parseUnits("100", 6));
+assert.equal(exitRequests.length, exitsBefore + 1, "one Face ID, one request for Share C");
+assert.equal(await isDeployed(freshWallet), false, "a wallet that never paid has no account on-chain yet");
+await sendEth(freshWallet, "0.01");
+fresh.forgetKey();
+await fresh.exitUsdc(ANNA, "10");
+assert.ok(await isDeployed(freshWallet), "the exit deploys the account on the way out");
+assert.equal(await usdcOf(ANNA), parseUnits("110", 6));
+assert.equal(exitRequests.length, exitsBefore + 2, "the partner checked the deploying operation's config before releasing C");
+assert.deepEqual(apiRequests.slice(apiBefore), [], "neither exit called Swissquote's API");
+setSunset(false);
+assert.equal((await realFetch(`${APP}/api/config`)).status, 200, "Swissquote's API is back");
+assert.match(await exitRefusal({}), /running/, "one successful probe closes the exit at once");
+console.log(`   Anna has ${formatUnits(await usdcOf(ANNA), 6)} USDC, both wallets 0; the exit closed again once Swissquote answered`);
 console.log("All good.");
