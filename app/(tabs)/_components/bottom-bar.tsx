@@ -6,14 +6,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { column } from "./column";
+import { ReceiveSheet } from "./receive-sheet";
+import { SwapSheet } from "./swap-sheet";
 import { blurred, leave, sharp, snappy } from "./transitions";
 
-type Action = { label: string; icon: ReactNode; href?: string };
+type Sheet = "receive" | "swap";
+type Action = { label: string; icon: ReactNode; href?: string; sheet?: Sheet };
 
 const actions: Action[] = [
-  { label: "Receive", icon: <ArrowDownIcon weight="bold" size={30} className="text-[#ef642c]" /> },
+  { label: "Receive", icon: <ArrowDownIcon weight="bold" size={30} className="text-[#ef642c]" />, sheet: "receive" },
   { label: "Send", icon: <PaperPlaneTiltIcon weight="fill" size={30} className="text-[#8a52f5]" />, href: "/choose-recipient" },
-  { label: "Swap", icon: <ArrowsClockwiseIcon weight="bold" size={30} className="text-[#2059f2]" /> },
+  { label: "Swap", icon: <ArrowsClockwiseIcon weight="bold" size={30} className="text-[#2059f2]" />, sheet: "swap" },
 ];
 
 const tabs = [
@@ -48,6 +51,7 @@ const menuItem = "flex h-12 items-center gap-3.5 rounded-full pl-4 text-[20px] f
 export function BottomBar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [sheet, setSheet] = useState<Sheet | null>(null);
   const fab = useRef<HTMLButtonElement>(null);
 
   const close = () => {
@@ -137,7 +141,15 @@ export function BottomBar() {
                       <span className="grid size-12 place-items-center">{action.icon}</span>
                     </Link>
                   ) : (
-                    <button type="button" onClick={close} className={menuItem} autoFocus={i === 0}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOpen(false);
+                        setSheet(action.sheet ?? null);
+                      }}
+                      className={menuItem}
+                      autoFocus={i === 0}
+                    >
                       {action.label}
                       <span className="grid size-12 place-items-center">{action.icon}</span>
                     </button>
@@ -148,6 +160,9 @@ export function BottomBar() {
           )}
         </AnimatePresence>
       </div>
+
+      <ReceiveSheet open={sheet === "receive"} onOpenChange={(o) => !o && setSheet(null)} onClosed={() => fab.current?.focus()} />
+      <SwapSheet open={sheet === "swap"} onOpenChange={(o) => !o && setSheet(null)} onClosed={() => fab.current?.focus()} />
     </div>
   );
 }
