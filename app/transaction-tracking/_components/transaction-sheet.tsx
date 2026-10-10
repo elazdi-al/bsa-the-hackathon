@@ -77,7 +77,7 @@ export function TransactionSheet({
 export function TransactionRoute() {
   const params = useSearchParams();
   const [hash, amount, to, leaves] = [params.get("hash"), params.get("amount"), params.get("to"), params.get("leaves")];
-  const live = hash !== null && amount !== null && to !== null ? { hash: hash as Hex, amount, to, leaves: leaves === null ? undefined : Number(leaves) } : undefined;
+  const live = hash !== null && amount !== null && to !== null ? { hash: hash as Hex, amount, to, leaves: leaves ?? undefined } : undefined;
   const router = useRouter();
   const back = useBack("/history");
   const [open, setOpen] = useState(true);

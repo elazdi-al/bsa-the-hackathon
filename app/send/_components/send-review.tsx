@@ -93,24 +93,26 @@ function Review({ to, address, children }: { to: string; address: Address; child
   const [sent, setSent] = useState<Sent>();
   const [error, setError] = useState<string[]>([]);
 
+  const valid = AMOUNT.test(amount) && Number(amount) > 0;
+  const snapshot = useWallet();
+  // Only while the button can act: a send landing mid-flight would otherwise flash "Only $0.00 available." under Sending.
+  const blocked = phase === "review" || phase === "confirm" ? blocker(snapshot, Number(amount)) : undefined;
+  // When a payment Swissquote holds leaves, on this phone's clock.
+  const leaves = prepared?.releaseAt !== undefined && snapshot.status === "ready" ? phoneDate(snapshot.wallet, prepared.releaseAt) : undefined;
+
   useEffect(() => sendDraft.set(to), [to]);
 
   useEffect(() => {
     if (!sent) return;
     const id = setTimeout(() => {
       const tracked = new URLSearchParams({ hash: "transactionHash" in sent ? sent.transactionHash : sent.hash, amount, to: address });
-      if ("releaseAt" in sent) tracked.set("leaves", String(sent.releaseAt));
+      // The tracker repeats the time the client approved, as they read it here.
+      if ("releaseAt" in sent && leaves) tracked.set("leaves", leaves);
       // Replace, so Back from the tracker can't land on a review that's already sent.
       router.replace(`/transaction-tracking?${tracked}`, { transitionTypes: ["push"] });
     }, SENT_MS);
     return () => clearTimeout(id);
-  }, [sent, amount, address, router]);
-
-  const valid = AMOUNT.test(amount) && Number(amount) > 0;
-  const snapshot = useWallet();
-  // Only while the button can act: a send landing mid-flight would otherwise flash "Only $0.00 available." under Sending.
-  const blocked = phase === "review" || phase === "confirm" ? blocker(snapshot, Number(amount)) : undefined;
-  const releaseAt = prepared?.releaseAt;
+  }, [sent, amount, address, leaves, router]);
 
   function reset() {
     setPhase("review");
@@ -190,10 +192,10 @@ function Review({ to, address, children }: { to: string; address: Address; child
           {/* Two lines kept free whatever it says, so the button doesn't move when a large payment's notice comes in. */}
           <div className="mb-3 flex h-[2lh] items-end justify-center text-center text-caption text-balance text-muted-foreground tabular-nums">
             <AnimatePresence initial={false}>
-              {releaseAt !== undefined && snapshot.status === "ready" && (
+              {leaves && (
                 <motion.p key="held" {...blurSwap}>
                   <ClockIcon size={16} className="mr-1 inline-block align-[-3px]" />
-                  Large payment. It leaves on {phoneDate(snapshot.wallet, releaseAt)}, and you can cancel until then.
+                  Large payment. It leaves on {leaves}, and you can cancel until then.
                 </motion.p>
               )}
             </AnimatePresence>
@@ -207,7 +209,7 @@ function Review({ to, address, children }: { to: string; address: Address; child
               ))}
             </div>
           )}
-          <SendButton phase={phase} held={releaseAt !== undefined} disabled={!valid || blocked !== undefined} onPress={phase === "confirm" ? send : check} />
+          <SendButton phase={phase} held={prepared?.releaseAt !== undefined} disabled={!valid || blocked !== undefined} onPress={phase === "confirm" ? send : check} />
         </div>
       </div>
     </MotionConfig>
