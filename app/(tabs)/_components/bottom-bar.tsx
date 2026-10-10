@@ -54,18 +54,14 @@ const menuItem = "flex h-12 items-center gap-3.5 rounded-full pl-4 text-[20px] f
 export function BottomBar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const [sheet, setSheet] = useState<Sheet | null>(null);
+  // Back from the send review, the recipient sheet it came from is still open underneath.
+  const [sheet, setSheet] = useState<Sheet | null>(() => (typeof window !== "undefined" && sendDraft.get() ? "send" : null));
   const fab = useRef<HTMLButtonElement>(null);
 
   const close = () => {
     setOpen(false);
     fab.current?.focus();
   };
-
-  // Back from the send review: reopen the recipient sheet it came from.
-  useEffect(() => {
-    if (sendDraft.get()) setSheet("send");
-  }, []);
 
   useEffect(() => {
     if (!open) return;
