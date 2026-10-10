@@ -25,13 +25,13 @@ export const withdrawal = {
   networkFee: "Free",
 };
 
-/** The blurred wallet behind the sheet: coin colour, label widths, and the sign of the 24h change. */
+/** The blurred History list behind the sheet: icon tint, label widths, and whether the amount is incoming (green). */
 export const walletRows: { coin: string; name: number; amount: number; change: "up" | "down" | null }[] = [
-  { coin: "#7b8bb0", name: 64, amount: 88, change: "up" },
-  { coin: "#2775ca", name: 72, amount: 104, change: null },
-  { coin: "#4f7fd6", name: 84, amount: 112, change: null },
-  { coin: "#9aa4b2", name: 40, amount: 80, change: "up" },
-  { coin: "#2775ca", name: 56, amount: 92, change: "up" },
-  { coin: "#b8a48a", name: 60, amount: 96, change: "down" },
-  { coin: "#8c9099", name: 52, amount: 84, change: "up" },
+  { coin: "#e8e0f7", name: 96, amount: 64, change: null },
+  { coin: "#dbe3fb", name: 72, amount: 104, change: null },
+  { coin: "#e6e6e8", name: 88, amount: 80, change: null },
+  { coin: "#f9ddd1", name: 104, amount: 92, change: "up" },
+  { coin: "#e8e0f7", name: 120, amount: 96, change: null },
+  { coin: "#e6e6e8", name: 80, amount: 84, change: "up" },
+  { coin: "#dbe3fb", name: 92, amount: 76, change: null },
 ];
