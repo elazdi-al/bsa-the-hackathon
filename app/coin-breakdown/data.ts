@@ -20,10 +20,8 @@ export type Coin = {
   stake?: Stake;
 };
 
-export const wallet = {
-  name: "Wallet",
-  address: "0x82f1cE804bd5AdcAcB5AFB460d8C1Db330a259e7",
-};
+/** The demo wallet, shown where this phone has none. */
+export const wallet = { address: "0x82f1cE804bd5AdcAcB5AFB460d8C1Db330a259e7" };
 
 export const coins: Coin[] = [
   {

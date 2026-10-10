@@ -4,7 +4,8 @@ import { MotionConfig, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { GridIcon, ImagesIcon, type Icon } from "@/components/icons";
 import { Tabs, TabsContent, TabsIndicator, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { coins, type CoinId } from "../data";
+import { useWallet } from "@/app/(tabs)/_components/wallet";
+import { coins, stakedTotal, wallet as mock, type CoinId } from "../data";
 import { CoinRow } from "./coin-row";
 import { Recede } from "./motion";
 import { WalletHeader } from "./wallet-header";
@@ -20,6 +21,12 @@ const empty: Record<Exclude<Tab, "Coins">, { icon: Icon; title: string }> = {
 export function CoinsScreen() {
   const [tab, setTab] = useState<Tab>("Coins");
   const [focused, setFocused] = useState<CoinId | null>(null);
+  const snapshot = useWallet();
+  const live = snapshot.status === "ready" ? snapshot.wallet : undefined;
+  // USDC outside Earn is the wallet's real balance; the rest of the portfolio is demo data.
+  const shown = live
+    ? coins.map((coin) => (coin.id === "usdc" ? { ...coin, amount: live.usdc + stakedTotal(coin), value: live.usdc + stakedTotal(coin) } : coin))
+    : coins;
 
   useEffect(() => {
     if (!focused) return;
@@ -37,7 +44,7 @@ export function CoinsScreen() {
       >
         <Tabs value={tab} onValueChange={setTab} className="mx-auto w-full max-w-2xl gap-0">
           <Recede active={focused !== null}>
-            <WalletHeader />
+            <WalletHeader address={live?.address ?? mock.address} />
             <TabsList
               variant="line"
               aria-label="Wallet sections"
@@ -65,7 +72,7 @@ export function CoinsScreen() {
               >
                 {t === "Coins" ? (
                   <ul>
-                    {coins.map((coin) => (
+                    {shown.map((coin) => (
                       <CoinRow
                         key={coin.id}
                         coin={coin}
