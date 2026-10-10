@@ -172,6 +172,19 @@ Run `npm run partner` and `npm run dev` in two terminals.
 
 **Pitch deck.** [public/pitch.html](public/pitch.html) is one self-contained file. Open it in a browser, or visit http://localhost:3000/pitch.html while the app runs. Arrow keys move between slides, N shows speaker notes, O opens the slide picker and P prints to PDF.
 
+### Run it on iOS
+
+The iOS app bundles the screens and the phone's code, so Swissquote's server never serves the code that sits next to Share A. The app calls the API at http://localhost:3000, which the iOS Simulator reaches on your Mac. You need Xcode.
+
+Run `npm run local` in one terminal. In a second terminal:
+
+```bash
+npm run ios        # static export into out/, copied into ios/
+npm run ios:open   # opens the project in Xcode
+```
+
+In Xcode, pick an iPhone simulator and press Run. With `PORT=3200 npm run local`, build with `NEXT_PUBLIC_API_URL=http://localhost:3200 npm run ios`.
+
 ## What is mocked and the production path
 
 Real in this build: the Shamir split with verified shares, passkeys verified on-chain, the ERC-4337 account and factory, Swissquote's paymaster, the 48-hour on-chain delay, the independent service as a separate process with its own storage, and the compliance engine.
