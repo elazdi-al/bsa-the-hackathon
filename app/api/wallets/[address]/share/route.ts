@@ -2,6 +2,7 @@ import type { Address } from "viem";
 import * as z from "zod";
 import { store } from "@/lib/wallet/api/db.ts";
 import { HttpError, parse, route, verifyAssertion } from "@/lib/wallet/api/http.ts";
+import { refuseLocked } from "@/lib/wallet/api/locks.ts";
 import { liveCredentials, loadOperation, requireWallet } from "@/lib/wallet/api/operations.ts";
 import { assertion, bytes32 } from "@/lib/wallet/schema.ts";
 
@@ -19,6 +20,7 @@ export const POST = route(async (request: Request, ctx: RouteContext<"/api/walle
   if (!verifyAssertion(input.assertion, input.hash, passkey, rpId)) {
     throw new HttpError(403, "This passkey did not approve the operation.");
   }
+  await refuseLocked(wallet, { signer, passkey });
   const b = store().shares.get(signer);
   if (!b) throw new HttpError(500, "Swissquote holds no Share B for this wallet's key.");
   return Response.json({ share: b.share });

@@ -20,6 +20,8 @@
     "recover": "node --env-file-if-exists=.env.local --disable-warning=ExperimentalWarning scripts/cli.ts recover",
     "finish": "node --env-file-if-exists=.env.local --disable-warning=ExperimentalWarning scripts/cli.ts finish",
     "cancel": "node --env-file-if-exists=.env.local --disable-warning=ExperimentalWarning scripts/cli.ts cancel",
+    "lock": "node --env-file-if-exists=.env.local --disable-warning=ExperimentalWarning scripts/cli.ts lock",
+    "unlock": "node --env-file-if-exists=.env.local --disable-warning=ExperimentalWarning scripts/cli.ts unlock",
     "warp": "node --env-file-if-exists=.env.local --disable-warning=ExperimentalWarning scripts/cli.ts warp",
     "sunset": "node --env-file-if-exists=.env.local --disable-warning=ExperimentalWarning scripts/cli.ts sunset",
     "exit": "node --env-file-if-exists=.env.local --disable-warning=ExperimentalWarning scripts/cli.ts exit",

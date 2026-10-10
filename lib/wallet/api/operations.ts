@@ -33,6 +33,7 @@ import { addresses, chain, credentials, partnerUrl, publicClient, rpcUrl } from 
 import { address, passkey } from "../schema.ts";
 import { store, type Kind, type Wallet } from "./db.ts";
 import { HttpError } from "./http.ts";
+import { refuseLocked } from "./locks.ts";
 
 /** Read lazily, so a build without secrets works. */
 export const swissquote = () => privateKeyToAccount(process.env.SWISSQUOTE_KEY as Hex);
@@ -93,6 +94,7 @@ export async function bindShares(signer: Address, recoveryKey: Address, signatur
 /** Swissquote assists only operations its compliance policy allows; refusing never freezes the wallet itself. */
 export async function assist(wallet: Wallet, callData: Hex, dapp?: DappMetadata) {
   const call = decodeFunctionData({ abi: accountAbi, data: callData });
+  await refuseLocked(wallet);
   if (call.functionName !== "execute") throw new HttpError(403, "The app can't make this call.");
   const [to, value, data] = call.args;
   if (isAddressEqual(to, wallet.address)) {

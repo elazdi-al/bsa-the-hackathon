@@ -72,6 +72,22 @@ function walletOf(arg: string): Address {
   return address;
 }
 
+/** Swissquote locks or unlocks the live credentials of an account's wallet, after the owner's mocked ID check. */
+async function setLock(name: string, method: "POST" | "DELETE") {
+  const { phone, recoveryKey } = loadAccount(name);
+  // The owner shows their ID to Swissquote's hotline; the demo reads the mock ID on file instead.
+  const { idOnFile } = await phone.findRecovery(recoveryKey);
+  if (!idOnFile) throw new Error("That wallet isn't linked to a Swissquote client, so its ID check can't pass.");
+  const res = await fetch(`${APP}/api/wallets/${walletOf(name)}/lock`, {
+    method,
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ identity: idOnFile }),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new ApiError(res.status, json);
+  return json as { wallet: Address; signer: Address };
+}
+
 function walletRows() {
   const path = process.env.SWISSQUOTE_DB ?? "data/swissquote.db";
   if (!existsSync(path)) return [];
@@ -382,6 +398,42 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
       if ((await phone.state()).pendingRecovery) throw new Error(`A recovery is pending for ${name}'s wallet. Cancel it first: npm run cancel ${name}.`);
       await attack({ phone: structuredClone(device), homeKey: recoveryKey });
       console.log(`Every attempt on ${name}'s wallet failed.`);
+    },
+  },
+
+  lock: {
+    usage: "lock <account>",
+    about: "Report an account's phone lost: Swissquote locks its credentials, after a mocked ID check.",
+    async run([name]) {
+      const { wallet, signer } = await setLock(name, "POST");
+      console.log(`Swissquote refuses Share B, sponsorship and submission for this phone until a recovery replaces it or npm run unlock ${name}.`);
+      console.log(
+        table(
+          [
+            ["Wallet", wallet],
+            ["Phone key", signer],
+          ],
+          "",
+        ),
+      );
+    },
+  },
+
+  unlock: {
+    usage: "unlock <account>",
+    about: "Swissquote unlocks the phone, after a mocked ID check.",
+    async run([name]) {
+      const { wallet, signer } = await setLock(name, "DELETE");
+      console.log("This phone can send again.");
+      console.log(
+        table(
+          [
+            ["Wallet", wallet],
+            ["Phone key", signer],
+          ],
+          "",
+        ),
+      );
     },
   },
 

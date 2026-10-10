@@ -1,14 +1,17 @@
 // The wallet's screens end to end in Chromium, each phone a fresh browser profile with a virtual
 // passkey authenticator: create a wallet, send USDC, lose the phone and recover with the Recovery Key
-// file once a key no wallet uses and someone else's ID are refused; Swissquote cancels once, the old phone cancels once from Home, then the 48-hour delay passes
-// (fast-forwarded on anvil) and the new phone sends.
+// file once a key no wallet uses and someone else's ID are refused; Swissquote cancels once, the old phone cancels once from Home,
+// the old phone is reported lost and Swissquote locks it, then the 48-hour delay passes (fast-forwarded on anvil) and the new phone sends.
 //
 //   npm run e2e:ui            (against `npm run local`; HEADED=1 to watch)
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { chromium, type Page } from "playwright";
 import { createWalletClient, erc20Abi, formatUnits, http, numberToHex, parseAbi, parseUnits, type Address, type Hex } from "viem";
 import { generatePrivateKey, privateKeyToAccount, privateKeyToAddress } from "viem/accounts";
+import { findWalletMessage } from "../lib/wallet/account.ts";
 import { addresses, chain, publicClient, rpcUrl } from "../lib/wallet/env.ts";
+import { readRecoveryKey } from "../lib/wallet/phone.ts";
 
 const APP = process.env.APP_URL ?? "http://localhost:3000";
 const FRIEND = privateKeyToAddress(generatePrivateKey());
@@ -110,19 +113,47 @@ await phone1.getByText("Someone started recovering your wallet").waitFor(SLOW);
 await phone1.getByRole("button", { name: "Cancel recovery" }).click(SLOW);
 await phone1.getByText("Someone started recovering your wallet").waitFor({ state: "detached", ...SLOW });
 
-console.log("5. Again; the 48-hour delay passes on the chain, the countdown follows it, then finish");
+// The owner shows their ID to Swissquote's hotline; the test reads the mock ID on file with the Recovery Key.
+async function idOnFile() {
+  const secret = readRecoveryKey(await readFile(kit, "utf8"))!;
+  const at = Math.floor(Date.now() / 1000);
+  const signature = await privateKeyToAccount(secret).signMessage({ message: findWalletMessage(at) });
+  const res = await fetch(`${APP}/api/recovery?${new URLSearchParams({ signature, at: String(at) })}`);
+  const { idOnFile } = await res.json();
+  return { document: idOnFile.document, selfie: idOnFile.selfie };
+}
+
+console.log("5. The client reports the old phone lost: Swissquote locks it; Home says so and Send refuses");
+const locked = await fetch(`${APP}/api/wallets/${wallet}/lock`, {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ identity: await idOnFile() }),
+});
+assert.ok(locked.ok, `lock: ${locked.status} ${await locked.text()}`);
+await phone1.goto(`${APP}/home`);
+await phone1.getByText("Swissquote locked this phone").waitFor(SLOW);
+await phone1.goto(`${APP}/send?to=${FRIEND}`);
+await phone1.getByText("Swissquote locked this phone after it was reported lost.").waitFor(SLOW);
+await phone1.getByLabel("Amount in USDC").fill("5");
+assert.ok(await phone1.getByRole("button", { name: "Continue" }).isDisabled());
+
+console.log("6. Again; the 48-hour delay passes on the chain, the countdown follows it, then finish");
 await recover(phone2, kit);
 await publicClient.request({ method: "evm_increaseTime", params: [numberToHex(48 * 3600 + 10)] } as never);
 await publicClient.request({ method: "evm_mine", params: [] } as never);
 await phone2.getByRole("button", { name: "Finish recovery" }).click(SLOW);
 await phone2.waitForURL("**/home", SLOW);
 
-console.log("6. The new phone sends 5 USDC: same address, same balance");
+console.log("7. The new phone sends 5 USDC: same address, same balance");
 await send(phone2, FRIEND, "5");
 assert.equal(await walletOf(phone2), wallet);
 console.log(`   friend has ${formatUnits(await usdcOf(FRIEND), 6)} USDC, the wallet ${formatUnits(await usdcOf(wallet), 6)} USDC`);
 
-console.log("7. The ID check signed the new phone in to Swissquote as the same client, who Settings shows verified");
+console.log("8. The old phone's Home says the wallet moved: the lock was on its old keys, so there's nothing to unlock");
+await phone1.goto(`${APP}/home`);
+await phone1.getByText("Your wallet moved to another phone").waitFor(SLOW);
+
+console.log("9. The ID check signed the new phone in to Swissquote as the same client, who Settings shows verified");
 const clientOf = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem("swissquote.session") ?? "null")?.client);
 assert.deepEqual(await clientOf(phone2), await clientOf(phone1));
 await phone2.goto(`${APP}/settings`);

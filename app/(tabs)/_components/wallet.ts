@@ -11,6 +11,8 @@ export type Wallet = {
   usdc: number;
   /** This phone's key is the wallet key. False on a new phone mid-recovery, and on an old phone once a recovery finished elsewhere. */
   controls: boolean;
+  /** Swissquote locked this phone after it was reported lost. Only ever true on the phone that controls the wallet. */
+  locked: boolean;
   /** The recovery waiting out its 48 hours; `mine` when this phone started it. */
   recovery: { executeAfter: number; mine: boolean } | null;
   /** Chain time minus this phone's clock, in seconds: a local chain can be warped ahead. */
@@ -60,6 +62,7 @@ async function load() {
         address: state.address,
         usdc: Number(formatUnits(BigInt(state.usdc), 6)),
         controls,
+        locked: controls && state.locked,
         recovery: state.pendingRecovery && { executeAfter: state.pendingRecovery.executeAfter, mine: isAddressEqual(mine, state.pendingRecovery.signer) },
         // The chain reports whole seconds against a fractional clock, so a jitter of a second or two isn't news.
         skew: last && Math.abs(last.skew - skew) <= 2 ? last.skew : skew,

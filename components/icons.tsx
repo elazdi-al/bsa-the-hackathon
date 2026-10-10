@@ -196,6 +196,8 @@ export const FaceIdIcon = duo({ bar: corners }, { bar: "M9 9v1.5M15 9v1.5M9 15c1
 
 export const PhoneIcon = duo({ fill: rr(5.75, 2, 12.5, 20, 3.5) }, { fill: rr(8.25, 4.5, 7.5, 15, 1.25) });
 
+export const LockIcon = duo({ bar: "M8 12V7.5a4 4 0 0 1 8 0V12" }, { fill: rr(4, 10.5, 16, 11, 3.5) + rr(10.75, 13.75, 2.5, 4.5, 1.25) }, true);
+
 export const CloudIcon = duo({ fill: circle(9.5, 10.5, 5.5) }, { fill: [rr(3, 12, 18, 8.5, 4.25), circle(15.5, 12, 4.5)] }, true);
 
 export const KeyIcon = duo({ bar: "M14.75 9.25 20.25 3.75M17.5 6.5 20 9" }, { fill: circle(8.5, 15.5, 5.5) + circle(8.5, 15.5, 2) });
