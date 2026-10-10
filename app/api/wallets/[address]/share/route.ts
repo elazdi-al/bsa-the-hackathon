@@ -14,7 +14,9 @@ export const POST = route(async (request: Request, ctx: RouteContext<"/api/walle
   const input = await parse(request, z.object({ hash: bytes32, assertion }));
   loadOperation(wallet, input.hash, "normal");
   const { signer, passkey } = await liveCredentials(wallet);
-  if (!verifyAssertion(input.assertion, input.hash, passkey, new URL(request.url).hostname)) {
+  // The passkey's rpId is the hostname the phone reached. next start puts its own listen address in request.url, so read Host.
+  const rpId = new URL(`http://${request.headers.get("host")}`).hostname;
+  if (!verifyAssertion(input.assertion, input.hash, passkey, rpId)) {
     throw new HttpError(403, "This passkey did not approve the operation.");
   }
   const b = store().shares.get(signer);
