@@ -1,6 +1,6 @@
-# Fuse
+# Swissquote Wallet
 
-Fuse is a self-custody crypto wallet that Swissquote could offer its clients. The client holds the keys. Swissquote screens each payment, pays the network fee and helps recover a lost phone. Swissquote cannot move the client's funds, alone or together with the independent service that holds the third key share.
+Swissquote Wallet is a self-custody crypto wallet that Swissquote could offer its clients. The client holds the keys. Swissquote screens each payment, pays the network fee and helps recover a lost phone. Swissquote cannot move the client's funds, alone or together with the independent service that holds the third key share.
 
 This is a hackathon build. The whole protocol runs on a local chain: the smart account, the key split, the passkey checks, the compliance policy, gas sponsorship and the 48-hour recovery. The parts that need a real bank, such as the ID check and the HSMs, are mocked. [What is mocked](#what-is-mocked-and-the-production-path) lists them.
 
@@ -10,11 +10,13 @@ Self-custody asks clients to become security experts. A lost seed phrase loses t
 
 A Swissquote client who wants their own keys today must whitelist an address, prove they own it and pay USD 10 (native coin) or USD 15 (ERC-20 token) per withdrawal ([pricing](https://www.swissquote.com/en-ch/private/trade/pricing/cryptocurrencies), [external wallets](https://www.swissquote.com/en-ch/private/help/trade/products/crypto-asset-products)). After that, Swissquote no longer sees those assets. With 1.22 million accounts and CHF 96.3 billion in client assets ([H1 2026 results](https://www.swissquote.com/en/api/internal/media/get-media?filename=press-releases%2Fad+hoc_EN_Media_Release_H1_2026.pdf)), every client who leaves for a separate wallet takes future trading with them.
 
-Fuse keeps self-custody one tap from the Swissquote account. The client keeps the authority to move funds. Swissquote adds checks before each payment and a recovery path after a lost phone.
+Swissquote Wallet keeps self-custody one tap from the Swissquote account. The client keeps the authority to move funds. Swissquote adds checks before each payment and a recovery path after a lost phone.
 
 ## The protocol
 
 [protocol.md](protocol.md) is the spec. Where code or this README disagree with it, protocol.md wins.
+
+[Pitch summary](PITCH_SUMMARY.md) explains the product, the Shamir model, and lost-phone recovery for a pitch audience. [Shamir key sharing and wallet recovery](docs/SHAMIR_AND_RECOVERY.md) contains the detailed technical explanation.
 
 The wallet key is a secp256k1 key split 2-of-3 with Shamir secret sharing. Share A lives on the phone, Share B with Swissquote and Share C with an independent third-party service. Any two shares rebuild the key, but the key alone moves nothing. The ERC-4337 account also requires an assertion from the user's passkey, stored on the phone, over every operation. The phone caches the rebuilt key in memory for at most three hours and drops it when the app closes. When the phone is lost, Swissquote and the independent service release B and C to the new phone, which rebuilds the old key for one signature. The user adds a signature from the Recovery Key kept at home. The account then starts a mandatory 48-hour delay, during which the user can cancel from the old phone or through Swissquote. After the delay anyone can finalize, and the account swaps in the new key and passkey with the same address and funds. Swissquote and the independent service together hold the key but not the passkey or the Recovery Key, so even colluding they cannot move funds.
 
@@ -37,7 +39,7 @@ The wallet key is a secp256k1 key split 2-of-3 with Shamir secret sharing. Share
 
 - `POST /api/shares` stores Share B and gives the phone a signed ticket for the independent service.
 - `POST /api/wallets` registers a wallet. The wallet key must sign the Recovery Key binding.
-- `GET /api/wallets/:address` reads a wallet. `GET /api/config` returns the chain ID and the EntryPoint and USDC addresses.
+- `GET /api/wallets/:address` reads a wallet: its keys, USDC balance, any pending recovery and the chain's time. `GET /api/wallets/:address/activity` lists its USDC transfers. `GET /api/config` returns the chain ID and the EntryPoint and USDC addresses.
 - `POST /api/wallets/:address/operations` runs compliance and sponsorship for a call.
 - `POST /api/wallets/:address/share` releases Share B for a passkey-approved operation.
 - `POST /api/wallets/:address/operations/:hash` submits the signed operation.
@@ -51,9 +53,10 @@ The wallet key is a secp256k1 key split 2-of-3 with Shamir secret sharing. Share
 **App** (Next.js 16).
 
 - Create: `/onboarding-welcome`, then `/onboarding-secure`. Creates the passkey, splits the wallet key, saves the Recovery Key file and registers the wallet.
-- Home: the real address and USDC balance. On the old phone, a pending recovery shows an alert with Cancel.
-- Send: `/choose-recipient`, `/send-hide-my-wallet`, `/transaction-tracking`.
-- Recover: `/pending-verification`. Loads the Recovery Key file, runs the mocked ID check, creates a new passkey and split, then shows the 48-hour countdown with Finish and Cancel.
+- Home, History, Receive and Settings read one shared wallet store (`app/(tabs)/_components/wallet.ts`). It refreshes every few seconds and when the app regains focus, so a payment, a recovery started elsewhere or a warped chain shows without a reload. Cash and its activity are real; Investments, Earn, Card, Swap and Swissquote Plus are demo data.
+- Home: the real balance. On the old phone a pending recovery shows an alert with Cancel; a wallet recovered elsewhere, or one the chain no longer knows, offers to remove it from the phone.
+- Send: `/choose-recipient`, `/send`, `/transaction-tracking`.
+- Recover: `/recover`. Loads the Recovery Key file, runs the mocked ID check, creates a new passkey and split, then counts down the 48-hour hold in chain time, with Finish and Cancel.
 
 ## Threat model
 
@@ -79,7 +82,7 @@ Every payment Swissquote sponsors goes through the compliance engine in-process.
 The engine runs, in order:
 
 1. Decode the calldata. Only reviewed functions pass: ERC-20 `transfer` and finite `approve`, ERC-4626 `deposit`, `withdraw` and `redeem`, and batches of up to 16 calls.
-2. Allowlist and limits. The contract, function and token must be in the policy. Limits are integer token base units, never floating-point or CHF estimates. The local policy (written by `npm run local`) allows USDC `transfer`, with step-up above 1,000 USDC, a 5,000 USDC daily limit and a 10,000 USDC cap per transaction.
+2. Allowlist and limits. The contract, function and token must be in the policy. Limits are integer token base units, never floating-point or CHF estimates. The local policy (written by `npm run local`) allows USDC `transfer`, with step-up above 1,000 USDC, a 5,000 USDC daily limit and a 10,000 USDC cap per transaction. On the local chain the daily limit counts what the account sent in the last 24 hours of chain time.
 3. Sanctions screening. TRM Labs' address sanctions endpoint in live mode, fixtures in demo mode.
 4. Simulation. viem's `simulateCalls` over `eth_simulateV1`, from the account's address, in live mode.
 5. A signed, expiring Ed25519 decision, appended to a SHA-256 hash-chained audit log. A failed append blocks the decision.
@@ -122,30 +125,51 @@ Questions for counsel before a real launch:
 
 ## Run it locally
 
-Free and offline. You need Node.js 22.18 or later and [Foundry](https://getfoundry.sh) (`forge`, `anvil`).
+You need Node.js 22.18 or later and [Foundry](https://getfoundry.sh), with `anvil` and `forge` on your PATH. Everything runs offline.
 
 ```bash
 npm install
-cd contracts && forge soldeer install && cd ..
 npm run local
 ```
 
-`npm run local` starts anvil, deploys the contracts, starts the independent service and the app, and writes `.env.local`. Open http://localhost:3000/onboarding-welcome. Use `PORT=3200 npm run local` for another port.
+`npm run local` starts a fresh anvil chain, deploys the contracts, starts the independent service and the app, and writes `.env.local`. The first run also installs the contract dependencies. Every run starts from an empty chain and wipes `data/`, CLI accounts included. Open http://localhost:3000/onboarding-welcome when it prints the command list. Ctrl-C stops everything.
 
-With the stack running, in a second terminal:
+The app uses port 3000, anvil 8545 and the independent service 4002. If a port is taken, `npm run local` names the process that holds it and exits. Pick other ports with `PORT`, `RPC_PORT` and `PARTNER_PORT`:
 
 ```bash
-npm run e2e    # the whole protocol in about 3 seconds
-npm run warp   # move the chain 48 hours ahead to finalize a recovery
+PORT=3200 RPC_PORT=8546 PARTNER_PORT=4003 npm run local
 ```
 
+Drive the protocol from a second terminal. The commands read `.env.local`, so they follow the ports.
+
+| Command | What it does |
+| --- | --- |
+| `npm run status` | Shows chain time, the contracts, Swissquote's gas funds, every wallet with its USDC and pending recovery, and the CLI accounts. |
+| `npm run fund [wallet] [amount]` | Mints test USDC, 100 by default. `wallet` is an address or an account name. Without it, the newest wallet gets the USDC. |
+| `npm run account <name>` | Creates a wallet with a software passkey and funds it with 100 USDC. Saves it in `data/accounts/<name>.json`, with its Recovery Key file next to it. |
+| `npm run send <from> <to> <amount>` | Sends USDC from an account to an address or another account. A refusal prints Swissquote's reasons. |
+| `npm run recover <account or file> [new-name]` | Starts a recovery onto a new phone with an account's Recovery Key or a Recovery Key file. Saves the new phone as `new-name`, which defaults to `<account>-new`, or `recovered` for a file. |
+| `npm run cancel <account>` | Cancels a pending recovery through Swissquote, signed with the Recovery Key. |
+| `npm run finish <account>` | Finishes a recovery after the 48-hour delay. |
+| `npm run warp [hours]` | Moves chain time ahead, 48 hours by default. |
+| `npm run e2e` | Runs the whole protocol in about 3 seconds. |
+
 `npm run e2e` creates a wallet, sends, gets refused for a sanctioned recipient and a step-up amount, loses the phone, cancels recoveries both ways, recovers after the delay and sends from the new phone.
+
+Demos:
+
+- **Fund a browser wallet.** Create a wallet at /onboarding-welcome, then run `npm run fund`. Home shows 100 USDC.
+- **Get refused.** `npm run account anna`, then `npm run send anna 0x000000000000000000000000000000000000dEaD 2000`. Swissquote refuses because 2,000 USDC needs step-up.
+- **Recover a browser wallet from the terminal.** Save the Recovery Key file during onboarding, then run `npm run recover ~/Downloads/"Swissquote Wallet Recovery Key.txt"`. The browser plays the old phone. Its Home shows "Someone started recovering your wallet" and can cancel it.
+- **Recover a CLI wallet in the browser.** Open /recover and load `data/accounts/anna Recovery Key.txt`.
+- **Skip the delay.** `npm run recover anna`, `npm run warp`, then `npm run finish anna-new`. `anna-new` now sends from the same address with the same funds.
 
 Checks:
 
 ```bash
 npm run check              # Shamir, onboarding flow and amount unit checks
 npm run check:onboarding   # onboarding in Chromium, against the running app
+npm run e2e:ui             # create, send, recover, cancel and finish in Chromium, against the running app
 npm run contracts:test     # Foundry tests for the account
 npm run test:compliance    # compliance engine, tampering, providers, HTTP, audit
 npm run typecheck
@@ -166,11 +190,11 @@ The six demo cases are a 20 USDC transfer (`ALLOW`), a 2,000 USDC transfer (`STE
 cd contracts && forge script script/Deploy.s.sol --rpc-url $RPC_URL --private-key $SWISSQUOTE_KEY --broadcast
 ```
 
-Run `npm run partner` and `npm run dev` in two terminals.
+Run `npm run partner` and `npm run dev` in two terminals. The CLI commands work there too, except that `npm run fund` prints a faucet link instead of minting and `npm run warp` needs anvil.
 
 **Live compliance.** Set `COMPLIANCE_MODE=live` with `COMPLIANCE_POLICY_FILE` (a reviewed policy JSON), `COMPLIANCE_RPC_URLS` (chain ID to HTTPS RPC), `COMPLIANCE_SIGNING_PRIVATE_KEY` (a persistent Ed25519 PKCS#8 PEM, separate from every wallet key) and `COMPLIANCE_API_KEY`. `TRM_API_KEY` and `COMPLIANCE_AUDIT_FILE` are optional. Restart after any change.
 
-**Pitch deck.** [public/pitch.html](public/pitch.html) is one self-contained file. Open it in a browser, or visit http://localhost:3000/pitch.html while the app runs. Arrow keys move between slides, N shows speaker notes, O opens the slide picker and P prints to PDF.
+**Pitch deck.** [slides/index.html](slides/index.html) is one HTML file that loads its app screens from `slides/screens/`. Open it in a browser. Arrow keys, Space, a click or a swipe move between slides, F toggles full screen, and printing gives one 16:9 page per slide. With `npm run dev` running, `node slides/capture.ts home onboarding-secure` captures fresh screens.
 
 ### Run it on iOS
 

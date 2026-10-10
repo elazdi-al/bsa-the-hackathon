@@ -3,33 +3,23 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { FusePlusIcon } from "@/app/(tabs)/home/_components/icons";
 import { shortAddress } from "@/app/choose-recipient/data";
-import { CopyButton } from "@/app/transaction-tracking/_components/copy-button";
 import { ChevronRightIcon, ShieldIcon, SignOutIcon, type Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Tray, TrayActions, TrayHeader } from "@/components/ui/tray";
-import { rowPress, sectionLabel } from "../../_components/list";
-import { keys, plus, profile, sections, version, type KeyId, type Row, type Status, type TrayRoot } from "../data";
+import { cn } from "@/lib/utils";
+import { rowPress } from "../../_components/list";
+import { forgetWallet, shownAddress, useWallet } from "../../_components/wallet";
+import { keys, profile, sections, version, type KeyId, type Row, type TrayRoot } from "../data";
 
 type View = { name: TrayRoot } | { name: "key"; id: KeyId };
 
 const viewKey = (view: View) => (view.name === "key" ? `key-${view.id}` : view.name);
 
 const focusRing = "outline-none focus-visible:ring-2 focus-visible:ring-ring";
-// Inside each section's -mx-3, the 12px padding lets the pressed tint bleed past the column while glyphs align with the profile.
+// Inside each section's -mx-3, the 12px padding lets the pressed tint bleed past the column while glyphs align with the card.
 const row = `flex min-h-14 w-full items-center gap-4 rounded-2xl px-3 py-2 text-left ${focusRing} focus-visible:ring-inset`;
-const dot: Record<Status, string> = { Active: "bg-positive", "All active": "bg-positive", Pending: "bg-pending" };
-
-function StatusMark({ status }: { status: Status }) {
-  return (
-    <span className="flex shrink-0 items-center gap-2 text-label font-medium text-muted-foreground">
-      <span aria-hidden className={`size-2 rounded-full ${dot[status]}`} />
-      {status}
-    </span>
-  );
-}
 
 const Chevron = () => <ChevronRightIcon size={16} className="shrink-0 text-faint" />;
 
@@ -41,7 +31,6 @@ function SettingsRow({ item, onOpen }: { item: Row; onOpen: (root: TrayRoot) => 
         <span className={`block truncate text-label ${item.destructive ? "text-negative" : ""}`}>{item.label}</span>
         {item.detail && <span className="block truncate text-body text-muted-foreground">{item.detail}</span>}
       </span>
-      {item.status && <StatusMark status={item.status} />}
       {item.kind === "info" && <span className="shrink-0 text-label font-medium text-muted-foreground">{item.value}</span>}
       {item.kind !== "info" && item.kind !== "switch" && <Chevron />}
     </>
@@ -56,15 +45,9 @@ function SettingsRow({ item, onOpen }: { item: Row; onOpen: (root: TrayRoot) => 
           {body}
         </button>
       );
-    case "push":
+    case "link":
       return (
-        <Link href={item.href} transitionTypes={["push"]} className={`${row} ${rowPress}`}>
-          {body}
-        </Link>
-      );
-    case "mail":
-      return (
-        <a href={item.href} className={`${row} ${rowPress}`}>
+        <a href={item.href} target="_blank" rel="noreferrer" className={`${row} ${rowPress}`}>
           {body}
         </a>
       );
@@ -78,22 +61,22 @@ function SettingsRow({ item, onOpen }: { item: Row; onOpen: (root: TrayRoot) => 
   }
 }
 
-function PlusCard() {
+/** The member's card: their plan, name and address on the brand blue, like the card in a wallet. It opens Swissquote Plus. */
+function MemberCard() {
+  const address = shownAddress(useWallet(), profile.address);
   return (
     <Link
-      href="/fuse-plus"
+      href="/plus"
       transitionTypes={["push"]}
-      className={`mt-6 flex items-center gap-4 rounded-[24px] bg-ink p-5 text-white transition-transform duration-150 ease-out active:scale-[0.96] ${focusRing} focus-visible:ring-offset-2`}
+      className={`flex aspect-video flex-col justify-between rounded-[28px] bg-linear-135/oklch from-[oklch(0.64_0.18_250)] to-brand p-5 text-white transition-transform duration-150 ease-out active:scale-[0.96] ${focusRing} focus-visible:ring-offset-2`}
     >
-      <FusePlusIcon />
-      <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-2">
-          <span className="text-label">{plus.title}</span>
-          <span className="rounded-full bg-white/15 px-2 py-0.5 text-caption font-semibold">{plus.status}</span>
+      <span className="text-label">Swissquote Plus</span>
+      <span className="min-w-0">
+        <span className="block truncate text-heading">{profile.name}</span>
+        <span className={cn("block text-body text-white/70 transition-[opacity,visibility] duration-200 ease-out", !address && "invisible opacity-0")}>
+          {shortAddress(address ?? profile.address)}
         </span>
-        <span className="mt-0.5 block text-body text-pretty text-white/60">{plus.benefits}</span>
       </span>
-      <ChevronRightIcon size={16} className="shrink-0 text-white/40" />
     </Link>
   );
 }
@@ -106,14 +89,13 @@ function Hero({ Icon, color }: { Icon: Icon; color: string }) {
   );
 }
 
-function TrayBody({ view, push, close }: { view: View; push: (next: View) => void; close: () => void }) {
-  const router = useRouter();
+function TrayBody({ view, push, close, remove }: { view: View; push: (next: View) => void; close: () => void; remove: () => void }) {
   switch (view.name) {
     case "keys":
       return (
         <>
           <TrayHeader
-            icon={<Hero Icon={ShieldIcon} color="var(--color-fuse-blue)" />}
+            icon={<Hero Icon={ShieldIcon} color="var(--color-brand)" />}
             title="Your keys"
             description="Your Passkey approves every payment and your Wallet Key signs it. Your Recovery Key gets you back in."
           />
@@ -130,7 +112,7 @@ function TrayBody({ view, push, close }: { view: View; push: (next: View) => voi
                   <span className="block truncate text-label">{title}</span>
                   <span className="block truncate text-body text-muted-foreground">{detail}</span>
                 </span>
-                <StatusMark status="Active" />
+                <Chevron />
               </button>
             ))}
           </div>
@@ -158,24 +140,20 @@ function TrayBody({ view, push, close }: { view: View; push: (next: View) => voi
         </>
       );
     }
-    case "signout":
+    case "remove":
       return (
         <>
           <TrayHeader
             icon={<Hero Icon={SignOutIcon} color="var(--color-negative)" />}
-            title="Sign out of Fuse?"
-            description="Your keys stay safe while you’re away. Sign back in with Swissquote any time."
+            title="Remove your wallet from this phone?"
+            description="Your money stays in your wallet on Base. To use it on this phone again, you’ll recover it with your Recovery Key after a 48-hour hold."
           />
           <TrayActions>
             <Button variant="secondary" size="lg" className="h-12" onClick={close}>
               Cancel
             </Button>
-            <Button
-              size="lg"
-              onClick={() => router.replace("/onboarding-welcome", { transitionTypes: ["pop"] })}
-              className="h-12 bg-negative hover:bg-negative/85"
-            >
-              Sign out
+            <Button size="lg" onClick={remove} className="h-12 bg-negative hover:bg-negative/85">
+              Remove
             </Button>
           </TrayActions>
         </>
@@ -184,6 +162,7 @@ function TrayBody({ view, push, close }: { view: View; push: (next: View) => voi
 }
 
 export function SettingsView() {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   // Outlives `open` until the close animation ends, so the tray doesn't empty mid-exit.
   const [stack, setStack] = useState<View[]>([]);
@@ -194,34 +173,22 @@ export function SettingsView() {
     setOpen(true);
   }
 
+  function remove() {
+    forgetWallet();
+    router.replace("/onboarding-welcome", { transitionTypes: ["pop"] });
+  }
+
   return (
     <div className="mt-6 max-w-xl lg:grid lg:max-w-none lg:grid-cols-[20rem_minmax(0,1fr)] lg:items-start lg:gap-12">
+      <MemberCard />
+
       <div>
-        <div className="flex items-center gap-4">
-          <span aria-hidden className="grid size-14 shrink-0 place-items-center rounded-full bg-ink text-heading text-white">
-            {profile.initials}
-          </span>
-          <div className="min-w-0">
-            <p className="truncate text-heading">{profile.name}</p>
-            <CopyButton text={profile.address} label={`Copy address ${profile.address}`}>
-              <span className="text-body text-muted-foreground">{shortAddress(profile.address)}</span>
-            </CopyButton>
+        {sections.map((rows, i) => (
+          <div key={i} className={`-mx-3 ${i ? "mt-6" : "mt-6 lg:mt-0"}`}>
+            {rows.map((item) => (
+              <SettingsRow key={item.label} item={item} onOpen={show} />
+            ))}
           </div>
-        </div>
-
-        <PlusCard />
-      </div>
-
-      <div>
-        {sections.map((section, i) => (
-          <section key={section.title ?? i} className={section.title ? "mt-8" : "mt-4 lg:mt-0"}>
-            {section.title && <h2 className={sectionLabel}>{section.title}</h2>}
-            <div className="-mx-3">
-              {section.rows.map((item) => (
-                <SettingsRow key={item.label} item={item} onOpen={show} />
-              ))}
-            </div>
-          </section>
         ))}
         <p className="mt-8 text-center text-caption text-faint">{version}</p>
       </div>
@@ -233,7 +200,7 @@ export function SettingsView() {
         onBack={stack.length > 1 ? () => setStack((s) => s.slice(0, -1)) : undefined}
         onClosed={() => setStack([])}
       >
-        {view && <TrayBody view={view} push={(next) => setStack((s) => [...s, next])} close={() => setOpen(false)} />}
+        {view && <TrayBody view={view} push={(next) => setStack((s) => [...s, next])} close={() => setOpen(false)} remove={remove} />}
       </Tray>
     </div>
   );

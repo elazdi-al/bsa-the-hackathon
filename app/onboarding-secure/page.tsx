@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Screen } from "@/components/navigation";
 import { SecureFlow } from "./_components/secure-flow";
 
-export const metadata: Metadata = { title: "Secure your wallet · Fuse" };
+export const metadata: Metadata = { title: "Secure your wallet" };
 
 export default function Page() {
   return (

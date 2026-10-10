@@ -9,10 +9,9 @@ import { RestoreIcon, WalletIcon } from "@/components/icons";
 import { buttonVariants } from "@/components/ui/button";
 import { phone } from "@/lib/wallet/phone";
 import { GlimmField } from "./glimm-field";
-import { FuseLogo } from "./glyphs";
 import { WordWheel } from "./word-wheel";
 
-const ROUTES = { create: "/onboarding-secure", recover: "/pending-verification" } as const;
+const ROUTES = { create: "/onboarding-secure", recover: "/recover" } as const;
 type Step = "welcome" | keyof typeof ROUTES;
 
 /** The hand-off: content and gradient dissolve to white, and the push waits for both. */
@@ -58,7 +57,7 @@ export function WelcomeFlow() {
 
         <section className="px-8 text-white min-[360px]:px-12">
           <div className="grid size-[42px] place-items-center rounded-[11px] bg-white text-black shadow-[0_1px_2px_rgb(0_0_0/0.06)]">
-            <FuseLogo className="size-[17px]" />
+            <WalletIcon size={22} />
           </div>
           <h1 className="mt-4 text-title text-balance">
             Your money,

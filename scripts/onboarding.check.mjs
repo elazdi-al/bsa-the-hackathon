@@ -38,7 +38,7 @@ async function open(options = authenticator.options) {
   return { page, cdp, authenticatorId };
 }
 
-const device = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("fuse.wallet.device") ?? "null"));
+const device = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("swissquote.wallet.device") ?? "null"));
 const button = (page, name) => page.getByRole("button", { name });
 const alertOf = (page) => page.getByRole("alert").filter({ hasText: /\S/ });
 const shortAddress = (address) => `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -77,7 +77,7 @@ const isRegistration = (r) => new URL(r.url()).pathname === "/api/wallets" && r.
 
   await page.route("**/api/wallets", (r) => (r.request().method() === "POST" ? r.abort() : r.continue()));
   const [download] = await Promise.all([page.waitForEvent("download"), button(page, "Save Recovery Key").click()]);
-  assert.equal(download.suggestedFilename(), "Fuse Recovery Key.txt");
+  assert.equal(download.suggestedFilename(), "Swissquote Wallet Recovery Key.txt");
   const secret = (await readFile(await download.path(), "utf8")).match(/0x[0-9a-f]{64}/)?.[0];
   assert.ok(secret, "the file holds the recovery key");
 

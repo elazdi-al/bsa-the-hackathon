@@ -78,9 +78,17 @@ export function BottomBar() {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      setOpen(false);
-      fab.current?.focus();
+      if (e.key === "Escape") {
+        setOpen(false);
+        fab.current?.focus();
+      }
+      // Tab cycles the menu: the page behind the scrim stays out of reach until it closes.
+      if (e.key === "Tab") {
+        e.preventDefault();
+        const items = [...document.querySelectorAll<HTMLElement>("#quick-actions button")];
+        const i = items.indexOf(document.activeElement as HTMLElement);
+        items[i < 0 ? 0 : (i + (e.shiftKey ? items.length - 1 : 1)) % items.length]?.focus();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -99,7 +107,7 @@ export function BottomBar() {
                 transitionTypes={[transitionFor(pathname, href)]}
                 aria-current={active ? "page" : undefined}
                 aria-label={label}
-                className={`${navIcon} transition-[color,scale] duration-150 active:scale-[0.96] ${active ? "text-foreground" : "text-muted-foreground hover:text-foreground/65"}`}
+                className={`${navIcon} transition-[color,scale] duration-150 active:scale-[0.96] ${active ? "text-brand [--icon-duo:0.45]" : "text-faint [--icon-duo:0.5] hover:text-muted-foreground"}`}
               >
                 <Icon size={24} />
               </Link>
@@ -109,7 +117,7 @@ export function BottomBar() {
           <motion.button
             ref={fab}
             type="button"
-            aria-label="Add"
+            aria-label="Quick actions"
             aria-expanded={open}
             aria-controls="quick-actions"
             onClick={() => setOpen(true)}

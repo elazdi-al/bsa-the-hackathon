@@ -3,16 +3,14 @@ import { shortAddress } from "@/app/choose-recipient/data";
 import { CopyButton } from "@/app/transaction-tracking/_components/copy-button";
 import { ClockIcon } from "@/components/icons";
 import { BackButton } from "@/components/ui/back-button";
-import { wallet } from "../data";
-
-export function WalletHeader() {
+export function WalletHeader({ address }: { address: string }) {
   return (
     <header className="flex items-center gap-4 px-[22px]">
       <BackButton fallback="/home" />
       <div className="min-w-0 flex-1">
-        <h1 className="text-label">{wallet.name}</h1>
-        <CopyButton text={wallet.address} label={`Copy address ${wallet.address}`}>
-          <span className="text-body text-muted-foreground">{shortAddress(wallet.address)}</span>
+        <h1 className="text-label">Wallet</h1>
+        <CopyButton text={address} label={`Copy address ${address}`}>
+          <span className="text-body text-muted-foreground">{shortAddress(address)}</span>
         </CopyButton>
       </div>
       <Link

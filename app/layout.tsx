@@ -3,8 +3,8 @@ import { HistoryTransitions } from "@/components/navigation";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Fuse",
-  description: "Fuse Wallet",
+  title: { template: "%s · Swissquote Wallet", default: "Swissquote Wallet" },
+  description: "A self-custody wallet: your keys, Swissquote's checks and recovery.",
 };
 
 export const viewport: Viewport = {

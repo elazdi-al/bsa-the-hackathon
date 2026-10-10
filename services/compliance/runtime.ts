@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { ComplianceEngine } from "../../lib/compliance/engine";
 import { parsePolicy } from "../../lib/compliance/schema";
 import { FileAuditSink } from "./audit";
+import { ChainUsageProvider } from "./chain-usage";
 import { demoPolicy, DemoScreeningProvider, DemoSimulationProvider, DemoUsageProvider, UnavailableUsageProvider } from "./demo";
 import { Ed25519DecisionSigner } from "./signing";
 import { TrmScreeningProvider } from "./trm";
@@ -29,7 +30,13 @@ export function createComplianceRuntime(env: Record<string, string | undefined> 
     audit: new FileAuditSink(env.COMPLIANCE_AUDIT_FILE ? resolve(/* turbopackIgnore: true */ env.COMPLIANCE_AUDIT_FILE) : resolve(process.cwd(), "var", "compliance", "audit.ndjson")),
     screening: mode === "demo" ? new DemoScreeningProvider() : new TrmScreeningProvider({ apiKey: env.TRM_API_KEY }),
     simulation: mode === "demo" ? new DemoSimulationProvider(policy) : new ViemSimulationProvider(rpcUrls),
-    usage: mode === "demo" ? new DemoUsageProvider() : new UnavailableUsageProvider(),
+    // On the local chain, demo mode enforces daily limits from what the account actually sent.
+    usage:
+      mode === "live"
+        ? new UnavailableUsageProvider()
+        : env.RPC_URL && (env.CHAIN ?? "anvil") === "anvil"
+          ? new ChainUsageProvider(env.RPC_URL, policy.tokens.map((token) => token.address))
+          : new DemoUsageProvider(),
   });
   return { engine, signer, mode };
 }

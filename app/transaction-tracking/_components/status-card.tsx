@@ -21,7 +21,7 @@ const icons: Record<StepId, Icon> = {
 
 function tone(steps: Step[], index: number, current: number) {
   if (index !== current) return "text-muted-foreground";
-  return index === steps.length - 1 ? "text-positive" : "text-fuse-blue";
+  return index === steps.length - 1 ? "text-positive" : "text-brand";
 }
 
 /** A step's glyph and label. Stable layout ids let the current one travel between the tracker and the folded row. */

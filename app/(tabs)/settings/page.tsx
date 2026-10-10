@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { TabPage } from "../_components/tab-page";
 import { SettingsView } from "./_components/settings-view";
 
-export const metadata: Metadata = { title: "Settings · Fuse" };
+export const metadata: Metadata = { title: "Settings" };
 
 export default function Page() {
   return (

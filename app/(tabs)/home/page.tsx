@@ -3,7 +3,7 @@ import { TabPage } from "../_components/tab-page";
 import { Accounts } from "./_components/accounts";
 import { BalanceChart } from "./_components/balance-chart";
 
-export const metadata: Metadata = { title: "Wallet · Fuse" };
+export const metadata: Metadata = { title: { absolute: "Swissquote Wallet" } };
 
 export default function Page() {
   return (

@@ -6,7 +6,7 @@ import { rise, surface } from "./motion";
 
 export function Benefits() {
   return (
-    <motion.section variants={surface} aria-label="Fuse Plus benefits" className="mt-10 px-2">
+    <motion.section variants={surface} aria-label="Swissquote Plus benefits" className="mt-10 px-2">
       <ul className="flex flex-col gap-7">
         {benefits.map((benefit) => (
           <motion.li key={benefit.title} variants={rise} className="flex items-center gap-4">

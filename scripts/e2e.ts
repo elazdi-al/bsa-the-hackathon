@@ -4,26 +4,15 @@
 //
 //   npm run e2e
 import assert from "node:assert/strict";
-import { createWalletClient, erc20Abi, formatUnits, http, numberToHex, parseAbi, parseUnits, type Address, type Hex } from "viem";
+import { erc20Abi, formatUnits, numberToHex, parseUnits, type Address } from "viem";
 import { generatePrivateKey, privateKeyToAccount, privateKeyToAddress } from "viem/accounts";
 import { bindRecoveryKeyMessage } from "../lib/wallet/account.ts";
-import { addresses, chain, publicClient, rpcUrl } from "../lib/wallet/env.ts";
-import { ApiError, createPhone, softwareAuthenticator } from "../lib/wallet/phone.ts";
+import { addresses, publicClient } from "../lib/wallet/env.ts";
+import { ApiError } from "../lib/wallet/phone.ts";
+import { APP, mintUsdc, newPhone } from "./software-phone.ts";
 
-const API = process.env.APP_URL ?? "http://localhost:3000";
 const ANNA = privateKeyToAddress(generatePrivateKey());
 const SANCTIONED: Address = "0x098B716B8Aaf21512996dC57EB0615e2383E2f96"; // flagged by the compliance demo screening
-
-function newPhone() {
-  const items = new Map<string, string>();
-  const storage = { getItem: (k: string) => items.get(k) ?? null, setItem: (k: string, v: string) => void items.set(k, v) };
-  return createPhone({
-    api: API,
-    partner: process.env.PARTNER_URL ?? "http://localhost:4002",
-    authenticator: softwareAuthenticator(storage, () => API),
-    storage,
-  });
-}
 
 const shareRequests: string[] = [];
 const realFetch = globalThis.fetch;
@@ -39,7 +28,6 @@ async function refused(promise: Promise<unknown>, status: number) {
 }
 
 const usdcOf = (owner: Address) => publicClient.readContract({ address: addresses.usdc, abi: erc20Abi, functionName: "balanceOf", args: [owner] });
-const swissquote = createWalletClient({ account: privateKeyToAccount(process.env.SWISSQUOTE_KEY as Hex), chain, transport: http(rpcUrl) });
 
 console.log("1. Create: passkey, 2-of-3 Shamir split (A phone, B Swissquote, C partner), recovery key");
 const phone = newPhone();
@@ -49,7 +37,7 @@ const recoveryKey = phone.createRecoveryKey();
 const wallet = await phone.register(recoveryKey.address);
 console.log(`   wallet ${wallet}`);
 const attacker = privateKeyToAccount(generatePrivateKey());
-const hijack = await realFetch(`${API}/api/wallets`, {
+const hijack = await realFetch(`${APP}/api/wallets`, {
   method: "POST",
   headers: { "content-type": "application/json" },
   body: JSON.stringify({
@@ -59,7 +47,7 @@ const hijack = await realFetch(`${API}/api/wallets`, {
   }),
 });
 assert.equal(hijack.status, 403, "only the wallet key can name its recovery key");
-await swissquote.writeContract({ address: addresses.usdc, abi: parseAbi(["function mint(address, uint256)"]), functionName: "mint", args: [wallet, parseUnits("100", 6)] });
+await mintUsdc(wallet, "100");
 
 console.log("2. Send 20 USDC: deploys the account, Face ID + the key cached since the split");
 await phone.sendUsdc(ANNA, "20");

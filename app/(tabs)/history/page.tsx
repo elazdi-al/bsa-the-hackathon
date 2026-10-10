@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { TabPage } from "../_components/tab-page";
 import { HistoryList } from "./_components/history-list";
 
-export const metadata: Metadata = { title: "History · Fuse" };
+export const metadata: Metadata = { title: "History" };
 
 export default function Page() {
   return (

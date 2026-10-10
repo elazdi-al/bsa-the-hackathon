@@ -15,9 +15,9 @@ export type Tx = {
   time: string;
   /** Fiat value in USD. */
   usd: number;
-  /** "in" is green with +, "out" is ink with −, "swap" is unsigned. */
+  /** "in" is green with +; "out" and "swap" are plain ink. */
   flow: "in" | "out" | "swap";
-  /** Secondary line under the fiat value. */
+  /** Secondary line under the fiat value, for tokens that aren't dollars. */
   crypto?: string;
   status: "Completed" | "Pending";
   /** Detail-drawer rows between the amount and the fee/id/status block. */
@@ -28,55 +28,50 @@ export type Tx = {
   hash?: string;
 };
 
-/** The mock "now" for the whole app (UTC, so server and client format identically). */
-export const now = Date.UTC(2025, 2, 12, 14, 0);
-
-const stamp = new Date(now).toISOString();
-const today = stamp.slice(0, 10);
-
 /** Newest first, within each day too: the list renders in this order. */
 export const transactions: Tx[] = [
-  { id: "t1", account: "card", kind: "card", title: "Blue Bottle Coffee", detail: "Fuse Card", date: "2025-03-12", time: "13:48", usd: 6.5, flow: "out", status: "Pending",
-    rows: [{ label: "Merchant", value: "Blue Bottle Coffee" }, { label: "Card", value: "Fuse Visa ••••4218" }] },
-  { id: "t2", account: "investments", kind: "receive", title: "Received from toly.sol", detail: "86xC...2MMY", date: "2025-03-12", time: "11:36", usd: 119.51, flow: "in", crypto: "0.92 SOL", status: "Completed",
-    rows: [{ label: "From", value: "toly.sol (86xC...2MMY)" }], fee: true, hash: "5Hq2YvT8nWk3LrPz9XcB4mJdA7sEu1fGo6iNtRw2KxVb" },
-  { id: "t3", account: "cash", kind: "send", title: "Sent to Solana wallet", detail: "Ledger", date: "2025-03-12", time: "09:30", usd: 250, flow: "out", crypto: "250.00 USDC", status: "Completed",
-    rows: [{ label: "To", value: "Solana wallet (Ledger)" }], fee: true, hash: "2Zp7KmQe4VdXr8LwTn3YcBj6AfGs9uHo1iNtRb5WxCvE" },
-  { id: "t4", account: "investments", kind: "swap", title: "SOL to USDC", detail: "Swap", date: "2025-03-11", time: "18:20", usd: 259.8, flow: "swap", crypto: "259.80 USDC", status: "Completed",
-    rows: [{ label: "Paid", value: "2.00 SOL" }, { label: "Rate", value: "1 SOL = 129.90 USDC" }], fee: true, hash: "4Rk9LmTq2WvXz7NcBe3YdPj8AfGs5uHo6iEtRb1WxCvK" },
-  { id: "t5", account: "cash", kind: "withdrawal", title: "USDC Withdrawal", detail: "Revolut ••••1342", date: "2025-03-11", time: "10:07", usd: 1508.5, flow: "out", crypto: "1,508.50 USDC", status: "Completed", rows: [] },
-  { id: "t6", account: "card", kind: "card", title: "Uber Eats", detail: "Fuse Card", date: "2025-03-11", time: "08:45", usd: 24.9, flow: "out", status: "Completed",
-    rows: [{ label: "Merchant", value: "Uber Eats" }, { label: "Card", value: "Fuse Visa ••••4218" }] },
-  { id: "t7", account: "earn", kind: "reward", title: "Staking reward", detail: "Solana", date: "2025-03-10", time: "16:05", usd: 649.5, flow: "in", crypto: "5.00 SOL", status: "Completed",
-    rows: [{ label: "From", value: "Solana staking" }], fee: true, hash: "3Wm8KqTe5VdXr2LwNn7YcBj9AfGs4uHo1iPtRb6WxCvZ" },
-  { id: "t8", account: "cash", kind: "deposit", title: "Bank deposit", detail: "Bridge", date: "2025-03-10", time: "09:12", usd: 2500, flow: "in", crypto: "2,500.00 USDC", status: "Completed",
-    rows: [{ label: "From", value: "Bank transfer via Bridge" }, { label: "Payment rail", value: "ACH Same Day" }], fee: true, hash: "6Tn3LmQp8WvXz4KcBe9YdRj2AfGs7uHo5iEtNb1WxCvA" },
-  { id: "t9", account: "investments", kind: "swap", title: "USDC to JUP", detail: "Swap", date: "2025-03-07", time: "19:30", usd: 100, flow: "swap", crypto: "142.86 JUP", status: "Completed",
-    rows: [{ label: "Paid", value: "100.00 USDC" }, { label: "Rate", value: "1 JUP = 0.70 USDC" }], fee: true, hash: "8Ys5KmTq3WvXz9NcBe2YdPj6AfGs1uHo4iRtLb7WxCvQ" },
-  { id: "t10", account: "card", kind: "card", title: "Spotify", detail: "Fuse Card", date: "2025-03-07", time: "12:10", usd: 11.99, flow: "out", status: "Completed",
-    rows: [{ label: "Merchant", value: "Spotify" }, { label: "Card", value: "Fuse Visa ••••4218" }] },
-  { id: "t11", account: "cash", kind: "receive", title: "Received PYUSD", detail: "9Qk2...vT4n", date: "2025-03-05", time: "14:22", usd: 300, flow: "in", crypto: "300.00 PYUSD", status: "Completed",
-    rows: [{ label: "From", value: "9Qk2...vT4n" }], fee: true, hash: "7Vp4LmQe9WkXr3NcBt8YdAj5HfGs2uHo6iEzRb1WxCvM" },
-  { id: "t12", account: "investments", kind: "swap", title: "SOL to JTO", detail: "Swap", date: "2025-03-05", time: "08:50", usd: 389.7, flow: "swap", crypto: "203.71 JTO", status: "Completed",
-    rows: [{ label: "Paid", value: "3.00 SOL" }, { label: "Rate", value: "1 SOL = 67.91 JTO" }], fee: true, hash: "9Bn6KmTq1WvXz5LcPe4YdRj8AfGs3uHo2iEtNb7WxCvD" },
-  { id: "t14", account: "cash", kind: "send", title: "Sent to 9Qk2...vT4n", detail: "Wallet", date: "2025-02-28", time: "17:40", usd: 75, flow: "out", crypto: "75.00 USDC", status: "Completed",
-    rows: [{ label: "To", value: "9Qk2...vT4n" }], fee: true, hash: "1Dp7LmQe3WkXr9NcBt2YdAj6HfGs8uHo4iEzRb5WxCvY" },
-  { id: "t13", account: "card", kind: "membership", title: "Fuse Plus", detail: "Monthly membership", date: "2025-02-28", time: "10:00", usd: 4.99, flow: "out", status: "Completed",
-    rows: [{ label: "Plan", value: "Fuse Plus, monthly" }, { label: "Paid with", value: "Fuse Visa ••••4218" }] },
-  { id: "t15", account: "cash", kind: "deposit", title: "Bank deposit", detail: "Bridge", date: "2025-02-24", time: "13:05", usd: 1200, flow: "in", crypto: "1,200.00 USDC", status: "Completed",
-    rows: [{ label: "From", value: "Bank transfer via Bridge" }, { label: "Payment rail", value: "ACH Same Day" }], fee: true, hash: "5Hn2KmTq7WvXz1LcPe8YdRj4AfGs6uHo3iEtNb9WxCvF" },
-  { id: "t16", account: "card", kind: "card", title: "Whole Foods", detail: "Fuse Card", date: "2025-02-24", time: "09:20", usd: 63.42, flow: "out", status: "Completed",
-    rows: [{ label: "Merchant", value: "Whole Foods Market" }, { label: "Card", value: "Fuse Visa ••••4218" }] },
-  { id: "t17", account: "earn", kind: "reward", title: "Staking reward", detail: "Solana", date: "2025-02-18", time: "16:05", usd: 623.52, flow: "in", crypto: "4.80 SOL", status: "Completed",
-    rows: [{ label: "From", value: "Solana staking" }], fee: true, hash: "2Cq8LmTe6WvXr4KcBt1YdPj9AfGs5uHo7iEzNb3WxCvG" },
+  { id: "t1", account: "card", kind: "card", title: "Blue Bottle Coffee", detail: "Swissquote Card", date: "2025-03-12", time: "13:48", usd: 6.5, flow: "out", status: "Pending",
+    rows: [{ label: "Card", value: "Swissquote Visa ••••4218" }] },
+  { id: "t2", account: "investments", kind: "receive", title: "Received from jesse.base.eth", detail: "0x123A...7D5f", date: "2025-03-12", time: "11:36", usd: 119.5, flow: "in", crypto: "0.0478 ETH", status: "Completed",
+    rows: [{ label: "From", value: "jesse.base.eth (0x123A...7D5f)" }], fee: true, hash: "0xfdeb60df1ab8a8e4b339a349b2aa52e35983e979738e118e71eca02b795b73a4" },
+  { id: "t3", account: "cash", kind: "send", title: "Sent to Ledger", detail: "0xa2DF...BB95", date: "2025-03-12", time: "09:30", usd: 250, flow: "out", status: "Completed",
+    rows: [{ label: "To", value: "Ledger (0xa2DF...BB95)" }], fee: true, hash: "0xf235ba6305d77dada3267058e6f0e946882a498c4cca85476564e4dd85836c3b" },
+  { id: "t4", account: "investments", kind: "swap", title: "ETH to USDC", detail: "Swap", date: "2025-03-11", time: "18:20", usd: 259.75, flow: "swap", status: "Completed",
+    rows: [{ label: "Paid", value: "0.1039 ETH" }, { label: "Rate", value: "1 ETH = 2,500.00 USDC" }], fee: true, hash: "0x16c89d4182d61e846e0ddc1b86a9b775a68208161714c388079ebcf0af6da59a" },
+  { id: "t5", account: "cash", kind: "withdrawal", title: "USDC Withdrawal", detail: "Revolut ••••1342", date: "2025-03-11", time: "10:07", usd: 1508.5, flow: "out", status: "Completed", rows: [] },
+  { id: "t6", account: "card", kind: "card", title: "Uber Eats", detail: "Swissquote Card", date: "2025-03-11", time: "08:45", usd: 24.9, flow: "out", status: "Completed",
+    rows: [{ label: "Card", value: "Swissquote Visa ••••4218" }] },
+  { id: "t7", account: "earn", kind: "reward", title: "Earn interest", detail: "USDC", date: "2025-03-10", time: "16:05", usd: 45.2, flow: "in", status: "Completed",
+    rows: [{ label: "From", value: "Swissquote Earn" }], fee: true, hash: "0xa76a8ecc9e87df0bf233809bcbae165a904d479005ea841e195251a34785f6e6" },
+  { id: "t8", account: "cash", kind: "deposit", title: "Bank deposit", detail: "Bridge", date: "2025-03-10", time: "09:12", usd: 2500, flow: "in", status: "Completed",
+    rows: [{ label: "From", value: "Bank transfer via Bridge" }, { label: "Payment rail", value: "ACH Same Day" }], fee: true, hash: "0x9673d601b7cf4fd5bce8e3a78d6e89d00eeeabd9a869b0c6eb3b040abe8787e0" },
+  { id: "t9", account: "investments", kind: "swap", title: "USDC to AERO", detail: "Swap", date: "2025-03-07", time: "19:30", usd: 100, flow: "swap", crypto: "222.22 AERO", status: "Completed",
+    rows: [{ label: "Paid", value: "100.00 USDC" }, { label: "Rate", value: "1 AERO = 0.45 USDC" }], fee: true, hash: "0x8e8175e7dc437f431c4a0943168bd43b7a3322a882e9c4eeeba390b4a3b31336" },
+  { id: "t10", account: "card", kind: "card", title: "Spotify", detail: "Swissquote Card", date: "2025-03-07", time: "12:10", usd: 11.99, flow: "out", status: "Completed",
+    rows: [{ label: "Card", value: "Swissquote Visa ••••4218" }] },
+  { id: "t11", account: "cash", kind: "receive", title: "Received EURC", detail: "0xe73f...9F6f", date: "2025-03-05", time: "14:22", usd: 300, flow: "in", crypto: "258.62 EURC", status: "Completed",
+    rows: [{ label: "From", value: "0xe73f...9F6f" }], fee: true, hash: "0xef6cdb796a2bbaa494492d4e082d1829acbf25af99dd955b603d516ea98080e5" },
+  { id: "t12", account: "investments", kind: "swap", title: "ETH to cbBTC", detail: "Swap", date: "2025-03-05", time: "08:50", usd: 389.75, flow: "swap", crypto: "0.004585 cbBTC", status: "Completed",
+    rows: [{ label: "Paid", value: "0.1559 ETH" }, { label: "Rate", value: "1 cbBTC = 34.00 ETH" }], fee: true, hash: "0x45eb058df66384ee0da3aa8fee80a5a4f6aa25770da35b204d3e05306cdf21b1" },
+  { id: "t14", account: "cash", kind: "send", title: "Sent to 0xe73f...9F6f", detail: "Wallet", date: "2025-02-28", time: "17:40", usd: 75, flow: "out", status: "Completed",
+    rows: [{ label: "To", value: "0xe73f...9F6f" }], fee: true, hash: "0xaad00ad28baaf98fc258328ff00b294d2fb0a4593a32421151cde4353ca1c6ff" },
+  { id: "t13", account: "card", kind: "membership", title: "Swissquote Plus", detail: "Monthly membership", date: "2025-02-28", time: "10:00", usd: 4.99, flow: "out", status: "Completed",
+    rows: [{ label: "Plan", value: "Swissquote Plus, monthly" }, { label: "Paid with", value: "Swissquote Visa ••••4218" }] },
+  { id: "t15", account: "cash", kind: "deposit", title: "Bank deposit", detail: "Bridge", date: "2025-02-24", time: "13:05", usd: 1200, flow: "in", status: "Completed",
+    rows: [{ label: "From", value: "Bank transfer via Bridge" }, { label: "Payment rail", value: "ACH Same Day" }], fee: true, hash: "0xd55ad98c4969c063b5602e374668a5dbc432700295173e67ba7074f2cd8c3805" },
+  { id: "t16", account: "card", kind: "card", title: "Whole Foods", detail: "Swissquote Card", date: "2025-02-24", time: "09:20", usd: 63.42, flow: "out", status: "Completed",
+    rows: [{ label: "Card", value: "Swissquote Visa ••••4218" }] },
+  { id: "t17", account: "earn", kind: "reward", title: "Earn interest", detail: "USDC", date: "2025-02-18", time: "16:05", usd: 43.8, flow: "in", status: "Completed",
+    rows: [{ label: "From", value: "Swissquote Earn" }], fee: true, hash: "0x3a25aceb1aed10d0397bd1bff74fda49a577e8283b540bd1712aa5bdd0f48459" },
 ];
 
 const dayFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", timeZone: "UTC" });
 const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
-const monthFmt = new Intl.DateTimeFormat("en-GB", { month: "long", timeZone: "UTC" });
 
 export function dayLabel(iso: string) {
-  const diff = (Date.parse(today) - Date.parse(iso)) / 86_400_000;
+  // Against the real clock: live rows carry this phone's local date, and the mock rows' 2025 dates read as dates.
+  const d = new Date();
+  const diff = (Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.parse(iso)) / 86_400_000;
   if (diff === 0) return "Today";
   if (diff === 1) return "Yesterday";
   return dayFmt.format(Date.parse(iso));
@@ -102,32 +97,4 @@ export function byDay(txs: Tx[]) {
   const days = new Map<string, Tx[]>();
   for (const t of txs) days.set(t.date, [...(days.get(t.date) ?? []), t]);
   return Array.from(days, ([date, items]) => ({ date, label: dayLabel(date), items }));
-}
-
-export function monthSummary(txs: Tx[]) {
-  const month = txs.filter((t) => t.date.startsWith(today.slice(0, 7)));
-  const total = (flow: Tx["flow"]) => month.reduce((s, t) => (t.flow === flow ? s + t.usd : s), 0);
-  return { month: monthFmt.format(now), in: total("in"), out: total("out") };
-}
-
-/** The send that just completed, from the send review's `?sent=<recipient>&amount=<usd>`. */
-export function justSent(to: string | undefined, amount: string | undefined): Tx | null {
-  const name = to?.trim();
-  const usd = Math.round(Number(amount) * 100) / 100;
-  if (!name || !Number.isFinite(usd) || usd <= 0) return null;
-  return {
-    id: "just-sent",
-    account: "cash",
-    kind: "send",
-    title: `Sent to ${name}`,
-    detail: "Wallet",
-    date: today,
-    time: stamp.slice(11, 16),
-    usd,
-    flow: "out",
-    crypto: `${usd.toLocaleString("en-US", { minimumFractionDigits: 2 })} USDC`,
-    status: "Pending",
-    rows: [{ label: "To", value: name }],
-    fee: true,
-  };
 }

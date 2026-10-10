@@ -29,13 +29,13 @@ export function Welcome() {
           variants={rise}
           className="mt-5 text-center text-title text-balance text-white"
         >
-          Welcome to Fuse Plus
+          Welcome to Swissquote Plus
         </motion.h1>
         <motion.p
           variants={rise}
-          className="mx-auto mt-2 max-w-[290px] text-center text-body text-pretty text-white/55"
+          className="mx-auto mt-2 max-w-[290px] text-center text-body text-balance text-white/55"
         >
-          Your membership to earn more, pay less, and access premium benefits.
+          Your membership for bank transfers, card spending and premium benefits.
         </motion.p>
 
         <Benefits />

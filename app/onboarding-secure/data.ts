@@ -27,7 +27,7 @@ export const KEYS: readonly WalletKey[] = [
   {
     id: "key",
     title: "Wallet Key",
-    body: "Split between these three, so no one keeps it whole. Any two can rebuild it, and payments still need your Passkey.",
+    body: "Split between these three, so no one stores it whole. Any two can rebuild it, and payments still need your Passkey.",
     Icon: KeyIcon,
     accent: "var(--color-orange)",
     cta: { idle: "Split Wallet Key", busy: "Splitting Wallet Key" },
@@ -35,7 +35,7 @@ export const KEYS: readonly WalletKey[] = [
   {
     id: "recovery",
     title: "Recovery Key",
-    body: "Restores your wallet if you lose this phone, after a 48-hour hold you can cancel. Keep it at home, off this phone.",
+    body: "Restores your wallet on a new phone, after an ID check and a 48-hour hold you can cancel. Once saved, keep it at home, off this phone.",
     Icon: RestoreIcon,
     accent: "var(--color-purple)",
     cta: { idle: "Save Recovery Key", busy: "Saving Recovery Key" },
@@ -56,12 +56,6 @@ export const HOLDERS: readonly { name: string; Icon: Icon }[] = [
   { name: "Swissquote", Icon: BankIcon },
   { name: "Independent service", Icon: CloudIcon },
 ];
-
-export const RECOVERY_FILE = {
-  name: "Fuse Recovery Key.txt",
-  text: (secret: string) =>
-    `Fuse Recovery Key\n\n${secret}\n\nThis key restores your wallet if you lose your phone. Keep it safe at home, not on your phone. Swissquote will never ask you to send it.`,
-};
 
 /** The setup row's copy by status. Setup only idles after a failed registration; the ready body is the wallet's address. */
 export const SETUP = {

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Screen } from "@/components/navigation";
 import { CoinsScreen } from "./_components/coins-screen";
 
-export const metadata: Metadata = { title: "Coins · Fuse" };
+export const metadata: Metadata = { title: "Coins" };
 
 export default function Page() {
   return (

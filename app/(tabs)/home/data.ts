@@ -1,7 +1,3 @@
-import { now } from "../history/data";
-
-export const balance = { total: 23531 };
-
 export const ranges = ["1D", "1W", "1M", "6M", "1Y"] as const;
 export type Range = (typeof ranges)[number];
 export const defaultRange: Range = "6M";
@@ -27,41 +23,46 @@ const dateOptions: Record<Range, Intl.DateTimeFormatOptions> = {
   "1Y": { day: "numeric", month: "short", year: "numeric" },
 };
 
-const entries = ranges.map((r) => {
-  const bars = series[r];
-  const last = bars.length - 1;
-  const fmt = new Intl.DateTimeFormat("en-GB", { ...dateOptions[r], timeZone: "UTC" });
-  return [
-    r,
-    {
-      // The last bar is exactly the total; earlier bars scale with their height.
-      values: bars.map((h, i) =>
-        i === last ? balance.total : Math.round(balance.total * (1 + (spreads[r] * (h - bars[last])) / 100) * 100) / 100,
-      ),
-      // en-GB abbreviates September as "Sept"; keep every month three letters.
-      dates: bars.map((_, i) => fmt.format(now - (spans[r] * (last - i)) / last).replace("Sept", "Sep")),
-    },
-  ] as const;
-});
-
-/** Per range, the balance and the date label of every bar. */
-export const history = Object.fromEntries(entries) as Record<Range, { values: number[]; dates: string[] }>;
+/** Per range, the balance and the date label of every bar, ending on `total` at `now` in this phone's time zone. */
+export function historyFor(total: number, now: number) {
+  const entries = ranges.map((r) => {
+    const bars = series[r];
+    const last = bars.length - 1;
+    const fmt = new Intl.DateTimeFormat("en-GB", dateOptions[r]);
+    return [
+      r,
+      {
+        // The last bar is exactly the total; earlier bars scale with their height.
+        values: bars.map((h, i) =>
+          i === last ? total : Math.round(total * (1 + (spreads[r] * (h - bars[last])) / 100) * 100) / 100,
+        ),
+        // en-GB abbreviates September as "Sept"; keep every month three letters.
+        dates: bars.map((_, i) => fmt.format(now - (spans[r] * (last - i)) / last).replace("Sept", "Sep")),
+      },
+    ] as const;
+  });
+  return Object.fromEntries(entries) as Record<Range, { values: number[]; dates: string[] }>;
+}
 
 export type TileId = "cash" | "investments" | "earn" | "card";
-/** A tile either pushes its own screen or opens an account sheet that says what the account is. */
-export type Tile = { id: TileId; label: string; value: number } & ({ href: string } | { about: string });
+/** A tile either pushes its own screen or opens an account sheet that says what the account is. `value` is undefined until known. */
+export type Tile = { id: TileId; label: string; value: number | undefined } & ({ href: string } | { about: string });
 
 export const tiles: Tile[] = [
-  { id: "cash", label: "Cash", value: 5000, about: "USDC & PYUSD you can spend or send" },
+  { id: "cash", label: "Cash", value: 5000, about: "USDC you can spend or send" },
   { id: "investments", label: "Investments", value: 7531, href: "/coin-breakdown" },
   { id: "earn", label: "Earn", value: 10000, about: "Earning up to 5.45% APY" },
-  { id: "card", label: "Card", value: 1000, about: "Your Fuse virtual Visa" },
+  { id: "card", label: "Card", value: 1000, about: "Your Swissquote virtual Visa" },
 ];
 
-export type Promo = { id: "fuse-plus" | "earn"; title: [string, string] } & ({ href: string } | { account: TileId });
+/** The sum of the tiles, or undefined while any of them isn't known yet. */
+export const totalOf = (tiles: Tile[]) =>
+  tiles.reduce<number | undefined>((sum, t) => (sum === undefined || t.value === undefined ? undefined : sum + t.value), 0);
+
+export type Promo = { id: "plus" | "earn"; title: [string, string] } & ({ href: string } | { account: TileId });
 
 export const promos: Promo[] = [
-  { id: "fuse-plus", title: ["Welcome to", "Fuse Plus"], href: "/fuse-plus" },
+  { id: "plus", title: ["Welcome to", "Swissquote Plus"], href: "/plus" },
   { id: "earn", title: ["Earn up to", "5.45% APY"], account: "earn" },
 ];
 

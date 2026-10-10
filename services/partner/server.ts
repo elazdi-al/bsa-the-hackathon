@@ -14,7 +14,7 @@ import { verifyTicket } from "../../lib/wallet/tickets.ts";
 import { openVault } from "../../lib/wallet/vault.ts";
 
 const vault = openVault(process.env.PARTNER_DB ?? "data/partner.db", process.env.PARTNER_SHARE_KEY);
-const PORT = Number(new URL(process.env.PARTNER_URL ?? "http://localhost:4002").port);
+const PORT = Number(process.env.PARTNER_PORT ?? (new URL(process.env.PARTNER_URL ?? "http://localhost:4002").port || 4002));
 const MAX_BODY = 64 * 1024;
 
 class Refusal extends Error {}
@@ -27,7 +27,7 @@ async function store(body: unknown) {
     throw new Refusal("This is not Share C of the ticketed key.");
   }
   if (!vault.get(ticket.signer)) vault.put({ signer: ticket.signer, passkey: { x: ticket.passkeyX, y: ticket.passkeyY }, share: input.share });
-  console.log(`[partner] stored Share C of ${ticket.signer}`);
+  console.log(`stored Share C of ${ticket.signer}`);
   return { signer: ticket.signer };
 }
 
@@ -62,7 +62,7 @@ async function release(body: unknown) {
   if (!stored?.recoveryKey || !isAddressEqual(await recoverAddress({ hash, signature: input.signature }), stored.recoveryKey)) {
     throw new Refusal("The wallet's recovery key did not sign this operation.");
   }
-  console.log(`[partner] released Share C of ${signer} for recovery ${hash.slice(0, 10)}`);
+  console.log(`released Share C of ${signer} for recovery ${hash.slice(0, 10)}`);
   return { share: stored.share };
 }
 
@@ -107,7 +107,7 @@ createServer(async (req, res) => {
     send(res, 404, { error: "Not found." });
   } catch (error) {
     const message = error instanceof Refusal ? error.message : error instanceof z.ZodError ? "Invalid request." : "Refused.";
-    console.warn(`[partner] refused ${req.method} ${req.url}: ${(error as Error).message}`);
+    console.warn(`refused ${req.method} ${req.url}: ${(error as Error).message}`);
     send(res, 400, { error: message });
   }
-}).listen(PORT, () => console.log(`[partner] holding Share C on :${PORT}`));
+}).listen(PORT, () => console.log(`holding Share C on :${PORT}`));

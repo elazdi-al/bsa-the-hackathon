@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useReducer, type ReactNode } from "react";
 import { CloseIcon, RestoreIcon } from "@/components/icons";
 import { promoInterval, promos, type Promo, type TileId } from "../data";
-import { FuseEarnIcon, FusePlusIcon } from "./icons";
+import { EarnAppIcon, PlusAppIcon } from "./icons";
 import { blurred, leave, reveal, sharp, smooth } from "../../_components/transitions";
 
 type Action = "advance" | "dismiss" | "restore";
@@ -24,7 +24,7 @@ function reducer(state: State, action: Action): State {
   }
 }
 
-const icons: Record<Promo["id"], ReactNode> = { "fuse-plus": <FusePlusIcon />, earn: <FuseEarnIcon /> };
+const icons: Record<Promo["id"], ReactNode> = { "plus": <PlusAppIcon />, earn: <EarnAppIcon /> };
 
 // The card itself only slides (after a dismiss, the next card arrives from the right);
 // its icon and copy blur through in sequence, icon first.

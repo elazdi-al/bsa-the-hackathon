@@ -1,6 +1,6 @@
-export type CoinId = "sol" | "usdc" | "pyusd" | "jto" | "jup" | "tnsr";
+export type CoinId = "usdc" | "eth" | "eurc" | "cbbtc" | "aero";
 
-/** The part of a holding that is locked up earning yield: staked SOL, stablecoins in Earn. */
+/** The part of a holding that is locked up earning yield: staked ETH, stablecoins in Earn. */
 export type Stake = {
   label: string;
   principalLabel: string;
@@ -20,40 +20,37 @@ export type Coin = {
   stake?: Stake;
 };
 
-export const wallet = {
-  name: "Wallet",
-  address: "7k4rM9pVb2hXqLwT8sNcYd5fJ3eGaZ1uRkH6tB23et",
-};
+/** The demo wallet, shown where this phone has none. */
+export const wallet = { address: "0x82f1cE804bd5AdcAcB5AFB460d8C1Db330a259e7" };
 
 export const coins: Coin[] = [
-  {
-    id: "sol",
-    name: "Solana",
-    symbol: "SOL",
-    amount: 80.06,
-    value: 10_400,
-    change: 513,
-    stake: { label: "Total Staked", principalLabel: "Staked", principal: 25, earned: 5 },
-  },
   {
     id: "usdc",
     name: "USD Coin",
     symbol: "USDC",
-    amount: 6_000,
-    value: 6_000,
-    stake: { label: "Total in Earn", principalLabel: "Deposited", principal: 3_520, earned: 80 },
+    amount: 10_000,
+    value: 10_000,
+    stake: { label: "Total in Earn", principalLabel: "Deposited", principal: 6_860, earned: 140 },
   },
   {
-    id: "pyusd",
-    name: "PayPal USD",
-    symbol: "PYUSD",
-    amount: 3_000,
-    value: 3_000,
-    stake: { label: "Total in Earn", principalLabel: "Deposited", principal: 352.5, earned: 7.5 },
+    id: "eth",
+    name: "Ethereum",
+    symbol: "ETH",
+    amount: 2.2,
+    value: 5_500,
+    change: 162,
+    stake: { label: "Total Staked", principalLabel: "Staked", principal: 0.6, earned: 0.0128 },
   },
-  { id: "jto", name: "Jito", symbol: "JTO", amount: 575.04, value: 1_100, change: 14 },
-  { id: "jup", name: "Jupiter", symbol: "JUP", amount: 1_420.01, value: 994, change: 12 },
-  { id: "tnsr", name: "Tensor", symbol: "TNSR", amount: 3_200, value: 992, change: -2 },
+  {
+    id: "eurc",
+    name: "Euro Coin",
+    symbol: "EURC",
+    amount: 4_300,
+    value: 4_988,
+    stake: { label: "Total in Earn", principalLabel: "Deposited", principal: 2_560, earned: 26.4 },
+  },
+  { id: "cbbtc", name: "Coinbase Wrapped BTC", symbol: "cbBTC", amount: 0.01706, value: 1_450, change: 21 },
+  { id: "aero", name: "Aerodrome", symbol: "AERO", amount: 1_291, value: 581, change: -9 },
 ];
 
 export const stakedTotal = (coin: Coin) => (coin.stake ? coin.stake.principal + coin.stake.earned : 0);

@@ -115,10 +115,9 @@ export const PlusIcon = mono("M12 5v14M5 12h14");
 export const CloseIcon = mono("M6.5 6.5l11 11m0-11-11 11");
 export const BackIcon = mono("M15 5l-7 7 7 7");
 export const ChevronRightIcon = mono("M9 5l7 7-7 7");
-export const ArrowRightIcon = mono("M4 12h16m-6.5-6.5L20 12l-6.5 6.5");
+export const ChevronDownIcon = mono("M5 9l7 7 7-7");
 export const CheckIcon = mono("M5 12.5l4.5 4.5L19 7");
 export const TrendUpIcon = mono("M7 17 17 7M9.5 7H17v7.5");
-export const TrendDownIcon = mono("M7 7l10 10M17 9.5V17H9.5");
 
 export const ReceiveIcon = duo({ bar: "M5 20h14" }, { bar: "M12 3.5v11M7 10l5 5 5-5" });
 
@@ -131,6 +130,8 @@ export const SendIcon = duo(
 export const SwapIcon = duo({ bar: "M20 16.5H4.5m4-3.75-3.75 3.75 3.75 3.75" }, { bar: "M4 7.5h15.5m-4-3.75 3.75 3.75-3.75 3.75" });
 
 export const FlipIcon = duo({ bar: "M16.5 20V4.5m3.75 4-3.75-3.75-3.75 3.75" }, { bar: "M7.5 4v15.5m-3.75-4 3.75 3.75 3.75-3.75" });
+
+export const ApproxIcon = duo({ bar: "M5 9c2.33-2 4.67-2 7 0s4.67 2 7 0" }, { bar: "M5 15c2.33-2 4.67-2 7 0s4.67 2 7 0" });
 
 export const BankIcon = duo(
   { fill: rr(4.5, 12.5, 3.5, 8, 1.5) + rr(10.25, 12.5, 3.5, 8, 1.5) + rr(16, 12.5, 3.5, 8, 1.5) },
@@ -197,8 +198,6 @@ export const PhoneIcon = duo({ fill: rr(5.75, 2, 12.5, 20, 3.5) }, { fill: rr(8.
 
 export const CloudIcon = duo({ fill: circle(9.5, 10.5, 5.5) }, { fill: [rr(3, 12, 18, 8.5, 4.25), circle(15.5, 12, 4.5)] }, true);
 
-export const EnvelopeIcon = duo({ fill: rr(3, 5, 18, 14, 4) }, { fill: poly([[4, 5.5], [20, 5.5], [12, 12.5]], 2.5) }, true);
-
 export const KeyIcon = duo({ bar: "M14.75 9.25 20.25 3.75M17.5 6.5 20 9" }, { fill: circle(8.5, 15.5, 5.5) + circle(8.5, 15.5, 2) });
 
 export const ShieldIcon = duo(
@@ -206,15 +205,7 @@ export const ShieldIcon = duo(
   { fill: poly([[13, 3, 0.75], [19.5, 3, 2.5], [19.5, 11.5, 5.5], [13, 21, 1.5]], 1) },
 );
 
-export const LockIcon = duo({ bar: "M8.25 8.25V8a3.75 3.75 0 0 1 7.5 0v.25" }, { fill: rr(4.5, 11.5, 15, 9.5, 3) });
-
 export const IdCardIcon = duo({ fill: rr(2.5, 5, 19, 14, 4) }, { fill: circle(8.5, 12, 2.5), bar: "M14 10.25h3.5M14 13.75h2" }, true);
-
-export const EyeSlashIcon = duo(
-  { fill: "M3.3 11.1C5.1 7.6 8.3 5.5 12 5.5s6.9 2.1 8.7 5.6c.3.6.3 1.2 0 1.8-1.8 3.5-5 5.6-8.7 5.6s-6.9-2.1-8.7-5.6c-.3-.6-.3-1.2 0-1.8Z" },
-  { fill: circle(12, 12, 3), bar: "M4.5 4.5l15 15" },
-  true,
-);
 
 export const BellIcon = duo(
   { bar: "M10.25 20.25h3.5" },
@@ -265,5 +256,3 @@ export const RestoreIcon = duo(
   { bar: "M5.66 10.69A6.75 6.75 0 1 0 15.87 7.47" },
   { fill: poly([[8, 6.25], [12.5, 3.25], [12.5, 9.25]], 1.25) },
 );
-
-export const ScanIcon = duo({ bar: corners }, { bar: "M7.5 12h9" });

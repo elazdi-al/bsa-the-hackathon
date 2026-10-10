@@ -2,10 +2,11 @@
 
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useReducer } from "react";
+import { useEffect, useReducer, useRef } from "react";
+import type { Hex } from "viem";
 import { blurred, sharp, smooth } from "@/app/(tabs)/_components/transitions";
-import { phone } from "@/lib/wallet/phone";
-import { FAILED, KEYS, RECOVERY_FILE, SETUP } from "../data";
+import { phone, RECOVERY_FILE } from "@/lib/wallet/phone";
+import { FAILED, KEYS, SETUP } from "../data";
 import { flowReducer, initialFlow, keyState, pendingTimer, toneOf, type Keys } from "../flow";
 import { CreateButton } from "./create-button";
 import { GlimmBackdrop } from "./glimm-backdrop";
@@ -21,7 +22,7 @@ const entrance = (delay: number) => ({
 });
 
 /** Hands the Recovery Key to the share sheet, or downloads it where files can't be shared. */
-function saveRecoveryKey(secret: string): Promise<void> {
+function saveRecoveryKey(secret: Hex): Promise<void> {
   const file = new File([RECOVERY_FILE.text(secret)], RECOVERY_FILE.name, { type: "text/plain" });
   if (navigator.canShare?.({ files: [file] })) return navigator.share({ files: [file] });
   const url = URL.createObjectURL(file);
@@ -37,6 +38,13 @@ function saveRecoveryKey(secret: string): Promise<void> {
 export function SecureFlow() {
   const router = useRouter();
   const [step, dispatch] = useReducer(flowReducer, initialFlow);
+  // Set in the same tick as the tap, so a double tap can't open two passkey prompts before React re-renders.
+  const pressing = useRef(false);
+
+  // Splitting a new key here would overwrite the Share A of the wallet this phone already holds.
+  useEffect(() => {
+    if (phone.hasWallet()) router.replace("/home");
+  }, [router]);
 
   useEffect(() => {
     const timer = pendingTimer(step);
@@ -60,30 +68,35 @@ export function SecureFlow() {
   // All work starts in the click, never in an effect: WebAuthn and the share sheet need the click's user
   // activation, so nothing may await before them, and React runs effects twice in development.
   const press = async () => {
-    if (step.status !== "idle") return;
-    dispatch({ type: "start" });
-    switch (step.name) {
-      case "passkey": {
-        const credential = await phone.createPasskey().catch(() => null);
-        return dispatch(credential ? { type: "passkeyCreated", credential } : { type: "failed", error: FAILED.passkey });
-      }
-      case "key": {
-        const signer = await phone.splitKey(step.keys.credential).catch(() => null);
-        return dispatch(signer ? { type: "keySplit", signer } : { type: "failed", error: FAILED.key });
-      }
-      case "recovery": {
-        const { secret, address } = phone.createRecoveryKey();
-        try {
-          await saveRecoveryKey(secret);
-        } catch (error) {
-          const closed = error instanceof DOMException && error.name === "AbortError";
-          return dispatch(closed ? { type: "cancelled" } : { type: "failed", error: FAILED.recovery });
+    if (step.status !== "idle" || pressing.current) return;
+    pressing.current = true;
+    try {
+      dispatch({ type: "start" });
+      switch (step.name) {
+        case "passkey": {
+          const credential = await phone.createPasskey().catch(() => null);
+          return dispatch(credential ? { type: "passkeyCreated", credential } : { type: "failed", error: FAILED.passkey });
         }
-        dispatch({ type: "recoverySaved", recoveryKey: address });
-        return register({ ...step.keys, recoveryKey: address });
+        case "key": {
+          const signer = await phone.splitKey(step.keys.credential).catch(() => null);
+          return dispatch(signer ? { type: "keySplit", signer } : { type: "failed", error: FAILED.key });
+        }
+        case "recovery": {
+          const { secret, address } = phone.createRecoveryKey();
+          try {
+            await saveRecoveryKey(secret);
+          } catch (error) {
+            const closed = error instanceof DOMException && error.name === "AbortError";
+            return dispatch(closed ? { type: "cancelled" } : { type: "failed", error: FAILED.recovery });
+          }
+          dispatch({ type: "recoverySaved", recoveryKey: address });
+          return register({ ...step.keys, recoveryKey: address });
+        }
+        case "setup":
+          return register(step.keys);
       }
-      case "setup":
-        return register(step.keys);
+    } finally {
+      pressing.current = false;
     }
   };
 

@@ -7,7 +7,7 @@ import { Recede } from "./motion";
 
 type RowState = "idle" | "open" | "receded";
 
-const amount = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const amount = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 6 });
 
 export function CoinRow({ coin, state, onToggle }: { coin: Coin; state: RowState; onToggle: () => void }) {
   const open = state === "open";
@@ -68,7 +68,7 @@ function CoinAvatar({ coin, open }: { coin: Coin; open: boolean }) {
         >
           <g fill="none" strokeWidth="2.2" strokeLinecap="round">
             <circle cx="21" cy="21" r="19.9" pathLength={100} className="stroke-cents" strokeDasharray={`${100 - available - gap * 2} 100`} strokeDashoffset={-(available + gap)} />
-            <circle cx="21" cy="21" r="19.9" pathLength={100} strokeDasharray={`${available} 100`} className="stroke-fuse-blue" />
+            <circle cx="21" cy="21" r="19.9" pathLength={100} strokeDasharray={`${available} 100`} className="stroke-brand" />
           </g>
         </motion.svg>
       )}
@@ -110,12 +110,12 @@ function Breakdown({ id, coin }: { id: string; coin: Coin }) {
       className="absolute inset-x-0 top-full z-10 pt-[3px] pr-[22px] pl-[82px] text-body font-medium tabular-nums max-[375px]:pl-14"
     >
       <motion.div variants={bar} className="flex h-1 gap-1">
-        <span className="rounded-full bg-fuse-blue" style={{ width: `${availableShare(coin) * 100}%` }} />
+        <span className="rounded-full bg-brand" style={{ width: `${availableShare(coin) * 100}%` }} />
         {staked > 0 && <span className="flex-1 rounded-full bg-cents" />}
       </motion.div>
 
       <div className="mt-[13px]">
-        <Line dot="bg-fuse-blue" label="Available" value={unit(available)} />
+        <Line dot="bg-brand" label="Available" value={unit(available)} />
         <Line dot="bg-cents" label={coin.stake?.label ?? "Total Staked"} value={unit(staked)} />
         {coin.stake && (
           <>

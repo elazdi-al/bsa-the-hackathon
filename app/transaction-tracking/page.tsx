@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { TransactionRoute } from "./_components/transaction-sheet";
 import { WalletBackdrop } from "./_components/wallet-backdrop";
 
-export const metadata: Metadata = { title: "Transaction · Fuse" };
+export const metadata: Metadata = { title: "Transaction" };
 
 export default function Page() {
   return (

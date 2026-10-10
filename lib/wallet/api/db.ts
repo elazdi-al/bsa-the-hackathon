@@ -42,9 +42,12 @@ function open() {
     },
     operation(hash: Hex, wallet: Address) {
       const row = db.prepare("select * from operations where hash = ? and wallet = ?").get(hash, wallet) as
-        | { kind: Kind; user_op: string }
+        | { kind: Kind; user_op: string; created_at: number }
         | undefined;
-      return row && { kind: row.kind, userOp: JSON.parse(row.user_op) as RpcUserOperation<"0.7"> };
+      return row && { kind: row.kind, userOp: JSON.parse(row.user_op) as RpcUserOperation<"0.7">, createdAt: row.created_at };
+    },
+    removeOperation(hash: Hex) {
+      db.prepare("delete from operations where hash = ?").run(hash);
     },
   };
 }

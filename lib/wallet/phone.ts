@@ -29,8 +29,11 @@ export type Credential = { id: string; passkey: Passkey };
 /** Share A at rest: AES-GCM sealed under the passkey's PRF output, so only Face ID opens it. */
 type StoredShare = Share | { x: Share["x"]; iv: Hex; sealed: Hex };
 
-/** What this phone keeps. Never the wallet key itself. */
-export type Device = { credentialId: string; passkey: Passkey; share: StoredShare; signer: Address; address?: Address };
+/**
+ * What this phone keeps. Never the wallet key itself. `restoring`: this phone started a recovery of `address`
+ * that hasn't handed it the wallet yet.
+ */
+export type Device = { credentialId: string; passkey: Passkey; share: StoredShare; signer: Address; address?: Address; restoring?: boolean };
 
 export type WalletState = {
   address: Address;
@@ -39,11 +42,16 @@ export type WalletState = {
   recoveryKey: Address;
   usdc: string;
   pendingRecovery: { signer: Address; executeAfter: number } | null;
+  /** The chain's time when read, in seconds. A local chain can run ahead of this phone's clock. */
+  chainTime: number;
 };
+
+/** A USDC transfer in or out of the wallet. `value` is in base units. */
+export type Transfer = { hash: Hex; from: Address; to: Address; value: string; timestamp: number };
 
 export type Identity = { document: string; selfie: string };
 
-type Storage = Pick<globalThis.Storage, "getItem" | "setItem">;
+type Storage = Pick<globalThis.Storage, "getItem" | "setItem" | "removeItem">;
 type Config = { chainId: number; entryPoint: Address; usdc: Address };
 export type Prepared = { hash: Hex; userOp: RpcUserOperation<"0.7">; summary?: string[] };
 
@@ -57,7 +65,7 @@ export class ApiError extends Error {
   }
 }
 
-const DEVICE = "fuse.wallet.device";
+const DEVICE = "swissquote.wallet.device";
 
 /**
  * `partner` is pinned in the app build, never taken from Swissquote, so Swissquote cannot redirect
@@ -73,7 +81,8 @@ export function createPhone({ api = "", partner, authenticator, storage }: { api
       headers: body === undefined ? undefined : { "content-type": "application/json" },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
-    const json = await res.json();
+    // A proxy or a crashed server can answer with HTML; that's a failed request, not a parse error.
+    const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new ApiError(res.status, json);
     return json;
   }
@@ -163,11 +172,24 @@ export function createPhone({ api = "", partner, authenticator, storage }: { api
     approve,
     config: getConfig,
     hasWallet: () => !!device()?.address,
-    state: () => call<WalletState>(`/api/wallets/${requireWallet().address}`),
+    async state(): Promise<WalletState> {
+      const d = requireWallet();
+      const state = await call<WalletState>(`/api/wallets/${d.address}`);
+      // However the recovery was finished, once this phone's key is the wallet's, it's no longer restoring.
+      if (d.restoring && isAddressEqual(state.signer, d.signer)) save({ ...d, restoring: undefined });
+      return state;
+    },
+    activity: () => call<{ transfers: Transfer[] }>(`/api/wallets/${requireWallet().address}/activity`).then((r) => r.transfers),
+
+    /** Removes the wallet from this phone: Share A, the passkey's record and the cached key. The wallet itself stays on-chain. */
+    forget() {
+      forgetKey();
+      storage.removeItem(DEVICE);
+    },
 
     /** Face ID creates the passkey that approves every payment. */
     // A unique name gives a unique WebAuthn user id, so a recovery passkey never replaces an older one on the same device.
-    createPasskey: (): Promise<Credential> => authenticator.create(`Fuse ${new Date().toISOString()}`),
+    createPasskey: (): Promise<Credential> => authenticator.create(`Swissquote Wallet ${new Date().toISOString()}`),
 
     /** Splits a fresh wallet key: B to Swissquote, C straight to the partner, A sealed on this phone with Face ID. */
     async splitKey(credential: Credential): Promise<Address> {
@@ -233,14 +255,22 @@ export function createPhone({ api = "", partner, authenticator, storage }: { api
       await call(`/api/wallets/${prepared.address}/operations/${prepared.hash}`, {
         signature: encodeRecoverySignature(await privateKeyToAccount(key).sign({ hash: prepared.hash }), signature),
       });
-      save({ ...d, address: prepared.address });
+      save({ ...d, address: prepared.address, restoring: true });
       const { pendingRecovery } = await call<WalletState>(`/api/wallets/${prepared.address}`);
       return { address: prepared.address, executeAfter: pendingRecovery!.executeAfter };
     },
 
-    /** Swissquote cancels the pending recovery for the client, who proves it with the recovery key. */
-    async cancelRecoveryWithSwissquote(secret: Hex): Promise<Hex> {
-      const { address } = requireWallet();
+    /** The wallet a recovery key restores, and the recovery already pending for it, if someone started one. */
+    findRecovery: (secret: Hex) =>
+      call<{ address: Address; pendingRecovery: { executeAfter: number } | null; chainTime: number }>(
+        `/api/recovery?${new URLSearchParams({ recoveryKey: privateKeyToAddress(secret) })}`,
+      ),
+
+    /**
+     * Swissquote cancels the pending recovery for the client, who proves it with the recovery key. Works
+     * without a wallet on this phone: the key's holder may have lost theirs and found a recovery underway.
+     */
+    async cancelRecoveryWithSwissquote(secret: Hex, address = requireWallet().address): Promise<Hex> {
       const { pendingRecovery } = await call<WalletState>(`/api/wallets/${address}`);
       if (!pendingRecovery) throw new Error("There is no recovery to cancel.");
       const signature = await privateKeyToAccount(secret).signMessage({ message: cancelRecoveryMessage(address, pendingRecovery.executeAfter) });
@@ -278,12 +308,19 @@ function rebuild(first: Share, second: Share, signer: Address): Hex {
   return key;
 }
 
+/** The Recovery Key file the client keeps at home. `readRecoveryKey` reads it back. */
+export const RECOVERY_FILE = {
+  name: "Swissquote Wallet Recovery Key.txt",
+  text: (secret: Hex) =>
+    `Swissquote Wallet Recovery Key\n\n${secret}\n\nIf you lose your phone, this key restores your wallet on a new one, after Swissquote checks your ID and a 48-hour hold you can cancel. Keep it safe at home, not on your phone. Swissquote will never ask you to send it.`,
+};
+
 /** The recovery key inside a saved Recovery Key file, or undefined if it holds none. */
 export const readRecoveryKey = (text: string) => text.match(/0x[0-9a-fA-F]{64}/)?.[0] as Hex | undefined;
 
 export type Phone = ReturnType<typeof createPhone>;
 
-const PRF_SALT = new TextEncoder().encode("Fuse Share A v1");
+const PRF_SALT = new TextEncoder().encode("Swissquote Wallet Share A v1");
 
 const browserAuthenticator: Authenticator = {
   async create(name) {
@@ -297,37 +334,43 @@ const browserAuthenticator: Authenticator = {
   },
 };
 
-const PASSKEYS = "swissquote.wallet.passkeys";
-
-/** The simulator's passkey. WebKit refuses real passkeys without an associated domain. The key sits in plain web storage, so this must never ship. */
-export function softwareAuthenticator(storage: Storage, origin: () => string): Authenticator {
-  const keys = (): Record<string, Hex> => JSON.parse(storage.getItem(PASSKEYS) ?? "{}");
+/** A passkey in software, for phones simulated in Node and the iOS Simulator build. */
+export function softwareAuthenticator(privateKey: Hex, origin: string): Authenticator {
+  const { x, y } = P256.getPublicKey({ privateKey });
+  const prf = sha256(privateKey, "bytes");
   return {
-    async create() {
-      const id = crypto.randomUUID();
-      const privateKey = P256.randomPrivateKey();
-      storage.setItem(PASSKEYS, JSON.stringify({ ...keys(), [id]: privateKey }));
-      const { x, y } = P256.getPublicKey({ privateKey });
-      return { id, passkey: { x: numberToHex(x, { size: 32 }), y: numberToHex(y, { size: 32 }) } };
-    },
-    async sign(credentialId, challenge) {
-      const privateKey = keys()[credentialId];
-      if (!privateKey) throw new Error(`This phone has no passkey ${credentialId}.`);
-      const { metadata, payload } = WebAuthnP256.getSignPayload({ challenge, origin: origin(), rpId: new URL(origin()).hostname });
-      return { assertion: { metadata, signature: P256.sign({ payload, privateKey, hash: true }) }, secret: sha256(privateKey, "bytes") };
+    create: async () => ({ id: "software", passkey: { x: numberToHex(x, { size: 32 }), y: numberToHex(y, { size: 32 }) } }),
+    async sign(_id, challenge) {
+      // The API checks rpId against the hostname it is reached at, so both follow the API's origin.
+      const { metadata, payload } = WebAuthnP256.getSignPayload({ challenge, origin, rpId: new URL(origin).hostname });
+      return { assertion: { metadata, signature: P256.sign({ payload, privateKey, hash: true }) }, secret: prf };
     },
   };
 }
 
-const webStorage: Storage = {
-  getItem: (key) => localStorage.getItem(key),
-  setItem: (key, value) => localStorage.setItem(key, value),
+const PASSKEY = "swissquote.wallet.passkey";
+
+// WebKit refuses real passkeys to an app without an associated domain, so the Simulator build keeps
+// one in plain web storage. That build must never ship.
+function simulatorPasskey() {
+  let key = localStorage.getItem(PASSKEY) as Hex | null;
+  if (!key) localStorage.setItem(PASSKEY, (key = P256.randomPrivateKey()));
+  return softwareAuthenticator(key, process.env.NEXT_PUBLIC_API_URL || location.origin);
+}
+
+const simulatorAuthenticator: Authenticator = {
+  create: (name) => simulatorPasskey().create(name),
+  sign: (id, challenge) => simulatorPasskey().sign(id, challenge),
 };
 
-/** The app's phone. Storage and `location` are read lazily, so server rendering can import this module. */
+/** The app's phone. Storage is read lazily, so server rendering can import this module. */
 export const phone = createPhone({
   api: process.env.NEXT_PUBLIC_API_URL ?? "",
   partner: process.env.NEXT_PUBLIC_PARTNER_URL ?? "http://localhost:4002",
-  authenticator: process.env.NEXT_PUBLIC_SOFTWARE_PASSKEY === "1" ? softwareAuthenticator(webStorage, () => location.origin) : browserAuthenticator,
-  storage: webStorage,
+  authenticator: process.env.NEXT_PUBLIC_SOFTWARE_PASSKEY === "1" ? simulatorAuthenticator : browserAuthenticator,
+  storage: {
+    getItem: (key) => localStorage.getItem(key),
+    setItem: (key, value) => localStorage.setItem(key, value),
+    removeItem: (key) => localStorage.removeItem(key),
+  },
 });

@@ -1,27 +1,29 @@
 "use client";
 
-import { ApproximateEqualsIcon, ArrowsDownUpIcon, CaretDownIcon, CheckIcon, ScanSmileyIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion, useAnimate, useReducedMotion, type Variants } from "motion/react";
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { CoinLogo } from "@/app/coin-breakdown/_components/coin-logos";
-import { coins } from "@/app/coin-breakdown/data";
+import { coins, stakedTotal } from "@/app/coin-breakdown/data";
+import { ApproxIcon, CheckIcon, ChevronDownIcon, FaceIdIcon, FlipIcon, LightningIcon } from "@/components/icons";
 import { BackButton } from "@/components/ui/back-button";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerClose, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { Spinner } from "@/components/ui/spinner";
+import { cn } from "@/lib/utils";
 import { grouped, press, quote, typed, type Key, type Unit } from "./amount";
 import { usd } from "./money";
 import { Numpad } from "./numpad";
 import { blurred, easeOut, leave, sharp, snappy } from "./transitions";
 
-type Side = "sol" | "usdc";
+type Side = "eth" | "usdc";
 type Step = { name: "amount" | "review"; dir: 1 | -1 };
 
+// Staked ETH and USDC in Earn are locked, so only the available part can be swapped.
 function token(id: Side, decimals: number) {
-  const { name, symbol, amount, value } = coins.find((c) => c.id === id)!;
-  return { name, symbol, balance: amount, price: value / amount, decimals };
+  const coin = coins.find((c) => c.id === id)!;
+  return { name: coin.name, symbol: coin.symbol, balance: coin.amount - stakedTotal(coin), price: coin.value / coin.amount, decimals };
 }
-const tokens = { sol: token("sol", 4), usdc: token("usdc", 2) };
+const tokens = { eth: token("eth", 4), usdc: token("usdc", 2) };
 
 const fmt = (n: number, decimals: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: decimals });
 
@@ -58,25 +60,25 @@ function Coin({ id, className = "size-10" }: { id: Side; className?: string }) {
 function TokenLabel({ id, children }: { id: Side; children: ReactNode }) {
   return (
     <AnimatePresence initial={false} mode="popLayout">
-      <motion.p key={id} className="min-w-0 flex-1 text-[14px] leading-5" {...labelSwap}>
-        <span className="block text-[16px] font-semibold">{tokens[id].name}</span>
+      <motion.p key={id} className="min-w-0 flex-1 text-body" {...labelSwap}>
+        <span className="block text-label">{tokens[id].name}</span>
         {children}
       </motion.p>
     </AnimatePresence>
   );
 }
 
-function Detail({ label, children }: { label: string; children: ReactNode }) {
+function Detail({ label, className, children }: { label: string; className?: string; children: ReactNode }) {
   return (
     <div className="flex justify-between gap-4">
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className="tabular-nums">{children}</dd>
+      <dd className={cn("tabular-nums", className)}>{children}</dd>
     </div>
   );
 }
 
 export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onOpenChange: (o: boolean) => void; onClosed: () => void }) {
-  const [from, setFrom] = useState<Side>("sol");
+  const [from, setFrom] = useState<Side>("eth");
   const [unit, setUnit] = useState<Unit>("token");
   const [text, setText] = useState("");
   const [step, setStep] = useState<Step>({ name: "amount", dir: 1 });
@@ -88,7 +90,7 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
   const [amount, animate] = useAnimate<HTMLOutputElement>();
   const still = useReducedMotion();
 
-  const to: Side = from === "sol" ? "usdc" : "sol";
+  const to: Side = from === "eth" ? "usdc" : "eth";
   const pay = tokens[from];
   const get = tokens[to];
   const q = quote(text, unit, pay.price, get.price);
@@ -96,7 +98,7 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
   const ready = q.tokens > 0 && !over;
 
   const shown = `${unit === "usd" ? "$" : ""}${grouped(text)}`;
-  const size = shown.length > 10 ? "text-[42px]" : shown.length > 7 ? "text-[52px]" : "text-[64px]";
+  const size = shown.length > 14 ? "text-title" : shown.length > 9 ? "text-amount" : "text-display";
   const other = unit === "token" ? usd.format(q.usd) : `${fmt(q.tokens, pay.decimals)} ${pay.symbol}`;
 
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
@@ -105,7 +107,7 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
     if (open) return;
     const t = setTimeout(() => {
       setText("");
-      setFrom("sol");
+      setFrom("eth");
       setUnit("token");
       setStep({ name: "amount", dir: 1 });
       setPhase("idle");
@@ -182,7 +184,7 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
           e.preventDefault();
           onClosed();
         }}
-        className="h-[calc(100dvh-env(safe-area-inset-top)-12px)] tracking-[-0.02em] sm:h-[min(46rem,calc(100dvh-2rem))]"
+        className="h-[calc(100dvh-env(safe-area-inset-top)-12px)] sm:h-[min(46rem,calc(100dvh-2rem))]"
       >
         <header className="relative flex h-11 shrink-0 items-center justify-center">
           <AnimatePresence initial={false}>
@@ -221,24 +223,24 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
                     <div className="relative flex items-center gap-3 p-4">
                       <Coin key={from} id={from} />
                       <TokenLabel id={from}>
-                        <span className={`block tabular-nums transition-colors duration-150 ${over ? "text-negative" : "text-black/40"}`}>
+                        <span className={`block tabular-nums transition-colors duration-150 ${over ? "text-negative" : "text-muted-foreground"}`}>
                           {fmt(pay.balance, pay.decimals)} {pay.symbol}
                         </span>
                       </TokenLabel>
                       <button
                         type="button"
                         onClick={() => setText(unit === "token" ? typed(pay.balance, pay.decimals) : typed(pay.balance * pay.price, 2))}
-                        className={`${pill} h-8 shrink-0 rounded-full bg-black/[0.05] px-3 text-[13px] font-semibold after:absolute after:-inset-1.5 hover:bg-black/[0.08]`}
+                        className={`${pill} h-8 shrink-0 rounded-full bg-secondary px-3 text-caption font-semibold after:absolute after:-inset-1.5 hover:bg-black/[0.08]`}
                       >
                         Use Max
                       </button>
                     </div>
-                    <div aria-hidden className="mx-4 h-px bg-black/[0.06]" />
+                    <div aria-hidden className="mx-4 h-px bg-border" />
                     <div className="flex flex-1 flex-col items-center justify-center px-4 pt-[clamp(16px,3.6dvh,32px)] pb-[clamp(14px,3dvh,26px)]">
                       <output
                         ref={amount}
                         aria-live="polite"
-                        className={`flex h-16 max-w-full items-center leading-none font-bold tracking-[-0.045em] tabular-nums ${size} ${text ? "" : "text-cents"}`}
+                        className={`flex h-16 max-w-full items-center tabular-nums ${size} ${text ? "" : "text-cents"}`}
                       >
                         {shown}
                         <span className="sr-only"> {unit === "usd" ? "dollars" : pay.symbol}</span>
@@ -247,13 +249,11 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
                         type="button"
                         onClick={switchUnit}
                         aria-label={`${other}. Type in ${unit === "token" ? "dollars" : pay.symbol}`}
-                        className={`${pill} mt-2 flex h-8 items-center gap-1.5 rounded-full px-2.5 text-[15px] font-medium text-black/55 tabular-nums after:absolute after:-inset-y-1.5 after:inset-x-0 hover:bg-black/[0.04] hover:text-black`}
+                        className={`${pill} mt-2 flex h-8 items-center gap-1 rounded-full px-2.5 text-body font-medium text-muted-foreground tabular-nums after:absolute after:-inset-y-1.5 after:inset-x-0 hover:bg-black/[0.04] hover:text-foreground`}
                       >
-                        <span className="grid size-[18px] place-items-center rounded-full bg-black/[0.07]">
-                          <ApproximateEqualsIcon aria-hidden size={11} weight="bold" />
-                        </span>
+                        <ApproxIcon size={16} />
                         {other}
-                        <ArrowsDownUpIcon aria-hidden size={15} weight="bold" />
+                        <FlipIcon size={16} />
                       </button>
                     </div>
                   </section>
@@ -263,18 +263,18 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
                       type="button"
                       aria-label={`Switch to paying with ${get.symbol}`}
                       onClick={flip}
-                      className={`${pill} absolute top-1/2 left-1/2 grid size-8 -translate-1/2 place-items-center rounded-full border-[3px] border-white bg-[#f0f0f0] text-black/50 after:absolute after:-inset-[9px] hover:text-black`}
+                      className={`${pill} absolute top-1/2 left-1/2 grid size-8 -translate-1/2 place-items-center rounded-full border-[3px] border-background bg-secondary text-muted-foreground after:absolute after:-inset-[9px] hover:text-foreground`}
                     >
-                      <CaretDownIcon aria-hidden size={14} weight="bold" />
+                      <ChevronDownIcon size={14} />
                     </button>
                   </div>
 
                   <section aria-label="You receive" className={`${card} relative flex items-center gap-3 p-4`}>
                     <Coin key={to} id={to} />
                     <TokenLabel id={to}>
-                      <span className="block text-black/40">Receive {get.symbol}</span>
+                      <span className="block truncate text-muted-foreground">Receive {get.symbol}</span>
                     </TokenLabel>
-                    <output className={`text-[17px] font-semibold tabular-nums transition-colors duration-150 ${q.out > 0 ? "" : "text-cents"}`}>
+                    <output className={`text-label tabular-nums transition-colors duration-150 ${q.out > 0 ? "" : "text-cents"}`}>
                       {fmt(q.out, get.decimals)}
                     </output>
                   </section>
@@ -297,35 +297,29 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
                       {/* The coins fly in from the cards, and back out on Back. */}
                       <span aria-hidden className="flex">
                         <Coin id={from} className="size-12" />
-                        <Coin id={to} className="-ml-3 size-12 rounded-full bg-white ring-4 ring-white" />
+                        <Coin id={to} className="-ml-3 size-12 rounded-full bg-background ring-4 ring-background" />
                       </span>
-                      <h2 ref={summary} tabIndex={-1} className="mt-5 text-[15px] leading-5 text-black/40 outline-none">
+                      <h2 ref={summary} tabIndex={-1} className="mt-5 text-body text-muted-foreground outline-none">
                         You receive
                       </h2>
-                      <p className="mt-1 text-[40px] leading-[48px] font-bold tracking-[-0.035em] tabular-nums">
-                        {fmt(q.out, get.decimals)} <span className="text-black/25">{get.symbol}</span>
+                      <p className="mt-1 text-amount tabular-nums">
+                        {fmt(q.out, get.decimals)} <span className="text-faint">{get.symbol}</span>
                       </p>
-                      <p className="mt-1 text-[15px] leading-5 text-black/40 tabular-nums">≈ {usd.format(q.usd)}</p>
+                      <p className="mt-1 text-body text-muted-foreground tabular-nums">≈ {usd.format(q.usd)}</p>
                     </div>
-  
-                    <hr className="mt-10 h-px shrink-0 border-0 bg-[repeating-linear-gradient(90deg,rgb(0_0_0/0.1)_0_8px,transparent_8px_17px)]" />
-  
-                    <dl className="space-y-2 pt-4 text-[15px] leading-5 tracking-[-0.24px]">
+
+                    <hr className="mt-10 h-px shrink-0 border-0 bg-[repeating-linear-gradient(90deg,var(--color-cents)_0_8px,transparent_8px_17px)]" />
+
+                    <dl className="space-y-2 pt-4 text-body">
                       <Detail label="You pay">
                         {fmt(q.tokens, pay.decimals)} {pay.symbol}
                       </Detail>
                       <Detail label="Rate">
                         1 {pay.symbol} ≈ {fmt(pay.price / get.price, get.decimals)} {get.symbol}
                       </Detail>
-                      <Detail label="Network fee">
-                        <span className="text-muted-foreground">
-                          Fuse
-                          <sup aria-hidden className="text-[11px]">
-                            +
-                          </sup>
-                          <span className="sr-only"> Plus</span>
-                        </span>{" "}
-                        <span className="text-positive">Covered</span>
+                      <Detail label="Network fee" className="flex items-center gap-1 font-semibold text-positive">
+                        <LightningIcon size={16} />
+                        Paid by Swissquote
                       </Detail>
                     </dl>
                   </div>
@@ -339,9 +333,9 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
                   >
                     <AnimatePresence initial={false} mode="popLayout">
                       <motion.span key={phase} className="flex items-center gap-2" {...labelSwap}>
-                        {phase === "idle" && <ScanSmileyIcon aria-hidden size={20} weight="bold" />}
+                        {phase === "idle" && <FaceIdIcon size={20} />}
                         {phase === "busy" && <Spinner className="size-5" />}
-                        {phase === "done" && <CheckIcon aria-hidden size={20} weight="bold" />}
+                        {phase === "done" && <CheckIcon size={20} />}
                         {phase === "idle" ? "Swap" : phase === "busy" ? "Swapping" : "Swapped"}
                       </motion.span>
                     </AnimatePresence>
