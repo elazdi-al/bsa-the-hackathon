@@ -7,17 +7,17 @@ export type Benefit = {
 export const benefits: Benefit[] = [
   {
     icon: "bolt",
-    title: "Free Transactions",
-    body: "Swissquote pays the network fee on every payment, so you never need ETH.",
+    title: "Instant Payments",
+    body: "Payments settle on Base in seconds, and Swissquote pays the network fee, as it does for every client.",
   },
   {
     icon: "bank",
     title: "Bank Account",
-    body: "Receive payments from anyone with a bank account for a 0.1% conversion fee.",
+    body: "Receive bank transfers from anyone, converted to USDC for a 0.1% fee.",
   },
   {
     icon: "card",
     title: "Swissquote Card",
-    body: "A virtual Visa debit card to spend stablecoins anywhere, with zero fees.",
+    body: "A virtual Visa debit card to spend your USDC anywhere Visa is accepted, with no card fees.",
   },
 ];

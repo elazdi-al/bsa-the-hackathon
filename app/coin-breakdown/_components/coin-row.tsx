@@ -7,7 +7,7 @@ import { Recede } from "./motion";
 
 type RowState = "idle" | "open" | "receded";
 
-const amount = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const amount = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 6 });
 
 export function CoinRow({ coin, state, onToggle }: { coin: Coin; state: RowState; onToggle: () => void }) {
   const open = state === "open";

@@ -1,4 +1,4 @@
-import { CaretLeftIcon } from "@phosphor-icons/react";
+import { BackIcon } from "@/components/icons";
 import type { Key } from "./amount";
 
 const keys: Key[] = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "back"];
@@ -22,7 +22,7 @@ export function Numpad({ onKey }: { onKey: (key: Key) => void }) {
           onClick={() => onKey(key)}
           className="grid h-[clamp(48px,7.4dvh,64px)] touch-manipulation place-items-center rounded-[20px] text-[28px] font-medium tabular-nums outline-none select-none transition-[background-color] duration-200 ease-out active:bg-black/[0.05] active:duration-0"
         >
-          {key === "back" ? <CaretLeftIcon aria-hidden weight="bold" size={24} /> : key}
+          {key === "back" ? <BackIcon size={24} /> : key}
         </button>
       ))}
     </div>

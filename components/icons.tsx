@@ -115,6 +115,7 @@ export const PlusIcon = mono("M12 5v14M5 12h14");
 export const CloseIcon = mono("M6.5 6.5l11 11m0-11-11 11");
 export const BackIcon = mono("M15 5l-7 7 7 7");
 export const ChevronRightIcon = mono("M9 5l7 7-7 7");
+export const ChevronDownIcon = mono("M5 9l7 7 7-7");
 export const ArrowRightIcon = mono("M4 12h16m-6.5-6.5L20 12l-6.5 6.5");
 export const CheckIcon = mono("M5 12.5l4.5 4.5L19 7");
 export const TrendUpIcon = mono("M7 17 17 7M9.5 7H17v7.5");
@@ -131,6 +132,8 @@ export const SendIcon = duo(
 export const SwapIcon = duo({ bar: "M20 16.5H4.5m4-3.75-3.75 3.75 3.75 3.75" }, { bar: "M4 7.5h15.5m-4-3.75 3.75 3.75-3.75 3.75" });
 
 export const FlipIcon = duo({ bar: "M16.5 20V4.5m3.75 4-3.75-3.75-3.75 3.75" }, { bar: "M7.5 4v15.5m-3.75-4 3.75 3.75 3.75-3.75" });
+
+export const ApproxIcon = duo({ bar: "M5 9c2.33-2 4.67-2 7 0s4.67 2 7 0" }, { bar: "M5 15c2.33-2 4.67-2 7 0s4.67 2 7 0" });
 
 export const BankIcon = duo(
   { fill: rr(4.5, 12.5, 3.5, 8, 1.5) + rr(10.25, 12.5, 3.5, 8, 1.5) + rr(16, 12.5, 3.5, 8, 1.5) },
