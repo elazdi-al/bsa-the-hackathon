@@ -23,25 +23,32 @@ const dateOptions: Record<Range, Intl.DateTimeFormatOptions> = {
   "1Y": { day: "numeric", month: "short", year: "numeric" },
 };
 
-/** Per range, the balance and the date label of every bar, ending on `total` at `now` in this phone's time zone. */
-export function historyFor(total: number, now: number) {
+/**
+ * Per range, the balance, height and date label of every bar, ending on `total` at `now` in this phone's time zone.
+ * A live wallet passes `balanceAt`, its real balance at a moment; without it the demo's traced shape stands in.
+ */
+export function historyFor(total: number, now: number, balanceAt?: (time: number) => number) {
   const entries = ranges.map((r) => {
     const bars = series[r];
     const last = bars.length - 1;
     const fmt = new Intl.DateTimeFormat("en-GB", dateOptions[r]);
+    const at = (i: number) => now - (spans[r] * (last - i)) / last;
+    // The last bar is exactly the total; in the demo, earlier bars scale with their height.
+    const values = bars.map((h, i) =>
+      i === last ? total : balanceAt ? balanceAt(at(i)) : Math.round(total * (1 + (spreads[r] * (h - bars[last])) / 100) * 100) / 100,
+    );
+    const peak = Math.max(...values);
     return [
       r,
       {
-        // The last bar is exactly the total; earlier bars scale with their height.
-        values: bars.map((h, i) =>
-          i === last ? total : Math.round(total * (1 + (spreads[r] * (h - bars[last])) / 100) * 100) / 100,
-        ),
+        values,
+        heights: balanceAt ? values.map((v) => (peak > 0 ? (v / peak) * 100 : 0)) : bars,
         // en-GB abbreviates September as "Sept"; keep every month three letters.
-        dates: bars.map((_, i) => fmt.format(now - (spans[r] * (last - i)) / last).replace("Sept", "Sep")),
+        dates: bars.map((_, i) => fmt.format(at(i)).replace("Sept", "Sep")),
       },
     ] as const;
   });
-  return Object.fromEntries(entries) as Record<Range, { values: number[]; dates: string[] }>;
+  return Object.fromEntries(entries) as Record<Range, { values: number[]; heights: number[]; dates: string[] }>;
 }
 
 export type TileId = "cash" | "investments" | "earn" | "card";

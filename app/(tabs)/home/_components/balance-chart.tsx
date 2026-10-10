@@ -6,6 +6,8 @@ import { TrendUpIcon } from "@/components/icons";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { defaultRange, historyFor, ranges, series, totalOf, type Range } from "../data";
 import { usd } from "../../_components/money";
+import { transferToTx } from "../../history/live";
+import { onPhoneClock, useWallet } from "../../_components/wallet";
 import { useTiles } from "./accounts";
 import { IntroMoney, markIntroDone, wasIntroDone } from "./blur-money";
 import { smooth, snappy } from "../../_components/transitions";
@@ -27,8 +29,18 @@ export function BalanceChart() {
   const still = useReducedMotion();
 
   const total = totalOf(useTiles());
+  const wallet = useWallet();
+  const live = wallet.status === "ready" ? wallet.wallet : undefined;
   // Client only: the server renders the wallet as loading, so the dates never meet the server's clock.
-  const history = useMemo(() => (total === undefined ? undefined : historyFor(total, Date.now())), [total]);
+  const history = useMemo(() => {
+    if (total === undefined) return undefined;
+    if (!live) return historyFor(total, Date.now(), wallet.status === "none" ? undefined : () => total);
+    // A live wallet's balance at a moment: today's, less every transfer since. Until its transfers are read, today's.
+    const transfers = (live.activity ?? []).map((t) => ({ ...transferToTx(t, live), at: onPhoneClock(live, t.timestamp).getTime() }));
+    return historyFor(total, Date.now(), (time) =>
+      transfers.reduce((balance, t) => (t.at > time ? balance - (t.flow === "in" ? t.usd : -t.usd) : balance), total),
+    );
+  }, [total, live, wallet.status]);
   // Done once Home's numbers are known, not at mount: the wallet's Cash arrives after.
   useEffect(() => {
     if (total !== undefined) markIntroDone();
@@ -38,9 +50,9 @@ export function BalanceChart() {
   const last = series[range].length - 1;
   const shown = active ?? last;
   const scrubbing = active !== null;
-  // Always the change since the first bar of the range, so releasing a scrub lands on the same meaning.
-  const change = data ? ((data.values[shown] - data.values[0]) / data.values[0]) * 100 : 0;
-  const up = change >= 0;
+  // Always the change since the first bar of the range, so releasing a scrub lands on the same meaning. None from zero.
+  const change = data?.values[0] ? ((data.values[shown] - data.values[0]) / data.values[0]) * 100 : undefined;
+  const up = (change ?? 0) >= 0;
 
   function scrubTo(e: PointerEvent) {
     const rect = chart.current!.getBoundingClientRect();
@@ -81,12 +93,12 @@ export function BalanceChart() {
           {scrubbing ? <span aria-hidden>{data?.dates[shown]}</span> : "Total balance"}
         </h2>
         {/* A quarter turn makes the up-right arrow the down-right one, so crossing zero turns it instead of swapping glyphs. */}
-        <p className={`flex items-center gap-0.5 justify-self-start font-semibold transition-[color] duration-200 ease-out ${up ? "text-positive" : "text-negative"} ${data ? "" : "invisible"}`}>
+        <p className={`flex items-center gap-0.5 justify-self-start font-semibold transition-[color] duration-200 ease-out ${up ? "text-positive" : "text-negative"} ${change === undefined ? "invisible" : ""}`}>
           <motion.span aria-hidden className="flex" initial={false} animate={{ rotate: up ? 0 : 90 }} transition={snappy}>
             <TrendUpIcon size={16} />
           </motion.span>
           {up ? "+" : "−"}
-          {Math.abs(change).toFixed(2)}%
+          {Math.abs(change ?? 0).toFixed(2)}%
         </p>
       </div>
 
@@ -118,14 +130,14 @@ export function BalanceChart() {
         className="mt-8 flex h-32 touch-pan-y items-end gap-0.5 rounded-sm outline-none select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 md:h-36 md:gap-1 lg:h-56"
       >
         {/* Height, not scaleY: a scaled pill squashes its rounded top. */}
-        {series[range].map((height, i) => (
+        {series[range].map((_, i) => (
           <motion.span
             key={i}
             className={`min-h-0.5 flex-1 rounded-full transition-[opacity] duration-100 ${
               i === active ? "bg-brand" : "bg-linear-to-b from-brand/45 to-brand/10"
             } ${active !== null && i > active ? "opacity-20" : ""}`}
             initial={revisit ? false : { height: "0%" }}
-            animate={{ height: data ? `${height}%` : "0%" }}
+            animate={{ height: data ? `${data.heights[i]}%` : "0%" }}
             transition={still ? { duration: 0 } : { ...smooth, delay: startDelay + i * (switched ? 0.004 : 0.007) }}
           />
         ))}

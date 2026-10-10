@@ -36,7 +36,7 @@ export function HistoryList({ account }: { account?: TileId }) {
   const tracked = tx?.kind === "withdrawal";
 
   const live = useLiveTxs();
-  const scoped = [...live.txs, ...transactions.filter((t) => !live.real || t.account !== "cash")].filter((t) => !account || t.account === account);
+  const scoped = [...live.txs, ...(live.real ? [] : transactions)].filter((t) => !account || t.account === account);
   const shown = scoped.filter(filters[filter].match);
   const groups = byDay(shown);
   const scope = tiles.find((t) => t.id === account);

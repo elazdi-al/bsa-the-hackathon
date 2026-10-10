@@ -29,12 +29,17 @@ const cashWhen: Record<Exclude<WalletSnapshot["status"], "ready">, number | unde
 
 /**
  * Home's tiles with Cash read from the wallet; Accounts and the chart share the store, so both change in one commit.
- * Until Cash is known every tile holds, so Home's numbers type in together.
+ * Until Cash is known every tile holds, so Home's numbers type in together. A live wallet holds only its USDC, so its
+ * other accounts start at zero; their demo values preview a phone without a wallet.
  */
 export function useTiles(): Tile[] {
   const wallet = useWallet();
   const cash = wallet.status === "ready" ? wallet.wallet.usdc : cashWhen[wallet.status];
-  return useMemo(() => tiles.map((t) => ({ ...t, value: cash === undefined ? undefined : t.id === "cash" ? cash : t.value })), [cash]);
+  const preview = wallet.status === "none";
+  return useMemo(
+    () => tiles.map((t) => ({ ...t, value: cash === undefined ? undefined : t.id === "cash" ? cash : preview ? t.value : 0 })),
+    [cash, preview],
+  );
 }
 
 /** The Home grid. Tiles without a screen of their own, and the Earn promo, open an account sheet in place. */
@@ -180,10 +185,10 @@ function WalletAlert({ alert: { kind, Icon, tone, title, line } }: { alert: Aler
   );
 }
 
-/** The account's latest rows: the wallet's own transfers for Cash, mock ones otherwise. Undefined until they're read. */
+/** The account's latest rows: mock ones on a phone without a wallet, else the wallet's own transfers, all Cash. Undefined until they're read. */
 function recentActivity(id: TileId, wallet: WalletSnapshot): Tx[] | undefined {
-  if (id !== "cash" || wallet.status === "none") return transactions.filter((t) => t.account === id).slice(0, 4);
-  if (wallet.status === "missing") return [];
+  if (wallet.status === "none") return transactions.filter((t) => t.account === id).slice(0, 4);
+  if (id !== "cash" || wallet.status === "missing") return [];
   if (wallet.status !== "ready") return undefined;
   return wallet.wallet.activity?.slice(0, 4).map((t) => transferToTx(t, wallet.wallet));
 }

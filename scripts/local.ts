@@ -2,8 +2,8 @@
 // app. Writes .env.local for the app, the partner, the CLI (npm run status, fund, ...) and npm run e2e.
 //
 //   npm run local            (PORT, RPC_PORT and PARTNER_PORT pick other ports)
-//   npm run local -- --prod  a public demo behind a tunnel: a production build instead of next dev, and 100 test
-//                            USDC for every new wallet. PUBLIC_PARTNER_URL is the partner's public URL, where phones post Share C.
+//   npm run local -- --prod  a public demo behind a tunnel: a production build instead of next dev.
+//                            PUBLIC_PARTNER_URL is the partner's public URL, where phones post Share C.
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -138,7 +138,6 @@ const env = {
   APP_URL,
   COMPLIANCE_MODE: "demo",
   COMPLIANCE_POLICY_FILE: POLICY_FILE,
-  ...(prod && { WELCOME_USDC: "100" }),
 };
 writeFileSync(".env.local", `${MARKER}\n${Object.entries(env).map(([k, v]) => `${k}=${v}`).join("\n")}\n`);
 

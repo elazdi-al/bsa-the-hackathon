@@ -11,9 +11,7 @@ import {
   encodeFunctionData,
   http,
   isAddressEqual,
-  parseAbi,
   parseEventLogs,
-  parseUnits,
   recoverMessageAddress,
   type Address,
   type Hex,
@@ -27,7 +25,6 @@ import {
   type UserOperation,
 } from "viem/account-abstraction";
 import { privateKeyToAccount } from "viem/accounts";
-import { foundry } from "viem/chains";
 import * as z from "zod";
 import { getComplianceRuntime } from "@/services/compliance/runtime";
 import { accountAbi, bindRecoveryKeyMessage, factoryAbi, paymasterAbi, type Config, type Passkey } from "../account.ts";
@@ -54,14 +51,6 @@ const SPONSORSHIP_TTL = 120n;
 
 export function walletConfig(signer: Address, passkey: Passkey, recoveryKey: Address): Config {
   return { signer, passkey, recoveryKey, guardian: swissquote().address };
-}
-
-/** A public demo's gift on the local chain: WELCOME_USDC test USDC for each new wallet, so it can pay at once. */
-export async function welcome(wallet: Address) {
-  const amount = process.env.WELCOME_USDC;
-  if (!amount || chain.id !== foundry.id) return;
-  const mint = parseAbi(["function mint(address, uint256)"]);
-  await operator().writeContract({ address: addresses.usdc, abi: mint, functionName: "mint", args: [wallet, parseUnits(amount, 6)] });
 }
 
 export const predictAddress = (config: Config) =>

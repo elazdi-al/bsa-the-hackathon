@@ -49,6 +49,6 @@ export function useLiveTxs() {
   useEffect(() => {
     known.current = new Set(txs.map((t) => t.id));
   });
-  // Once the wallet is read, Cash is real: its demo rows would contradict the balance.
-  return { txs, real: wallet.status === "ready", arrived: (tx: Tx) => !!known.current && txs.includes(tx) && !known.current.has(tx.id) };
+  // A phone with a wallet lists only its own transfers; the demo rows preview a phone without one.
+  return { txs, real: wallet.status !== "none", arrived: (tx: Tx) => !!known.current && txs.includes(tx) && !known.current.has(tx.id) };
 }
