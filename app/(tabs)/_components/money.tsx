@@ -7,7 +7,7 @@ export function splitUsd(value: number): [string, string] {
 }
 
 /** A static dollar amount in the house style: whole units in ink, cents in light grey. */
-export function Money({ value, centsClassName = "text-[#dcdcdc]" }: { value: number; centsClassName?: string }) {
+export function Money({ value, centsClassName = "text-cents" }: { value: number; centsClassName?: string }) {
   const [whole, cents] = splitUsd(value);
   return (
     <span className="tabular-nums">

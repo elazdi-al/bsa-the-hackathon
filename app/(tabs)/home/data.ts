@@ -1,4 +1,4 @@
-export const balance = { total: 23531, change: 1.22 };
+export const balance = { total: 23531 };
 
 export const ranges = ["1D", "1W", "1M", "6M", "1Y"] as const;
 export type Range = (typeof ranges)[number];

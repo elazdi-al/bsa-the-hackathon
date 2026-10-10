@@ -18,7 +18,7 @@ export function BalanceChart() {
 
   // Index of the bar being scrubbed, or null when showing the total.
   const [active, setActive] = useState<number | null>(null);
-  const pointer = useRef<number | null>(null);
+  const pointer = useRef<{ id: number; touch: boolean; bar?: number } | null>(null);
 
   // The chart height changes per breakpoint, so the 2px floor of a bar is measured, not assumed.
   const chart = useRef<HTMLDivElement>(null);
@@ -36,18 +36,24 @@ export function BalanceChart() {
   const last = values.length - 1;
   const shown = active ?? last;
   const scrubbing = active !== null;
-  const change = scrubbing ? ((values[active] - values[0]) / values[0]) * 100 : balance.change;
+  // Always the change since the first bar of the range, so releasing a scrub lands on the same meaning.
+  const change = ((values[shown] - values[0]) / values[0]) * 100;
   const up = change >= 0;
   const Arrow = up ? ArrowSquareUpRightIcon : ArrowSquareDownRightIcon;
 
   function scrubTo(e: PointerEvent) {
     const rect = chart.current!.getBoundingClientRect();
     const t = Math.min(Math.max((e.clientX - rect.left) / rect.width, 0), 1);
-    setActive(Math.round(t * last));
+    const bar = Math.round(t * last);
+    const p = pointer.current!;
+    // A tick per bar under the finger, like a detent.
+    if (p.touch && bar !== p.bar) navigator.vibrate?.(1);
+    p.bar = bar;
+    setActive(bar);
   }
 
   function release(e: PointerEvent) {
-    if (e.pointerId !== pointer.current) return;
+    if (e.pointerId !== pointer.current?.id) return;
     pointer.current = null;
     setActive(null);
   }
@@ -68,15 +74,16 @@ export function BalanceChart() {
   return (
     <section aria-labelledby="total-balance">
       <div className="mt-6 flex items-center gap-2.5 text-[15px] leading-5">
+        {/* Every label of the range shares one cell, so the cell is as wide as the widest and the badge never slides. */}
         <h2 id="total-balance" className="grid min-w-28 text-[#adadad] tabular-nums">
           <span className={`col-start-1 row-start-1 ${scrubbing ? "invisible" : ""}`}>Total Balance</span>
-          <span aria-hidden className={`col-start-1 row-start-1 whitespace-nowrap ${scrubbing ? "" : "invisible"}`}>
-            {dates[shown]}
-          </span>
+          {dates.map((date, i) => (
+            <span key={i} aria-hidden className={`col-start-1 row-start-1 whitespace-nowrap ${i === active ? "" : "invisible"}`}>
+              {date}
+            </span>
+          ))}
         </h2>
-        <p
-          className={`flex items-center gap-1 text-[14px] font-medium tabular-nums ${up ? "text-[#3dd55e]" : "text-[#ff3b30]"}`}
-        >
+        <p className={`flex items-center gap-1 text-[14px] font-medium tabular-nums ${up ? "text-positive" : "text-negative"}`}>
           <Arrow weight="fill" size={17} aria-hidden />
           <span className="sr-only">{up ? "Up" : "Down"}</span>
           {Math.abs(change).toFixed(2)}%
@@ -104,11 +111,11 @@ export function BalanceChart() {
         aria-valuetext={`${dates[shown]}, ${usd.format(values[shown])}`}
         onPointerDown={(e) => {
           if (pointer.current !== null || (e.pointerType === "mouse" && e.button !== 0)) return;
-          pointer.current = e.pointerId;
+          pointer.current = { id: e.pointerId, touch: e.pointerType === "touch" };
           e.currentTarget.setPointerCapture(e.pointerId);
           scrubTo(e);
         }}
-        onPointerMove={(e) => e.pointerId === pointer.current && scrubTo(e)}
+        onPointerMove={(e) => e.pointerId === pointer.current?.id && scrubTo(e)}
         onPointerUp={release}
         onPointerCancel={release}
         onLostPointerCapture={release}

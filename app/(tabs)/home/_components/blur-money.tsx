@@ -25,7 +25,7 @@ export function BlurMoney({ value, delay, step }: { value: number; delay: number
         {glyphs.map((glyph, i) => (
           <motion.span
             key={i}
-            className={i > whole.length ? "inline-block text-[#dcdcdc]" : "inline-block"}
+            className={i > whole.length ? "inline-block text-cents" : "inline-block"}
             initial={skip ? false : { opacity: 0, filter: blurred, y: "0.2em" }}
             animate={{ opacity: 1, filter: sharp, y: 0 }}
             transition={{ ...reveal, delay: delay + i * step }}
