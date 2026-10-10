@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 const screens = [
-  { slug: "sign-in", title: "Swissquote sign-in (mocked)", refs: "—" },
+  { slug: "sign-in", title: "Swissquote sign-in (optional, mocked)", refs: "—" },
   { slug: "onboarding-welcome", title: "Onboarding: welcome", refs: "02-onboarding.mp4 (0–4.5s)" },
   { slug: "onboarding-secure", title: "Onboarding: secure your wallet", refs: "02-onboarding.mp4 (4.5–24.7s)" },
   { slug: "home", title: "Home", refs: "03, 08, 01" },

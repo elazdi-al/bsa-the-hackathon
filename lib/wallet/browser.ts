@@ -6,7 +6,7 @@
 // it but never read it out. Production keeps Share A in the Secure Enclave or StrongBox.
 import { type Address, type Hex } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
-import type { Passkey } from './account.ts'
+import { kitProof, type Passkey } from './account.ts'
 import { createPasskey, passkeySigner, runKeyCeremony, signOperation, type Ceremony, type Prepared } from './client.ts'
 import type { DklsModule } from './mpc.ts'
 
@@ -19,7 +19,10 @@ export class ApiError extends Error {
   }
 }
 
-/** Calls the Wallet API with the Swissquote session cookie, and sends the client to sign in when there is none. */
+/**
+ * Calls the Wallet API with this browser's session cookie: the optional Swissquote sign-in, or the
+ * session the first key ceremony starts for a wallet without an account. 401: no wallet here yet.
+ */
 export async function api<T = any>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(path, {
     method,
@@ -27,14 +30,13 @@ export async function api<T = any>(method: string, path: string, body?: unknown)
     body: body === undefined ? undefined : JSON.stringify(body),
   })
   const data = await res.json()
-  if (res.status === 401 && path !== '/api/session') location.assign(`/sign-in?${new URLSearchParams({ next: location.pathname })}`)
   if (!res.ok) throw new ApiError(res.status, data)
   return data
 }
 
 const NAME = 'swissquote:name'
 
-/** MOCKED Swissquote sign-in. */
+/** MOCKED Swissquote sign-in, optional. */
 export async function signIn(email: string, password: string) {
   const { name } = await api<{ name: string }>('POST', '/api/session', { email, password })
   localStorage.setItem(NAME, name)
@@ -143,13 +145,20 @@ export async function registerWallet(signer: Address, passkey: Passkey) {
     `Wallet: ${address}`,
     `Recovery key: ${key}`,
     '',
-    'Keep this at home, offline. With an ID check, it restores your wallet on a new phone.',
+    'Keep this at home, offline. It restores your wallet on a new phone.',
   ].join('\n')
   return { address, kit }
 }
 
 /** The recovery key in a pasted or uploaded Recovery Kit. */
 export const kitKey = (text: string) => text.match(/0x[0-9a-fA-F]{64}/)?.[0] as Hex | undefined
+
+/** The identity check of a wallet without a Swissquote account: its Recovery Kit signs, and this browser gets the wallet's session. */
+export async function checkKit(kit: Hex) {
+  const at = Math.floor(Date.now() / 1000)
+  const signature = await privateKeyToAccount(kit).signMessage({ message: kitProof(at) })
+  await api('POST', '/api/recovery', { at, signature })
+}
 
 /**
  * Recovery on this browser, after the identity check: a new passkey and key ceremony, then an

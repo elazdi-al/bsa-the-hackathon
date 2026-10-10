@@ -1,6 +1,6 @@
 import { toHex } from 'viem'
 import type { Passkey } from '@/lib/wallet/account.ts'
-import { HttpError, requireClient, route } from '@/lib/wallet/api/clients.ts'
+import { clientOrNewWallet, HttpError, requireClient, route } from '@/lib/wallet/api/clients.ts'
 import { getWallet, requireIdentityCheck, swissquote } from '@/lib/wallet/api/operations.ts'
 import { chain, signerUrls } from '@/lib/wallet/env.ts'
 import { signTicket } from '@/lib/wallet/tickets.ts'
@@ -8,11 +8,12 @@ import { signTicket } from '@/lib/wallet/tickets.ts'
 /**
  * Tickets a 2-of-3 key ceremony between the phone (Share A), Swissquote (B) and the partner (C),
  * bound to the client and the passkey the phone just created. The phone then runs the ceremony
- * directly against both signers.
+ * directly against both signers. Creating a wallet needs no Swissquote account: without a session,
+ * this starts one for the new wallet.
  */
 export const POST = route(async (request: Request) => {
-  const client = await requireClient()
   const { passkey, purpose } = (await request.json()) as { passkey: Passkey; purpose: 'create' | 'recovery' }
+  const client = purpose === 'create' ? await clientOrNewWallet() : await requireClient()
   const wallet = getWallet(client.id)
 
   if (purpose === 'create' && wallet) throw new HttpError(409, 'you already have a wallet, recover it instead')

@@ -79,6 +79,12 @@ export function encodeRecoverySignature(mpcSignature: Hex, confirmationSignature
   return concat(['0x01', encodeAbiParameters([{ type: 'bytes' }, { type: 'bytes' }], [mpcSignature, confirmationSignature])])
 }
 
+/**
+ * What the Recovery Kit's confirmation key signs (EIP-191) to prove a wallet without a Swissquote
+ * account is yours. `at` is the time in seconds, so a signature seen once cannot be replayed later.
+ */
+export const kitProof = (at: number) => `Recover my Swissquote Wallet, ${at}`
+
 const dummyEcdsa: Hex = `0x${'11'.repeat(32)}${'22'.repeat(32)}1b`
 
 /** Well-formed, sized like a real one, so bundler gas estimation (incl. L1 data fee) is realistic. */

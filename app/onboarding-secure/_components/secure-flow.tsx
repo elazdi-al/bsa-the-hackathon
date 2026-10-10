@@ -49,9 +49,10 @@ export function SecureFlow() {
     setError("");
     try {
       if (step.name === "device") {
+        // No session (no Swissquote sign-in needed) or no wallet yet: go ahead. The key ceremony starts the session.
         await api("GET", "/api/wallet").then(
           () => Promise.reject(new Error("You already have a wallet. Recover it instead.")),
-          (e) => (e instanceof ApiError && e.status === 404 ? undefined : Promise.reject(e)),
+          (e) => (e instanceof ApiError && (e.status === 401 || e.status === 404) ? undefined : Promise.reject(e)),
         );
         device.current = await createDeviceKey();
       } else {

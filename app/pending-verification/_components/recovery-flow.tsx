@@ -1,20 +1,22 @@
 "use client";
 
 import { CheckCircleIcon } from "@phosphor-icons/react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { isAddressEqual, type Address } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { api, kitKey, mockSelfie, startRecovery } from "@/lib/wallet/browser";
+import { api, ApiError, checkKit, kitKey, mockSelfie, startRecovery } from "@/lib/wallet/browser";
 import { IdentityIllustration } from "./identity-illustration";
 
 type Stage =
   | { name: "loading" | "identity" | "kit" | "restoring" | "done" }
   | { name: "waiting"; executeAfter: number };
 
-type Pending = { pending: false } | { pending: true; executeAfter: number };
+/** `idCheck`: the wallet has a Swissquote account, so its KYC record is checked before the Recovery Kit. */
+type Pending = ({ pending: false } | { pending: true; executeAfter: number }) & { idCheck: boolean };
 
 // House entrance (the shared `reveal` and `blurred`, in CSS): each block sharpens in; the delay classes stagger them.
 const enter =
@@ -30,23 +32,30 @@ const restoreDate = (executeAfter: number) =>
   new Date(executeAfter * 1000).toLocaleString("en-GB", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
 
 /**
- * Lost phone, new browser: ID and liveness check, the Recovery Kit, then a new passkey and key ceremony.
- * Swissquote and the partner co-sign initiateRecovery, which waits out the on-chain delay; the client can
- * cancel during it and anyone can finalize after it.
+ * Lost phone, new browser: the identity check, the Recovery Kit, then a new passkey and key ceremony.
+ * Swissquote clients pass the ID and liveness check first. A wallet without a Swissquote account starts
+ * with its Recovery Kit, which proves it is yours and finds it. Swissquote and the partner co-sign
+ * initiateRecovery, which waits out the on-chain delay; the old phone can cancel during it and anyone
+ * can finalize after it.
  */
 export function RecoveryFlow() {
   const router = useRouter();
   const [stage, setStage] = useState<Stage>({ name: "loading" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [signIn, setSignIn] = useState(false);
   const [kit, setKit] = useState("");
+  const [idCheck, setIdCheck] = useState(false);
   const [now, setNow] = useState(() => Date.now() / 1000);
 
-  const toPending = (r: Pending) => setStage(r.pending ? { name: "waiting", executeAfter: r.executeAfter } : { name: "identity" });
+  const toPending = (r: Pending) => {
+    setIdCheck(r.idCheck);
+    setStage(r.pending ? { name: "waiting", executeAfter: r.executeAfter } : { name: r.idCheck ? "identity" : "kit" });
+  };
 
   useEffect(() => {
-    // A wallet never used on-chain has no recovery state: the identity step then explains.
-    api<Pending>("GET", "/api/recovery").then(toPending, () => setStage({ name: "identity" }));
+    // No wallet session on this browser (a new phone), or a wallet never used on-chain: the Recovery Kit comes first.
+    api<Pending>("GET", "/api/recovery").then(toPending, () => setStage({ name: "kit" }));
   }, []);
 
   const waiting = stage.name === "waiting";
@@ -59,10 +68,12 @@ export function RecoveryFlow() {
   async function step(run: () => Promise<void>) {
     setBusy(true);
     setError("");
+    setSignIn(false);
     try {
       await run();
     } catch (e) {
       setError((e as Error).message);
+      setSignIn(e instanceof ApiError && e.body.signIn === true);
     } finally {
       setBusy(false);
     }
@@ -78,9 +89,13 @@ export function RecoveryFlow() {
     step(async () => {
       const key = kitKey(kit);
       if (!key) throw new Error("That doesn't look like a Recovery Kit. Paste the whole kit or choose its file.");
-      const { config } = await api<{ config: { confirmationKey: Address } }>("GET", "/api/wallet");
-      if (!isAddressEqual(privateKeyToAccount(key).address, config.confirmationKey)) {
-        throw new Error("This Recovery Kit belongs to another wallet.");
+      if (idCheck) {
+        const { config } = await api<{ config: { confirmationKey: Address } }>("GET", "/api/wallet");
+        if (!isAddressEqual(privateKeyToAccount(key).address, config.confirmationKey)) {
+          throw new Error("This Recovery Kit belongs to another wallet.");
+        }
+      } else {
+        await checkKit(key);
       }
       setStage({ name: "restoring" });
       try {
@@ -101,12 +116,20 @@ export function RecoveryFlow() {
   const cancel = () =>
     step(async () => {
       await api("DELETE", "/api/recovery");
-      setStage({ name: "identity" });
+      setStage({ name: idCheck ? "identity" : "kit" });
     });
 
   const errorLine = (
     <p aria-live="polite" className="mt-4 max-w-[300px] text-[13px] leading-[18px] text-negative first-letter:uppercase empty:hidden">
       {error}
+      {signIn && (
+        <>
+          {" "}
+          <Link href="/sign-in?next=/pending-verification" className="font-medium underline underline-offset-2">
+            Sign in
+          </Link>
+        </>
+      )}
     </p>
   );
 

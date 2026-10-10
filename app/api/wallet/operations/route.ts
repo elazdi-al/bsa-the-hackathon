@@ -1,11 +1,13 @@
 import { encodeFunctionData, type Address, type Hex } from 'viem'
 import { accountAbi, stubRecoverySignature, stubSignature, type Call, type Passkey } from '@/lib/wallet/account.ts'
-import { HttpError, requireClient, route } from '@/lib/wallet/api/clients.ts'
+import { hasSwissquoteAccount, HttpError, requireClient, route } from '@/lib/wallet/api/clients.ts'
 import { audit, db } from '@/lib/wallet/api/db.ts'
 import { prepare, requireIdentityCheck, requireShare, requireWallet } from '@/lib/wallet/api/operations.ts'
 import { decide } from '@/lib/wallet/api/policy.ts'
 import { publicClient, signerUrls } from '@/lib/wallet/env.ts'
 
+// ponytail: the quota is per client, and wallets without a Swissquote account cost nothing to open;
+// production rate-limits sponsorship for them.
 const MONTHLY_SPONSORED_OPS = 30
 
 type Body =
@@ -45,7 +47,10 @@ export const POST = route(async (request: Request) => {
   }
   const pinOk = body.stepUp?.pin === client.pin // MOCKED Swissquote PIN
   const selfieOk = body.stepUp?.selfie === client.kycFace // MOCKED liveness match against KYC photo
-  if ((decision.tier === 'confirm' && !pinOk) || (decision.tier === 'high' && !(pinOk && selfieOk))) {
+  // Step-up uses the Swissquote PIN and KYC photo. A wallet without an account has neither, so Face ID
+  // alone approves it, as in any wallet; screening and the block still apply.
+  const stepUp = (decision.tier === 'confirm' && !pinOk) || (decision.tier === 'high' && !(pinOk && selfieOk))
+  if (stepUp && hasSwissquoteAccount(client.id)) {
     throw new HttpError(403, 'confirmation required', { decision, stepUp: decision.tier === 'high' ? ['pin', 'selfie'] : ['pin'] })
   }
 

@@ -12,7 +12,7 @@ import { GlimmField } from "./glimm-field";
 import { FuseLogo } from "./glyphs";
 import { WordWheel } from "./word-wheel";
 
-/** Both buttons leave the same way, to their own route. The client is already signed in to Swissquote. */
+/** Both buttons leave the same way, to their own route. Neither needs a Swissquote sign-in. */
 const ROUTES = { create: "/onboarding-secure", recover: "/pending-verification" } as const;
 type Step = "welcome" | keyof typeof ROUTES;
 

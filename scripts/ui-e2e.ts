@@ -1,15 +1,17 @@
-// The wallet's UI flows in Google Chrome with a virtual passkey authenticator: sign in, create a
-// wallet, send USDC (with the step-up and a blocked recipient), then lose the phone and recover in a
-// fresh browser, cancel once, finish and send again. Same stack as e2e.ts, on a local anvil fork.
-//   EMAIL=anna@example.com PASSWORD=anna PRF=0 npm run e2e:ui     PRF=0: an authenticator without PRF
+// The wallet's UI flows in Google Chrome with a virtual passkey authenticator: create a wallet without
+// signing in to Swissquote, send USDC (and a blocked recipient), then lose the phone and recover in a
+// fresh browser with the Recovery Kit, cancel once, finish and send again. Same stack as e2e.ts, on a
+// local anvil fork.
+//   PRF=0 npm run e2e:ui                                  an authenticator without PRF
+//   EMAIL=anna@example.com PASSWORD=anna npm run e2e:ui   as a Swissquote client: PIN step-up and ID check
 import { chromium, type Page } from 'playwright'
 import { encodeAbiParameters, erc20Abi, formatUnits, keccak256, numberToHex, parseUnits, type Address } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { addresses, publicClient } from '../lib/wallet/env.ts'
 
 const APP = process.env.API_URL ?? 'http://localhost:3000'
-const EMAIL = process.env.EMAIL ?? 'claire@example.com'
-const PASSWORD = process.env.PASSWORD ?? 'claire'
+const EMAIL = process.env.EMAIL
+const PASSWORD = process.env.PASSWORD ?? ''
 const PRF = process.env.PRF !== '0'
 const FRIEND = privateKeyToAccount(generatePrivateKey()).address
 const SANCTIONED: Address = '0x098B716B8Aaf21512996dC57EB0615e2383E2f96'
@@ -39,11 +41,14 @@ async function phone() {
   return page
 }
 
+/** The optional Swissquote sign-in, when EMAIL is set. */
 async function signIn(page: Page) {
+  if (!EMAIL) return
   await page.goto(`${APP}/sign-in`)
   await page.getByPlaceholder('Email').fill(EMAIL)
   await page.getByPlaceholder('Password').fill(PASSWORD)
   await page.getByRole('button', { name: 'Sign in' }).click()
+  await page.waitForURL((url) => url.pathname !== '/sign-in')
 }
 
 const usdc = (address: Address) =>
@@ -61,7 +66,7 @@ async function send(page: Page, to: Address, amount: string) {
 }
 
 async function recover(page: Page, kit: string) {
-  await page.getByRole('button', { name: 'Scan ID and take selfie' }).click()
+  if (EMAIL) await page.getByRole('button', { name: 'Scan ID and take selfie' }).click()
   await page.locator('input[type=file]').setInputFiles(kit)
   await page.getByRole('button', { name: 'Restore with Face ID' }).click()
   await page.getByText('Your wallet will be restored on').waitFor(SLOW)
@@ -69,13 +74,16 @@ async function recover(page: Page, kit: string) {
 
 // ---------------------------------------------------------------- create
 
-console.log(`1. Sign in, Device Key (passkey${PRF ? ' with PRF' : ', no PRF'}), Swissquote Key (ceremony), Recovery Kit`)
+console.log(
+  `1. ${EMAIL ? `Sign in as ${EMAIL}` : 'No sign-in'}, Device Key (passkey${PRF ? ' with PRF' : ', no PRF'}), Swissquote Key (ceremony), Recovery Kit`,
+)
 const phone1 = await phone()
 await signIn(phone1)
+await phone1.goto(`${APP}/onboarding-welcome`)
 await phone1.getByRole('link', { name: 'Create wallet' }).click()
 await phone1.getByRole('button', { name: 'Create Device Key' }).click()
 await phone1.getByRole('button', { name: 'Create Swissquote Key' }).click(SLOW)
-await phone1.getByLabel('Email').fill(EMAIL)
+await phone1.getByLabel('Email').fill(EMAIL ?? 'me@example.com')
 await phone1.getByRole('button', { name: 'Send code' }).click()
 await phone1.getByLabel('6-digit code').fill('123456')
 const download = phone1.waitForEvent('download', SLOW)
@@ -104,33 +112,42 @@ await publicClient.request({
 console.log('2. Send 20 USDC: deploys the account, Swissquote pays the gas')
 await send(phone1, FRIEND, '20')
 
-console.log('3. Step-up above CHF 1,000, and a sanctioned recipient is blocked')
+console.log(`3. ${EMAIL ? 'PIN step-up' : 'No Swissquote PIN, so no step-up'} above CHF 1,000, and a sanctioned recipient is blocked`)
 await phone1.goto(`${APP}/send-hide-my-wallet?to=${FRIEND}`)
 await phone1.getByLabel('Amount in USDC').fill('2000')
 await phone1.getByRole('button', { name: 'Continue' }).click()
-await phone1.getByText('This is a larger payment').waitFor(SLOW)
-await phone1.getByLabel('Swissquote PIN').fill('1234')
-await phone1.getByRole('button', { name: 'Continue' }).click()
+if (EMAIL) {
+  await phone1.getByText('This is a larger payment').waitFor(SLOW)
+  await phone1.getByLabel('Swissquote PIN').fill('1234')
+  await phone1.getByRole('button', { name: 'Continue' }).click()
+}
 await phone1.getByRole('list', { name: 'Summary' }).waitFor(SLOW)
-console.log('  PIN accepted, summary shown')
+console.log(`  ${EMAIL ? 'PIN accepted, ' : ''}summary shown for 2,000 USDC`)
 await phone1.goto(`${APP}/send-hide-my-wallet?to=${SANCTIONED}`)
 await phone1.getByRole('button', { name: 'Continue' }).click()
 console.log(`  ${(await phone1.getByText("We can't co-sign this payment").locator('..').innerText(SLOW)).replaceAll('\n', ' ')}`)
 
 // ---------------------------------------------------------------- lose the phone
 
-console.log('4. New phone: an impostor fails the liveness check')
 const phone2 = await phone()
 await signIn(phone2)
-await phone2.waitForURL('**/home')
 await phone2.goto(`${APP}/pending-verification`)
-await phone2.getByRole('button', { name: 'Simulate someone else' }).click()
-console.log(`  ${await phone2.getByText('Identity check failed').innerText(SLOW)}`)
+if (EMAIL) {
+  console.log('4. New phone: an impostor fails the liveness check')
+  await phone2.getByRole('button', { name: 'Simulate someone else' }).click()
+  console.log(`  ${await phone2.getByText('Identity check failed').innerText(SLOW)}`)
+} else {
+  console.log('4. New phone: a made-up Recovery Kit is refused')
+  const fake = Buffer.from(`Recovery key: ${generatePrivateKey()}`)
+  await phone2.locator('input[type=file]').setInputFiles({ name: 'kit.txt', mimeType: 'text/plain', buffer: fake })
+  await phone2.getByRole('button', { name: 'Restore with Face ID' }).click()
+  console.log(`  ${await phone2.getByText("doesn't belong to any wallet").innerText(SLOW)}`)
+}
 
-console.log('5. ID check, Recovery Kit, new passkey and ceremony, then cancel it')
+console.log(`5. ${EMAIL ? 'ID check, ' : ''}Recovery Kit, new passkey and ceremony, then cancel it`)
 await recover(phone2, kit)
 await phone2.getByRole('button', { name: 'Cancel recovery' }).click()
-await phone2.getByRole('button', { name: 'Scan ID and take selfie' }).waitFor(SLOW)
+await phone2.getByRole('button', { name: EMAIL ? 'Scan ID and take selfie' : 'Restore with Face ID' }).waitFor(SLOW)
 
 console.log('6. Again, wait out the delay and finish')
 await recover(phone2, kit)

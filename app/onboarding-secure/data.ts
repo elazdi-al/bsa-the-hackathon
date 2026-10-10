@@ -43,7 +43,7 @@ export const KEYS: readonly WalletKey[] = [
 
 export const SETUP = {
   working: { title: "Setting up your wallet", body: "Hold tight while we're getting your wallet ready." },
-  ready: { title: "Your wallet is ready!", body: "Linked to your Swissquote account. Save your Recovery Kit and keep it at home." },
+  ready: { title: "Your wallet is ready!", body: "Save your Recovery Kit and keep it at home. It gets you back in on a new phone." },
 } as const;
 
 export const CODE_SENT = "We've sent you a 6-digit code to";

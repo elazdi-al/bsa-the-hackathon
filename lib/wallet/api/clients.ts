@@ -1,10 +1,13 @@
 // MOCKED: Swissquote sign-in, client records and KYC data. Demo fixtures only.
-import { createHmac, timingSafeEqual } from 'node:crypto'
+// Signing in is optional: a wallet created without it gets a session of its own, with no
+// Swissquote account behind it (no KYC record, no PIN).
+import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto'
 import { cookies } from 'next/headers'
 
-export type Client = { id: string; email: string; password: string; name: string; kycFace: string; pin: string }
+/** A Swissquote client, or just an `id` for the session of a wallet created without signing in. */
+export type Client = { id: string; email?: string; password?: string; name?: string; kycFace?: string; pin?: string }
 
-export const clients: Client[] = [
+export const clients: Required<Client>[] = [
   { id: '123456', email: 'claire@example.com', password: 'claire', name: 'Claire Dubois', kycFace: 'claire', pin: '1234' },
   { id: '234567', email: 'anna@example.com', password: 'anna', name: 'Anna Muster', kycFace: 'anna', pin: '1234' },
 ]
@@ -36,17 +39,48 @@ const COOKIE = 'sq_session'
 const secret = process.env.SESSION_SECRET ?? 'dev-only-session-secret'
 const mac = (clientId: string) => createHmac('sha256', secret).update(clientId).digest('base64url')
 
-export async function signIn(email: string, password: string): Promise<Client> {
+const NO_ACCOUNT = 'wallet-'
+// Chrome caps cookies at 400 days.
+const WALLET_SESSION = 400 * 24 * 3600
+
+/** False for a wallet created without signing in: no KYC record to recover with, no PIN to step up with. */
+export const hasSwissquoteAccount = (clientId: string) => !clientId.startsWith(NO_ACCOUNT)
+
+/** Binds this browser to the client. A wallet without an account has no other login, so its session outlives the browser's. */
+export async function startSession(clientId: string) {
+  ;(await cookies()).set(COOKIE, `${clientId}.${mac(clientId)}`, {
+    httpOnly: true,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: hasSwissquoteAccount(clientId) ? undefined : WALLET_SESSION,
+  })
+}
+
+export async function signIn(email: string, password: string) {
   const client = clients.find((c) => c.email === email && c.password === password)
   if (!client) throw new HttpError(401, 'wrong email or password')
-  ;(await cookies()).set(COOKIE, `${client.id}.${mac(client.id)}`, { httpOnly: true, sameSite: 'lax', path: '/' })
+  await startSession(client.id)
   return client
 }
 
-export async function requireClient(): Promise<Client> {
+async function sessionClient(): Promise<Client | undefined> {
   const [id, tag] = (await cookies()).get(COOKIE)?.value.split('.') ?? []
   const ok = id && tag && tag.length === mac(id).length && timingSafeEqual(Buffer.from(tag), Buffer.from(mac(id)))
-  const client = ok ? clients.find((c) => c.id === id) : undefined
-  if (!client) throw new HttpError(401, 'sign in to Swissquote first')
+  if (!ok) return undefined
+  return hasSwissquoteAccount(id) ? clients.find((c) => c.id === id) : { id }
+}
+
+export async function requireClient(): Promise<Client> {
+  const client = await sessionClient()
+  if (!client) throw new HttpError(401, 'there is no wallet on this browser yet: create one, or recover yours')
   return client
+}
+
+/** The current session, or a new one for a wallet created without signing in to Swissquote. */
+export async function clientOrNewWallet(): Promise<Client> {
+  const client = await sessionClient()
+  if (client) return client
+  const id = `${NO_ACCOUNT}${randomUUID()}`
+  await startSession(id)
+  return { id }
 }
