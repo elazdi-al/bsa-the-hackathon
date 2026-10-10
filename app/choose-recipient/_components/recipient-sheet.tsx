@@ -22,8 +22,6 @@ export function RecipientSheet({ open, onOpenChange, onClosed }: Props) {
     <MotionConfig reducedMotion="user" transition={snappy}>
       <Drawer
         open={open}
-        // Open on mount (the route, arriving or back from the review) means it's already there: no slide in.
-        defaultOpen={open}
         onOpenChange={(isOpen) => {
           if (!isOpen) sendDraft.clear();
           onOpenChange(isOpen);
