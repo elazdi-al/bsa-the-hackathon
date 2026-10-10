@@ -3,6 +3,7 @@
 import { ArrowDownIcon, ArrowsClockwiseIcon, ClockIcon, GearSixIcon, HouseSimpleIcon, PaperPlaneTiltIcon, PlusIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion, type Variants } from "motion/react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { column } from "./column";
 import { blurred, leave, sharp, snappy } from "./transitions";
@@ -14,6 +15,12 @@ const actions: Action[] = [
   { label: "Send", icon: <PaperPlaneTiltIcon weight="fill" size={30} className="text-[#8a52f5]" />, href: "/choose-recipient" },
   { label: "Swap", icon: <ArrowsClockwiseIcon weight="bold" size={30} className="text-[#2059f2]" /> },
 ];
+
+const tabs = [
+  { href: "/home", label: "Home", Icon: HouseSimpleIcon },
+  { href: "/history", label: "History", Icon: ClockIcon },
+  { href: "/settings", label: "Settings", Icon: GearSixIcon },
+] as const;
 
 const rowPitch = 68; // menu row height + gap; the last row sits exactly on the FAB
 
@@ -39,6 +46,7 @@ const navIcon = "grid h-12 w-[54px] place-items-center rounded-full outline-none
 const menuItem = "flex h-12 items-center gap-3.5 rounded-full pl-4 text-[20px] font-medium outline-none transition-transform duration-150 focus-visible:ring-2 focus-visible:ring-black/20 active:scale-[0.96]";
 
 export function BottomBar() {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const fab = useRef<HTMLButtonElement>(null);
 
@@ -60,17 +68,23 @@ export function BottomBar() {
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-20 [--bar-pb:calc(max(env(safe-area-inset-bottom),8px)+8px)]">
-      <nav aria-label="Main" className="bg-linear-to-t from-white from-70% to-white/0 pt-6 pb-(--bar-pb)">
+      <nav aria-label="Main" style={{ viewTransitionName: "tab-bar" }} className="bg-linear-to-t from-white from-70% to-white/0 pt-6 pb-(--bar-pb)">
         <div className={`${column} flex items-center`}>
-          <Link href="/home" aria-current="page" aria-label="Home" className={`${navIcon} text-black`}>
-            <HouseSimpleIcon weight="fill" size={25} />
-          </Link>
-          <Link href="/transaction-tracking" aria-label="History" className={`${navIcon} text-[#a8a8a8]`}>
-            <ClockIcon weight="fill" size={25} />
-          </Link>
-          <button type="button" aria-label="Settings" className={`${navIcon} text-[#a8a8a8]`}>
-            <GearSixIcon weight="fill" size={25} />
-          </button>
+          {tabs.map(({ href, label, Icon }) => {
+            const active = pathname === href;
+            return (
+              <Link
+                key={href}
+                href={href}
+                transitionTypes={["tab"]}
+                aria-current={active ? "page" : undefined}
+                aria-label={label}
+                className={`${navIcon} transition-[color,scale] duration-150 active:scale-[0.96] ${active ? "text-black" : "text-[#a8a8a8] hover:text-[#8a8a8a]"}`}
+              >
+                <Icon weight="fill" size={25} />
+              </Link>
+            );
+          })}
 
           <motion.button
             ref={fab}

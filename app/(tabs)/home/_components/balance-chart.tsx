@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { balance, defaultRange, ranges, series, type Range } from "../data";
 import { BlurMoney } from "./blur-money";
-import { smooth, snappy } from "./transitions";
+import { smooth, snappy } from "../../_components/transitions";
 
 export function BalanceChart() {
   const [range, setRange] = useState<Range>(defaultRange);

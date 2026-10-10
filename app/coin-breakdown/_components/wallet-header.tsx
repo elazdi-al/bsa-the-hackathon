@@ -26,7 +26,7 @@ export function WalletHeader() {
         <CopyAddress />
       </div>
       <Link
-        href="/transaction-tracking"
+        href="/history"
         aria-label="History"
         className="-mr-2.5 grid size-11 place-items-center rounded-full text-[#b7b7b7] transition-transform duration-150 ease-out active:scale-[0.96]"
       >

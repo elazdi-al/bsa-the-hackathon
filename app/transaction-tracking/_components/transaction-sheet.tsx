@@ -60,7 +60,7 @@ export function TransactionSheet() {
         open={open}
         onOpenChange={setOpen}
         onAnimationEnd={(isOpen) => {
-          if (!isOpen) router.push("/home");
+          if (!isOpen) router.push("/history");
         }}
       >
         {/* The shared handle sits outside the layout animation and would jump when the tracker folds, so the header draws its own. */}

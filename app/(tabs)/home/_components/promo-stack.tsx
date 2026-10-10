@@ -7,7 +7,7 @@ import { useEffect, useReducer, type ReactNode } from "react";
 import { promoInterval, promos, type Promo } from "../data";
 import { tileSurface } from "./asset-tile";
 import { FuseEarnIcon, FusePlusIcon, GlassesIcon } from "./icons";
-import { blurred, leave, reveal, sharp, smooth } from "./transitions";
+import { blurred, leave, reveal, sharp, smooth } from "../../_components/transitions";
 
 type Action = "advance" | "dismiss" | "restore";
 type State = { cards: Promo[]; index: number; last: Action };

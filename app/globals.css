@@ -78,3 +78,42 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Tab switches (links tagged with the `tab` transition type) cross-fade through a light blur.
+   The bar is named so it stays put above the fading pages. */
+::view-transition {
+  pointer-events: none;
+}
+::view-transition-old(.tab) {
+  animation: 120ms cubic-bezier(0.23, 1, 0.32, 1) both tab-fade reverse;
+}
+::view-transition-new(.tab) {
+  animation: 220ms cubic-bezier(0.23, 1, 0.32, 1) 60ms both tab-fade;
+}
+::view-transition-group(tab-bar) {
+  animation: none;
+  z-index: 100;
+}
+::view-transition-old(tab-bar) {
+  display: none;
+}
+::view-transition-new(tab-bar) {
+  animation: none;
+}
+@keyframes tab-fade {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(.tab),
+  ::view-transition-new(.tab) {
+    animation-name: tab-fade-flat;
+  }
+  @keyframes tab-fade-flat {
+    from {
+      opacity: 0;
+    }
+  }
+}

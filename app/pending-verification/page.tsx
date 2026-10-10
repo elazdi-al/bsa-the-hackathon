@@ -12,7 +12,7 @@ export default function Page() {
   return (
     <main className="relative grid min-h-dvh w-full place-items-center overflow-hidden bg-[#f2f2f2] px-6 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
       <Link
-        href="/home"
+        href="/settings"
         aria-label="Close"
         className="absolute top-[calc(env(safe-area-inset-top)+8px)] right-2 grid size-11 place-items-center rounded-full text-black/20 transition-[color,scale] duration-150 ease-out hover:text-black/30 focus-visible:outline-2 focus-visible:outline-black/40 active:scale-[0.96]"
       >

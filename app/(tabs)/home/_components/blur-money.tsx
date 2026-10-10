@@ -1,9 +1,8 @@
 "use client";
 
 import { motion } from "motion/react";
-import { blurred, reveal, sharp } from "./transitions";
-
-const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+import { usd } from "../../_components/money";
+import { blurred, reveal, sharp } from "../../_components/transitions";
 
 /** A dollar amount that types in glyph by glyph, each one sharpening out of a blur. Cents are grey. */
 export function BlurMoney({ value, delay, step }: { value: number; delay: number; step: number }) {
