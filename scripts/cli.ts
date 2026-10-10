@@ -14,6 +14,7 @@ import {
   isAddressEqual,
   numberToHex,
   parseEther,
+  parseUnits,
   recoverMessageAddress,
   type Address,
   type Hex,
@@ -23,7 +24,7 @@ import { generatePrivateKey, privateKeyToAddress } from "viem/accounts";
 import { foundry } from "viem/chains";
 import { ownershipMessage } from "../lib/wallet/account.ts";
 import { addresses, chain, credentials, partnerUrl, pendingRecovery, publicClient } from "../lib/wallet/env.ts";
-import { ApiError, readRecoveryKey, RECOVERY_FILE, type Device, type SignedIn } from "../lib/wallet/phone.ts";
+import { ApiError, readRecoveryKey, RECOVERY_FILE, type Device, type SignedIn, type WalletState } from "../lib/wallet/phone.ts";
 import { setSunset } from "../lib/wallet/sunset.ts";
 import { attack } from "./attack.ts";
 import { APP, mintUsdc, newPhone, sendEth } from "./software-phone.ts";
@@ -88,23 +89,25 @@ async function setLock(name: string, method: "POST" | "DELETE") {
   return json as { wallet: Address; signer: Address };
 }
 
-function walletRows() {
+/** Reads Swissquote's database; nothing before the app first opened it. */
+function query<T>(sql: string): T[] {
   const path = process.env.SWISSQUOTE_DB ?? "data/swissquote.db";
   if (!existsSync(path)) return [];
   const db = new DatabaseSync(path, { readOnly: true });
   try {
-    // Swissquote's own view: each wallet's owner from its client records, which only the bank sees.
-    return db
-      .prepare(
-        `select address, config, owners.client, owners.signature, clients.kyc from wallets
-         left join owners on owners.wallet = wallets.address left join clients on clients.number = owners.client
-         order by wallets.created_at`,
-      )
-      .all() as { address: Address; config: string; client: string | null; signature: Hex | null; kyc: string | null }[];
+    return db.prepare(sql).all() as T[];
   } finally {
     db.close();
   }
 }
+
+// Swissquote's own view: each wallet's owner from its client records, which only the bank sees.
+const walletRows = () =>
+  query<{ address: Address; config: string; client: string | null; signature: Hex | null; kyc: string | null }>(
+    `select address, config, owners.client, owners.signature, clients.kyc from wallets
+     left join owners on owners.wallet = wallets.address left join clients on clients.number = owners.client
+     order by wallets.created_at`,
+  );
 
 /** Who owns the wallet, and whether the key the wallet was created with signed the ownership statement Swissquote keeps. */
 async function ownerLine(wallet: Address, signer: Address, client: string, signature: Hex, kyc: string | null) {
@@ -113,6 +116,9 @@ async function ownerLine(wallet: Address, signer: Address, client: string, signa
   const proof = isAddressEqual(by, signer) ? "ownership signed by the wallet key" : "OWNERSHIP SIGNATURE DOES NOT MATCH THE WALLET KEY";
   return `owner: ${name}Swissquote client ${client} (mock), ${proof}`;
 }
+
+/** Swissquote reads the wallet as the app does, which sends its held payments that are due. */
+const heldOf = async (wallet: Address) => ((await (await fetch(`${APP}/api/wallets/${wallet}`)).json()) as WalletState).held;
 
 function usdcAmount(text: string) {
   if (!/^\d+(\.\d{1,6})?$/.test(text)) throw new Error(`${text} is not a USDC amount, like 25 or 0.5.`);
@@ -293,12 +299,29 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
       usdcAmount(amount);
       const from = loadAccount(fromName);
       const to = walletOf(toArg);
-      const hash = await from.phone.sendUsdc(to, amount);
+      const sent = await from.phone.sendUsdc(to, amount);
+      if ("releaseAt" in sent) {
+        const { time } = await chainClock();
+        console.log(`Over 1,000 USDC, so Swissquote holds it for 24 hours. ${fromName} can cancel it until then.`);
+        console.log(
+          table(
+            [
+              ["Held", `${usdc(parseUnits(amount, 6))} to ${toArg}`],
+              ["Leaves", `${when(sent.releaseAt)}, in ${duration(sent.releaseAt - time)}`],
+              ["Payment", sent.hash],
+              ["To release", "npm run warp 24"],
+              ["To cancel", `npm run cancel-payment ${fromName}`],
+            ],
+            "",
+          ),
+        );
+        return;
+      }
       const [fromBalance, toBalance] = await Promise.all([usdcOf(from.phone.device()!.address!), usdcOf(to)]);
       console.log(
         table(
           [
-            ["Transaction", hash],
+            ["Transaction", sent.transactionHash],
             [fromName, usdc(fromBalance)],
             [toArg, usdc(toBalance)],
           ],
@@ -437,17 +460,40 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
     },
   },
 
+  "cancel-payment": {
+    usage: "cancel-payment <account> [payment]",
+    about: "Cancel an account's held payments, or one of them, through Swissquote, signed with the Recovery Key.",
+    async run([name, hash]) {
+      const { phone, recoveryKey } = loadAccount(name);
+      const payments = (await phone.state()).held.filter((p) => !hash || p.hash === hash);
+      if (!payments.length) throw new Error(hash ? `${name} has no held payment ${hash}.` : `${name} has no held payments.`);
+      for (const payment of payments) await phone.cancelPaymentWithSwissquote(recoveryKey, payment.hash);
+      console.log(table(payments.map((p) => ["Cancelled", `${usdc(BigInt(p.value))} to ${p.to}`, p.hash]), ""));
+    },
+  },
+
   warp: {
     usage: "warp [hours=48]",
-    about: "Move chain time ahead, so a pending recovery can finish.",
+    about: "Move chain time ahead, so a pending recovery can finish and held payments that are due leave.",
     async run([hours = "48"]) {
       const seconds = Math.round(Number(hours) * 3600);
       if (!Number.isFinite(seconds) || seconds <= 0) throw new Error(`${hours} is not a number of hours, like 48.`);
       if (chain.id !== foundry.id) throw new Error("warp only works on the local anvil chain.");
+      const wallets = query<{ wallet: Address }>("select distinct wallet from held where stopped is null").map((row) => row.wallet);
+      const before = (await Promise.all(wallets.map(heldOf))).flat().filter((p) => !p.stopped);
       await publicClient.request({ method: "evm_increaseTime", params: [numberToHex(seconds)] } as never);
       await publicClient.request({ method: "evm_mine", params: [] } as never);
       const { time } = await chainClock();
       console.log(`Chain time is now ${when(time)}, ${drift(time)}.`);
+      const after = new Map((await Promise.all(wallets.map(heldOf))).flat().map((p) => [p.hash, p]));
+      const rows = before.map((p) => {
+        const now = after.get(p.hash);
+        const payment = `${usdc(BigInt(p.value))} to ${p.to}`;
+        if (!now) return ["Released", payment];
+        if (now.stopped) return ["Stopped", payment, now.stopped];
+        return ["Held", payment, `leaves in ${duration(now.releaseAt - time)}`];
+      });
+      if (rows.length) console.log(table(rows, ""));
     },
   },
 

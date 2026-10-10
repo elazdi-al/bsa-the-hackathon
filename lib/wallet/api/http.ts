@@ -36,6 +36,9 @@ export async function parse<T extends z.ZodType>(request: Request, schema: T): P
   return schema.parse(body);
 }
 
+/** The passkey's rpId: the hostname the phone reached. next start puts its own listen address in request.url, so read Host. */
+export const rpId = (request: Request) => new URL(`http://${request.headers.get("host")}`).hostname;
+
 /**
  * True when `wire` is the wallet passkey's assertion, with Face ID, over `challenge`. Swissquote's API pins
  * the passkey to the hostname it is reached at (`rpId`); the chain and the partner check only the key.
