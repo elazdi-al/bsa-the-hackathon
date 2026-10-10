@@ -2,23 +2,29 @@
 
 import { CornersOutIcon } from "@phosphor-icons/react";
 import { MotionConfig } from "motion/react";
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { useBack } from "@/components/navigation";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
+import { AddressCard } from "./address-card";
 import { swapSpring } from "./motion";
+import { RecentAddresses } from "./recent-addresses";
 
-export function RecipientSheet({ children }: { children: ReactNode }) {
-  const back = useBack("/home");
-  const [open, setOpen] = useState(true);
+type Props = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** After the user dismisses the sheet, once it has slid away. Not called when Continue navigates on. */
+  onClosed: () => void;
+};
 
+export function RecipientSheet({ open, onOpenChange, onClosed }: Props) {
   return (
     <MotionConfig reducedMotion="user" transition={swapSpring}>
       <Drawer
         open={open}
-        onOpenChange={setOpen}
+        onOpenChange={onOpenChange}
         onAnimationEnd={(isOpen) => {
-          if (!isOpen) back();
+          if (!isOpen) onClosed();
         }}
       >
         <DrawerContent
@@ -31,9 +37,16 @@ export function RecipientSheet({ children }: { children: ReactNode }) {
               <CornersOutIcon size={31} />
             </Button>
           </header>
-          {children}
+          <AddressCard />
+          <RecentAddresses />
         </DrawerContent>
       </Drawer>
     </MotionConfig>
   );
+}
+
+/** The sheet as its own route, for direct visits: open on arrival, leaving the route once dismissed. */
+export function RecipientSheetRoute() {
+  const [open, setOpen] = useState(true);
+  return <RecipientSheet open={open} onOpenChange={setOpen} onClosed={useBack("/home")} />;
 }

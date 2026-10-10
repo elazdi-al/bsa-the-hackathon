@@ -5,18 +5,19 @@ import { AnimatePresence, motion, type Variants } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { RecipientSheet } from "@/app/choose-recipient/_components/recipient-sheet";
 import { transitionFor } from "@/components/navigation";
 import { column } from "./column";
 import { ReceiveSheet } from "./receive-sheet";
 import { SwapSheet } from "./swap-sheet";
 import { blurred, leave, sharp, snappy } from "./transitions";
 
-type Sheet = "receive" | "swap";
-type Action = { label: string; icon: ReactNode; href?: string; sheet?: Sheet };
+type Sheet = "receive" | "send" | "swap";
+type Action = { label: string; icon: ReactNode; sheet: Sheet };
 
 const actions: Action[] = [
   { label: "Receive", icon: <ArrowDownIcon weight="bold" size={30} className="text-[#ef642c]" />, sheet: "receive" },
-  { label: "Send", icon: <PaperPlaneTiltIcon weight="fill" size={30} className="text-[#8a52f5]" />, href: "/choose-recipient" },
+  { label: "Send", icon: <PaperPlaneTiltIcon weight="fill" size={30} className="text-[#8a52f5]" />, sheet: "send" },
   { label: "Swap", icon: <ArrowsClockwiseIcon weight="bold" size={30} className="text-[#2059f2]" />, sheet: "swap" },
 ];
 
@@ -136,25 +137,18 @@ export function BottomBar() {
             >
               {actions.map((action, i) => (
                 <motion.li key={action.label} custom={i} variants={item} className="origin-right">
-                  {action.href ? (
-                    <Link href={action.href} className={menuItem} autoFocus={i === 0}>
-                      {action.label}
-                      <span className="grid size-12 place-items-center">{action.icon}</span>
-                    </Link>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setOpen(false);
-                        setSheet(action.sheet ?? null);
-                      }}
-                      className={menuItem}
-                      autoFocus={i === 0}
-                    >
-                      {action.label}
-                      <span className="grid size-12 place-items-center">{action.icon}</span>
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpen(false);
+                      setSheet(action.sheet);
+                    }}
+                    className={menuItem}
+                    autoFocus={i === 0}
+                  >
+                    {action.label}
+                    <span className="grid size-12 place-items-center">{action.icon}</span>
+                  </button>
                 </motion.li>
               ))}
             </motion.ul>
@@ -163,6 +157,7 @@ export function BottomBar() {
       </div>
 
       <ReceiveSheet open={sheet === "receive"} onOpenChange={(o) => !o && setSheet(null)} onClosed={() => fab.current?.focus()} />
+      <RecipientSheet open={sheet === "send"} onOpenChange={(o) => !o && setSheet(null)} onClosed={() => fab.current?.focus()} />
       <SwapSheet open={sheet === "swap"} onOpenChange={(o) => !o && setSheet(null)} onClosed={() => fab.current?.focus()} />
     </div>
   );
