@@ -172,11 +172,12 @@ Swissquote Wallet is running. Open ${APP_URL}/onboarding-welcome
   npm run status                     chain, contracts, wallets and accounts
   npm run fund [wallet] [amount]     mint test USDC (default: the newest wallet, 100)
   npm run account <name>             create a wallet with a software passkey
-  npm run send <from> <to> <amount>  send USDC from an account
+  npm run send <from> <to> <amount>  send USDC from an account; over 1,000 USDC, Swissquote holds it 24 hours
+  npm run cancel-payment <account>   cancel held payments with the Recovery Key
   npm run recover <account|file>     start a recovery onto a new phone
   npm run finish <account>           finish a recovery after the 48 hours
   npm run cancel <account>           cancel a recovery with the Recovery Key
-  npm run warp [hours]               move chain time ahead (default 48)
+  npm run warp [hours]               move chain time ahead (default 48); held payments that are due leave
 
 Ctrl-C stops everything.
 `);
