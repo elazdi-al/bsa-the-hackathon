@@ -4,6 +4,11 @@
 
 @theme {
   --color-fuse-blue: #0a4ef7;
+  --color-positive: #30b256;
+  --color-negative: #ff3b30;
+  --color-pending: #ef642c;
+  --color-surface: #fafafa;
+  --color-cents: #dcdcdc;
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
   --animate-caret-blink: caret-blink 1s steps(1) infinite;
 
@@ -46,7 +51,7 @@
 :root {
   --background: #fff;
   --foreground: #000;
-  --card: #fafafa;
+  --card: var(--color-surface);
   --card-foreground: #000;
   --popover: #fff;
   --popover-foreground: #000;
@@ -58,7 +63,7 @@
   --muted-foreground: rgb(0 0 0 / 0.4);
   --accent: #f4f4f4;
   --accent-foreground: #000;
-  --destructive: #ff3b30;
+  --destructive: var(--color-negative);
   --border: rgb(0 0 0 / 0.06);
   --input: rgb(0 0 0 / 0.08);
   --ring: var(--color-fuse-blue);
