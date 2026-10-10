@@ -5,8 +5,9 @@ import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { cn } from "cn";
 import { blurred, leave, sharp, snappy } from "@/app/(tabs)/_components/transitions";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { GlimmField } from "./glimm-field";
 import { AppleLogo, FuseLogo } from "./glyphs";
@@ -84,12 +85,12 @@ export function WelcomeFlow() {
               </motion.span>
             </AnimatePresence>
           </Button>
-          <Button nativeButton={false} render={<Link href={NEXT_ROUTE} />} size="lg" className={`bg-white/15 text-white hover:bg-white/20 ${cta}`}>
+          <Link href={NEXT_ROUTE} className={cn(buttonVariants({ size: "lg" }), "bg-white/15 text-white hover:bg-white/20", cta)}>
             <span className="grid size-4 place-items-center rounded-[4px] bg-white text-[#1B7DF6]">
               <ArrowCounterClockwiseIcon weight="fill" size={11} />
             </span>
             Recover existing wallet
-          </Button>
+          </Link>
         </div>
       </motion.div>
     </MotionConfig>

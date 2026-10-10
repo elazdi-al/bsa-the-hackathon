@@ -41,7 +41,7 @@ export function Welcome() {
         <Benefits />
 
         <motion.div variants={rise} className="mt-auto pt-6 md:mt-0 md:pt-8">
-          <Button onClick={back} variant="inverse" size="lg" className="w-full">
+          <Button onClick={back} variant="inverse" size="lg" className="w-full focus-visible:outline-white/60">
             Continue
           </Button>
         </motion.div>

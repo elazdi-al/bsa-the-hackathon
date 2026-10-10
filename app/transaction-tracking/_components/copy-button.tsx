@@ -1,4 +1,4 @@
-import { CheckIcon, CopyIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, CopyIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState, type ReactNode } from "react";
 
@@ -44,7 +44,7 @@ export function CopyButton({ text, label, children }: { text: string; label: str
               exit={iconHidden}
               transition={iconSwap}
             >
-              {copied ? <CheckIcon size={14} weight="bold" /> : <CopyIcon size={16} weight="duotone" />}
+              {copied ? <CheckCircleIcon size={16} weight="fill" className="text-positive" /> : <CopyIcon size={16} weight="duotone" />}
             </motion.span>
           </AnimatePresence>
         </span>
