@@ -62,7 +62,7 @@ If Swissquote's services are gone for 30 days, the independent service opens exi
 
 ## Why it matters for Swissquote
 
-Swissquote Wallet keeps self-custody clients and their assets in Swissquote's ecosystem instead of losing them to an external wallet. Swissquote can earn from in-app swaps and premium services, and recovery replaces seed-phrase support cases with one scripted flow. The client keeps the signatures needed to spend.
+Swissquote Wallet keeps self-custody clients and their assets at Swissquote instead of losing them to an external wallet. Swissquote's H1 2026 results give about CHF 600 of revenue a year and CHF 79,000 of client assets per account, so each client who leaves takes both. Our model assumes 10,000 wallets, with 1 client in 10 who would otherwise have left and 1 in 10 who is new. That gives 2,000 clients × CHF 600 = CHF 1.2 million a year, and CHF 79 million of assets that stays. Swaps at the published 1% fee and Swissquote Plus about pay for free transfers into the wallet and sponsored gas. Recovery replaces seed-phrase support cases with one scripted flow. The client keeps the signatures needed to spend.
 
 The independent service splits recovery help between two companies. The passkey protects everyday payments. The offline Recovery Key and the on-chain delay protect the replacement of lost keys. Each mechanism covers a different part of the lost-phone problem.
 
