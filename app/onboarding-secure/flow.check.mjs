@@ -13,11 +13,12 @@ const credential = { id: "AbC-123_xyz", passkey: { x: `0x${"01".repeat(32)}`, y:
 const signer = `0x${"ab".repeat(20)}`;
 const recoveryKey = `0x${"cd".repeat(20)}`;
 const address = `0x${"ef".repeat(20)}`;
+const secret = `0x${"12".repeat(32)}`;
 
 let s = run(
   initialFlow,
   { type: "keySplit", signer },
-  { type: "recoverySaved", recoveryKey },
+  { type: "recoverySaved", recoveryKey, secret },
   { type: "registered", address },
   { type: "passkeyCreated", credential },
   { type: "failed", error: "x" },
@@ -60,8 +61,18 @@ s = run(s, { type: "start" }, { type: "failed", error: "Your Recovery Key wasn't
 assert.equal(s.error, "Your Recovery Key wasn't saved. Try again.");
 s = run(s, { type: "start" });
 assert.equal(pendingTimer(s), null, "the recovery key waits on the save");
-s = run(s, { type: "recoverySaved", recoveryKey });
-assert.deepEqual(s, { name: "setup", status: "working", keys: { credential, signer, recoveryKey } });
+s = run(s, { type: "recoverySaved", recoveryKey, secret });
+assert.deepEqual(s, { name: "recovery", status: "saved", keys: { credential, signer, recoveryKey }, secret });
+assert.equal(pendingTimer(s), null, "the saved key waits on the client, not a timer");
+assert.equal(
+  run(s, { type: "start" }, { type: "failed", error: "x" }, { type: "cancelled" }, { type: "recoverySaved", recoveryKey, secret }),
+  s,
+  "the saved key holds until the client confirms",
+);
+assert.deepEqual(["passkey", "key", "recovery"].map((id) => keyState(s, id)), ["done", "done", "active"]);
+assert.equal(toneOf(s), "violet");
+s = run(s, { type: "advance" });
+assert.deepEqual(s, { name: "setup", status: "working", keys: { credential, signer, recoveryKey } }, "confirming hands setup all three keys");
 assert.deepEqual(["passkey", "key", "recovery"].map((id) => keyState(s, id)), ["done", "done", "done"]);
 assert.equal(toneOf(s), "white");
 assert.equal(pendingTimer(s), null, "setup waits on the registration");

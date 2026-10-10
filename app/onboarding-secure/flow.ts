@@ -1,4 +1,4 @@
-import type { Address } from "viem";
+import type { Address, Hex } from "viem";
 import type { Credential } from "@/lib/wallet/phone";
 import type { KeyId, Tone } from "./data";
 
@@ -13,6 +13,8 @@ export type Step =
   | ({ name: "key"; keys: Pick<Keys, "credential"> } & Pending)
   | { name: "key"; status: "split"; keys: Pick<Keys, "credential" | "signer"> }
   | ({ name: "recovery"; keys: Pick<Keys, "credential" | "signer"> } & Pending)
+  // Holds the secret in memory for this beat only, so "Save again" shares the same file.
+  | { name: "recovery"; status: "saved"; keys: Keys; secret: Hex }
   | ({ name: "setup"; keys: Keys } & ({ status: "idle"; error: string } | { status: "working" }))
   | { name: "setup"; status: "registered" | "ready"; address: Address };
 
@@ -20,7 +22,7 @@ export type FlowAction =
   | { type: "start" }
   | { type: "passkeyCreated"; credential: Credential }
   | { type: "keySplit"; signer: Address }
-  | { type: "recoverySaved"; recoveryKey: Address }
+  | { type: "recoverySaved"; recoveryKey: Address; secret: Hex }
   | { type: "registered"; address: Address }
   | { type: "failed"; error: string }
   | { type: "cancelled" }
@@ -51,11 +53,12 @@ export function flowReducer(step: Step, action: FlowAction): Step {
       return step;
     case "advance":
       if (step.name === "key" && step.status === "split") return { name: "recovery", status: "idle", keys: step.keys };
+      if (step.name === "recovery" && step.status === "saved") return { name: "setup", status: "working", keys: step.keys };
       if (step.name === "setup" && step.status === "registered") return { ...step, status: "ready" };
       return step;
     case "recoverySaved":
       if (step.name === "recovery" && step.status === "working")
-        return { name: "setup", status: "working", keys: { ...step.keys, recoveryKey: action.recoveryKey } };
+        return { name: "recovery", status: "saved", keys: { ...step.keys, recoveryKey: action.recoveryKey }, secret: action.secret };
       return step;
     case "registered":
       if (step.name === "setup" && step.status === "working") return { name: "setup", status: "registered", address: action.address };

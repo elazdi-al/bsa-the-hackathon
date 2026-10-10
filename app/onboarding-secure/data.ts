@@ -42,6 +42,9 @@ export const KEYS: readonly WalletKey[] = [
   },
 ];
 
+/** The Recovery Key's step once its file is saved. The wallet registers only after the client confirms they kept it. */
+export const SAVED = { cta: "I saved it off this phone", again: "Save again" } as const;
+
 /** What a step says when its work fails. The browser's own cancel and timeout text is a spec link, not copy. */
 export const FAILED = {
   passkey: "Your passkey wasn't created. Try again.",

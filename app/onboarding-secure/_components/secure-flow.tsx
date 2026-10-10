@@ -6,9 +6,11 @@ import { useEffect, useReducer, useRef } from "react";
 import type { Hex } from "viem";
 import { signedIn, useSignedIn } from "@/app/(tabs)/_components/session";
 import { blurred, sharp, smooth } from "@/app/(tabs)/_components/transitions";
+import { CheckIcon } from "@/components/icons";
 import { SwissquoteMark } from "@/components/swissquote-mark";
+import { Button } from "@/components/ui/button";
 import { phone, RECOVERY_FILE } from "@/lib/wallet/phone";
-import { FAILED, KEYS, SETUP } from "../data";
+import { FAILED, KEYS, SAVED, SETUP } from "../data";
 import { flowReducer, initialFlow, keyState, pendingTimer, toneOf, type Keys } from "../flow";
 import { CreateButton } from "./create-button";
 import { GlimmBackdrop } from "./glimm-backdrop";
@@ -94,8 +96,7 @@ export function SecureFlow() {
             const closed = error instanceof DOMException && error.name === "AbortError";
             return dispatch(closed ? { type: "cancelled" } : { type: "failed", error: FAILED.recovery });
           }
-          dispatch({ type: "recoverySaved", recoveryKey: address });
-          return register({ ...step.keys, recoveryKey: address });
+          return dispatch({ type: "recoverySaved", recoveryKey: address, secret });
         }
         case "setup":
           return register(step.keys);
@@ -105,7 +106,16 @@ export function SecureFlow() {
     }
   };
 
+  const confirmSaved = async (keys: Keys) => {
+    if (pressing.current) return;
+    pressing.current = true;
+    dispatch({ type: "advance" });
+    await register(keys);
+    pressing.current = false;
+  };
+
   const setup = step.name === "setup";
+  const saved = step.name === "recovery" && step.status === "saved";
   const current = KEYS.find((k) => k.id === step.name);
 
   // No LayoutGroup: when an exit finishes, AnimatePresence re-renders its whole group, which restarts every
@@ -148,14 +158,32 @@ export function SecureFlow() {
             <AnimatePresence mode="popLayout" initial={false}>
               {current && (
                 <motion.div key="create" {...blurSwap}>
-                  <CreateButton
-                    label={step.status === "idle" ? current.cta.idle : current.cta.busy}
-                    Icon={current.Icon}
-                    accent={current.accent}
-                    busy={step.status !== "idle"}
-                    error={step.status === "idle" ? step.error : undefined}
-                    onPress={press}
-                  />
+                  {saved ? (
+                    <CreateButton
+                      label={SAVED.cta}
+                      Icon={CheckIcon}
+                      accent={current.accent}
+                      busy={false}
+                      onPress={() => confirmSaved(step.keys)}
+                    />
+                  ) : (
+                    <CreateButton
+                      label={step.status === "idle" ? current.cta.idle : current.cta.busy}
+                      Icon={current.Icon}
+                      accent={current.accent}
+                      busy={step.status !== "idle"}
+                      error={step.status === "idle" ? step.error : undefined}
+                      onPress={press}
+                    />
+                  )}
+                </motion.div>
+              )}
+              {saved && (
+                <motion.div key="again" {...blurSwap}>
+                  {/* The file was saved once already, so closing the sheet or a failed share here changes nothing. */}
+                  <Button size="lg" variant="ghost" onClick={() => saveRecoveryKey(step.secret).catch(() => {})} className="mt-3 w-full">
+                    {SAVED.again}
+                  </Button>
                 </motion.div>
               )}
               {step.name === "setup" && step.status === "idle" && (
