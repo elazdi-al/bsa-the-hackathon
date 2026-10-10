@@ -5,6 +5,7 @@ import { AnimatePresence, motion, type Variants } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { transitionFor } from "@/components/navigation";
 import { column } from "./column";
 import { ReceiveSheet } from "./receive-sheet";
 import { SwapSheet } from "./swap-sheet";
@@ -80,7 +81,7 @@ export function BottomBar() {
               <Link
                 key={href}
                 href={href}
-                transitionTypes={["tab"]}
+                transitionTypes={[transitionFor(pathname, href)]}
                 aria-current={active ? "page" : undefined}
                 aria-label={label}
                 className={`${navIcon} transition-[color,scale] duration-150 active:scale-[0.96] ${active ? "text-black" : "text-[#a8a8a8] hover:text-[#8a8a8a]"}`}
