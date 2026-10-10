@@ -1,109 +1,162 @@
-import { schnorr, secp256k1_FROST as F } from "@noble/curves/secp256k1.js";
-import { bytesToHex, hexToBytes } from "@noble/curves/utils.js";
-import { fromHex, toHex, type Hex } from "./protocol.ts";
+// 2-of-3 threshold ECDSA (DKLs23, Silence Labs) for the wallet's signer key.
+//
+// Party ids: 0 = phone (Share A), 1 = Swissquote (Share B), 2 = independent partner (Share C).
+// Every party exposes the same `step` function whether it runs in this process or behind
+// HTTP, so one orchestrator drives keygen on the phone (A + B + C), normal signing on the
+// phone (A + B) and recovery signing in the Wallet API (B + C).
+import type * as Dkls from '@silencelaboratories/dkls-wasm-ll-node'
+import { Secp256k1 } from 'ox'
+import { hexToBytes, recoverAddress, serializeSignature, toHex, type Address, type Hex } from 'viem'
+import { publicKeyToAddress } from 'viem/accounts'
 
-export type Participant = "phone" | "swissquote" | "backup";
-export type Provider = Exclude<Participant, "phone">;
-export const PROVIDERS: readonly Provider[] = ["swissquote", "backup"];
+/** The -node and -web packages share this API; the web one needs `await init()` first. */
+export type DklsModule = typeof Dkls
 
-export const SIGNERS = { min: 2, max: 3 };
-export const ID: Record<Participant, string> = {
-  phone: F.Identifier.fromNumber(1),
-  swissquote: F.Identifier.fromNumber(2),
-  backup: F.Identifier.fromNumber(3),
-};
+export const PHONE = 0
+export const SWISSQUOTE = 1
+export const PARTNER = 2
 
-export type Key = ReturnType<typeof F.DKG.round3>;
-export type DkgSecret = ReturnType<typeof F.DKG.round1>["secret"];
-export type Round1 = ReturnType<typeof F.DKG.round1>["public"];
-export type Round2 = ReturnType<typeof F.DKG.round2>[string];
-export type Commitments = ReturnType<typeof F.commit>["commitments"];
+export const KEYGEN_STEPS = 5
+export const SIGN_STEPS = 5
 
-/** A FROST value with its bigints and byte arrays made JSON-safe; `T` records what `unpack` gives back. */
-export type Packed<T> = { readonly __packed?: T };
+export type Wire = { from: number; to?: number; payload: string }
 
-export type KeygenTransport = {
-  keygen(round1: Packed<Round1>): Promise<{ token: string; round1: Record<Provider, Packed<Round1>>; round2: Record<Provider, Packed<Round2>> }>;
-  finish(token: string, round2: Record<Provider, Packed<Round2>>): Promise<{ mpcKey: Hex }>;
-};
-
-export type CosignReply = { commitments: Commitments; share: Uint8Array };
-
-export function pack<T>(value: T): Packed<T> {
-  const walk = (v: unknown): unknown => {
-    if (typeof v === "bigint") return { $big: v.toString() };
-    if (v instanceof Uint8Array) return { $hex: bytesToHex(v) };
-    if (Array.isArray(v)) return v.map(walk);
-    if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, walk(x)]));
-    return v;
-  };
-  return walk(value) as Packed<T>;
+export type StepResult = {
+  messages: Wire[]
+  commitment?: string
+  publicKey?: Hex // keygen, last step
+  signature?: { r: Hex; s: Hex } // signing, last step
 }
 
-export function unpack<T>(value: Packed<T>): T {
-  const walk = (v: unknown): unknown => {
-    if (Array.isArray(v)) return v.map(walk);
-    if (v && typeof v === "object") {
-      if ("$big" in v && typeof v.$big === "string") return BigInt(v.$big);
-      if ("$hex" in v && typeof v.$hex === "string") return hexToBytes(v.$hex);
-      return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, walk(x)]));
-    }
-    return v;
-  };
-  return walk(value) as T;
+export type Party = {
+  id: number
+  step(step: number, inbox: Wire[], commitments: string[]): Promise<StepResult>
 }
 
-export function groupKey(key: Key): Hex {
-  return toHex(key.public.commitments[0]);
+const b64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes))
+const unb64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0))
+
+function toWire(m: Dkls.Message): Wire {
+  const wire = { from: m.from_id, to: m.to_id, payload: b64(m.payload) }
+  m.free()
+  return wire
 }
 
-/** The phone's side of the DKG. Keeps P and resolves to it; the providers keep S and B. */
-export async function phoneKeygen(api: KeygenTransport): Promise<Key> {
-  const mine = F.DKG.round1(ID.phone, SIGNERS);
-  const reply = await api.keygen(pack(mine.public));
-  const theirs = PROVIDERS.map((p) => unpack(reply.round1[p]));
-  const toThem = F.DKG.round2(mine.secret, theirs);
-  const key = F.DKG.round3(mine.secret, theirs, PROVIDERS.map((p) => unpack(reply.round2[p])));
-  const { mpcKey } = await api.finish(reply.token, { swissquote: pack(toThem[ID.swissquote]), backup: pack(toThem[ID.backup]) });
-  if (mpcKey !== groupKey(key)) throw new Error("The providers derived a different group key.");
-  return key;
+function fromWire(dkls: DklsModule, w: Wire): Dkls.Message {
+  return new dkls.Message(unb64(w.payload), w.from, w.to)
 }
 
-/** A provider's reply to the phone's round-1 commitments: its own commitments and its signature share. */
-export function cosignShare(key: Key, message: Uint8Array, theirs: Commitments): CosignReply {
-  const mine = F.commit(key.secret);
-  const share = F.signShare(key.secret, key.public, mine.nonces, [theirs, mine.commitments], message);
-  return { commitments: mine.commitments, share };
+/** Runs a protocol to completion. `parties` must be sorted by id (commitment order). */
+export async function run(parties: Party[], steps: number): Promise<StepResult[]> {
+  let pool: Wire[] = []
+  let commitments: string[] = []
+  let results: StepResult[] = []
+  for (let step = 0; step < steps; step++) {
+    results = await Promise.all(
+      parties.map((p) =>
+        p.step(step, pool.filter((m) => m.from !== p.id && (m.to === undefined || m.to === p.id)), commitments),
+      ),
+    )
+    pool = results.flatMap((r) => r.messages)
+    if (results.every((r) => r.commitment)) commitments = results.map((r) => r.commitment!)
+  }
+  return results
 }
 
-/** The phone's side of a two-party signature: commit, ask the remote share, aggregate. */
-export async function cosignWith(key: Key, message: Uint8Array, remote: (mine: Commitments) => Promise<CosignReply>): Promise<Hex> {
-  const mine = F.commit(key.secret);
-  const theirs = await remote(mine.commitments);
-  const commitments = [mine.commitments, theirs.commitments];
-  const share = F.signShare(key.secret, key.public, mine.nonces, commitments, message);
-  return aggregate(key, commitments, message, { [key.secret.identifier]: share, [theirs.commitments.identifier]: theirs.share });
+/** One party of a 2-of-3 key generation. `keyshare()` is set after the last step. */
+export function keygenParty(dkls: DklsModule, id: number) {
+  const session = new dkls.KeygenSession(3, 2, id)
+  let keyshare: Uint8Array | undefined
+  const party: Party & { keyshare: () => Uint8Array | undefined } = {
+    id,
+    keyshare: () => keyshare,
+    async step(step, inbox, commitments) {
+      const msgs = inbox.map((w) => fromWire(dkls, w))
+      switch (step) {
+        case 0:
+          return { messages: [toWire(session.createFirstMessage())] }
+        case 1: {
+          const messages = session.handleMessages(msgs).map(toWire)
+          return { messages, commitment: b64(session.calculateChainCodeCommitment()) }
+        }
+        case 2:
+          return { messages: session.handleMessages(msgs).map(toWire) }
+        case 3:
+          return { messages: session.handleMessages(msgs, commitments.map(unb64)).map(toWire) }
+        case 4: {
+          session.handleMessages(msgs)
+          const share = session.keyshare()
+          keyshare = share.toBytes()
+          const publicKey = toHex(share.publicKey)
+          share.free()
+          return { messages: [], publicKey }
+        }
+      }
+      throw new Error(`keygen has no step ${step}`)
+    },
+  }
+  return party
 }
 
-/** A signature from shares that are all in hand: S+B on the server, or P plus a local copy of B. */
-export function signTogether(message: Uint8Array, keys: Key[]): Hex {
-  const nonces = keys.map((k) => F.commit(k.secret));
-  const commitments = nonces.map((n) => n.commitments);
-  const shares = Object.fromEntries(keys.map((k, i) => [k.secret.identifier, F.signShare(k.secret, k.public, nonces[i].nonces, commitments, message)]));
-  return aggregate(keys[0], commitments, message, shares);
+/** One party of a 2-party signature over `hash` with an existing share. */
+export function signParty(dkls: DklsModule, keyshare: Uint8Array, hash: Hex): Party {
+  const share = dkls.Keyshare.fromBytes(keyshare)
+  const id = share.partyId
+  const session = new dkls.SignSession(share, 'm') // consumes the share
+  return {
+    id,
+    async step(step, inbox) {
+      const msgs = inbox.map((w) => fromWire(dkls, w))
+      switch (step) {
+        case 0:
+          return { messages: [toWire(session.createFirstMessage())] }
+        case 1:
+        case 2:
+          return { messages: session.handleMessages(msgs).map(toWire) }
+        case 3:
+          session.handleMessages(msgs) // pre-signature ready; it is used once, right here
+          return { messages: [toWire(session.lastMessage(hexToBytes(hash)))] }
+        case 4: {
+          const [r, s] = session.combine(msgs) as [Uint8Array, Uint8Array]
+          return { messages: [], signature: { r: toHex(r), s: toHex(s) } }
+        }
+      }
+      throw new Error(`signing has no step ${step}`)
+    },
+  }
 }
 
-function aggregate(key: Key, commitments: Commitments[], message: Uint8Array, shares: Record<string, Uint8Array>): Hex {
-  const signature = F.aggregate(key.public, commitments, message, shares);
-  if (!F.verify(signature, message, key.public.commitments[0])) throw new Error("The signature shares do not combine.");
-  return toHex(signature);
+/** A party behind HTTP: POSTs `{ step, inbox, commitments, ...extra }` to `url`. */
+export function remoteParty(id: number, url: string, extra: Record<string, unknown> = {}): Party {
+  return {
+    id,
+    async step(step, inbox, commitments) {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ...extra, step, inbox, commitments }),
+      })
+      if (!res.ok) throw new Error(`party ${id}: ${res.status} ${await res.text()}`)
+      return res.json()
+    },
+  }
 }
 
-export function createRecoveryKey(): { secret: Hex; publicKey: Hex } {
-  const secret = schnorr.utils.randomSecretKey();
-  return { secret: toHex(secret), publicKey: toHex(schnorr.getPublicKey(secret)) };
+/** Address of the MPC key (compressed secp256k1 public key from the keyshare). */
+export function signerAddress(publicKey: Hex): Address {
+  const point = Secp256k1.noble.ProjectivePoint.fromHex(publicKey.slice(2))
+  return publicKeyToAddress(`0x${point.toHex(false)}`)
 }
 
-export function signWithRecoveryKey(message: Uint8Array, secret: Hex): Hex {
-  return toHex(schnorr.sign(message, fromHex(secret)));
+const SECP256K1_N = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n
+
+/** Turns the protocol's (r, s) into a 65-byte low-s Ethereum signature by `signer`. */
+export async function toEthSignature(sig: { r: Hex; s: Hex }, hash: Hex, signer: Address): Promise<Hex> {
+  let s = BigInt(sig.s)
+  if (s > SECP256K1_N / 2n) s = SECP256K1_N - s
+  for (const yParity of [0, 1]) {
+    const candidate = serializeSignature({ r: sig.r, s: toHex(s, { size: 32 }), yParity })
+    if ((await recoverAddress({ hash, signature: candidate })) === signer) return candidate
+  }
+  throw new Error('MPC signature does not match the wallet key')
 }

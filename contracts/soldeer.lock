@@ -1,0 +1,20 @@
+[[dependencies]]
+name = "@openzeppelin-contracts"
+version = "5.7.0"
+url = "https://soldeer-revisions.s3.amazonaws.com/@openzeppelin-contracts/5_7_0_29-07-2026_19:34:46_contracts.zip"
+checksum = "fe08a24bc34334b2976c6ad69a0d74bdfa63de8a5c8528579060f25a11fb5cd5"
+integrity = "3e13bc4d96bdef6e35f6b1e0dc0e455843a958edc597750dff20ca50295b767d"
+
+[[dependencies]]
+name = "eth-infinitism-account-abstraction"
+version = "0.7"
+url = "https://soldeer-revisions.s3.amazonaws.com/eth-infinitism-account-abstraction/0_7_29-06-2024_08:28:06_eth-infinitism-account-abstraction-0.7.zip"
+checksum = "c102194147224fa5081c78c88af01ee148ea7d799990d98ebbe043c3fc168006"
+integrity = "5a359d8124f0fc9a454310d86b10f3eff96d4d1d0090bcdd85af9ba3a92d030b"
+
+[[dependencies]]
+name = "forge-std"
+version = "1.9.7"
+url = "https://soldeer-revisions.s3.amazonaws.com/forge-std/1_9_7_28-04-2025_15:55:08_forge-std-1.9.zip"
+checksum = "8d9e0a885fa8ee6429a4d344aeb6799119f6a94c7c4fe6f188df79b0dce294ba"
+integrity = "9e60fdba82bc374df80db7f2951faff6467b9091873004a3d314cf0c084b3c7d"
