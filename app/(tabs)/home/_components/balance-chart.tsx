@@ -1,18 +1,24 @@
 "use client";
 
-import { ArrowSquareUpRightIcon } from "@phosphor-icons/react";
+import { ArrowSquareDownRightIcon, ArrowSquareUpRightIcon } from "@phosphor-icons/react";
 import { motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { balance, defaultRange, ranges, series, type Range } from "../data";
-import { BlurMoney } from "./blur-money";
+import { balance, defaultRange, history, ranges, series, type Range } from "../data";
+import { Money, usd } from "../../_components/money";
+import { BlurMoney, markIntroDone, wasIntroDone } from "./blur-money";
 import { smooth, snappy } from "../../_components/transitions";
 
 export function BalanceChart() {
   const [range, setRange] = useState<Range>(defaultRange);
-  // The first rise waits for the balance to start typing; later range switches respond at once.
+  // The first rise waits for the balance to start typing; later range switches and later Home visits respond at once.
   const [switched, setSwitched] = useState(false);
-  const startDelay = switched ? 0 : 0.35;
+  const [revisit] = useState(wasIntroDone);
+  const startDelay = switched || revisit ? 0 : 0.35;
+
+  // Index of the bar being scrubbed, or null when showing the total.
+  const [active, setActive] = useState<number | null>(null);
+  const pointer = useRef<number | null>(null);
 
   // The chart height changes per breakpoint, so the 2px floor of a bar is measured, not assumed.
   const chart = useRef<HTMLDivElement>(null);
@@ -22,38 +28,102 @@ export function BalanceChart() {
     const el = chart.current!;
     const observer = new ResizeObserver(() => setDot(2 / el.clientHeight));
     observer.observe(el);
+    markIntroDone();
     return () => observer.disconnect();
   }, []);
+
+  const { values, dates } = history[range];
+  const last = values.length - 1;
+  const shown = active ?? last;
+  const scrubbing = active !== null;
+  const change = scrubbing ? ((values[active] - values[0]) / values[0]) * 100 : balance.change;
+  const up = change >= 0;
+  const Arrow = up ? ArrowSquareUpRightIcon : ArrowSquareDownRightIcon;
+
+  function scrubTo(e: PointerEvent) {
+    const rect = chart.current!.getBoundingClientRect();
+    const t = Math.min(Math.max((e.clientX - rect.left) / rect.width, 0), 1);
+    setActive(Math.round(t * last));
+  }
+
+  function release(e: PointerEvent) {
+    if (e.pointerId !== pointer.current) return;
+    pointer.current = null;
+    setActive(null);
+  }
+
+  function onKeyDown(e: KeyboardEvent) {
+    const next = {
+      ArrowLeft: shown - 1,
+      ArrowRight: shown + 1,
+      Home: 0,
+      End: last,
+      Escape: null,
+    }[e.key];
+    if (next === undefined) return;
+    e.preventDefault();
+    setActive(next === null ? null : Math.min(Math.max(next, 0), last));
+  }
 
   return (
     <section aria-labelledby="total-balance">
       <div className="mt-6 flex items-center gap-2.5 text-[15px] leading-5">
-        <h2 id="total-balance" className="text-[#adadad]">
-          Total Balance
+        <h2 id="total-balance" className="grid min-w-28 text-[#adadad] tabular-nums">
+          <span className={`col-start-1 row-start-1 ${scrubbing ? "invisible" : ""}`}>Total Balance</span>
+          <span aria-hidden className={`col-start-1 row-start-1 whitespace-nowrap ${scrubbing ? "" : "invisible"}`}>
+            {dates[shown]}
+          </span>
         </h2>
-        <p className="flex items-center gap-1 text-[14px] font-medium text-[#3dd55e] tabular-nums">
-          <ArrowSquareUpRightIcon weight="fill" size={17} aria-hidden />
-          <span className="sr-only">Up</span>
-          {balance.change}%
+        <p
+          className={`flex items-center gap-1 text-[14px] font-medium tabular-nums ${up ? "text-[#3dd55e]" : "text-[#ff3b30]"}`}
+        >
+          <Arrow weight="fill" size={17} aria-hidden />
+          <span className="sr-only">{up ? "Up" : "Down"}</span>
+          {Math.abs(change).toFixed(2)}%
         </p>
       </div>
 
-      <p className="mt-1.5 text-[42px] leading-12 font-bold tracking-[-0.025em]">
-        <BlurMoney value={balance.total} delay={0.2} step={0.065} />
+      {/* BlurMoney stays mounted so its type-in never replays; the scrubbed amount sits over it in the same cell. */}
+      <p className="mt-1.5 grid text-[42px] leading-12 font-bold tracking-[-0.025em]">
+        <span className={`col-start-1 row-start-1 ${scrubbing ? "invisible" : ""}`}>
+          <BlurMoney value={balance.total} delay={0.2} step={0.065} />
+        </span>
+        <span aria-hidden className={`col-start-1 row-start-1 ${scrubbing ? "" : "invisible"}`}>
+          <Money value={values[shown]} />
+        </span>
       </p>
 
       <div
         ref={chart}
-        role="img"
+        role="slider"
+        tabIndex={0}
         aria-label={`Balance history, ${range}`}
-        className="mt-4 flex h-22 items-end justify-between md:h-28 lg:h-44"
+        aria-valuemin={0}
+        aria-valuemax={last}
+        aria-valuenow={shown}
+        aria-valuetext={`${dates[shown]}, ${usd.format(values[shown])}`}
+        onPointerDown={(e) => {
+          if (pointer.current !== null || (e.pointerType === "mouse" && e.button !== 0)) return;
+          pointer.current = e.pointerId;
+          e.currentTarget.setPointerCapture(e.pointerId);
+          scrubTo(e);
+        }}
+        onPointerMove={(e) => e.pointerId === pointer.current && scrubTo(e)}
+        onPointerUp={release}
+        onPointerCancel={release}
+        onLostPointerCapture={release}
+        onKeyDown={onKeyDown}
+        onBlur={() => setActive(null)}
+        className="mt-4 flex h-22 touch-pan-y items-end justify-between rounded-sm outline-none select-none focus-visible:ring-2 focus-visible:ring-black/20 focus-visible:ring-offset-4 md:h-28 lg:h-44"
       >
         {dot !== undefined &&
           series[range].map((height, i) => (
             <motion.span
               key={i}
-              className="h-full w-0.5 origin-bottom rounded-full bg-[#dcdcdc] md:w-1"
-              initial={{ scaleY: dot }}
+              className={`h-full w-0.5 origin-bottom rounded-full transition-colors duration-100 md:w-1 ${
+                i === active ? "bg-black" : active !== null && i > active ? "bg-[#f0f0f0]" : "bg-[#dcdcdc]"
+              }`}
+              initial={revisit ? false : { scaleY: dot }}
               animate={{ scaleY: Math.max(height / 100, dot) }}
               transition={{ ...smooth, delay: startDelay + i * (switched ? 0.004 : 0.007) }}
             />

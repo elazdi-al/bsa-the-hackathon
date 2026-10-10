@@ -13,6 +13,41 @@ export const series: Record<Range, number[]> = {
   "1Y": [14, 16, 9, 16, 11, 7, 10, 22, 23, 17, 22, 23, 11, 20, 11, 19, 21, 25, 30, 22, 18, 24, 20, 31, 29, 32, 32, 38, 33, 41, 30, 37, 43, 39, 50, 44, 46, 55, 53, 49, 64, 68, 72, 74, 73, 80, 66, 82, 82, 87, 93, 81, 85],
 };
 
+// The mock "now" for the whole app (UTC, so server and client format identically).
+export const now = Date.UTC(2025, 2, 12, 14, 0);
+
+const day = 86_400_000;
+const spans: Record<Range, number> = { "1D": day, "1W": 7 * day, "1M": 30 * day, "6M": 182 * day, "1Y": 365 * day };
+// How far the balance swings below the total at the lowest bar, as a fraction of the total.
+const spreads: Record<Range, number> = { "1D": 0.03, "1W": 0.08, "1M": 0.15, "6M": 0.3, "1Y": 0.45 };
+const dateOptions: Record<Range, Intl.DateTimeFormatOptions> = {
+  "1D": { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" },
+  "1W": { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" },
+  "1M": { day: "numeric", month: "short" },
+  "6M": { day: "numeric", month: "short" },
+  "1Y": { day: "numeric", month: "short", year: "numeric" },
+};
+
+const entries = ranges.map((r) => {
+  const bars = series[r];
+  const last = bars.length - 1;
+  const fmt = new Intl.DateTimeFormat("en-GB", { ...dateOptions[r], timeZone: "UTC" });
+  return [
+    r,
+    {
+      // The last bar is exactly the total; earlier bars scale with their height.
+      values: bars.map((h, i) =>
+        i === last ? balance.total : Math.round(balance.total * (1 + (spreads[r] * (h - bars[last])) / 100) * 100) / 100,
+      ),
+      // en-GB abbreviates September as "Sept"; keep every month three letters.
+      dates: bars.map((_, i) => fmt.format(now - (spans[r] * (last - i)) / last).replace("Sept", "Sep")),
+    },
+  ] as const;
+});
+
+/** Per range, the balance and the date label of every bar. */
+export const history = Object.fromEntries(entries) as Record<Range, { values: number[]; dates: string[] }>;
+
 export type TileId = "cash" | "investments" | "earn" | "card";
 export type Tile = { id: TileId; label: string; value: number; href?: string };
 
