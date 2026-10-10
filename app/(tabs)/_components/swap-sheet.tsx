@@ -6,7 +6,8 @@ import { useEffect, useRef, useState } from "react";
 import { CoinLogo } from "@/app/coin-breakdown/_components/coin-logos";
 import { coins, type CoinId } from "@/app/coin-breakdown/data";
 import { Button } from "@/components/ui/button";
-import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
+import { BackButton } from "@/components/ui/back-button";
+import { Drawer, DrawerClose, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { Spinner } from "@/components/ui/spinner";
 
 type Side = "sol" | "usdc";
@@ -22,9 +23,9 @@ const info: Record<Side, { symbol: string; balance: number; price: number }> = {
 const fmt = (n: number, max = 2) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: max });
 const swapIn = { initial: { opacity: 0, scale: 0.25, filter: "blur(4px)" }, animate: { opacity: 1, scale: 1, filter: "blur(0px)" }, exit: { opacity: 0, scale: 0.25, filter: "blur(4px)" }, transition: { type: "spring", duration: 0.3, bounce: 0 } } as const;
 
-function Pill({ side }: { side: Side }) {
+function Token({ side }: { side: Side }) {
   return (
-    <span className="flex h-9 items-center gap-2 rounded-full bg-white py-1 pr-3 pl-1 text-[16px] font-semibold shadow-[0_0_0_1px_rgba(0,0,0,0.06)]">
+    <span className="flex items-center gap-2 text-[16px] font-semibold">
       <span className="size-7">
         <CoinLogo id={side} />
       </span>
@@ -74,7 +75,7 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
     );
   }
 
-  const label = over ? `Insufficient ${info[from].symbol}` : phase === "busy" ? "Swapping" : phase === "done" ? "Swapped" : "Review swap";
+  const label = over ? `Insufficient ${info[from].symbol}` : phase === "busy" ? "Swapping" : phase === "done" ? "Swapped" : "Swap";
   const rateLine = `1 SOL ≈ ${fmt(rate)} USDC`;
 
   return (
@@ -87,8 +88,11 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
         }}
         className="pb-[max(20px,env(safe-area-inset-bottom))] tracking-[-0.02em] sm:pb-5"
       >
-        <header className="flex h-11 shrink-0 items-center justify-center">
+        <header className="relative flex h-11 shrink-0 items-center justify-center">
           <DrawerTitle>Swap</DrawerTitle>
+          <DrawerClose asChild>
+            <BackButton kind="close" disabled={phase === "busy"} className="absolute right-4" />
+          </DrawerClose>
         </header>
 
         <div className="overflow-y-auto px-5 pt-3">
@@ -119,7 +123,7 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
                 onChange={(e) => /^\d*\.?\d*$/.test(e.target.value) && setText(e.target.value)}
                 className={`min-w-0 flex-1 bg-transparent text-[34px] leading-10 font-bold tracking-[-0.03em] tabular-nums outline-none placeholder:text-black/20 ${over ? "text-[#e5484d]" : ""}`}
               />
-              <Pill side={from} />
+              <Token side={from} />
             </div>
           </section>
 
@@ -149,7 +153,7 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
               <output className={`min-w-0 flex-1 truncate text-[34px] leading-10 font-bold tracking-[-0.03em] tabular-nums ${amount > 0 ? "" : "text-black/20"}`}>
                 {amount > 0 ? fmt(out, to === "sol" ? 4 : 2) : "0"}
               </output>
-              <Pill side={to} />
+              <Token side={to} />
             </div>
           </section>
 

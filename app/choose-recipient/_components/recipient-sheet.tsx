@@ -1,11 +1,10 @@
 "use client";
 
-import { CornersOutIcon } from "@phosphor-icons/react";
 import { MotionConfig } from "motion/react";
 import { useState } from "react";
 import { useBack } from "@/components/navigation";
-import { Button } from "@/components/ui/button";
-import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
+import { BackButton } from "@/components/ui/back-button";
+import { Drawer, DrawerClose, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { sendDraft } from "../data";
 import { AddressCard } from "./address-card";
 import { swapSpring } from "./motion";
@@ -37,9 +36,9 @@ export function RecipientSheet({ open, onOpenChange, onClosed }: Props) {
         >
           <header className="relative flex h-11 shrink-0 items-center justify-center">
             <DrawerTitle className="tracking-[-0.03em]">Choose recipient</DrawerTitle>
-            <Button variant="ghost" size="icon" aria-label="Scan QR code" className="absolute right-4">
-              <CornersOutIcon size={31} />
-            </Button>
+            <DrawerClose asChild>
+              <BackButton kind="close" className="absolute right-4" />
+            </DrawerClose>
           </header>
           <AddressCard />
           <RecentAddresses />

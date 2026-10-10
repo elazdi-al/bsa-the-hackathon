@@ -5,7 +5,8 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 import { wallet } from "@/app/coin-breakdown/data";
 import { Button } from "@/components/ui/button";
-import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
+import { BackButton } from "@/components/ui/back-button";
+import { Drawer, DrawerClose, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 
 const N = 29;
 const iconSwap = { type: "spring", duration: 0.3, bounce: 0 } as const;
@@ -98,6 +99,9 @@ export function ReceiveSheet({ open, onOpenChange, onClosed }: { open: boolean; 
       >
         <header className="relative flex h-11 shrink-0 items-center justify-center">
           <DrawerTitle>Receive</DrawerTitle>
+          <DrawerClose asChild>
+            <BackButton kind="close" className="absolute right-4" />
+          </DrawerClose>
         </header>
 
         <div className="flex flex-col items-center overflow-y-auto px-5 pt-3">
