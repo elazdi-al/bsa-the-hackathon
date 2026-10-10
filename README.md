@@ -16,6 +16,8 @@ Swissquote Wallet keeps self-custody one tap from the Swissquote account. The cl
 
 [protocol.md](protocol.md) is the spec. Where code or this README disagree with it, protocol.md wins.
 
+[Pitch summary](PITCH_SUMMARY.md) explains the product, the Shamir model, and lost-phone recovery for a pitch audience. [Shamir key sharing and wallet recovery](docs/SHAMIR_AND_RECOVERY.md) contains the detailed technical explanation.
+
 The wallet key is a secp256k1 key split 2-of-3 with Shamir secret sharing. Share A lives on the phone, Share B with Swissquote and Share C with an independent third-party service. Any two shares rebuild the key, but the key alone moves nothing. The ERC-4337 account also requires an assertion from the user's passkey, stored on the phone, over every operation. The phone caches the rebuilt key in memory for at most three hours and drops it when the app closes. When the phone is lost, Swissquote and the independent service release B and C to the new phone, which rebuilds the old key for one signature. The user adds a signature from the Recovery Key kept at home. The account then starts a mandatory 48-hour delay, during which the user can cancel from the old phone or through Swissquote. After the delay anyone can finalize, and the account swaps in the new key and passkey with the same address and funds. Swissquote and the independent service together hold the key but not the passkey or the Recovery Key, so even colluding they cannot move funds.
 
 ## How it is built

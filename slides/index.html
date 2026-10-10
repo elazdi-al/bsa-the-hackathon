@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Swissquote Wallet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&display=swap">
+<style>
+  /* Fuse's App Store style: Inter, black headlines over grey subheads, Fuse blue, grey cents. */
+  :root {
+    --ink: #000;
+    --grey: #949494;
+    --cents: #dcdcdc;
+    --surface: #fafafa;
+    --line: rgb(0 0 0 / 0.05);
+    --positive: #30b256;
+    --blue: linear-gradient(118deg, #0151ff 0%, #0151ff 34%, #1685ff 50%, #3fc8ff 64%, #8dd0ff 80%, #e8f4ff 94%, #fdfeff 100%);
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; overflow: hidden; background: #000; }
+  body {
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* Every slide is authored at 1920×1080 and scaled to fit the window. */
+  .slide {
+    display: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 1920px;
+    height: 1080px;
+    padding: 120px 128px;
+    /* Clips like overflow: hidden, and keeps print from paginating the phones that bleed off the edge. */
+    contain: strict;
+    background: #fff;
+    transform: translate(-50%, -50%) scale(var(--scale, 1));
+  }
+  .slide.current { display: block; }
+  .slide.blue { background: var(--blue); color: #fff; }
+
+  h1 {
+    max-width: 1100px;
+    font-size: 120px;
+    line-height: 1;
+    font-weight: 500;
+    letter-spacing: -0.045em;
+    text-wrap: balance;
+  }
+  .sub {
+    max-width: 920px;
+    margin-top: 36px;
+    font-size: 64px;
+    line-height: 1.1;
+    font-weight: 500;
+    letter-spacing: -0.035em;
+    color: var(--grey);
+    text-wrap: pretty;
+  }
+  h1.display { max-width: none; font-size: 156px; line-height: 0.96; letter-spacing: -0.05em; }
+  .display + .sub { max-width: 1520px; }
+  .blue .sub { font-size: 44px; letter-spacing: -0.02em; color: rgb(255 255 255 / 0.72); }
+  .cents { color: var(--cents); }
+
+  /* Phone: one --w sets the size. Inside the screen 1em is one iPhone point (393 × 852). */
+  .phone {
+    --w: 560px;
+    --pt: calc(var(--w) * 0.932 / 393);
+    position: absolute;
+    width: var(--w);
+    border: calc(var(--w) * 0.009) solid transparent;
+    padding: calc(var(--w) * 0.025);
+    border-radius: calc(55 * var(--pt) + var(--w) * 0.034);
+    background:
+      linear-gradient(#050505 0 0) padding-box,
+      linear-gradient(140deg, #f4f4f4, #a2a2a2 24%, #ececec 50%, #8e8e8e 78%, #d6d6d6) border-box;
+    box-shadow: 0 60px 120px -40px rgb(0 0 0 / 0.3), 0 12px 24px -12px rgb(0 0 0 / 0.12);
+  }
+  .screen {
+    position: relative;
+    height: calc(852 * var(--pt));
+    border-radius: calc(55 * var(--pt));
+    overflow: hidden;
+    background: #fff;
+    color: #000;
+    font-size: var(--pt);
+  }
+  .screen > img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .status {
+    position: absolute;
+    inset: 0 0 auto;
+    height: 59em;
+    display: grid;
+    grid-template-columns: 1fr 126em 1fr;
+    align-items: center;
+    justify-items: center;
+  }
+  .status b { font-size: 17em; font-weight: 600; letter-spacing: -0.01em; }
+  .status i { width: 126em; height: 37em; border-radius: 99em; background: #000; }
+  .status svg { width: 74em; height: 13em; fill: currentColor; }
+  .status.light { color: #fff; }
+  .screen::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: 8em;
+    width: 134em;
+    height: 5em;
+    margin-left: -67em;
+    border-radius: 99em;
+    background: #000;
+  }
+
+  /* Cover phone, leaning back like the App Store hero. */
+  .tilt { transform: perspective(2600px) rotateX(16deg) rotateY(-14deg) rotateZ(14deg); }
+
+  /* Product card. */
+  .card {
+    position: absolute;
+    width: 1120px;
+    height: 706px;
+    border-radius: 56px;
+    background:
+      radial-gradient(90% 80% at 0% 0%, rgb(255 255 255 / 0.5), rgb(255 255 255 / 0) 55%),
+      linear-gradient(160deg, #262626, #121212 45%, #0b0b0b);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.2), 0 80px 140px -50px rgb(0 0 0 / 0.45);
+    transform: perspective(2400px) rotateX(10deg) rotateY(-12deg) rotateZ(-11deg);
+  }
+  .card svg { position: absolute; top: 88px; left: 96px; width: 176px; }
+
+  /* Tiles, as on the app's home screen. */
+  .tiles {
+    position: absolute;
+    left: 128px;
+    right: 128px;
+    bottom: 120px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 32px;
+  }
+  .tile {
+    height: 340px;
+    padding: 44px;
+    display: flex;
+    flex-direction: column;
+    border-radius: 48px;
+    background: var(--surface);
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+  .icon {
+    display: grid;
+    place-items: center;
+    width: 88px;
+    height: 88px;
+    border-radius: 26px;
+    background: linear-gradient(color-mix(in srgb, var(--c) 72%, #fff), var(--c));
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.3), 0 8px 20px -8px var(--c);
+  }
+  .icon svg { width: 48px; fill: #fff; }
+  .tile h2 { margin-top: auto; font-size: 48px; font-weight: 600; letter-spacing: -0.035em; }
+  .tile p { margin-top: 10px; font-size: 30px; line-height: 1.25; font-weight: 500; letter-spacing: -0.02em; color: var(--grey); text-wrap: pretty; }
+
+  /* Sheet over a blurred screen; the phone fades out at the top. */
+  .faded { mask-image: linear-gradient(transparent 8%, #000 50%); }
+  .blurred { filter: blur(14px) brightness(0.92); scale: 1.1; }
+  .sheet {
+    position: absolute;
+    inset: auto 10em 10em;
+    padding: 24em;
+    border-radius: 45em;
+    background: #fff;
+    text-align: center;
+    box-shadow: 0 0 0 0.5em var(--line);
+  }
+  .sheet .close {
+    position: absolute;
+    top: 16em;
+    right: 16em;
+    display: grid;
+    place-items: center;
+    width: 30em;
+    height: 30em;
+    border-radius: 99em;
+    background: #f2f2f2;
+  }
+  .sheet .close svg { width: 11em; stroke: #8e8e8e; stroke-width: 2.4; stroke-linecap: round; }
+  /* Text sizes are in points; spacing on a resized element is relative to its own size. */
+  .sheet h3 { margin-top: 0.4em; font-size: 20em; font-weight: 600; letter-spacing: -0.02em; }
+  .sheet > p { margin-top: 0.3em; font-size: 15em; color: #8e8e8e; }
+  .sheet .amount { margin-top: 20em; padding: 16em 0; border: 1.5em dashed #e6e6e6; border-radius: 21em; }
+  .sheet .amount strong { font-size: 40em; font-weight: 600; letter-spacing: -0.04em; }
+  .sheet .amount small { margin-left: 0.25em; font-size: 18em; font-weight: 500; color: #8e8e8e; }
+  .sheet dl { margin-top: 0.8em; font-size: 15em; }
+  .sheet dl div { display: flex; justify-content: space-between; padding: 0.55em 0.3em; }
+  .sheet dt { color: #8e8e8e; }
+  .sheet dd { font-weight: 500; }
+  .sheet .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10em; margin-top: 18em; }
+  .sheet .actions span { padding: 0.9em 0; border-radius: 99em; background: #ebebeb; font-size: 17em; font-weight: 600; }
+  .sheet .actions span + span { background: #000; color: #fff; }
+  .positive { color: var(--positive); }
+
+  /* Big number, like the balance on the app's home screen. */
+  .number { position: absolute; left: 128px; bottom: 96px; }
+  .number p { display: flex; align-items: center; gap: 20px; font-size: 40px; font-weight: 500; letter-spacing: -0.02em; color: var(--grey); }
+  .chip { padding: 8px 18px; border-radius: 99px; background: rgb(48 178 86 / 0.12); color: var(--positive); font-size: 32px; }
+  .number strong { display: block; margin-left: -0.04em; font-size: 400px; line-height: 1; font-weight: 600; letter-spacing: -0.06em; }
+
+  /* Content enters in reading order: headline, subhead, visual. Never on first load. */
+  @keyframes enter { from { opacity: 0; translate: 0 24px; filter: blur(8px); } }
+  .animate .current :is(h1, .sub, .visual) { animation: enter 700ms var(--ease-out) both; }
+  .animate .current .sub { animation-delay: 60ms; }
+  .animate .current .visual { animation-delay: 120ms; }
+  @media (prefers-reduced-motion: reduce) {
+    @keyframes enter { from { opacity: 0; } }
+  }
+
+  /* Print or save as PDF: one 16:9 page per slide. */
+  @page { size: 1920px 1080px; margin: 0; }
+  @media print {
+    html, body { height: auto; overflow: visible; background: none; }
+    .slide { display: block; position: relative; top: 0; left: 0; transform: none; break-after: page; }
+  }
+</style>
+</head>
+<body>
+<!--
+  Layouts: cover and closing (.slide.blue), statement (h1.display), card (.card), tiles (.tiles),
+  phone (.phone), sheet (.phone.faded + .sheet), number (.number).
+  Add a slide by duplicating a <section class="slide">. App screens are 393×852 captures in screens/.
+-->
+<svg width="0" height="0" style="position: absolute;" aria-hidden="true">
+  <symbol id="status-icons" viewBox="0 0 74 13">
+    <rect y="8" width="3" height="4.5" rx="1"/><rect x="5" y="5.5" width="3" height="7" rx="1"/><rect x="10" y="3" width="3" height="9.5" rx="1"/><rect x="15" y=".5" width="3" height="12" rx="1"/>
+    <path transform="translate(24 .5)" d="M8 0a12 12 0 0 1 8 3.1l-1.4 1.5A10 10 0 0 0 8 2 10 10 0 0 0 1.4 4.6L0 3.1A12 12 0 0 1 8 0Zm0 4a8 8 0 0 1 5.3 2l-1.4 1.6A6 6 0 0 0 8 6a6 6 0 0 0-3.9 1.6L2.7 6A8 8 0 0 1 8 4Zm0 4c1 0 1.9.4 2.6 1L8 12 5.4 9C6.1 8.4 7 8 8 8Z"/>
+    <g transform="translate(46 0)"><rect x=".5" y=".5" width="24" height="12" rx="3.8" fill="none" stroke="currentColor" stroke-opacity=".35"/><rect x="2" y="2" width="21" height="9" rx="2.4"/><path d="M26 4.5v4c.8-.3 1.5-1.1 1.5-2s-.7-1.7-1.5-2Z" opacity=".4"/></g>
+  </symbol>
+</svg>
+
+<!-- 1 · Cover -->
+<section class="slide blue" aria-label="Cover">
+  <h1 class="display">Your keys.<br>Our protection.</h1>
+  <p class="sub">Swissquote Wallet · BSA Hackathon 2026</p>
+  <div class="phone tilt visual" style="--w: 600px; left: 1140px; top: 150px;" aria-hidden="true">
+    <div class="screen">
+      <img src="screens/home.png" alt="">
+      <div class="status"><b>9:41</b><i></i><svg><use href="#status-icons"/></svg></div>
+    </div>
+  </div>
+</section>
+
+<!-- 2 · Statement -->
+<section class="slide" aria-label="Problem">
+  <h1 class="display">Self-custody asks clients to become security experts.</h1>
+  <p class="sub">They want their own keys. And help when something goes wrong.</p>
+</section>
+
+<!-- 3 · Object -->
+<section class="slide" aria-label="Product">
+  <h1>Self-custody, inside your bank app</h1>
+  <p class="sub">A wallet the client controls, with Swissquote in their corner.</p>
+  <div class="card visual" style="left: 820px; top: 500px;" aria-hidden="true">
+    <svg viewBox="0 0 176 160" fill="none" stroke-width="3">
+      <defs><linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity=".25"/></linearGradient></defs>
+      <circle cx="56" cy="56" r="48" stroke="url(#glass)"/>
+      <circle cx="120" cy="56" r="48" stroke="url(#glass)"/>
+      <circle cx="88" cy="108" r="48" stroke="url(#glass)"/>
+    </svg>
+  </div>
+</section>
+
+<!-- 4 · Tiles -->
+<section class="slide" aria-label="Custody model">
+  <h1>Three keys.<br>Any two sign.</h1>
+  <p class="sub">The full key never exists anywhere.</p>
+  <div class="tiles visual">
+    <div class="tile" style="--c: #0a84ff;">
+      <span class="icon"><svg viewBox="0 0 256 256"><path d="M224,40V76a8,8,0,0,1-16,0V48H180a8,8,0,0,1,0-16h36A8,8,0,0,1,224,40Zm-8,132a8,8,0,0,0-8,8v28H180a8,8,0,0,0,0,16h36a8,8,0,0,0,8-8V180A8,8,0,0,0,216,172ZM76,208H48V180a8,8,0,0,0-16,0v36a8,8,0,0,0,8,8H76a8,8,0,0,0,0-16ZM40,84a8,8,0,0,0,8-8V48H76a8,8,0,0,0,0-16H40a8,8,0,0,0-8,8V76A8,8,0,0,0,40,84Zm88,116a72,72,0,1,1,72-72A72.08,72.08,0,0,1,128,200Zm-24-72a12,12,0,1,0-12-12A12,12,0,0,0,104,128Zm54,18.71a8,8,0,0,0-11.29-.71c-3.81,3.37-12,6-18.71,6s-14.9-2.63-18.71-6a8,8,0,1,0-10.58,12c7.83,6.91,20.35,10,29.29,10s21.46-3.09,29.29-10A8,8,0,0,0,158,146.71ZM164,116a12,12,0,1,0-12,12A12,12,0,0,0,164,116Z"/></svg></span>
+      <h2>Device Key</h2>
+      <p>On the client’s phone, unlocked with Face ID</p>
+    </div>
+    <div class="tile" style="--c: #ff5a1f;">
+      <span class="icon"><svg viewBox="0 0 256 256"><path d="M208,40H48A16,16,0,0,0,32,56v56c0,52.72,25.52,84.67,46.93,102.19,23.06,18.86,46,25.26,47,25.53a8,8,0,0,0,4.2,0c1-.27,23.91-6.67,47-25.53C198.48,196.67,224,164.72,224,112V56A16,16,0,0,0,208,40Zm-34.32,69.66-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32Z"/></svg></span>
+      <h2>Swissquote Key</h2>
+      <p>Co-signs only after the bank’s checks pass</p>
+    </div>
+    <div class="tile" style="--c: #a945e8;">
+      <span class="icon"><svg viewBox="0 0 256 256"><path d="M224,48H32a8,8,0,0,0-8,8V192a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A8,8,0,0,0,224,48ZM98.71,128,40,181.81V74.19Zm11.84,10.85,12,11.05a8,8,0,0,0,10.82,0l12-11.05,58,53.15H52.57ZM157.29,128,216,74.18V181.82Z"/></svg></span>
+      <h2>Recovery Key</h2>
+      <p>Encrypted backup only the client can unlock</p>
+    </div>
+  </div>
+</section>
+
+<!-- 5 · Phone -->
+<section class="slide" aria-label="Wallet creation">
+  <h1>Open Crypto.<br>Open Wallet.</h1>
+  <p class="sub">Created in the Swissquote app, protected by Face ID.</p>
+  <div class="phone visual" style="left: 1172px; top: 120px;" aria-hidden="true">
+    <div class="screen">
+      <img src="screens/onboarding-secure.png" alt="">
+      <div class="status light"><b>9:41</b><i></i><svg><use href="#status-icons"/></svg></div>
+    </div>
+  </div>
+</section>
+
+<!-- 6 · Sheet -->
+<section class="slide" aria-label="Signing">
+  <h1>Know what you are signing</h1>
+  <p class="sub">Every payment is screened, simulated and explained.</p>
+  <div class="phone faded visual" style="left: 1172px; bottom: 48px;" aria-hidden="true">
+    <div class="screen">
+      <img class="blurred" src="screens/home.png" alt="">
+      <div class="sheet">
+        <span class="close"><svg viewBox="0 0 12 12"><path d="M1 1l10 10M11 1 1 11"/></svg></span>
+        <h3>Review payment</h3>
+        <p>To Anna Muster · Verified client</p>
+        <div class="amount"><strong>20<span class="cents">.00</span></strong> <small>USDC</small></div>
+        <dl>
+          <div><dt>Recipient check</dt><dd>Passed</dd></div>
+          <div><dt>Simulation</dt><dd>As expected</dd></div>
+          <div><dt>Network fee</dt><dd class="positive">Free</dd></div>
+        </dl>
+        <div class="actions"><span>Cancel</span><span>Approve</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 7 · Number -->
+<section class="slide" aria-label="Gasless">
+  <h1>Gasless by default</h1>
+  <p class="sub">Swissquote’s paymaster covers the network fee.</p>
+  <div class="number visual">
+    <p>Network fee <span class="chip">Paid by Swissquote</span></p>
+    <strong>$0<span class="cents">.00</span></strong>
+  </div>
+</section>
+
+<!-- 8 · Closing -->
+<section class="slide blue" aria-label="Closing">
+  <h1 class="display">Your wallet.<br>A bank in your corner.</h1>
+  <p class="sub">Thank you. Questions?</p>
+</section>
+
+<script>
+  // → Space PageDown next · ← PageUp previous · Home/End · F full screen · click or swipe · #3 opens slide 3
+  const slides = [...document.querySelectorAll('.slide')];
+  let current = 0;
+
+  function fit() {
+    document.documentElement.style.setProperty('--scale', Math.min(innerWidth / 1920, innerHeight / 1080));
+  }
+
+  function show(n) {
+    current = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, i) => s.classList.toggle('current', i === current));
+    history.replaceState(null, '', '#' + (current + 1));
+  }
+
+  function go(step) {
+    document.body.classList.add('animate');
+    show(current + step);
+  }
+
+  addEventListener('keydown', (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const step = { ArrowRight: 1, ArrowDown: 1, PageDown: 1, ' ': e.shiftKey ? -1 : 1, ArrowLeft: -1, ArrowUp: -1, PageUp: -1 }[e.key];
+    if (step) { e.preventDefault(); go(step); }
+    if (e.key === 'Home') go(-current);
+    if (e.key === 'End') go(slides.length);
+    if (e.key === 'f') document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+  });
+  addEventListener('click', (e) => go(e.clientX < innerWidth / 3 ? -1 : 1));
+
+  let touchX = null;
+  addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; }, { passive: true });
+  addEventListener('touchend', (e) => {
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (Math.abs(dx) > 40) go(dx < 0 ? 1 : -1);
+  });
+
+  const fromHash = () => show(parseInt(location.hash.slice(1), 10) - 1 || 0);
+  addEventListener('hashchange', fromHash);
+  addEventListener('resize', fit);
+  fit();
+  fromHash();
+</script>
+</body>
+</html>
