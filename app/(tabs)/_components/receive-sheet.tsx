@@ -3,10 +3,11 @@
 import { ArrowDownIcon, CheckIcon, CopyIcon, ShareNetworkIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
-import { wallet } from "@/app/coin-breakdown/data";
+import { wallet as mock } from "@/app/coin-breakdown/data";
 import { Button } from "@/components/ui/button";
 import { BackButton } from "@/components/ui/back-button";
 import { Drawer, DrawerClose, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
+import { useWallet } from "./wallet";
 
 const N = 29;
 const iconSwap = { type: "spring", duration: 0.3, bounce: 0 } as const;
@@ -36,8 +37,8 @@ function Finder({ x, y }: { x: number; y: number }) {
   );
 }
 
-function Qr() {
-  const d = useMemo(() => qrPath(wallet.address), []);
+function Qr({ address }: { address: string }) {
+  const d = useMemo(() => qrPath(address), [address]);
   return (
     <div className="relative size-[200px]">
       <svg viewBox={`0 0 ${N} ${N}`} className="size-full" shapeRendering="crispEdges" fill="currentColor" aria-hidden>
@@ -66,6 +67,8 @@ function IconSwap({ k, children }: { k: string; children: React.ReactNode }) {
 }
 
 export function ReceiveSheet({ open, onOpenChange, onClosed }: { open: boolean; onOpenChange: (o: boolean) => void; onClosed: () => void }) {
+  const wallet = useWallet(open);
+  const address = wallet?.address ?? mock.address;
   const [copied, setCopied] = useState(false);
   const [canShare, setCanShare] = useState(false);
 
@@ -78,7 +81,7 @@ export function ReceiveSheet({ open, onOpenChange, onClosed }: { open: boolean; 
 
   async function copy() {
     try {
-      await navigator.clipboard.writeText(wallet.address);
+      await navigator.clipboard.writeText(address);
       setCopied(true);
     } catch {
       // Clipboard unavailable: no false confirmation.
@@ -108,12 +111,12 @@ export function ReceiveSheet({ open, onOpenChange, onClosed }: { open: boolean; 
           {/* Home's tile surface; the white plate is 28 - 1 - 16 = 11px round so the corners stay concentric. */}
           <div className="rounded-[28px] border border-black/[0.035] bg-surface p-4">
             <div className="rounded-[11px] bg-white p-3">
-              <Qr />
+              <Qr address={address} />
             </div>
           </div>
 
           <p className="mt-5 max-w-[280px] text-center font-mono text-[15px] leading-6 tracking-normal break-all text-black tabular-nums">
-            {wallet.address}
+            {address}
           </p>
 
           <div className="mt-5 flex w-full gap-3">
@@ -130,7 +133,7 @@ export function ReceiveSheet({ open, onOpenChange, onClosed }: { open: boolean; 
               <Button
                 variant="secondary"
                 className={pill}
-                onClick={() => navigator.share({ title: "My Fuse address", text: wallet.address }).catch(() => {})}
+                onClick={() => navigator.share({ title: "My Fuse address", text: address }).catch(() => {})}
               >
                 <ShareNetworkIcon size={18} weight="bold" />
                 Share
@@ -138,7 +141,9 @@ export function ReceiveSheet({ open, onOpenChange, onClosed }: { open: boolean; 
             )}
           </div>
 
-          <p className="mt-4 text-center text-[13px] leading-5 text-black/35">Only send Solana (SPL) tokens to this address.</p>
+          <p className="mt-4 text-center text-[13px] leading-5 text-black/35">
+            {wallet ? "Only send USDC on Base Sepolia to this address." : "Only send Solana (SPL) tokens to this address."}
+          </p>
         </div>
       </DrawerContent>
     </Drawer>

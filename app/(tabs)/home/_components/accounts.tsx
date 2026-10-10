@@ -9,6 +9,7 @@ import { RowBody } from "../../history/_components/tx-row";
 import { dayLabel, transactions } from "../../history/data";
 import { hairline, sectionLabel } from "../../_components/list";
 import { Money } from "../../_components/money";
+import { useWallet } from "../../_components/wallet";
 import { tiles, type Tile, type TileId } from "../data";
 import { AssetTile } from "./asset-tile";
 import { tileIcons } from "./icons";
@@ -16,6 +17,9 @@ import { PromoStack } from "./promo-stack";
 
 /** The Home grid. Tiles without a screen of their own, and the Earn promo, open an account sheet in place. */
 export function Accounts() {
+  const wallet = useWallet();
+  // Cash is the wallet's USDC; the other tiles stay mocked.
+  const shown = wallet ? tiles.map((t) => (t.id === "cash" ? { ...t, value: wallet.usdc } : t)) : tiles;
   const [open, setOpen] = useState(false);
   // Kept after close so the sheet's content doesn't vanish mid-exit.
   const [id, setId] = useState<TileId>("cash");
@@ -27,7 +31,7 @@ export function Accounts() {
   return (
     <>
       <section aria-label="Accounts" className="mt-3.5 grid auto-rows-[152px] grid-cols-2 gap-2.5 md:grid-cols-4 lg:mt-6 lg:grid-cols-2">
-        {tiles.map((tile, i) => (
+        {shown.map((tile, i) => (
           <AssetTile key={tile.id} tile={tile} index={i} onOpen={() => show(tile.id)} />
         ))}
         <PromoStack className="col-span-2 md:col-span-4 lg:col-span-2" onOpenAccount={show} />
@@ -36,7 +40,7 @@ export function Accounts() {
       <Drawer open={open} onOpenChange={setOpen}>
         <FloatingSheetContent>
           <div className="min-h-0 overflow-y-auto px-4 pb-2">
-            <AccountSheet tile={tiles.find((t) => t.id === id)!} />
+            <AccountSheet tile={shown.find((t) => t.id === id)!} />
           </div>
         </FloatingSheetContent>
       </Drawer>

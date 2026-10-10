@@ -111,6 +111,12 @@ await publicClient.request({
 
 console.log('2. Send 20 USDC: deploys the account, Swissquote pays the gas')
 await send(phone1, FRIEND, '20')
+await phone1.goto(`${APP}/home`)
+await phone1.getByRole('button', { name: /^Cash\s*\$4,980\.00/ }).waitFor(SLOW)
+await phone1.getByRole('button', { name: 'Add' }).click()
+await phone1.getByRole('button', { name: 'Receive' }).click()
+await phone1.getByRole('dialog').getByText(wallet.address).waitFor(SLOW)
+console.log('  Home shows the 4,980 USDC left, Receive shows the wallet address')
 
 console.log(`3. ${EMAIL ? 'PIN step-up' : 'No Swissquote PIN, so no step-up'} above CHF 1,000, and a sanctioned recipient is blocked`)
 await phone1.goto(`${APP}/send-hide-my-wallet?to=${FRIEND}`)

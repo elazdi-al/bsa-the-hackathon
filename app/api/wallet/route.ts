@@ -1,9 +1,9 @@
-import { isAddress, type Address } from 'viem'
+import { erc20Abi, formatUnits, isAddress, type Address } from 'viem'
 import { accountAbi, type Passkey } from '@/lib/wallet/account.ts'
 import { HttpError, requireClient, route } from '@/lib/wallet/api/clients.ts'
 import { audit, db, json } from '@/lib/wallet/api/db.ts'
 import { getWallet, predictAddress, requireShare, requireWallet, walletConfig } from '@/lib/wallet/api/operations.ts'
-import { publicClient } from '@/lib/wallet/env.ts'
+import { addresses, publicClient } from '@/lib/wallet/env.ts'
 
 export const GET = route(async () => {
   const client = await requireClient()
@@ -12,9 +12,11 @@ export const GET = route(async () => {
   const pending = deployed
     ? await publicClient.readContract({ address: wallet.address, abi: accountAbi, functionName: 'pendingRecovery' })
     : undefined
+  const usdc = await publicClient.readContract({ address: addresses.usdc, abi: erc20Abi, functionName: 'balanceOf', args: [wallet.address] })
   return Response.json({
     ...wallet,
     deployed,
+    usdc: formatUnits(usdc, 6),
     pendingRecovery: pending?.[2] ? { signer: pending[0], executeAfter: pending[2] } : null,
   })
 })
