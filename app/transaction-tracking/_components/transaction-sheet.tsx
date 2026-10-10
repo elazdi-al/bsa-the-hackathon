@@ -3,6 +3,7 @@
 import { LightningIcon } from "@phosphor-icons/react";
 import { AnimatePresence, MotionConfig, motion, type Variants } from "motion/react";
 import { useEffect, useState, type ReactNode } from "react";
+import { Money } from "@/app/(tabs)/_components/money";
 import { useBack } from "@/components/navigation";
 import { Button } from "@/components/ui/button";
 import { Drawer, FloatingSheetContent, FloatingSheetHeader } from "@/components/ui/drawer";
@@ -96,9 +97,11 @@ function Tracking() {
       <motion.div layout layoutScroll className="min-h-0 overflow-y-auto px-4 pb-[13px]">
         <motion.div layout="position">
           <FloatingSheetHeader icon={<UsdcCoin />} title={withdrawal.title}>
-            <p className="mt-1 text-[27.5px] leading-[34px] font-bold tracking-[-0.01em] tabular-nums">
-              {withdrawal.amount}
+            {/* The same header as History's other detail sheets: signed dollars, then the token amount. */}
+            <p className="mt-1 text-[27.5px] leading-[34px] font-bold tracking-[-0.01em]">
+              −<Money value={withdrawal.usd} />
             </p>
+            <p className="text-[13.5px] text-[#969696] tabular-nums">{withdrawal.amount}</p>
             <p className="mt-1 font-medium text-[#969696]">{withdrawal.date}</p>
           </FloatingSheetHeader>
         </motion.div>

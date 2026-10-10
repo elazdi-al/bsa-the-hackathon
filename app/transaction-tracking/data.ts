@@ -11,6 +11,7 @@ export const steps: { id: StepId; label: string }[] = [
 
 export const withdrawal = {
   title: "USDC Withdrawal",
+  usd: 1508.5,
   amount: "1,508.50 USDC",
   date: "11 March 2025 at 10:07",
   /** Index into `steps` when the sheet opens. */
