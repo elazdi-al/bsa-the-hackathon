@@ -1,11 +1,11 @@
 "use client";
 
-import { LightningIcon, XIcon } from "@phosphor-icons/react";
+import { LightningIcon } from "@phosphor-icons/react";
 import { AnimatePresence, MotionConfig, motion, type Variants } from "motion/react";
 import { useEffect, useState, type ReactNode } from "react";
 import { useBack } from "@/components/navigation";
 import { Button } from "@/components/ui/button";
-import { Drawer, DrawerClose, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
+import { Drawer, FloatingSheetContent, FloatingSheetHeader } from "@/components/ui/drawer";
 import { steps, withdrawal } from "../data";
 import { CopyButton } from "./copy-button";
 import { leave, settle, sharp, swap } from "./motion";
@@ -64,36 +64,19 @@ export function TransactionSheet() {
         }}
       >
         {/* The shared handle sits outside the layout animation and would jump when the tracker folds, so the header draws its own. */}
-        <DrawerContent
-          aria-describedby={undefined}
-          handle={false}
-          className="inset-x-5 bottom-(--gap) max-h-[calc(100dvh-env(safe-area-inset-top)-12px-var(--gap))] bg-transparent text-[13.5px] leading-5 [--gap:max(20px,calc(env(safe-area-inset-bottom)+6px))] [--initial-transform:calc(100%+var(--gap))] sm:[--gap:1rem]"
-        >
+        <FloatingSheetContent className="bg-transparent">
           {/* The surface carries the height spring, so the drawer box stays transparent; content only translates, so text never stretches. */}
           <motion.div layout aria-hidden className="absolute inset-0 -z-10 bg-[#f2f2f2]" style={{ borderRadius: 34 }} />
           {/* Layout-animated so its clip box follows the surface instead of cutting the header off mid-fold. */}
           <motion.div layout layoutScroll className="min-h-0 overflow-y-auto px-4 pb-[13px]">
-            <motion.header layout="position" className="relative flex flex-col items-center pt-[47px] text-center">
-              <span aria-hidden className="absolute top-2.5 h-[5px] w-9 rounded-full bg-black/10" />
-              <DrawerClose asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="Close"
-                  className="absolute top-[13px] -right-[3px] text-[#afafaf]"
-                >
-                  <XIcon size={20} weight="bold" />
-                </Button>
-              </DrawerClose>
-              <UsdcCoin />
-              <DrawerTitle className="mt-3 text-[13.5px] font-medium tracking-normal text-[#a5a5a5]">
-                {withdrawal.title}
-              </DrawerTitle>
-              <p className="mt-1 text-[27.5px] leading-[34px] font-bold tracking-[-0.01em] tabular-nums">
-                {withdrawal.amount}
-              </p>
-              <p className="mt-1 font-medium text-[#969696]">{withdrawal.date}</p>
-            </motion.header>
+            <motion.div layout="position">
+              <FloatingSheetHeader icon={<UsdcCoin />} title={withdrawal.title}>
+                <p className="mt-1 text-[27.5px] leading-[34px] font-bold tracking-[-0.01em] tabular-nums">
+                  {withdrawal.amount}
+                </p>
+                <p className="mt-1 font-medium text-[#969696]">{withdrawal.date}</p>
+              </FloatingSheetHeader>
+            </motion.div>
 
             <StatusCard
               tracker={tracker}
@@ -130,7 +113,7 @@ export function TransactionSheet() {
                       </CopyButton>
                     </Row>
                     <Row label="Network fee">
-                      <span className="flex items-center gap-1.5 text-[#30d158]">
+                      <span className="flex items-center gap-1.5 text-positive">
                         <LightningIcon size={15} weight="fill" />
                         {withdrawal.networkFee}
                       </span>
@@ -168,7 +151,7 @@ export function TransactionSheet() {
               details
             </Button>
           </motion.div>
-        </DrawerContent>
+        </FloatingSheetContent>
       </Drawer>
     </MotionConfig>
   );

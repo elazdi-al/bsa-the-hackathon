@@ -3,6 +3,7 @@
 import * as React from "react"
 import { cn } from "cn"
 import { Drawer as DrawerPrimitive } from "vaul"
+import { BackButton } from "./back-button"
 
 function Drawer({
   ...props
@@ -67,6 +68,49 @@ function DrawerContent({
   )
 }
 
+// A grey card floating clear of the screen edges, for detail sheets (history, withdrawal tracking).
+function FloatingSheetContent({
+  className,
+  ...props
+}: React.ComponentProps<typeof DrawerContent>) {
+  return (
+    <DrawerContent
+      aria-describedby={undefined}
+      handle={false}
+      className={cn(
+        "inset-x-5 bottom-(--gap) max-h-[calc(100dvh-env(safe-area-inset-top)-12px-var(--gap))] rounded-[34px] bg-[#f2f2f2] text-[13.5px] leading-5 after:hidden [--gap:max(20px,calc(env(safe-area-inset-bottom)+6px))] [--initial-transform:calc(100%+var(--gap))] sm:rounded-[34px] sm:[--gap:1rem]",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+// Handle, close, icon and title; whatever follows the title (amount, date) comes in as children.
+function FloatingSheetHeader({
+  icon,
+  title,
+  children,
+}: {
+  icon: React.ReactNode
+  title: React.ReactNode
+  children?: React.ReactNode
+}) {
+  return (
+    <header className="relative flex flex-col items-center pt-[47px] text-center">
+      <span aria-hidden className="absolute top-2.5 h-[5px] w-9 rounded-full bg-black/10" />
+      <DrawerClose asChild>
+        <BackButton kind="close" className="absolute top-3.5 -right-0.5" />
+      </DrawerClose>
+      {icon}
+      <DrawerTitle className="mt-3 text-[13.5px] font-medium tracking-normal text-[#a5a5a5]">
+        {title}
+      </DrawerTitle>
+      {children}
+    </header>
+  )
+}
+
 function DrawerTitle({
   className,
   ...props
@@ -98,6 +142,8 @@ export {
   DrawerTrigger,
   DrawerClose,
   DrawerContent,
+  FloatingSheetContent,
+  FloatingSheetHeader,
   DrawerTitle,
   DrawerDescription,
 }

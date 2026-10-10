@@ -9,14 +9,12 @@ import {
   PaperPlaneTiltIcon,
   PlusIcon,
   SparkleIcon,
-  XIcon,
   type Icon,
 } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { CopyButton } from "@/app/transaction-tracking/_components/copy-button";
-import { Button } from "@/components/ui/button";
-import { Drawer, DrawerClose, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
+import { Drawer, FloatingSheetContent, FloatingSheetHeader } from "@/components/ui/drawer";
 import { Money } from "../../_components/money";
 import { fullDate, groups, summary, type Kind, type Tx } from "../data";
 
@@ -26,7 +24,7 @@ const kinds: Record<Kind, { Icon: Icon; glyph: string; tint: string }> = {
   send: { Icon: PaperPlaneTiltIcon, glyph: "text-[#8a52f5]", tint: "bg-[#8a52f5]/12" },
   withdrawal: { Icon: BankIcon, glyph: "text-[#8a52f5]", tint: "bg-[#8a52f5]/12" },
   swap: { Icon: ArrowsClockwiseIcon, glyph: "text-[#2059f2]", tint: "bg-[#2059f2]/12" },
-  reward: { Icon: SparkleIcon, glyph: "text-[#30b256]", tint: "bg-[#30b256]/12" },
+  reward: { Icon: SparkleIcon, glyph: "text-positive", tint: "bg-positive/12" },
   deposit: { Icon: BankIcon, glyph: "text-[#ef642c]", tint: "bg-[#ef642c]/12" },
   card: { Icon: CreditCardIcon, glyph: "text-[#1f1f1f]", tint: "bg-black/[0.06]" },
   membership: { Icon: PlusIcon, glyph: "text-[#1f1f1f]", tint: "bg-black/[0.06]" },
@@ -53,7 +51,7 @@ function Amount({ tx }: { tx: Tx }) {
 }
 
 const rowClass =
-  "flex min-h-[60px] w-full items-center gap-3 rounded-[18px] px-3 py-2 text-left outline-none transition-colors duration-150 ease-out focus-visible:ring-2 focus-visible:ring-[#1171ee] active:bg-black/[0.04] [@media(hover:hover)]:hover:bg-black/[0.025]";
+  "flex min-h-[60px] w-full items-center gap-3 rounded-[18px] px-3 py-2 text-left outline-none transition-colors duration-150 ease-out focus-visible:ring-2 focus-visible:ring-fuse-blue active:bg-black/[0.04] [@media(hover:hover)]:hover:bg-black/[0.025]";
 
 function RowBody({ tx }: { tx: Tx }) {
   return (
@@ -64,12 +62,12 @@ function RowBody({ tx }: { tx: Tx }) {
         <span className="mt-0.5 block truncate text-[13px] leading-[18px] text-[#adadad]">
           {tx.time} · {tx.detail}
           {tx.status === "Pending" && (
-            <span className="ml-1.5 rounded-full bg-[#ef642c]/12 px-1.5 py-px text-[11px] font-medium text-[#ef642c]">Pending</span>
+            <span className="ml-1.5 rounded-full bg-pending/12 px-1.5 py-px text-[11px] font-medium text-pending">Pending</span>
           )}
         </span>
       </span>
       <span className="shrink-0 text-right">
-        <span className={`block text-[15px] leading-5 font-medium ${tx.flow === "in" ? "text-[#30b256]" : ""}`}>
+        <span className={`block text-[15px] leading-5 font-medium ${tx.flow === "in" ? "text-positive" : ""}`}>
           <Amount tx={tx} />
         </span>
         {tx.crypto && <span className="mt-0.5 block text-[13px] leading-[18px] text-[#adadad] tabular-nums">{tx.crypto}</span>}
@@ -90,21 +88,13 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
 function Sheet({ tx }: { tx: Tx }) {
   return (
     <>
-      <header className="relative flex flex-col items-center pt-[47px] text-center">
-        <span aria-hidden className="absolute top-2.5 h-[5px] w-9 rounded-full bg-black/10" />
-        <DrawerClose asChild>
-          <Button variant="ghost" size="icon" aria-label="Close" className="absolute top-[13px] -right-[3px] text-[#afafaf]">
-            <XIcon size={20} weight="bold" />
-          </Button>
-        </DrawerClose>
-        <Glyph kind={tx.kind} size={54} />
-        <DrawerTitle className="mt-3 text-[13.5px] font-medium tracking-normal text-[#a5a5a5]">{tx.title}</DrawerTitle>
-        <p className={`mt-1 text-[27.5px] leading-[34px] font-bold tracking-[-0.01em] ${tx.flow === "in" ? "text-[#30b256]" : ""}`}>
+      <FloatingSheetHeader icon={<Glyph kind={tx.kind} size={54} />} title={tx.title}>
+        <p className={`mt-1 text-[27.5px] leading-[34px] font-bold tracking-[-0.01em] ${tx.flow === "in" ? "text-positive" : ""}`}>
           <Amount tx={tx} />
         </p>
         {tx.crypto && <p className="text-[13.5px] text-[#969696] tabular-nums">{tx.crypto}</p>}
         <p className="mt-1 font-medium text-[#969696]">{fullDate(tx)}</p>
-      </header>
+      </FloatingSheetHeader>
 
       <dl className="mt-6 rounded-[18px] px-4 py-2 shadow-[0_0_0_1px_rgb(0_0_0/0.035),0_2px_6px_rgb(0_0_0/0.02)]">
         {tx.rows.map((r) => (
@@ -114,7 +104,7 @@ function Sheet({ tx }: { tx: Tx }) {
         ))}
         {tx.fee && (
           <Detail label="Network fee">
-            <span className="inline-flex items-center gap-1.5 text-[#30b256]">
+            <span className="inline-flex items-center gap-1.5 text-positive">
               <LightningIcon size={15} weight="fill" />
               Free <span className="font-normal text-[#a5a5a5]">· covered by Fuse⁺</span>
             </span>
@@ -128,7 +118,7 @@ function Sheet({ tx }: { tx: Tx }) {
           </Detail>
         )}
         <Detail label="Status">
-          <span className={tx.status === "Completed" ? "text-[#30b256]" : "text-[#ef642c]"}>{tx.status}</span>
+          <span className={tx.status === "Completed" ? "text-positive" : "text-pending"}>{tx.status}</span>
         </Detail>
       </dl>
     </>
@@ -143,7 +133,7 @@ export function HistoryList() {
   return (
     <>
       <p className="mt-1 text-[13px] leading-[18px] text-[#adadad]">
-        {summary.month} · In <span className="text-[#30b256]">+<Money value={summary.in} /></span> · Out −<Money value={summary.out} />
+        {summary.month} · In <span className="text-positive">+<Money value={summary.in} /></span> · Out −<Money value={summary.out} />
       </p>
 
       <div className="mt-6 max-w-2xl">
@@ -177,13 +167,9 @@ export function HistoryList() {
       </div>
 
       <Drawer open={open} onOpenChange={setOpen}>
-        <DrawerContent
-          aria-describedby={undefined}
-          handle={false}
-          className="inset-x-5 bottom-(--gap) bg-[#f2f2f2] text-[13.5px] leading-5 [--gap:max(20px,calc(env(safe-area-inset-bottom)+6px))] [--initial-transform:calc(100%+var(--gap))] rounded-[34px] after:hidden sm:[--gap:1rem]"
-        >
+        <FloatingSheetContent>
           <div className="min-h-0 overflow-y-auto px-4 pb-4">{tx && <Sheet tx={tx} />}</div>
-        </DrawerContent>
+        </FloatingSheetContent>
       </Drawer>
     </>
   );
