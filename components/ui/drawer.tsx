@@ -48,8 +48,13 @@ function DrawerContent({
   children,
   overlayClassName,
   handle = true,
+  onOpenAutoFocus,
+  onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof DrawerPrimitive.Content> & { overlayClassName?: string; handle?: boolean }) {
+  // Radix hands focus back only to a DrawerTrigger. Most sheets open from a plain button, so remember
+  // what was focused on open and return there; an opener that has since unmounted is the caller's job.
+  const opener = React.useRef<HTMLElement | null>(null)
   return (
     <DrawerPortal data-slot="drawer-portal">
       <DrawerOverlay className={overlayClassName} />
@@ -59,6 +64,16 @@ function DrawerContent({
           "fixed inset-x-0 bottom-0 z-50 flex max-h-[calc(100dvh-env(safe-area-inset-top)-12px)] flex-col rounded-t-[32px] bg-background text-foreground outline-none sm:inset-x-4 sm:[--initial-transform:calc(100%+16px)] sm:bottom-4 sm:mx-auto sm:max-h-[calc(100dvh-2rem)] sm:max-w-md sm:rounded-[32px] sm:after:hidden",
           className
         )}
+        onOpenAutoFocus={(e) => {
+          opener.current = document.activeElement as HTMLElement | null
+          onOpenAutoFocus?.(e)
+        }}
+        onCloseAutoFocus={(e) => {
+          onCloseAutoFocus?.(e)
+          if (e.defaultPrevented || !opener.current?.isConnected) return
+          e.preventDefault()
+          opener.current.focus()
+        }}
         {...props}
       >
         {handle && <div aria-hidden className="mx-auto mt-2.5 h-[5px] w-9 shrink-0 rounded-full bg-black/10" />}
