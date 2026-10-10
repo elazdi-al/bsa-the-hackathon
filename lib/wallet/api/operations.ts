@@ -125,7 +125,8 @@ export async function prepare(wallet: Wallet, kind: Kind, callData: Hex) {
     publicClient.getCode({ address: wallet.address }),
     publicClient.readContract({ address: addresses.entryPoint, abi: entryPoint07Abi, functionName: "getNonce", args: [wallet.address, 0n] }),
     publicClient.estimateFeesPerGas(),
-    publicClient.getBlock(),
+    // Anvil mines on demand, so the latest block can be minutes old; the pending one has the time the operation lands at.
+    publicClient.getBlock({ blockTag: "pending" }),
   ]);
   const userOp: UserOperation<"0.7"> = {
     sender: wallet.address,
