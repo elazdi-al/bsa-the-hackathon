@@ -26,7 +26,6 @@ export type Tx = {
   fee?: boolean;
   /** Onchain signature for the drawer. */
   hash?: string;
-  href?: string;
 };
 
 /** Mock "now" for the whole app. */
@@ -42,7 +41,7 @@ export const transactions: Tx[] = [
     rows: [{ label: "To", value: "Solana wallet (Ledger)" }], fee: true, hash: "2Zp7KmQe4VdXr8LwTn3YcBj6AfGs9uHo1iNtRb5WxCvE" },
   { id: "t4", account: "investments", kind: "swap", title: "SOL to USDC", detail: "Swap", date: "2025-03-11", time: "18:20", usd: 259.8, flow: "swap", crypto: "259.80 USDC", status: "Completed",
     rows: [{ label: "Paid", value: "2.00 SOL" }, { label: "Rate", value: "1 SOL = 129.90 USDC" }], fee: true, hash: "4Rk9LmTq2WvXz7NcBe3YdPj8AfGs5uHo6iEtRb1WxCvK" },
-  { id: "t5", account: "cash", kind: "withdrawal", title: "USDC Withdrawal", detail: "Revolut ••••1342", date: "2025-03-11", time: "10:07", usd: 1508.5, flow: "out", crypto: "1,508.50 USDC", status: "Completed", rows: [], href: "/transaction-tracking" },
+  { id: "t5", account: "cash", kind: "withdrawal", title: "USDC Withdrawal", detail: "Revolut ••••1342", date: "2025-03-11", time: "10:07", usd: 1508.5, flow: "out", crypto: "1,508.50 USDC", status: "Completed", rows: [] },
   { id: "t6", account: "card", kind: "card", title: "Uber Eats", detail: "Fuse Card", date: "2025-03-11", time: "08:45", usd: 24.9, flow: "out", status: "Completed",
     rows: [{ label: "Merchant", value: "Uber Eats" }, { label: "Card", value: "Fuse Visa ••••4218" }] },
   { id: "t7", account: "earn", kind: "reward", title: "Staking reward", detail: "Solana", date: "2025-03-10", time: "16:05", usd: 649.5, flow: "in", crypto: "5.00 SOL", status: "Completed",

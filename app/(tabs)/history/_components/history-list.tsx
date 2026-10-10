@@ -12,9 +12,9 @@ import {
   type Icon,
 } from "@phosphor-icons/react";
 import { motion } from "motion/react";
-import Link from "next/link";
 import { useLayoutEffect, useState, type ReactNode } from "react";
 import { CopyButton } from "@/app/transaction-tracking/_components/copy-button";
+import { TransactionSheet } from "@/app/transaction-tracking/_components/transaction-sheet";
 import { Drawer, FloatingSheetContent, FloatingSheetHeader } from "@/components/ui/drawer";
 import { Money } from "../../_components/money";
 import { blurred, reveal, sharp } from "../../_components/transitions";
@@ -164,6 +164,8 @@ export function HistoryList() {
   // Kept after close so the sheet's content doesn't vanish mid-exit.
   const [tx, setTx] = useState<Tx | null>(null);
   const [sent, setSent] = useState<Tx | null>(null);
+  // A withdrawal opens its live tracker; everything else, the detail sheet.
+  const tracked = tx?.kind === "withdrawal";
 
   // Before paint, so the list never jumps. The params go once read: a refresh or Back must not send it twice.
   useLayoutEffect(() => {
@@ -185,11 +187,7 @@ export function HistoryList() {
             <h2 className="px-3 pb-1 text-[13px] leading-[18px] font-medium text-[#adadad]">{g.label}</h2>
             <ul>
               {(sent && dayLabel(sent.date) === g.label ? [sent, ...g.items] : g.items).map((t) => {
-                const row = t.href ? (
-                  <Link href={t.href} className={rowClass}>
-                    <RowBody tx={t} />
-                  </Link>
-                ) : (
+                const row = (
                   <button
                     type="button"
                     className={rowClass}
@@ -214,11 +212,12 @@ export function HistoryList() {
         ))}
       </div>
 
-      <Drawer open={open} onOpenChange={setOpen}>
+      <Drawer open={open && !tracked} onOpenChange={setOpen}>
         <FloatingSheetContent>
           <div className="min-h-0 overflow-y-auto px-4 pb-4">{tx && <Sheet tx={tx} />}</div>
         </FloatingSheetContent>
       </Drawer>
+      <TransactionSheet open={open && tracked} onOpenChange={setOpen} />
     </>
   );
 }

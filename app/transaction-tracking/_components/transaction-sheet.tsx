@@ -31,9 +31,43 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-export function TransactionSheet() {
+/** The withdrawal tracker over whatever screen opened it. Its state lives in the content, so every open replays the settlement. */
+export function TransactionSheet({
+  open,
+  onOpenChange,
+  onClosed,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** After the close animation. */
+  onClosed?: () => void;
+}) {
+  return (
+    <MotionConfig reducedMotion="user" transition={settle}>
+      <Drawer
+        open={open}
+        onOpenChange={onOpenChange}
+        onAnimationEnd={(isOpen) => {
+          if (!isOpen) onClosed?.();
+        }}
+      >
+        {/* The shared handle sits outside the layout animation and would jump when the tracker folds, so the header draws its own. */}
+        <FloatingSheetContent className="bg-transparent">
+          <Tracking />
+        </FloatingSheetContent>
+      </Drawer>
+    </MotionConfig>
+  );
+}
+
+/** A direct visit to /transaction-tracking: the sheet is up on arrival and closing it leaves the screen. */
+export function TransactionRoute() {
   const back = useBack("/history");
   const [open, setOpen] = useState(true);
+  return <TransactionSheet open={open} onOpenChange={setOpen} onClosed={back} />;
+}
+
+function Tracking() {
   const [tracker, setTracker] = useState<Tracker>({ step: withdrawal.step, expanded: true });
   const [detailsOpen, setDetailsOpen] = useState(false);
 
@@ -55,104 +89,93 @@ export function TransactionSheet() {
   ].join("\n");
 
   return (
-    <MotionConfig reducedMotion="user" transition={settle}>
-      <Drawer
-        open={open}
-        onOpenChange={setOpen}
-        onAnimationEnd={(isOpen) => {
-          if (!isOpen) back();
-        }}
-      >
-        {/* The shared handle sits outside the layout animation and would jump when the tracker folds, so the header draws its own. */}
-        <FloatingSheetContent className="bg-transparent">
-          {/* The surface carries the height spring, so the drawer box stays transparent; content only translates, so text never stretches. */}
-          <motion.div layout aria-hidden className="absolute inset-0 -z-10 bg-[#f2f2f2]" style={{ borderRadius: 34 }} />
-          {/* Layout-animated so its clip box follows the surface instead of cutting the header off mid-fold. */}
-          <motion.div layout layoutScroll className="min-h-0 overflow-y-auto px-4 pb-[13px]">
-            <motion.div layout="position">
-              <FloatingSheetHeader icon={<UsdcCoin />} title={withdrawal.title}>
-                <p className="mt-1 text-[27.5px] leading-[34px] font-bold tracking-[-0.01em] tabular-nums">
-                  {withdrawal.amount}
-                </p>
-                <p className="mt-1 font-medium text-[#969696]">{withdrawal.date}</p>
-              </FloatingSheetHeader>
-            </motion.div>
+    <>
+      {/* The surface carries the height spring, so the drawer box stays transparent; content only translates, so text never stretches. */}
+      <motion.div layout aria-hidden className="absolute inset-0 -z-10 bg-[#f2f2f2]" style={{ borderRadius: 34 }} />
+      {/* Layout-animated so its clip box follows the surface instead of cutting the header off mid-fold. */}
+      <motion.div layout layoutScroll className="min-h-0 overflow-y-auto px-4 pb-[13px]">
+        <motion.div layout="position">
+          <FloatingSheetHeader icon={<UsdcCoin />} title={withdrawal.title}>
+            <p className="mt-1 text-[27.5px] leading-[34px] font-bold tracking-[-0.01em] tabular-nums">
+              {withdrawal.amount}
+            </p>
+            <p className="mt-1 font-medium text-[#969696]">{withdrawal.date}</p>
+          </FloatingSheetHeader>
+        </motion.div>
 
-            <StatusCard
-              tracker={tracker}
-              summary={summary}
-              onToggle={() => setTracker((t) => ({ ...t, expanded: !t.expanded }))}
-            />
+        <StatusCard
+          tracker={tracker}
+          summary={summary}
+          onToggle={() => setTracker((t) => ({ ...t, expanded: !t.expanded }))}
+        />
 
-            <motion.dl layout="position" className="mt-2 px-4">
-              {withdrawal.rows.map((r) => (
-                <Row key={r.label} label={r.label}>
-                  {r.value}
-                </Row>
-              ))}
-            </motion.dl>
+        <motion.dl layout="position" className="mt-2 px-4">
+          {withdrawal.rows.map((r) => (
+            <Row key={r.label} label={r.label}>
+              {r.value}
+            </Row>
+          ))}
+        </motion.dl>
 
-            <AnimatePresence initial={false} mode="popLayout" anchorY="bottom">
-              {detailsOpen && (
-                <motion.div
-                  key="more"
-                  id="more-details"
-                  layout="position"
-                  variants={more}
-                  initial="hidden"
-                  animate="shown"
-                  exit="hidden"
-                  className="px-4 pt-3"
-                >
-                  <hr className="h-px border-0 bg-[repeating-linear-gradient(90deg,#d4d4d4_0_8px,transparent_8px_16px)]" />
-                  <dl className="mt-2">
-                    <Row label="Payment rail">{withdrawal.paymentRail}</Row>
-                    <Row label="Onchain transaction">
-                      <CopyButton text={withdrawal.txHash} label="Copy onchain transaction">
-                        {withdrawal.txHash.slice(0, 4)}...{withdrawal.txHash.slice(-4)}
-                      </CopyButton>
-                    </Row>
-                    <Row label="Network fee">
-                      <span className="flex items-center gap-1.5 text-positive">
-                        <LightningIcon size={15} weight="fill" />
-                        {withdrawal.networkFee}
-                      </span>
-                    </Row>
-                  </dl>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <Button
-              variant="ghost"
-              render={<motion.button layout="position" />}
-              onClick={() => setDetailsOpen((open) => !open)}
-              aria-expanded={detailsOpen}
-              aria-controls="more-details"
-              className="h-11 w-full gap-1 text-[13.5px]"
+        <AnimatePresence initial={false} mode="popLayout" anchorY="bottom">
+          {detailsOpen && (
+            <motion.div
+              key="more"
+              id="more-details"
+              layout="position"
+              variants={more}
+              initial="hidden"
+              animate="shown"
+              exit="hidden"
+              className="px-4 pt-3"
             >
-              <span className="grid justify-items-end">
-                {(["Show", "Hide"] as const).map((word) => {
-                  const visible = (word === "Hide") === detailsOpen;
-                  return (
-                    <motion.span
-                      key={word}
-                      aria-hidden={!visible}
-                      className="col-start-1 row-start-1"
-                      initial={false}
-                      animate={visible ? sharp : { opacity: 0, filter: "blur(3px)", y: word === "Show" ? -8 : 8 }}
-                      transition={swap}
-                    >
-                      {word}
-                    </motion.span>
-                  );
-                })}
-              </span>
-              details
-            </Button>
-          </motion.div>
-        </FloatingSheetContent>
-      </Drawer>
-    </MotionConfig>
+              <hr className="h-px border-0 bg-[repeating-linear-gradient(90deg,#d4d4d4_0_8px,transparent_8px_16px)]" />
+              <dl className="mt-2">
+                <Row label="Payment rail">{withdrawal.paymentRail}</Row>
+                <Row label="Onchain transaction">
+                  <CopyButton text={withdrawal.txHash} label="Copy onchain transaction">
+                    {withdrawal.txHash.slice(0, 4)}...{withdrawal.txHash.slice(-4)}
+                  </CopyButton>
+                </Row>
+                <Row label="Network fee">
+                  <span className="flex items-center gap-1.5 text-positive">
+                    <LightningIcon size={15} weight="fill" />
+                    {withdrawal.networkFee}
+                  </span>
+                </Row>
+              </dl>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <Button
+          variant="ghost"
+          render={<motion.button layout="position" />}
+          onClick={() => setDetailsOpen((open) => !open)}
+          aria-expanded={detailsOpen}
+          aria-controls="more-details"
+          className="h-11 w-full gap-1 text-[13.5px]"
+        >
+          <span className="grid justify-items-end">
+            {(["Show", "Hide"] as const).map((word) => {
+              const visible = (word === "Hide") === detailsOpen;
+              return (
+                <motion.span
+                  key={word}
+                  aria-hidden={!visible}
+                  className="col-start-1 row-start-1"
+                  initial={false}
+                  animate={visible ? sharp : { opacity: 0, filter: "blur(3px)", y: word === "Show" ? -8 : 8 }}
+                  transition={swap}
+                >
+                  {word}
+                </motion.span>
+              );
+            })}
+          </span>
+          details
+        </Button>
+      </motion.div>
+    </>
   );
 }
