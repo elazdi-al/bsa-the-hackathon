@@ -28,7 +28,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import * as z from "zod";
 import { getComplianceRuntime } from "@/services/compliance/runtime";
 import type { DappMetadata } from "../../dapps/model";
-import { accountAbi, bindRecoveryKeyMessage, factoryAbi, paymasterAbi, type Config, type Passkey } from "../account.ts";
+import { ACCOUNT_GAS, accountAbi, bindRecoveryKeyMessage, factoryAbi, paymasterAbi, type Config, type Passkey } from "../account.ts";
 import { addresses, chain, credentials, partnerUrl, publicClient, rpcUrl } from "../env.ts";
 import { address, passkey } from "../schema.ts";
 import { store, type Kind, type Wallet } from "./db.ts";
@@ -38,15 +38,7 @@ import { HttpError } from "./http.ts";
 export const swissquote = () => privateKeyToAccount(process.env.SWISSQUOTE_KEY as Hex);
 const operator = () => createWalletClient({ account: swissquote(), chain, transport: http(rpcUrl) });
 
-// ponytail: fixed limits sized for a first operation that deploys the account plus a token
-// transfer with on-chain P-256 verification; estimate per operation once dApp calls need more.
-const GAS = {
-  callGasLimit: 300_000n,
-  verificationGasLimit: 1_000_000n,
-  preVerificationGas: 50_000n,
-  paymasterVerificationGasLimit: 100_000n,
-  paymasterPostOpGasLimit: 0n,
-};
+const GAS = { ...ACCOUNT_GAS, paymasterVerificationGasLimit: 100_000n, paymasterPostOpGasLimit: 0n };
 // As long as a compliance decision lives, so a sponsored operation never outlives the decision behind it.
 const SPONSORSHIP_TTL = 120n;
 
