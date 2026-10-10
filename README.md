@@ -381,20 +381,23 @@ Staking, loans, cards and wealth services are out of scope and need their own as
 
 ## Business case
 
-Today a Swissquote client who wants self-custody pays USD 10 or 15 per withdrawal and then leaves Swissquote's view with those assets. Swissquote has 1.22 million accounts and CHF 96.3 billion in client assets, about CHF 79,000 per account on average. Swissquote Wallet turns that exit into a product that stays one tap from the Swissquote account.
+A Swissquote client who wants their own keys today pays USD 15 to move USDC to an external wallet. Swissquote then loses sight of the coins, and some clients take the whole account with them. Across its 1.22 million accounts, Swissquote earns about CHF 600 a year and holds about CHF 79,000 of client assets per account. Each client who leaves takes both. Swissquote Wallet keeps that client one tap from trading. For 10,000 wallets in the first year, we assume 1 client in 10 would otherwise have left Swissquote and 1 in 10 is new to it. That gives 2,000 clients × CHF 600 = CHF 1.2 million a year, and CHF 79 million of assets stays at Swissquote with the 1,000 clients kept. The fee lines about cancel out. Swaps at the published 1% fee and Swissquote Plus earn CHF 620,000 a year. Free transfers into the wallet and sponsored gas cost CHF 612,000, counting one dollar as one franc, which overstates them. Costs also fall, by amounts no public figure shows. There is no seed phrase to support, recovery is one scripted in-app flow, and coins in the client's own wallet need none of the cold storage, multi-signature wallets and sub-custodians that Swissquote runs for the crypto it holds ([Annual Report 2025](https://www.swissquote.com/en/api/internal/media/get-media?filename=2026-03/Annual%20Report%20full%20report_18.03.2026_vFINAL.pdf), p. 115). The case does not depend on crypto prices. Net crypto assets income fell 66% to CHF 14.6 million in H1 2026, but the CHF 600 counts the whole account.
 
-Under the assumptions below, which are ours and not Swissquote data, the first year brings 6,100 wallet clients holding CHF 61 million that Swissquote can see and serve. Swap spread and Swissquote Plus earn about CHF 1.29 million a year. Against that, waiving the withdrawal fee for transfers into the wallet costs about USD 305,000, and gas costs about USD 7,300. Every 1,000 clients who stay instead of leaving keep about CHF 79 million of assets at Swissquote, at the average account size. Support gets simpler, because there is no seed phrase to lose and recovery is a scripted in-app flow with one ID check. We have no Swissquote support data, so that line has no number. The wallet can also bring in new clients who want self-custody with a Swiss bank behind it.
-
-| | Assumption | Result |
+| Input | Source or assumption | Value |
 | --- | --- | --- |
-| A1 | 5% of the 1.22 million accounts hold crypto at Swissquote | 61,000 clients |
-| A2 | 10% of them open a wallet in the first year | 6,100 wallet clients |
-| A3 | The average wallet holds CHF 10,000 | CHF 61 million in wallets |
-| A4 | Wallet clients swap twice their balance a year in the app, at a 1% spread | CHF 1.22 million a year |
-| A5 | 10% of wallet clients take Swissquote Plus at CHF 10 a month. The app's Plus screen is a demo, and the price is our guess. | CHF 73,200 a year |
-| A6 | 24 sponsored payments per client a year, at USD 0.05 of gas each on a layer-2 chain | USD 7,320 a year |
-| A7 | Transfers from the Swissquote account into the wallet are free, at 4 a year per client, waiving USD 12.50 on average | USD 305,000 a year forgone |
-| A8 | A client kept holds the average account's assets | CHF 79 million per 1,000 clients kept |
+| Accounts on 30 June 2026 | [H1 2026 results](https://www.swissquote.com/en/api/internal/media/get-media?filename=press-releases%2Fad+hoc_EN_Media_Release_H1_2026.pdf), p. 1. Includes 423,409 Yuh accounts with CHF 4.0 billion of assets (p. 7). Without Yuh, assets per account rise to about CHF 116,000, so our averages are low. | 1.22 million |
+| Client assets on 30 June 2026 | H1 2026 results, p. 1 | CHF 96.3 billion, about CHF 79,000 per account |
+| Net revenues expected for 2026 | H1 2026 results, p. 3. The first half brought CHF 364.2 million (p. 1). | CHF 730 million, about CHF 600 per account a year |
+| Crypto trading fee | [Crypto pricing](https://www.swissquote.com/en-ch/private/trade/pricing/cryptocurrencies), Standard tier, under USD 6,000 traded in 30 days | 1% |
+| Withdrawal fee to an external wallet | Crypto pricing, withdrawal fees | USD 15 for USDC, USD 10 for BTC or ETH |
+| Wallets in the first year | Assumption, 0.8% of accounts | 10,000 |
+| Clients kept | Assumption, 1 wallet client in 10 would otherwise have left Swissquote | 1,000 × CHF 600 = CHF 600,000 a year, and 1,000 × CHF 79,000 = CHF 79 million of assets |
+| New clients | Assumption, 1 wallet client in 10 is new to Swissquote. We count no assets for them. | 1,000 × CHF 600 = CHF 600,000 a year |
+| Swaps in the app | Assumption, CHF 5,000 per wallet a year at the 1% fee | 10,000 × CHF 50 = CHF 500,000 a year |
+| Swissquote Plus | Assumption, 1 wallet client in 10 at CHF 10 a month. The app's Plus screen is a demo, and the price is our guess. | 1,000 × CHF 120 = CHF 120,000 a year |
+| Free transfers into the wallet | Assumption, 4 a year per wallet, each waiving the USD 15 fee | 10,000 × USD 60 = USD 600,000 a year forgone |
+| Sponsored gas | Assumption, 24 payments per wallet a year at USD 0.05 on a layer-2 chain | 10,000 × USD 1.20 = USD 12,000 a year |
+| Net | Sum of the lines above, counting USD 1 as CHF 1. The 2025 closing rate was CHF 0.79 (Annual Report 2025, p. 64), so this overstates the costs. | About CHF 1.2 million a year |
 
 ## Bonus: gasless payments
 
