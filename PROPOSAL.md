@@ -67,7 +67,7 @@ Recovery replaces the key instead of reusing it. The new phone, Swissquote and a
 | MPC alone | Kept as the signer | Signs for any chain. On EVM, without a smart account, it gets no gas sponsorship, no on-chain rules and no address-preserving rotation. |
 | **MPC + Safe (chosen)** | Chosen | MPC gives every chain and no single point of theft. Safe adds gasless transactions, on-chain rotation and room for on-chain rules. |
 
-The `ecdsa-tss-js` library from our first notes only does 2-of-2. We need 2-of-3, so we use Silence Labs' DKLs23 packages instead (section 5.4).
+The [`ecdsa-tss-js` library](https://github.com/silence-laboratories/ecdsa-tss-js) from our notes only does 2-of-2. We need 2-of-3, so we use Silence Labs' DKLs23 packages instead (section 5.4).
 
 ### 3.3 Pros and cons
 
@@ -368,8 +368,8 @@ The Safe is standard, so the client, or any other wallet provider, can also mana
 Every transaction, whether a plain payment or a dApp call, goes through one pipeline:
 
 1. **Decode.** Read the target contract, function and amounts from the call data.
-2. **Allowlist.** The contract, the function and the asset must be on Swissquote's approved list.
-3. **Sanctions and address risk.** Every external address goes through TRM Labs' sanctions API, which is real in the demo and needs no key. In production we would use a KYT provider covering the SECO, OFAC, EU and UN lists. Switzerland applies SECO sanctions first.
+2. **Allowlist and limits.** The contract, the function and the asset must be on Swissquote's approved list. The policy service checks the customer's transaction and daily limits.
+3. **Sanctions and address risk.** Every external address goes through TRM Labs' sanctions API, which is real in the demo and needs no key. In production we would use Chainalysis or TRM Labs for scam and illicit-finance risk screening, with coverage of the SECO, OFAC, EU and UN lists. Switzerland applies SECO sanctions first.
 4. **Simulation.** viem's `simulateCalls` runs the calls from the Safe's address and returns asset changes before and after.
 5. **Plain-language summary.** The simulation output becomes sentences, for example:
 
@@ -442,7 +442,7 @@ Swissquote's current help page accepts deposits only from "a wallet for which yo
 | Own wallet to Swissquote account | Accepted automatically with the same proof. Incoming funds are screened as today. |
 | Wallet to another Swissquote Wallet client | Swissquote knows both sides. The data stays inside the bank. The recipient's name is shown only if they opted in (section 9.4). |
 | Wallet to an exchange or bank | The client sends from a self-hosted wallet. Our reading is that Swissquote is not the originator's institution under Art. 10, because it carries out no payment order for the client. To be safe, the wallet still asks for the beneficiary's name and sends originator and beneficiary data off-chain through a Travel Rule network. Mocked in the demo. |
-| Wallet to someone else's self-hosted wallet | Screening as above, and the client enters the beneficiary's name. For high-value tiers the client can send the recipient a link to sign a message proving ownership, similar to verification of payee. |
+| Wallet to someone else's self-hosted wallet | Show an "Unverified external wallet" warning, screen the address and collect the beneficiary's name. A warning and audit log alone do not satisfy applicable identity and beneficial-owner verification requirements. For high-value tiers the client can send the recipient a link to sign a message proving ownership, similar to verification of payee. |
 | Exchange or bank to the client's wallet | The other institution must check that the client owns this wallet. The client taps "Prove ownership". The wallet signs the institution's challenge, through ERC-1271 on the Safe, or sends a time-boxed transaction. |
 
 **Is Swissquote the sending institution when the client pays a third party?** We think not. The client initiates the transfer from a self-hosted wallet, and Swissquote co-signs as a security service without power of disposal. Because AMLA still covers the co-signing, the wallet collects and can send the same data a sending institution would. If FINMA reads it the other way, only one setting changes, not the architecture.
@@ -464,6 +464,7 @@ MiCA recital 83 excludes providers of non-custodial wallets. The EU Transfer of 
 - The final wording of the licensing reform. As of early October 2026 it had not been sent to Parliament.
 - Whether FINMA treats co-signed payments to exchanges as Art. 10 payment orders.
 - The regulatory status of the escrow partner.
+- A feature-by-feature legal and operational review before production, including [FINMA Circular 2023/1 on operational risks and resilience](https://www.finma.ch/~/media/finma/dokumente/dokumentencenter/myfinma/rundschreiben/finma-rs-2023-01-20221207.pdf?sc_lang=en) and [Circular 2018/3 on outsourcing](https://www.finma.ch/en/news/2017/12/20171205-mm-rs-outsourcing/) for external service providers.
 
 ## 10. Business case
 
@@ -476,14 +477,16 @@ MiCA recital 83 excludes providers of non-custodial wallets. The EU Transfer of 
 **What Swissquote gains.**
 
 1. **Retention.** Self-custodied assets stay one tap from Swissquote's exchange (SQX). When the client sells, buys or rebalances, it happens at Swissquote. Our calculation from reported fee income and volume puts Swissquote's take on that at roughly 0.6 to 0.7%.
-2. **New revenue, from swaps.** A 0.5% swap fee in the wallet, below MetaMask (0.875%), Phantom (0.85%) and Coinbase Wallet (up to 1%).
-3. **New revenue, from staking.** Non-custodial staking through Swissquote validators at the same 20% commission it charges today. FINMA Guidance 08/2023 treats staking without custody of the withdrawal keys as non-custodial.
+2. **New revenue, from swaps and premium.** A 0.5% swap fee in the standard wallet, below MetaMask (0.875%), Phantom (0.85%) and Coinbase Wallet (up to 1%). A premium subscription waives Swissquote's swap fee.
+3. **New revenue, from staking.** Non-custodial staking through Swissquote validators, with a lower commission than today's 20% to be evaluated against operating costs. FINMA Guidance 08/2023 treats staking without custody of the withdrawal keys as non-custodial.
 4. **Lower costs.** Ownership checks for the client's own wallet become automatic, with no manual whitelisting or Satoshi tests and fewer support tickets. Wallet assets need no capital or segregation. A self-hosted co-signer avoids wallet-as-a-service fees: Privy charges USD 0.05 per monthly active user, Turnkey USD 0.10 per signature.
 5. **New clients.** We found no major bank that offers retail clients a self-custody wallet. PostFinance's terms exclude external wallets. Revolut stays custodial. Sygnum offers Safe-based recovery for web3 wallets. A Swiss bank that offers keys plus a recovery net reaches people who distrust exchanges after events like the Bybit hack (USD 1.5 billion, February 2025) but fear losing a seed phrase.
 
-**Pricing: transaction fees, not a subscription, at launch.** The wallet is free for Swissquote clients. Gas is free for moves between Swissquote and the wallet and for 30 other operations a month. A subscription adds friction to an add-on, and Swissquote already earns where the client trades and stakes. A paid tier for heavy users can come later.
+**Pricing: transaction fees or an optional premium subscription.** The standard wallet is free for Swissquote clients, with fees based on transaction type. Transfers between Swissquote wallets carry no Swissquote transfer fee. Gas is free for moves between Swissquote and the wallet and for 30 other operations a month. Premium waives Swissquote's swap fee; its subscription price remains to be set. DEX liquidity fees, spreads, price impact and any unsponsored network costs still apply and are disclosed before signing.
 
-**Illustrative unit economics.** These are assumptions, not forecasts.
+**Further revenue ideas, outside the core demo.** Bank loans for crypto trading could earn interest, with an on-chain collateral vault to explore and explicit liquidation rules. A wallet-linked Swissquote debit card could convert crypto at payment time and generate conversion fees and card revenue, with loyalty points or cashback funded from that revenue. Business and wealth-management wallet services could charge service fees. These products need separate legal review.
+
+**Illustrative unit economics.** These are assumptions, not forecasts. The table models the standard tier, using today's 20% staking commission as a baseline before any proposed reduction; premium revenue and waived swap fees are not included.
 
 | Per active wallet per year | Assumption | CHF |
 | --- | --- | --- |
@@ -535,7 +538,7 @@ Most of these screens already exist in this repository as a UI prototype, built 
 | Transaction tracking, history | `/transaction-tracking`, `/history` | Real statuses from the bundler and chain |
 | Identity check during recovery | `/pending-verification` | Liveness step and recovery countdown |
 | Security centre | `/settings` | Keys, limits, lock, Recovery Kit, independent mode |
-| Fuse Plus | `/fuse-plus` | Drop for launch (no subscription) |
+| Fuse Plus | `/fuse-plus` | Rebrand as Swissquote Wallet Premium, with a mocked subscription and a Swissquote swap-fee waiver. Disclose remaining costs |
 
 ## 12. Demo script, about four minutes
 
@@ -586,6 +589,7 @@ The order protects the core story first. Bonus points only count when create, si
 | Tool | Used for |
 | --- | --- |
 | Claude Code (Anthropic, Claude Opus 5.5) | Research for this proposal: regulation, MPC and account-abstraction libraries, testnet contract addresses, Swissquote figures. Drafting this document. |
+| OpenAI Codex | Updating this proposal from revised team notes; checking the MPC library's threshold and the added FINMA references. |
 
 Before submission, the team adds the other tools it used, including those used to build the UI prototype, and what each was used for.
 
