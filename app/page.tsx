@@ -17,14 +17,14 @@ const screens = [
 export default function Index() {
   return (
     <main className="mx-auto max-w-[640px] px-6 py-20">
-      <h1 className="text-[15px] font-semibold text-black">Fuse Wallet</h1>
-      <p className="mt-1 text-[14px] text-black/50">Screens</p>
-      <ul className="mt-10 divide-y divide-black/[0.06]">
+      <h1 className="text-heading">Fuse Wallet</h1>
+      <p className="mt-1 text-body text-muted-foreground">Screens</p>
+      <ul className="mt-8">
         {screens.map((s) => (
           <li key={s.slug}>
-            <Link href={`/${s.slug}`} className="flex items-baseline justify-between gap-6 py-3.5 text-[14px] text-black transition-opacity outline-none hover:opacity-60 focus-visible:ring-2 focus-visible:ring-black/20">
-              <span>{s.title}</span>
-              <span className="shrink-0 text-[12px] text-black/40 tabular-nums">{s.refs}</span>
+            <Link href={`/${s.slug}`} className="flex min-h-14 flex-col justify-center py-2 transition-opacity outline-none hover:opacity-60 focus-visible:ring-2 focus-visible:ring-ring">
+              <span className="text-label">{s.title}</span>
+              <span className="text-caption text-muted-foreground tabular-nums">{s.refs}</span>
             </Link>
           </li>
         ))}

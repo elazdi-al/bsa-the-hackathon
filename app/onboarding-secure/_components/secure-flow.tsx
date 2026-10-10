@@ -41,7 +41,7 @@ export function SecureFlow() {
   }, [ready, router]);
 
   // While the keyboard is up the content lifts above it and the gradient steps aside.
-  // From sm the band is a 50svh strip, so the list starts in its fade (24svh, less the 60px header) instead of the bottom.
+  // From sm the band is a 50svh strip, so the list starts in its fade (24svh, less the 56px header) instead of the bottom.
   const lifted = typing && step.name === "recovery" && (step.status === "email" || step.status === "code");
   const setup = step.name === "setup";
   const onGradient = !lifted && !setup;
@@ -57,23 +57,19 @@ export function SecureFlow() {
             animate={{ opacity: setup ? 0 : 1 }}
             transition={smooth}
             inert={setup}
-            className={`flex items-start justify-between px-[46px] pt-[calc(env(safe-area-inset-top)+24px)] transition-colors duration-300 ${
-              onGradient ? "text-white" : "text-black/40"
+            className={`flex items-center justify-between pt-[calc(env(safe-area-inset-top)+16px)] pr-[30px] pl-[46px] transition-colors duration-300 ${
+              onGradient ? "text-white" : "text-muted-foreground"
             }`}
           >
-            <h1 className="text-[15px] leading-[18px] font-medium">
-              Secure
-              <br />
-              your wallet
-            </h1>
-            <BackButton kind="close" tone={onGradient ? "dark" : "light"} fallback="/onboarding-welcome" className="-mt-[9px] -mr-[10px]" />
+            <h1 className="text-label">Secure your wallet</h1>
+            <BackButton kind="close" fallback="/onboarding-welcome" tone={onGradient ? "dark" : "light"} />
           </motion.header>
 
           <div
             className={`flex flex-1 flex-col px-[30px] ${
               setup
                 ? "justify-center pb-24"
-                : `pb-[max(calc(env(safe-area-inset-bottom)+12px),36px)] ${lifted ? "justify-start pt-16" : "justify-end sm:justify-start sm:pt-[calc(24svh-60px)]"}`
+                : `pb-[max(calc(env(safe-area-inset-bottom)+12px),36px)] ${lifted ? "justify-start pt-16" : "justify-end sm:justify-start sm:pt-[calc(24svh-56px)]"}`
             }`}
           >
             <motion.ul {...entrance(0.9)} className="relative flex flex-col">
@@ -87,7 +83,7 @@ export function SecureFlow() {
                     <KeyItem
                       key={item.id}
                       item={item}
-                      active={state === "active"}
+                      state={state}
                       sentTo={sent ? recovery.email : undefined}
                     >
                       {sent && (

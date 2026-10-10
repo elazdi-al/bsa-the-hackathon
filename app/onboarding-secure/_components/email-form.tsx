@@ -1,6 +1,6 @@
-import { ArrowRightIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "motion/react";
 import { useRef, useState, type FormEvent } from "react";
+import { ArrowRightIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { iconSwap } from "./motion";
@@ -29,7 +29,7 @@ export function EmailForm({ sending, onSubmit, onFocusChange }: Props) {
   return (
     <form
       onSubmit={submit}
-      className="flex h-[52px] items-center rounded-full bg-white pr-2 pl-6 shadow-[0_0_0_1px_rgb(0_0_0/0.06)] transition-shadow duration-200 focus-within:shadow-[0_0_0_1px_rgb(0_0_0/0.14)]"
+      className="flex h-[52px] items-center rounded-full bg-secondary pr-2 pl-6 ring-inset transition-shadow duration-200 focus-within:ring-2 focus-within:ring-foreground"
     >
       <input
         ref={input}
@@ -46,7 +46,7 @@ export function EmailForm({ sending, onSubmit, onFocusChange }: Props) {
         onChange={(e) => setEmail(e.target.value)}
         onFocus={() => onFocusChange(true)}
         onBlur={() => onFocusChange(false)}
-        className="min-w-0 flex-1 bg-transparent text-[17px] text-black caret-fuse-blue outline-none placeholder:text-black/40"
+        className="min-w-0 flex-1 bg-transparent text-label font-normal caret-fuse-blue outline-none placeholder:text-muted-foreground"
       />
       <Button
         type="submit"
@@ -54,13 +54,11 @@ export function EmailForm({ sending, onSubmit, onFocusChange }: Props) {
         aria-label="Send code"
         aria-busy={sending}
         disabled={!valid || sending}
-        className={`relative grid h-9 w-12 place-items-center after:absolute after:-inset-1 disabled:opacity-100 ${
-          valid ? "" : "bg-black/[0.17]"
-        }`}
+        className={`relative grid h-9 w-12 place-items-center after:absolute after:-inset-1 ${sending ? "disabled:opacity-100" : ""}`}
       >
         <AnimatePresence initial={false}>
           <motion.span key={sending ? "spin" : "arrow"} {...iconSwap} className="col-start-1 row-start-1">
-            {sending ? <Spinner aria-hidden /> : <ArrowRightIcon size={18} weight="fill" />}
+            {sending ? <Spinner aria-hidden /> : <ArrowRightIcon size={20} />}
           </motion.span>
         </AnimatePresence>
       </Button>

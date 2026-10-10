@@ -1,12 +1,11 @@
 "use client";
 
-import { ArrowCounterClockwiseIcon } from "@phosphor-icons/react";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { cn } from "cn";
 import { blurred, leave, sharp, snappy } from "@/app/(tabs)/_components/transitions";
+import { RestoreIcon } from "@/components/icons";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { GlimmField } from "./glimm-field";
@@ -28,7 +27,7 @@ const blurSwap = {
   transition: snappy,
 };
 
-const cta = "text-[15px] tracking-[-0.01em] focus-visible:outline-white";
+const cta = "focus-visible:outline-white";
 
 export function WelcomeFlow() {
   const router = useRouter();
@@ -58,12 +57,12 @@ export function WelcomeFlow() {
           <div className="grid size-[42px] place-items-center rounded-[11px] bg-white text-black shadow-[0_1px_2px_rgb(0_0_0/0.06)]">
             <FuseLogo className="size-[17px]" />
           </div>
-          <h1 className="mt-[13px] text-[30px] leading-[35px] font-medium tracking-[-0.02em] text-balance">
+          <h1 className="mt-4 text-title text-balance">
             Your money,
             <br />
             upgraded
           </h1>
-          <p className="mt-[18px] text-[13px] leading-[18px] text-white/65">
+          <p className="mt-3 text-body text-white/75">
             Save, earn and invest
             <br />
             with stablecoins and digital assets.
@@ -94,11 +93,9 @@ export function WelcomeFlow() {
               e.preventDefault();
               setStep("recovering");
             }}
-            className={cn(buttonVariants({ size: "lg" }), "bg-white/15 text-white hover:bg-white/20", cta)}
+            className={buttonVariants({ size: "lg", className: `bg-white/15 text-white hover:bg-white/20 ${cta}` })}
           >
-            <span className="grid size-4 place-items-center rounded-[4px] bg-white text-[#1B7DF6]">
-              <ArrowCounterClockwiseIcon weight="fill" size={11} />
-            </span>
+            <RestoreIcon size={20} />
             Recover existing wallet
           </Link>
         </div>

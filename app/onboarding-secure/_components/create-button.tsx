@@ -17,7 +17,7 @@ export function CreateButton({ item, busy, onPress }: { item: WalletKey; busy: b
     >
       <AnimatePresence initial={false}>
         <motion.span key={label} {...blurSwap} className="col-start-1 row-start-1 flex items-center gap-2">
-          {busy ? <Spinner aria-hidden className="size-[18px]" /> : <item.Icon weight="fill" size={20} aria-hidden />}
+          {busy ? <Spinner aria-hidden className="size-5" /> : <item.Icon size={20} style={{ color: item.accent }} />}
           {label}
         </motion.span>
       </AnimatePresence>

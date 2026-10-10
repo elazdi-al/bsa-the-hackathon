@@ -1,21 +1,23 @@
-import { CheckCircleIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "motion/react";
 import type { ReactNode, Ref } from "react";
 import { blurred, sharp, smooth, snappy } from "@/app/(tabs)/_components/transitions";
+import { CheckCircleIcon } from "@/components/icons";
 import { CODE_SENT, SETUP, type WalletKey } from "../data";
+import type { keyState } from "../flow";
 import { blurSwap, iconSwap } from "./motion";
 
 type KeyItemProps = {
   ref?: Ref<HTMLLIElement>;
   item: WalletKey;
-  active: boolean;
+  state: ReturnType<typeof keyState>;
   /** Set once the recovery code has been sent: swaps the body copy for the confirmation. */
   sentTo?: string;
   children?: ReactNode;
 };
 
-/** A key is a grey row until it is the current step, then it opens into its full copy. */
-export function KeyItem({ ref, item, active, sentTo, children }: KeyItemProps) {
+/** A key is a grey row until it is the current step, then it opens into its full copy. Once done, its row keeps the colour. */
+export function KeyItem({ ref, item, state, sentTo, children }: KeyItemProps) {
+  const done = state === "done";
   return (
     <motion.li
       ref={ref}
@@ -28,21 +30,19 @@ export function KeyItem({ ref, item, active, sentTo, children }: KeyItemProps) {
       className="relative px-4"
     >
       <AnimatePresence mode="popLayout" initial={false}>
-        {active ? (
+        {state === "active" ? (
           <motion.div key="active" {...blurSwap} className="pt-[30px] pb-6">
-            <span className="block" style={{ color: item.accent }}>
-              <item.Icon weight="fill" size={26} aria-hidden />
-            </span>
-            <h2 className="mt-4 text-[28px] leading-[34px] font-bold tracking-[-0.02em] text-black">{item.title}</h2>
+            <item.Icon size={32} className="block" style={{ color: item.accent }} />
+            <h2 className="mt-4 text-title">{item.title}</h2>
             <AnimatePresence mode="popLayout" initial={false}>
               <motion.p
                 key={sentTo ?? "body"}
                 {...blurSwap}
-                className={`mt-2 max-w-[258px] text-[15px] leading-[19px] text-black/40 ${sentTo ? "text-balance" : "text-pretty"}`}
+                className={`mt-2 max-w-[258px] text-body text-muted-foreground ${sentTo ? "text-balance" : "text-pretty"}`}
               >
                 {sentTo ? (
                   <>
-                    {CODE_SENT} <span className="text-black">{sentTo}</span>
+                    {CODE_SENT} <span className="text-foreground">{sentTo}</span>
                   </>
                 ) : (
                   item.body
@@ -52,9 +52,9 @@ export function KeyItem({ ref, item, active, sentTo, children }: KeyItemProps) {
             {children}
           </motion.div>
         ) : (
-          <motion.div key="row" {...blurSwap} className="flex h-11 items-center gap-3">
-            <item.Icon weight="fill" size={22} aria-hidden className="text-black/[0.18]" />
-            <span className="text-[17px] font-semibold text-black/40">{item.title}</span>
+          <motion.div key="row" {...blurSwap} className={`flex h-11 items-center gap-4 ${done ? "" : "text-muted-foreground"}`}>
+            <item.Icon style={done ? { color: item.accent } : undefined} />
+            <span className="text-label">{item.title}</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -70,25 +70,25 @@ export function SetupRow({ ref, ready }: { ref?: Ref<HTMLLIElement>; ready: bool
       layout="position"
       {...blurSwap}
       transition={{ ...snappy, delay: 0.25, layout: smooth }}
-      className="mt-1.5 flex gap-3 px-4 py-2.5"
+      className="mt-1.5 flex gap-4 px-4 py-2.5"
       aria-live="polite"
     >
-      <span className="relative mt-px grid size-[22px] shrink-0 place-items-center">
+      <span className="relative -mt-px grid size-6 shrink-0 place-items-center">
         <AnimatePresence initial={false}>
           <motion.span
             key={ready ? "ready" : "working"}
             {...iconSwap}
             className="absolute inset-0 grid place-items-center"
           >
-            {ready ? <CheckCircleIcon size={27} weight="fill" className="text-positive" /> : <SetupSpinner />}
+            {ready ? <CheckCircleIcon className="text-positive" /> : <SetupSpinner />}
           </motion.span>
         </AnimatePresence>
       </span>
       <div className="grid">
         <AnimatePresence initial={false}>
           <motion.div key={copy.title} {...blurSwap} className="col-start-1 row-start-1">
-            <p className="text-[17px] leading-[22px] font-semibold text-black">{copy.title}</p>
-            <p className="mt-0.5 max-w-[190px] text-[15px] leading-[19px] text-pretty text-black/40">{copy.body}</p>
+            <p className="text-label">{copy.title}</p>
+            <p className="mt-0.5 max-w-[190px] text-body text-pretty text-muted-foreground">{copy.body}</p>
           </motion.div>
         </AnimatePresence>
       </div>
@@ -98,15 +98,15 @@ export function SetupRow({ ref, ready }: { ref?: Ref<HTMLLIElement>; ready: bool
 
 function SetupSpinner() {
   return (
-    <svg viewBox="0 0 22 22" className="size-[22px] animate-[spin_2.4s_linear_infinite]" aria-hidden>
+    <svg viewBox="0 0 24 24" className="size-6 animate-[spin_2.4s_linear_infinite] text-faint" aria-hidden>
       <circle
-        cx="11"
-        cy="11"
-        r="9.5"
+        cx="12"
+        cy="12"
+        r="9.25"
         fill="none"
-        stroke="#a79ab5"
-        strokeWidth="1.75"
-        strokeDasharray="2.4 2.57"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeDasharray="2.34 2.5"
         strokeLinecap="round"
       />
     </svg>

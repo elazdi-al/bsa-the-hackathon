@@ -48,9 +48,9 @@ export function WordWheel() {
                 transition={ROLL}
               >
                 <motion.span className="shrink-0" animate={{ opacity: distance ? 0.3 : 1 }} transition={ROLL}>
-                  <word.Icon weight="fill" size={40} color={word.color} />
+                  <word.Icon size={32} style={{ color: word.color }} />
                 </motion.span>
-                <span className="text-[40px] font-medium tracking-[-0.02em] text-[#111]">{word.label}</span>
+                <span className="text-amount">{word.label}</span>
               </motion.div>
             );
           })}
