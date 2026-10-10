@@ -5,7 +5,8 @@ import { motion } from "motion/react";
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { balance, defaultRange, history, ranges, series, type Range } from "../data";
-import { Money, usd } from "../../_components/money";
+import { usd } from "../../_components/money";
+import { RollingMoney } from "../../_components/rolling-money";
 import { BlurMoney, markIntroDone, wasIntroDone } from "./blur-money";
 import { smooth, snappy } from "../../_components/transitions";
 
@@ -19,6 +20,7 @@ export function BalanceChart() {
   // Index of the bar being scrubbed, or null when showing the total.
   const [active, setActive] = useState<number | null>(null);
   const pointer = useRef<{ id: number; touch: boolean; bar?: number } | null>(null);
+  const [rolled, setRolled] = useState(false);
 
   // The chart height changes per breakpoint, so the 2px floor of a bar is measured, not assumed.
   const chart = useRef<HTMLDivElement>(null);
@@ -36,6 +38,8 @@ export function BalanceChart() {
   const last = values.length - 1;
   const shown = active ?? last;
   const scrubbing = active !== null;
+  // Once scrubbed, the rolling amount keeps the number so a release rolls back to the total instead of swapping layers.
+  if (scrubbing && !rolled) setRolled(true);
   // Always the change since the first bar of the range, so releasing a scrub lands on the same meaning.
   const change = ((values[shown] - values[0]) / values[0]) * 100;
   const up = change >= 0;
@@ -90,13 +94,13 @@ export function BalanceChart() {
         </p>
       </div>
 
-      {/* BlurMoney stays mounted so its type-in never replays; the scrubbed amount sits over it in the same cell. */}
+      {/* BlurMoney types the total in; from the first scrub on, the rolling amount in the same cell owns the number. */}
       <p className="mt-1.5 grid text-[42px] leading-12 font-bold tracking-[-0.025em]">
-        <span className={`col-start-1 row-start-1 ${scrubbing ? "invisible" : ""}`}>
+        <span className={`col-start-1 row-start-1 ${rolled ? "invisible" : ""}`}>
           <BlurMoney value={balance.total} delay={0.2} step={0.065} />
         </span>
-        <span aria-hidden className={`col-start-1 row-start-1 ${scrubbing ? "" : "invisible"}`}>
-          <Money value={values[shown]} />
+        <span className={`col-start-1 row-start-1 ${rolled ? "" : "invisible"}`}>
+          <RollingMoney value={values[shown]} />
         </span>
       </p>
 
