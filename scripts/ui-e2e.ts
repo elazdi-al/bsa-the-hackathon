@@ -90,11 +90,10 @@ await phone1.getByText("Someone started recovering your wallet").waitFor(SLOW);
 await phone1.getByRole("button", { name: "Cancel recovery" }).click(SLOW);
 await phone1.getByText("Someone started recovering your wallet").waitFor({ state: "detached", ...SLOW });
 
-console.log("5. Again; the 48-hour delay passes on the chain and on the phone's clock, then finish");
+console.log("5. Again; the 48-hour delay passes on the chain, the countdown follows it, then finish");
 await recover(phone2, kit);
 await publicClient.request({ method: "evm_increaseTime", params: [numberToHex(48 * 3600 + 10)] } as never);
 await publicClient.request({ method: "evm_mine", params: [] } as never);
-await phone2.clock.setFixedTime((Number((await publicClient.getBlock()).timestamp) + 60) * 1000);
 await phone2.getByRole("button", { name: "Finish recovery" }).click(SLOW);
 await phone2.waitForURL("**/home", SLOW);
 
