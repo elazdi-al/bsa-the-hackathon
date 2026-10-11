@@ -16,6 +16,8 @@ import {
   type PasskeyAssertion,
 } from "./account.ts";
 import { combine, split, type Share } from "./shamir.ts";
+import type { ComplianceDecision } from "../compliance/types";
+import { decisionAllowsSigning, type DappCatalog, type DappMetadata, type VaultAction, type VaultQuote, type VaultSnapshot } from "../dapps/model.ts";
 
 export const KEY_TTL = 3 * 60 * 60 * 1000;
 
@@ -53,7 +55,7 @@ export type Identity = { document: string; selfie: string };
 
 type Storage = Pick<globalThis.Storage, "getItem" | "setItem" | "removeItem">;
 type Config = { chainId: number; entryPoint: Address; usdc: Address };
-export type Prepared = { hash: Hex; userOp: RpcUserOperation<"0.7">; summary?: string[] };
+export type Prepared = { hash: Hex; userOp: RpcUserOperation<"0.7">; summary?: string[]; review?: ComplianceDecision; expiresAt?: string };
 
 export class ApiError extends Error {
   status: number;
@@ -141,10 +143,10 @@ export function createPhone({ api = "", partner, authenticator, storage }: { api
   }
 
   /** Swissquote sponsors a call this phone built; the summary is its compliance reading of it. */
-  async function prepare(call_: { to: Address; value?: bigint; data: Hex }): Promise<Prepared> {
+  async function prepare(call_: { to: Address; value?: bigint; data: Hex }, dapp?: DappMetadata): Promise<Prepared> {
     const wallet = requireWallet();
     const callData = encodeFunctionData({ abi: accountAbi, functionName: "execute", args: [call_.to, call_.value ?? 0n, call_.data] });
-    const prepared = await call<Prepared>(`/api/wallets/${wallet.address}/operations`, { callData });
+    const prepared = await call<Prepared>(`/api/wallets/${wallet.address}/operations`, { callData, ...(dapp ? { dapp } : {}) });
     await verify(prepared, wallet.address, callData);
     return prepared;
   }
@@ -152,6 +154,8 @@ export function createPhone({ api = "", partner, authenticator, storage }: { api
   /** Face ID approves the exact operation; the cached key, or one rebuilt from A and B, signs it. Resolves once it is on-chain. */
   async function approve(prepared: Prepared): Promise<Hex> {
     const wallet = requireWallet();
+    if (prepared.expiresAt && (!Number.isFinite(Date.parse(prepared.expiresAt)) || Date.parse(prepared.expiresAt) <= Date.now())) throw new Error("This approval expired. Check the transaction again.");
+    if (prepared.review && !decisionAllowsSigning(prepared.review)) throw new Error("This compliance review does not authorize signing. Check the transaction again.");
     const { assertion, secret } = await authenticator.sign(wallet.credentialId, prepared.hash);
     let key = cachedKey();
     if (!key) {
@@ -171,6 +175,10 @@ export function createPhone({ api = "", partner, authenticator, storage }: { api
     prepare,
     approve,
     config: getConfig,
+    dapps: () => call<DappCatalog>("/api/dapps"),
+    vaultSnapshot: (vault: Address) => call<VaultSnapshot>(`/api/wallets/${requireWallet().address}/dapps/${vault}`),
+    quoteVault: (vault: Address, action: VaultAction, amount: bigint) =>
+      call<VaultQuote>(`/api/wallets/${requireWallet().address}/dapps/${vault}`, { action, amount: amount.toString() }),
     hasWallet: () => !!device()?.address,
     async state(): Promise<WalletState> {
       const d = requireWallet();

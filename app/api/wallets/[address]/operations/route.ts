@@ -1,5 +1,6 @@
 import type { Address } from "viem";
 import * as z from "zod";
+import { requestSchema } from "@/lib/compliance/schema";
 import { parse, route } from "@/lib/wallet/api/http.ts";
 import { assist, prepare, requireWallet } from "@/lib/wallet/api/operations.ts";
 import { hex } from "@/lib/wallet/schema.ts";
@@ -10,7 +11,7 @@ import { hex } from "@/lib/wallet/schema.ts";
  */
 export const POST = route(async (request: Request, ctx: RouteContext<"/api/wallets/[address]/operations">) => {
   const wallet = requireWallet((await ctx.params).address as Address);
-  const { callData } = await parse(request, z.object({ callData: hex }));
-  const summary = await assist(wallet, callData);
-  return Response.json({ ...(await prepare(wallet, "normal", callData)), summary });
+  const { callData, dapp } = await parse(request, z.object({ callData: hex, dapp: requestSchema.shape.dapp }).strict());
+  const assistance = await assist(wallet, callData, dapp);
+  return Response.json({ ...(await prepare(wallet, "normal", callData, assistance.review?.expiresAt)), ...assistance }, { headers: { "cache-control": "no-store" } });
 });

@@ -12,6 +12,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { connect } from "node:net";
 import { parseEnv } from "node:util";
 import { privateKeyToAddress } from "viem/accounts";
+import { localDappPolicy } from "../services/dapps/local-policy.ts";
 
 const ports = {
   app: { env: "PORT", port: Number(process.env.PORT ?? 3000) },
@@ -70,7 +71,8 @@ const children: ChildProcess[] = [];
 process.on("exit", () => {
   for (const child of children) {
     try {
-      process.kill(-child.pid!);
+      if (process.platform === "win32") spawnSync("taskkill", ["/pid", String(child.pid), "/t", "/f"], { stdio: "ignore" });
+      else process.kill(-child.pid!);
     } catch {}
   }
 });
@@ -122,22 +124,9 @@ function deployContracts() {
   return Object.fromEntries([...deploy.stdout.matchAll(/([A-Z_]+_ADDRESS)=(0x[0-9a-fA-F]{40})/g)].map((m) => [m[1], m[2]]));
 }
 
-// Swissquote sponsors USDC transfers on this chain; the compliance demo providers do the screening.
-const usdc = deployed.USDC_ADDRESS.toLowerCase();
-writeFileSync(
-  POLICY_FILE,
-  JSON.stringify({
-    version: "local-1",
-    decisionTtlSeconds: 120,
-    screeningMaxAgeSeconds: 120,
-    supportedChainIds: [31337],
-    nativeTransfers: [],
-    tokens: [
-      { chainId: 31337, address: usdc, symbol: "USDC", decimals: 6, approvedSpenders: [], maxTransactionAmount: "10000000000", stepUpAmount: "1000000000", dailyLimitAmount: "5000000000" },
-    ],
-    contracts: [{ chainId: 31337, address: usdc, name: "USDC", kind: "ERC20", allowedFunctions: ["transfer"], origins: [] }],
-  }),
-);
+// New chains include the deployed test vault. Never silently expand a resumed chain's policy.
+if (!resume || !existsSync(POLICY_FILE)) writeFileSync(POLICY_FILE, JSON.stringify(localDappPolicy(deployed.USDC_ADDRESS, deployed.VAULT_ADDRESS)));
+if (resume && !deployed.VAULT_ADDRESS) console.log("This older chain has no test vault. Its wallets and policy are preserved; deploy and review a vault explicitly to enable dApps.");
 
 const env = {
   CHAIN: "anvil",
@@ -157,12 +146,12 @@ writeFileSync(".env.local", `${MARKER}\n${Object.entries(env).map(([k, v]) => `$
 
 if (prod) {
   console.log("Building the app");
-  const build = spawnSync("node_modules/.bin/next", ["build"], { stdio: "inherit", env: { ...process.env, ...env } });
+  const build = spawnSync(process.execPath, ["node_modules/next/dist/bin/next", "build"], { stdio: "inherit", env: { ...process.env, ...env } });
   if (build.status !== 0) fail("next build failed.");
 }
 console.log(`Starting the partner on ${PARTNER_URL} and the app on ${APP_URL}`);
 run("partner", "node", ["services/partner/server.ts"], env);
-run("app", "node_modules/.bin/next", [prod ? "start" : "dev", "--port", String(ports.app.port)], env);
+run("app", process.execPath, ["node_modules/next/dist/bin/next", prod ? "start" : "dev", "--port", String(ports.app.port)], env);
 while (!(await answers(`${APP_URL}/api/config`))) await sleep(500);
 
 // next dev compiles each route on its first request, about a second apiece. Asking for every screen and API
@@ -170,7 +159,7 @@ while (!(await answers(`${APP_URL}/api/config`))) await sleep(500);
 const ZERO = "0x0000000000000000000000000000000000000000";
 const routes = [
   "/onboarding-welcome", "/onboarding-secure", "/home", "/history", "/settings", "/choose-recipient", `/send?to=${ZERO}`,
-  "/transaction-tracking", "/recover", "/coin-breakdown", "/plus", "/api/shares", "/api/wallets", "/api/recovery",
+  "/transaction-tracking", "/recover", "/coin-breakdown", "/plus", "/dapps", "/api/dapps", "/api/shares", "/api/wallets", "/api/recovery",
   `/api/wallets/${ZERO}`, `/api/wallets/${ZERO}/activity`, `/api/wallets/${ZERO}/operations`, `/api/wallets/${ZERO}/operations/${ZERO}`,
   `/api/wallets/${ZERO}/share`, `/api/wallets/${ZERO}/recovery`,
 ];

@@ -7,6 +7,8 @@ import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 import {VerifyingPaymaster} from "account-abstraction/samples/VerifyingPaymaster.sol";
 import {SwissquoteAccountFactory} from "../src/SwissquoteAccountFactory.sol";
 import {TestUSDC} from "./TestUSDC.sol";
+import {TestVault} from "./TestVault.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /// Deploys the factory and Swissquote's funded VerifyingPaymaster. A fresh local chain also gets
 /// its own EntryPoint v0.7 and a mintable USDC.
@@ -23,6 +25,7 @@ contract Deploy is Script {
         vm.startBroadcast();
         IEntryPoint entryPoint = local ? IEntryPoint(address(new EntryPoint())) : CANONICAL_ENTRY_POINT;
         address usdc = local ? address(new TestUSDC()) : BASE_SEPOLIA_USDC;
+        TestVault vault = new TestVault(IERC20(usdc));
         SwissquoteAccountFactory factory = new SwissquoteAccountFactory(entryPoint);
         VerifyingPaymaster paymaster = new VerifyingPaymaster(entryPoint, swissquote);
         paymaster.deposit{value: deposit}();
@@ -30,6 +33,7 @@ contract Deploy is Script {
 
         console.log("ENTRY_POINT_ADDRESS=%s", address(entryPoint));
         console.log("USDC_ADDRESS=%s", usdc);
+        console.log("VAULT_ADDRESS=%s", address(vault));
         console.log("FACTORY_ADDRESS=%s", address(factory));
         console.log("PAYMASTER_ADDRESS=%s", address(paymaster));
     }

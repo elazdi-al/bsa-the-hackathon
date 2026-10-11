@@ -13,6 +13,7 @@ import {WebAuthn} from "@openzeppelin/contracts/utils/cryptography/WebAuthn.sol"
 import {SwissquoteAccount} from "../src/SwissquoteAccount.sol";
 import {SwissquoteAccountFactory} from "../src/SwissquoteAccountFactory.sol";
 import {TestUSDC} from "../script/TestUSDC.sol";
+import {TestVault} from "../script/TestVault.sol";
 
 contract SwissquoteAccountTest is Test {
     uint256 constant P256_N = 0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551;
@@ -54,6 +55,36 @@ contract SwissquoteAccountTest is Test {
         assertGt(address(account).code.length, 0);
         assertEq(address(account).balance, 0, "client never needs ETH");
         assertLt(entryPoint.balanceOf(address(paymaster)), 10 ether, "Swissquote paid the gas");
+    }
+
+    function test_sponsoredVaultApprovalDepositWithdrawAndRevoke() public {
+        TestVault vault = new TestVault(IERC20(address(usdc)));
+        bytes memory approve = abi.encodeCall(SwissquoteAccount.execute,
+            (address(usdc), 0, abi.encodeCall(IERC20.approve, (address(vault), 25e6))));
+        PackedUserOperation memory op = _op(approve, true);
+        _signNormal(op, walletKey, passkeyKey);
+        _handle(op);
+        assertEq(usdc.allowance(address(account), address(vault)), 25e6);
+
+        op = _op(abi.encodeCall(SwissquoteAccount.execute,
+            (address(vault), 0, abi.encodeCall(vault.deposit, (25e6, address(account))))), false);
+        _signNormal(op, walletKey, passkeyKey);
+        _handle(op);
+        assertEq(vault.balanceOf(address(account)), 25e6);
+        assertEq(usdc.allowance(address(account), address(vault)), 0);
+
+        op = _op(abi.encodeCall(SwissquoteAccount.execute,
+            (address(vault), 0, abi.encodeCall(vault.withdraw, (10e6, address(account), address(account))))), false);
+        _signNormal(op, walletKey, passkeyKey);
+        _handle(op);
+        assertEq(vault.balanceOf(address(account)), 15e6);
+        assertEq(usdc.balanceOf(address(account)), 985e6);
+
+        op = _op(abi.encodeCall(SwissquoteAccount.execute,
+            (address(usdc), 0, abi.encodeCall(IERC20.approve, (address(vault), 0)))), false);
+        _signNormal(op, walletKey, passkeyKey);
+        _handle(op);
+        assertEq(address(account).balance, 0, "all vault operations were sponsored");
     }
 
     function test_walletKeyAloneCannotTransfer() public {

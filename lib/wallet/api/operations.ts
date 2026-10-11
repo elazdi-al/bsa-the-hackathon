@@ -27,6 +27,7 @@ import {
 import { privateKeyToAccount } from "viem/accounts";
 import * as z from "zod";
 import { getComplianceRuntime } from "@/services/compliance/runtime";
+import type { DappMetadata } from "../../dapps/model";
 import { accountAbi, bindRecoveryKeyMessage, factoryAbi, paymasterAbi, type Config, type Passkey } from "../account.ts";
 import { addresses, chain, credentials, partnerUrl, publicClient, rpcUrl } from "../env.ts";
 import { address, passkey } from "../schema.ts";
@@ -98,29 +99,30 @@ export async function bindShares(signer: Address, recoveryKey: Address, signatur
 }
 
 /** Swissquote assists only operations its compliance policy allows; refusing never freezes the wallet itself. */
-export async function assist(wallet: Wallet, callData: Hex) {
+export async function assist(wallet: Wallet, callData: Hex, dapp?: DappMetadata) {
   const call = decodeFunctionData({ abi: accountAbi, data: callData });
   if (call.functionName !== "execute") throw new HttpError(403, "The app can't make this call.");
   const [to, value, data] = call.args;
   if (isAddressEqual(to, wallet.address)) {
-    if (data === encodeFunctionData({ abi: accountAbi, functionName: "cancelRecovery" })) return ["You cancel the pending recovery of your wallet."];
+    if (!dapp && data === encodeFunctionData({ abi: accountAbi, functionName: "cancelRecovery" })) return { summary: ["You cancel the pending recovery of your wallet."] };
     throw new HttpError(403, "The app can't change the account itself.");
   }
   const requestId = randomUUID();
   const { decision } = await getComplianceRuntime().engine.evaluate(
-    { requestId, nonce: requestId, chainId: chain.id, account: wallet.address, calls: [{ to, value: value.toString(), data, operation: "CALL" }] },
+    { requestId, nonce: requestId, chainId: chain.id, account: wallet.address, calls: [{ to, value: value.toString(), data, operation: "CALL" }], ...(dapp ? { dapp } : {}) },
     { subject: wallet.address.toLowerCase() },
   );
   if (decision.status !== "ALLOW") {
     throw new HttpError(403, "Swissquote can't sponsor this transaction.", {
       decision: { status: decision.status, reasons: decision.reasons.map((r) => r.message) },
+      review: decision,
     });
   }
-  return decision.summary;
+  return { summary: decision.summary, review: decision };
 }
 
 /** Fills in nonce, gas, fees and Swissquote's sponsorship, and keeps the operation for submission. */
-export async function prepare(wallet: Wallet, kind: Kind, callData: Hex) {
+export async function prepare(wallet: Wallet, kind: Kind, callData: Hex, decisionExpiresAt?: string) {
   const [code, nonce, fees, block] = await Promise.all([
     publicClient.getCode({ address: wallet.address }),
     publicClient.readContract({ address: addresses.entryPoint, abi: entryPoint07Abi, functionName: "getNonce", args: [wallet.address, 0n] }),
@@ -143,7 +145,11 @@ export async function prepare(wallet: Wallet, kind: Kind, callData: Hex) {
     paymasterData: "0x",
     signature: "0x",
   };
-  const validUntil = Number(block.timestamp + SPONSORSHIP_TTL);
+  // The policy can use a shorter TTL than the paymaster. Never sponsor past its decision.
+  const remaining = decisionExpiresAt ? Math.floor((Date.parse(decisionExpiresAt) - Date.now()) / 1000) : Number(SPONSORSHIP_TTL);
+  if (!Number.isFinite(remaining) || remaining <= 0) throw new HttpError(410, "This compliance decision expired. Check it again.");
+  const ttl = Math.min(remaining, Number(SPONSORSHIP_TTL));
+  const validUntil = Number(block.timestamp) + ttl;
   const sponsored = await publicClient.readContract({
     address: addresses.paymaster,
     abi: paymasterAbi,
@@ -157,7 +163,7 @@ export async function prepare(wallet: Wallet, kind: Kind, callData: Hex) {
   const hash = getUserOperationHash({ chainId: chain.id, entryPointAddress: addresses.entryPoint, entryPointVersion: "0.7", userOperation: userOp });
   const rpc = formatUserOperationRequest(userOp);
   store().addOperation(hash, wallet.address, kind, rpc);
-  return { hash, userOp: rpc };
+  return { hash, userOp: rpc, expiresAt: new Date(Date.now() + ttl * 1000).toISOString() };
 }
 
 /** An operation Swissquote prepared and hasn't submitted yet, while its sponsorship lasts. */

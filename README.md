@@ -82,7 +82,7 @@ Every payment Swissquote sponsors goes through the compliance engine in-process.
 The engine runs, in order:
 
 1. Decode the calldata. Only reviewed functions pass: ERC-20 `transfer` and finite `approve`, ERC-4626 `deposit`, `withdraw` and `redeem`, and batches of up to 16 calls.
-2. Allowlist and limits. The contract, function and token must be in the policy. Limits are integer token base units, never floating-point or CHF estimates. The local policy (written by `npm run local`) allows USDC `transfer`, with step-up above 1,000 USDC, a 5,000 USDC daily limit and a 10,000 USDC cap per transaction. On the local chain the daily limit counts what the account sent in the last 24 hours of chain time.
+2. Allowlist and limits. The contract, function and token must be in the policy. Limits are integer token base units, never floating-point or CHF estimates. Fresh local deployments allow USDC `transfer` and finite `approve` for the deployed test vault, plus its ERC-4626 functions, with step-up above 1,000 token units, a 5,000-unit daily limit and a 10,000-unit cap per transaction. Existing persisted policies are preserved. On the local chain the daily limit counts what the account sent in the last 24 hours of chain time.
 3. Sanctions screening. TRM Labs' address sanctions endpoint in live mode, fixtures in demo mode.
 4. Simulation. viem's `simulateCalls` over `eth_simulateV1`, from the account's address, in live mode.
 5. A signed, expiring Ed25519 decision, appended to a SHA-256 hash-chained audit log. A failed append blocks the decision.
@@ -90,6 +90,8 @@ The engine runs, in order:
 It refuses unlisted contracts and functions, unknown calldata, unlimited approvals, `setApprovalForAll`, delegatecalls, account administration and unsupported chains. Outages and missing evidence never fall back to `ALLOW`. The wallet API separately refuses any call to the account itself except `cancelRecovery`.
 
 The engine also has a standalone HTTP API for other backends: `POST /api/compliance/evaluate`, `GET /api/compliance/keys` and `GET /api/compliance/registry`. Each call needs `Authorization: Bearer <COMPLIANCE_API_KEY>` and an `X-Compliance-Subject` header set by the trusted bank backend. Never ship the key to a browser.
+
+**Reviewed dApps frontend:** Home links to `/dapps`, a policy-derived ERC-4626 catalogue with deposit, withdrawal, exact-amount approval and revoke-permission flows. Each call uses the existing phone signing API, compliance gate and paymaster. Decisions, demo evidence, expiry, remaining allowance and confirmed transaction hashes are visible. Fresh local deployments include a real test vault with no yield; deposits use two separately reviewed transactions where approval is needed. See [dApp integration and verification](docs/DAPP_INTEGRATION.md) for the backend boundary, safe handling of existing chains and test commands.
 
 Known limits:
 

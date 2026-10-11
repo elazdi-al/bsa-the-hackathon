@@ -149,6 +149,11 @@
    Tabs drift a little in bar order through a blur. Push brings the new screen in from the right
    while the old one steps left; pop mirrors it. Old screens leave faster than new ones arrive.
    Reduced motion keeps only the fade. */
+/* A long async-loaded dApp screen can add a classic scrollbar during navigation.
+   Reserve its gutter so that native view transitions keep the same viewport width. */
+html {
+  scrollbar-gutter: stable;
+}
 ::view-transition {
   pointer-events: none;
 }
