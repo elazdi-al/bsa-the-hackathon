@@ -165,8 +165,8 @@ for (const amount of ["3500", "10001"]) {
   console.log(`   ${amount} USDC: ${decision.status}, ${decision.reasons.join(" ")}`);
 }
 
-console.log("11. An attacker with the stolen phone and the email inbox is stopped at every step");
-await attack({ phone: structuredClone(phone.device()!), homeKey: recoveryKey.secret });
+console.log("11. An attacker with the stolen phone and the email inbox is stopped at every step, with Face ID once the phone is reported stolen");
+await attack({ phone: structuredClone(phone.device()!), homeKey: recoveryKey.secret, unlocked: phone });
 
 console.log("12. Lose the phone. New phone: ID check, new passkey and split; the recovery key signs, B and C rebuild the old key on the new phone");
 const newOne = newPhone();

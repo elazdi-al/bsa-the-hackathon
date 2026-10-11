@@ -460,6 +460,11 @@ export function createPhone({
       const signature = await privateKeyToAccount(secret).signMessage({ message: cancelPaymentMessage(address, hash) });
       await call(`/api/wallets/${address}/operations/${hash}`, { signature }, "DELETE");
     },
+
+    /** Reports the phone that holds the wallet now as lost or stolen. After the ID check Swissquote locks it; nothing changes on-chain. */
+    async reportLost(identity: Identity): Promise<void> {
+      await call(`/api/wallets/${requireWallet().address}/lock`, { identity });
+    },
   };
 }
 

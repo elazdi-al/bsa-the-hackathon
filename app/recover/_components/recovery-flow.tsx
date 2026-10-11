@@ -5,7 +5,7 @@ import { useEffect, useLayoutEffect, useReducer, useRef, useState, type ReactNod
 import type { Address, Hex } from "viem";
 import { keepSession } from "@/app/(tabs)/_components/session";
 import { chainNow, refreshWallet, useWallet, type WalletSnapshot } from "@/app/(tabs)/_components/wallet";
-import { FaceIdIcon, IdCardIcon, RestoreIcon, ShieldIcon, type Icon } from "@/components/icons";
+import { FaceIdIcon, IdCardIcon, LockIcon, RestoreIcon, ShieldIcon, type Icon } from "@/components/icons";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { ApiError, phone, readRecoveryKey, type Credential, type Identity } from "@/lib/wallet/phone";
@@ -30,14 +30,17 @@ type OnFile = Identity & { name: string };
  * Where this phone stands, from the shared wallet store. `answer`: it holds the wallet and someone is recovering it.
  * `wait`: it is the phone recovering. `outside`: no wallet here, or one it neither holds nor is recovering.
  */
-type Standing = { name: "loading" | "home" | "outside" } | { name: "answer" | "wait"; executeAfter: number; skew: number };
+type Standing =
+  | { name: "loading" | "home" | "outside" }
+  | { name: "answer" | "wait"; executeAfter: number; skew: number; oldPhoneLocked: boolean };
 
 function standing(snapshot: WalletSnapshot): Standing {
   // `offline` means a wallet is on this phone but unread: starting a recovery now could overwrite its Share A.
   if (snapshot.status === "loading" || snapshot.status === "offline") return { name: "loading" };
   if (snapshot.status !== "ready") return { name: "outside" };
   const { controls, recovery, skew } = snapshot.wallet;
-  if (recovery && (controls || recovery.mine)) return { name: controls ? "answer" : "wait", executeAfter: recovery.executeAfter, skew };
+  if (recovery && (controls || recovery.mine))
+    return { name: controls ? "answer" : "wait", executeAfter: recovery.executeAfter, skew, oldPhoneLocked: recovery.oldPhoneLocked };
   return { name: controls ? "home" : "outside" };
 }
 
@@ -68,6 +71,7 @@ const FAILED = {
   start: "Your recovery didn't start. Check your Recovery Key and try again.",
   finish: "Your wallet wasn't restored yet. Try again.",
   cancel: "The recovery wasn't cancelled. Try again.",
+  lock: "Your old phone wasn't locked. Try again.",
 } as const;
 
 // House entrance (the shared `reveal` and `blurred`, in CSS): each block sharpens in; the delay classes stagger them.
@@ -107,8 +111,9 @@ export function RecoveryFlow() {
   // Kept across a failed restore, so a retry resumes where it stopped instead of asking for another passkey.
   const credential = useRef<Credential>(undefined);
   const split = useRef(false);
-  // The Recovery Key this session started the recovery with, so cancelling doesn't ask for it again.
+  // The Recovery Key and ID this session started the recovery with, so cancelling or locking the old phone doesn't ask again.
   const recoveryKey = useRef<Hex>(undefined);
+  const identity = useRef<Identity>(undefined);
 
   const home = () => router.replace("/home", { transitionTypes: ["push"] });
 
@@ -121,7 +126,7 @@ export function RecoveryFlow() {
     // This phone now holds the wallet with nothing to answer; or an old phone lost it to a finished recovery, which Home explains.
     if (at.name === "home" || (before === "answer" && at.name === "outside")) home();
     else if (before === "wait" && at.name === "outside") {
-      recoveryKey.current = undefined;
+      recoveryKey.current = identity.current = undefined;
       setText("");
       setAskKey(false);
       setStep({ name: "key", notice: "Your recovery was cancelled and your wallet is unchanged. To start again, choose your Recovery Key file or paste its text." });
@@ -179,7 +184,8 @@ export function RecoveryFlow() {
       setBusy("Starting recovery");
       // Before the await: the recovery can start on-chain even if the read after it fails.
       recoveryKey.current = secret;
-      keepSession((await phone.startRecovery(secret, { document: id.document, selfie: id.selfie })).signedIn);
+      identity.current = { document: id.document, selfie: id.selfie };
+      keepSession((await phone.startRecovery(secret, identity.current)).signedIn);
       await refreshWallet();
     } catch (e) {
       const refused = e instanceof ApiError ? e.body.refused : undefined;
@@ -211,6 +217,12 @@ export function RecoveryFlow() {
       await refreshWallet();
     });
   };
+
+  const lockOldPhone = (id: Identity) =>
+    run("Locking", FAILED.lock, async () => {
+      await phone.reportLost(id);
+      await refreshWallet();
+    });
 
   // Before the ID check: a recovery someone else started blocks a new one, and only the key's holder can call it off.
   const check = (secret: Hex) =>
@@ -266,6 +278,28 @@ export function RecoveryFlow() {
           {busy === "Cancelling" ? <Spinner aria-hidden className="size-5" /> : controls && <FaceIdIcon size={20} />}
           {askKey ? "Cancel with Recovery Key" : "Cancel recovery"}
         </Button>
+        {/* Opt-in: once locked, the old phone can no longer cancel a stranger's recovery with Face ID. */}
+        {at.name === "wait" && (at.oldPhoneLocked || identity.current) && (
+          // The height the action takes, held once it turns into the status line, so the centered screen doesn't jump.
+          <div className="mt-3 flex min-h-22 flex-col items-center gap-1">
+            {at.oldPhoneLocked ? (
+              <p role="status" className={`${enter} flex h-12 items-center gap-2 text-body text-muted-foreground`}>
+                <LockIcon size={18} />
+                Your old phone is locked
+              </p>
+            ) : (
+              <>
+                <Button variant="ghost" onClick={() => lockOldPhone(identity.current!)} disabled={!!busy} aria-busy={busy === "Locking"}>
+                  {busy === "Locking" ? <Spinner aria-hidden className="size-5" /> : <LockIcon size={20} />}
+                  Lock your old phone
+                </Button>
+                <p className="text-caption text-pretty text-muted-foreground">
+                  Lost or stolen? Swissquote stops helping your old phone pay. Nothing changes on the blockchain.
+                </p>
+              </>
+            )}
+          </div>
+        )}
       </Step>
     );
   }
