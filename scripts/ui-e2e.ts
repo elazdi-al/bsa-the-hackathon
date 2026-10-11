@@ -1,15 +1,20 @@
 // The wallet's screens end to end in Chromium, each phone a fresh browser profile with a virtual
-// passkey authenticator: create a wallet without a Swissquote account, send USDC under Swissquote's reading of
-// each payment; a payment over 1,000 USDC is scheduled instead, the client cancels one from Home and another
-// leaves once its 24 hours pass (fast-forwarded on anvil); link the wallet to a Swissquote account in Settings;
-// lose the phone and recover with the Recovery Key file and the number on the client's ID card, once a key no
-// wallet uses and someone else's ID are refused; Swissquote cancels once, the old phone cancels once from Home,
-// the new phone locks the old one from its countdown, then the 48-hour delay passes and the new phone sends.
+// passkey authenticator: create a wallet without a Swissquote account, scan a friend's QR code with a fake
+// camera to pay them, send USDC under Swissquote's reading of each payment; a payment over 1,000 USDC is
+// scheduled instead, the client cancels one from Home and another leaves once its 24 hours pass (fast-forwarded
+// on anvil); link the wallet to a Swissquote account in Settings; lose the phone and recover with the Recovery
+// Key file and the number on the client's ID card, once a key no wallet uses and someone else's ID are refused;
+// Swissquote cancels once, the old phone cancels once from Home, the new phone locks the old one from its
+// countdown, then the 48-hour delay passes and the new phone sends.
 // Last, an unlinked wallet's recovery asks for no ID and offers no lock.
 //
 //   npm run e2e:ui            (against `npm run local`; HEADED=1 to watch)
 import assert from "node:assert/strict";
+import { writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { chromium, type Page } from "playwright";
+import { encode } from "uqr";
 import { createWalletClient, erc20Abi, formatUnits, http, numberToHex, parseAbi, parseUnits, type Address, type Hex } from "viem";
 import { generatePrivateKey, privateKeyToAccount, privateKeyToAddress } from "viem/accounts";
 import { addresses, chain, publicClient, rpcUrl } from "../lib/wallet/env.ts";
@@ -18,7 +23,30 @@ const APP = process.env.APP_URL ?? "http://localhost:3000";
 const FRIEND = privateKeyToAddress(generatePrivateKey());
 const SLOW = { timeout: 30_000 };
 
-const browser = await chromium.launch({ headless: process.env.HEADED !== "1" });
+/**
+ * A still for Chromium's fake camera (.y4m, 640x480 greyscale): `text` as the Receive sheet draws its QR code,
+ * error correction H with the centre cleared for the badge.
+ */
+function qrCamera(text: string) {
+  const [width, height] = [640, 480];
+  const { data, size } = encode(text, { ecc: "H", border: 0 });
+  const scale = Math.floor(400 / size);
+  const [left, top, c] = [(width - size * scale) / 2, (height - size * scale) / 2, (size - 1) / 2];
+  const luma = Buffer.alloc(width * height, 255);
+  for (let i = 0; i < luma.length; i++) {
+    const [x, y] = [Math.floor((i % width - left) / scale), Math.floor((Math.floor(i / width) - top) / scale)];
+    if (data[y]?.[x] && !(Math.abs(x - c) < 4.5 && Math.abs(y - c) < 4.5)) luma[i] = 0;
+  }
+  const chroma = Buffer.alloc(luma.length / 4, 128);
+  const file = join(tmpdir(), `ui-e2e-${text}.y4m`);
+  writeFileSync(file, Buffer.concat([Buffer.from(`YUV4MPEG2 W${width} H${height} F30:1 Ip A1:1 C420jpeg\nFRAME\n`), luma, chroma, chroma]));
+  return file;
+}
+
+const browser = await chromium.launch({
+  headless: process.env.HEADED !== "1",
+  args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream", `--use-file-for-fake-video-capture=${qrCamera(FRIEND)}`],
+});
 const swissquote = createWalletClient({ account: privateKeyToAccount(process.env.SWISSQUOTE_KEY as Hex), chain, transport: http(rpcUrl) });
 const usdcOf = (owner: Address) => publicClient.readContract({ address: addresses.usdc, abi: erc20Abi, functionName: "balanceOf", args: [owner] });
 
@@ -126,7 +154,12 @@ assert.equal(await clientOf(phone1), undefined, "creating a wallet signs in to n
 console.log(`   wallet ${wallet}`);
 await swissquote.writeContract({ address: addresses.usdc, abi: parseAbi(["function mint(address, uint256)"]), functionName: "mint", args: [wallet, parseUnits("100", 6)] });
 
-console.log("2. Send 20 USDC from the Send screen: Swissquote's reading of it before Face ID, Swissquote pays the gas, tracking shows it completed");
+console.log("2. Scan the friend's QR code to pick them, then send 20 USDC: Swissquote's reading of it before Face ID, Swissquote pays the gas, tracking shows it completed");
+await phone1.goto(`${APP}/choose-recipient`);
+await phone1.getByRole("button", { name: "Scan QR code" }).click();
+await phone1.getByRole("dialog", { name: "Scan QR code" }).waitFor({ state: "detached", ...SLOW });
+await phone1.getByRole("button", { name: "Continue" }).click();
+await phone1.waitForURL(`**/send?to=${FRIEND}`, SLOW);
 await send(phone1, FRIEND, "20");
 assert.equal(await usdcOf(FRIEND), parseUnits("20", 6));
 
