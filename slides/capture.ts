@@ -70,6 +70,7 @@ await shot(phone1, "onboarding-recovery-key", phone1.getByRole("button", { name:
 const download = phone1.waitForEvent("download", SLOW);
 await phone1.getByRole("button", { name: "Save Recovery Key" }).click();
 const kit = await (await download).path();
+await phone1.getByRole("button", { name: "I saved it off this phone" }).click(SLOW);
 await phone1.waitForURL("**/home", SLOW);
 const wallet = await phone1.evaluate(() => JSON.parse(localStorage.getItem("swissquote.wallet.device")!).address as Address);
 await mint(wallet, "100");
