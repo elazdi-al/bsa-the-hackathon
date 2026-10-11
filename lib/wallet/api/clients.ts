@@ -11,24 +11,17 @@ import type { identity } from "../schema.ts";
 import { store, type Client } from "./db.ts";
 import { HttpError } from "./http.ts";
 
-const NAMES = ["Anna Muster", "Luca Bernasconi", "Sophie Favre", "Jonas Keller", "Elena Rossi", "Noah Meier", "Lea Graf", "Marco Steiner"];
-
-/** A made-up client with a full KYC record. */
+/** A made-up client with a KYC record. */
 export function mockClient(): Client {
   return {
     number: String(randomInt(1_000_000, 10_000_000)),
-    name: NAMES[randomInt(NAMES.length)],
-    birthDate: new Date(Date.UTC(randomInt(1960, 2001), randomInt(12), randomInt(1, 29))).toISOString().slice(0, 10),
     // A Swiss ID card number: one letter, seven digits.
     document: `C${randomInt(1_000_000, 10_000_000)}`,
   };
 }
 
-/**
- * What the phone learns about the client it is signed in as: what the Swissquote app shows them anyway, their ID card
- * included, since a recovery asks for its number. The rest of the KYC record stays with Swissquote.
- */
-const seen = ({ number, name, document }: Client) => ({ number, name, document });
+/** What the phone learns about the client it is signed in as: their client number, and their ID card's, which a recovery asks for. */
+const seen = ({ number, document }: Client) => ({ number, document });
 
 /** The session's client, or a new made-up client and session when the phone has none Swissquote knows. */
 export function signIn(session?: string) {

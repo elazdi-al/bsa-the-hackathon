@@ -97,7 +97,7 @@ export type WalletState = {
  * The Swissquote client this phone signed in as to link the wallet, with the number of the ID card on file, which the
  * app shows them and a recovery asks for. MOCKED: each phone signs in as its own made-up client.
  */
-export type SignedIn = { session: string; client: { number: string; name: string; document: string } };
+export type SignedIn = { session: string; client: { number: string; document: string } };
 
 /** The wallet key's signed statement that the wallet belongs to `client`, which Swissquote keeps as its ownership proof. */
 export type Owner = { client: string; createdAt: number; statement: string; signature: Hex };

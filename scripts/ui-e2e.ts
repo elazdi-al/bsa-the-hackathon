@@ -92,7 +92,7 @@ async function schedule(page: Page, to: Address, amount: string) {
 
 /** The Swissquote client a phone linked its wallet as (mocked), with the number of the ID card the app shows them. */
 const clientOf = (page: Page) =>
-  page.evaluate(() => JSON.parse(localStorage.getItem("swissquote.session") ?? "null")?.client as { number: string; name: string; document: string });
+  page.evaluate(() => JSON.parse(localStorage.getItem("swissquote.session") ?? "null")?.client as { number: string; document: string });
 
 /** Creates a wallet on a fresh phone; resolves to its Recovery Key file. */
 async function create(page: Page) {
@@ -160,7 +160,7 @@ await phone1.getByText("Swissquote checks your ID before anyone can recover your
 await phone1.getByRole("button", { name: "Link with Face ID" }).click();
 await phone1.getByText("Swissquote account", { exact: true }).waitFor(SLOW);
 const owner = await clientOf(phone1);
-await phone1.getByText(`${owner.name}, client ${owner.number}`).waitFor(SLOW);
+await phone1.getByText(`Client ${owner.number}`, { exact: true }).waitFor(SLOW);
 await phone1.getByText(owner.document).waitFor(SLOW);
 assert.equal(await phone1.getByRole("button", { name: "Link your Swissquote account" }).count(), 0, "a linked wallet isn't offered the link again");
 
@@ -225,7 +225,7 @@ await phone1.getByText("Your wallet moved to another phone").waitFor(SLOW);
 console.log("12. The ID check signed the new phone in to Swissquote as the same client, who Settings shows as linked, with the ID on file");
 assert.deepEqual(await clientOf(phone2), owner);
 await phone2.goto(`${APP}/settings`);
-await phone2.getByText(`${owner.name}, client ${owner.number}`).waitFor(SLOW);
+await phone2.getByText(`Client ${owner.number}`, { exact: true }).waitFor(SLOW);
 await phone2.getByText("ID on file").waitFor(SLOW);
 await phone2.getByText(owner.document).waitFor(SLOW);
 

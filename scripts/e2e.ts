@@ -100,7 +100,7 @@ assert.equal(await link({ session: intruder.session, signature: forgedLink }), 4
 assert.equal(await link({ session: "unknown", signature: forgedLink }), 401, "linking needs a Swissquote session");
 const signedIn = await phone.link(await phone.prepareLink());
 session = signedIn.session;
-console.log(`   wallet ${wallet}, owned by ${signedIn.client.name}, Swissquote client ${signedIn.client.number}`);
+console.log(`   wallet ${wallet}, owned by Swissquote client ${signedIn.client.number}`);
 const { owner } = await phone.state();
 assert.ok(owner, "Swissquote tells the signed-in owner the wallet is theirs");
 assert.equal(owner.client, signedIn.client.number, "Swissquote recorded the client number against the wallet");

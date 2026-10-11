@@ -82,10 +82,9 @@ function useLinked() {
   return { ready, client: ready && client && snapshot.wallet.owner === client.number ? client : undefined };
 }
 
-/** The member's card: their plan, name and address on the brand blue, like the card in a wallet. It opens Swissquote Plus. */
+/** The member's card: their plan and wallet address on the brand blue, like the card in a wallet. It opens Swissquote Plus. */
 function MemberCard() {
   const address = shownAddress(useWallet());
-  const name = useLinked().client?.name;
   return (
     <Link
       href="/plus"
@@ -97,7 +96,6 @@ function MemberCard() {
         <DemoTag className="bg-white/20 text-white" />
       </span>
       <span className="min-w-0">
-        <span className={cn("block truncate text-heading", reveal(name))}>{name ?? "\u00a0"}</span>
         <span className={cn("block text-body text-white/70", reveal(address))}>
           {address ? shortAddress(address) : "0x0000...0000"}
         </span>
@@ -268,7 +266,7 @@ export function SettingsView() {
         {
           kind: "info",
           label: "Swissquote account",
-          detail: `${client.name}, client ${client.number}`,
+          detail: `Client ${client.number}`,
           value: (
             <span className="flex items-center gap-1.5">
               <VerifiedIcon size={16} className="text-positive" />

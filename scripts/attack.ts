@@ -174,7 +174,7 @@ export async function attack({ phone: stolen, homeKey, unlocked, ownersId }: { p
   const withKey = newPhone();
   const found = await withKey.findRecovery(homeKey);
   assert.deepEqual(Object.keys(found).sort(), ["address", "chainTime", "linked", "pendingRecovery"], "the key learns nothing about the owner");
-  say("Swissquote", "found the key's wallet, but told its holder nothing about the owner: no name, no ID to copy");
+  say("Swissquote", "found the key's wallet, but told its holder nothing about the owner: no client number, no ID to copy");
   await withKey.splitKey(await withKey.createPasskey());
   const guessed = await withKey.startRecovery(homeKey, theirs).then(() => assert.fail("the recovery started"), (e: unknown) => e);
   assert.ok(guessed instanceof ApiError && guessed.body.refused === "identity", "the ID check is what refuses");

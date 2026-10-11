@@ -111,20 +111,18 @@ function query<T>(sql: string): T[] {
   }
 }
 
-// Swissquote's own view: each wallet's owner from its client records, which only the bank sees.
+// Swissquote's own view: each wallet's owner, which only the bank sees.
 const walletRows = () =>
-  query<{ address: Address; config: string; client: string | null; signature: Hex | null; kyc: string | null }>(
-    `select address, config, owners.client, owners.signature, clients.kyc from wallets
-     left join owners on owners.wallet = wallets.address left join clients on clients.number = owners.client
-     order by wallets.created_at`,
+  query<{ address: Address; config: string; client: string | null; signature: Hex | null }>(
+    `select address, config, owners.client, owners.signature from wallets
+     left join owners on owners.wallet = wallets.address order by wallets.created_at`,
   );
 
 /** Who owns the wallet, and whether the key the wallet was created with signed the ownership statement Swissquote keeps. */
-async function ownerLine(wallet: Address, signer: Address, client: string, signature: Hex, kyc: string | null) {
+async function ownerLine(wallet: Address, signer: Address, client: string, signature: Hex) {
   const by = await recoverMessageAddress({ message: ownershipMessage(client, wallet), signature });
-  const name = kyc ? `${JSON.parse(kyc).name}, ` : "";
   const proof = isAddressEqual(by, signer) ? "ownership signed by the wallet key" : "OWNERSHIP SIGNATURE DOES NOT MATCH THE WALLET KEY";
-  return `owner: ${name}Swissquote client ${client} (mock), ${proof}`;
+  return `owner: Swissquote client ${client} (mock), ${proof}`;
 }
 
 /** Swissquote reads the wallet as the app does, which sends its held payments that are due. */
@@ -182,13 +180,13 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
         publicClient.getBalance({ address: addresses.swissquote }),
         publicClient.readContract({ address: addresses.entryPoint, abi: entryPoint07Abi, functionName: "balanceOf", args: [addresses.paymaster] }),
         Promise.all(
-          rows.map(async ({ address, config, client, signature, kyc }) => {
+          rows.map(async ({ address, config, client, signature }) => {
             const [balance, code, live, pending, owner] = await Promise.all([
               usdcOf(address),
               publicClient.getCode({ address }),
               credentials(address, () => JSON.parse(config)),
               pendingRecovery(address),
-              client && signature && ownerLine(address, JSON.parse(config).signer, client, signature, kyc),
+              client && signature && ownerLine(address, JSON.parse(config).signer, client, signature),
             ]);
             return { address, balance, deployed: !!code, signer: live.signer, pendingRecovery: pending, owner };
           }),
@@ -314,7 +312,7 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
         table(
           [
             ["Wallet", phone.device()!.address!],
-            ["Client", `${client.name}, Swissquote client ${client.number} (mock)`],
+            ["Client", `Swissquote client ${client.number} (mock)`],
             ["ID card", client.document],
           ],
           "",
