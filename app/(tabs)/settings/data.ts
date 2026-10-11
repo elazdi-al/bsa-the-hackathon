@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { KEYS, type KeyId } from "@/app/onboarding-secure/data";
 import { BellIcon, CoinIcon, HelpIcon, KeyIcon, SignOutIcon, type Icon } from "@/components/icons";
 
@@ -8,12 +9,12 @@ export type TrayRoot = "keys" | "remove";
 
 /** What pressing a row does. `info` rows don't press, so they get no chevron. */
 type Behaviour =
-  | { kind: "info"; value: string }
+  | { kind: "info"; value: ReactNode }
   | { kind: "tray"; opens: TrayRoot }
   | { kind: "link"; href: string }
   | { kind: "switch"; on: boolean };
 
-export type Row = Behaviour & { label: string; detail?: string; demo?: true; Icon: Icon; destructive?: boolean };
+export type Row = Behaviour & { label: string; detail?: ReactNode; demo?: true; Icon: Icon; destructive?: boolean };
 
 const about: Record<KeyId, { detail: string; about: string }> = {
   passkey: { detail: "Face ID on this phone", about: "Approves every payment you make. Without it, nothing leaves your wallet." },

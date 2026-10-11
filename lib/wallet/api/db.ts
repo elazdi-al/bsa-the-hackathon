@@ -10,8 +10,8 @@ export type Wallet = { address: Address; config: Config };
 export type Kind = "normal" | "recovery";
 /** A signed payment Swissquote holds until `releaseAt`, in chain seconds. `stopped`: why it will not leave. */
 export type Held = { hash: Hex; userOp: RpcUserOperation<"0.7">; releaseAt: number; stopped: string | null };
-/** A client's KYC record. `face` stands in for the face template enrolled when they opened the account. */
-export type Client = { number: string; name: string; birthDate: string; document: string; face: string };
+/** A client's KYC record. `document` is the number of the ID card they opened the account with. */
+export type Client = { number: string; name: string; birthDate: string; document: string };
 /** The client a wallet was created for, and the wallet key's signature on the statement naming both. */
 export type Owner = { client: string; signature: Hex; createdAt: number };
 

@@ -19,12 +19,9 @@ import { IdentityIllustration } from "./identity-illustration";
 type Step =
   | { name: "key"; notice?: string }
   | { name: "pending"; secret: Hex; address: Address; executeAfter: number; skew: number }
-  | { name: "identity"; secret: Hex; id: OnFile }
-  | { name: "restore"; secret: Hex; id: OnFile }
+  | { name: "identity"; secret: Hex }
+  | { name: "restore"; secret: Hex; identity: Identity }
   | { name: "refused"; reason: keyof typeof REFUSED; retry: Step };
-
-/** MOCKED: the owner's ID on file, standing in for their own ID card and face. */
-type OnFile = Identity & { name: string };
 
 /**
  * Where this phone stands, from the shared wallet store. `answer`: it holds the wallet and someone is recovering it.
@@ -78,6 +75,9 @@ const FAILED = {
 const enter =
   "transition-[opacity,filter,translate] duration-450 ease-[cubic-bezier(0.23,1,0.32,1)] starting:opacity-0 motion-safe:starting:translate-y-1.5 motion-safe:starting:blur-[8px]";
 
+const field =
+  "w-full rounded-2xl bg-secondary caret-brand ring-brand/40 outline-none ring-inset transition-[background-color,box-shadow] duration-150 ease-out placeholder:text-muted-foreground focus:bg-background focus:ring-[1.5px]";
+
 const countdown = (s: number) =>
   [Math.floor(s / 3600), Math.floor(s / 60) % 60, s % 60].map((n, i) => (i ? String(n).padStart(2, "0") : n)).join(":");
 
@@ -99,12 +99,13 @@ const holdCopy = (date: string) => ({
   },
 });
 
-/** Lost phone: the Recovery Key from home, an ID check, a new Passkey and Wallet Key, then the 48-hour hold in chain time. */
+/** Lost phone: the Recovery Key from home, the number on the client's ID card, a new Passkey and Wallet Key, then the 48-hour hold in chain time. */
 export function RecoveryFlow() {
   const router = useRouter();
   const at = standing(useWallet());
   const [step, setStep] = useState<Step>({ name: "key" });
   const [text, setText] = useState("");
+  const [idNumber, setIdNumber] = useState("");
   const [askKey, setAskKey] = useState(false);
   const [busy, setBusy] = useState<string>();
   const [error, setError] = useState<string>();
@@ -128,6 +129,7 @@ export function RecoveryFlow() {
     else if (before === "wait" && at.name === "outside") {
       recoveryKey.current = identity.current = undefined;
       setText("");
+      setIdNumber("");
       setAskKey(false);
       setStep({ name: "key", notice: "Your recovery was cancelled and your wallet is unchanged. To start again, choose your Recovery Key file or paste its text." });
     }
@@ -160,17 +162,17 @@ export function RecoveryFlow() {
     return secret;
   };
 
-  // MOCKED: the scan reads the owner's ID on file. A real provider scans the document and the face in front of the phone;
-  // Swissquote matches either way when the recovery starts.
-  const verify = async (secret: Hex, id: OnFile) => {
+  // MOCKED: the scan reads the number the client typed. A real provider scans the card and the face in front of the
+  // phone; Swissquote matches either way when the recovery starts.
+  const scan = async (secret: Hex) => {
     setBusy("Scanning your ID");
     await new Promise((resolve) => setTimeout(resolve, 1500));
     setBusy(undefined);
-    setStep({ name: "restore", secret, id });
+    setStep({ name: "restore", secret, identity: { document: idNumber.trim() } });
   };
 
   // Face ID needs the click's user activation, so the passkey comes first, before anything else awaits.
-  const restore = async (secret: Hex, id: OnFile) => {
+  const restore = async (secret: Hex, id: Identity) => {
     setError(undefined);
     let failed: string = FAILED.passkey;
     try {
@@ -184,12 +186,12 @@ export function RecoveryFlow() {
       setBusy("Starting recovery");
       // Before the await: the recovery can start on-chain even if the read after it fails.
       recoveryKey.current = secret;
-      identity.current = { document: id.document, selfie: id.selfie };
-      keepSession((await phone.startRecovery(secret, identity.current)).signedIn);
+      identity.current = id;
+      keepSession((await phone.startRecovery(secret, id)).signedIn);
       await refreshWallet();
     } catch (e) {
       const refused = e instanceof ApiError ? e.body.refused : undefined;
-      if (refused === "identity") setStep({ name: "refused", reason: refused, retry: { name: "identity", secret, id } });
+      if (refused === "identity") setStep({ name: "refused", reason: refused, retry: { name: "identity", secret } });
       else if (refused === "unlinked") setStep({ name: "refused", reason: refused, retry: { name: "key" } });
       else setError(failed);
     }
@@ -232,11 +234,11 @@ export function RecoveryFlow() {
         throw e;
       });
       if (!found) return setStep({ name: "refused", reason: "key", retry: { name: "key" } });
-      const { address, pendingRecovery, chainTime, idOnFile } = found;
+      const { address, pendingRecovery, chainTime, linked } = found;
       const skew = Math.round(chainTime - Date.now() / 1000);
       if (pendingRecovery) return setStep({ name: "pending", secret, address, executeAfter: pendingRecovery.executeAfter, skew });
-      if (!idOnFile) return setStep({ name: "refused", reason: "unlinked", retry: { name: "key" } });
-      setStep({ name: "identity", secret, id: idOnFile });
+      if (!linked) return setStep({ name: "refused", reason: "unlinked", retry: { name: "key" } });
+      setStep({ name: "identity", secret });
     });
 
   const cancelTheirs = (secret: Hex, address: Address) =>
@@ -361,13 +363,22 @@ export function RecoveryFlow() {
           key="identity"
           art={<IdentityIllustration />}
           title="Confirm it's you"
-          body="Scan your ID, then take a selfie. Swissquote matches them to the ID it has on file for you."
+          body="Enter the number on your ID card. Swissquote matches it to the ID it has on file for you."
           error={error}
         >
-          <p className="text-caption text-muted-foreground">
-            Mock ID: <span className="text-foreground">{step.id.name}</span>, {step.id.document}
-          </p>
-          <Button size="lg" onClick={() => verify(step.secret, step.id)} disabled={!!busy} aria-busy={!!busy}>
+          <input
+            value={idNumber}
+            onChange={(e) => setIdNumber(e.target.value)}
+            aria-label="ID card number"
+            placeholder="Number on your ID card"
+            autoCapitalize="characters"
+            autoComplete="off"
+            spellCheck={false}
+            enterKeyHint="done"
+            className={`${field} h-13 px-4 text-center text-label uppercase tabular-nums placeholder:normal-case`}
+          />
+          <p className="-mt-1 text-caption text-muted-foreground">Mock scan: the camera would read your ID card and check your face.</p>
+          <Button size="lg" onClick={() => scan(step.secret)} disabled={!idNumber.trim() || !!busy} aria-busy={!!busy}>
             {lead(IdCardIcon)}
             {label("Scan ID")}
           </Button>
@@ -383,7 +394,7 @@ export function RecoveryFlow() {
           body="Face ID creates a new Passkey, and this phone gets a new Wallet Key. Then a 48-hour hold starts, which you can cancel."
           error={error}
         >
-          <Button size="lg" onClick={() => restore(step.secret, step.id)} disabled={!!busy} aria-busy={!!busy}>
+          <Button size="lg" onClick={() => restore(step.secret, step.identity)} disabled={!!busy} aria-busy={!!busy}>
             {lead(FaceIdIcon)}
             {label("Restore with Face ID")}
           </Button>
@@ -443,7 +454,7 @@ function KeyField({ value, onChange }: { value: string; onChange: (text: string)
         placeholder="Paste your Recovery Key"
         rows={4}
         spellCheck={false}
-        className="w-full resize-none rounded-2xl bg-secondary p-4 font-mono text-caption break-all caret-brand ring-brand/40 outline-none ring-inset transition-[background-color,box-shadow] duration-150 ease-out placeholder:font-sans placeholder:text-muted-foreground focus:bg-background focus:ring-[1.5px]"
+        className={`${field} resize-none p-4 font-mono text-caption break-all placeholder:font-sans`}
       />
       <label className={buttonVariants({ variant: "secondary", className: "cursor-pointer has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring has-[:focus-visible]:outline-solid" })}>
         <RestoreIcon size={20} />

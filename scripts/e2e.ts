@@ -165,16 +165,17 @@ for (const amount of ["3500", "10001"]) {
   console.log(`   ${amount} USDC: ${decision.status}, ${decision.reasons.join(" ")}`);
 }
 
-console.log("11. An attacker with the stolen phone and the email inbox is stopped at every step, with Face ID once the phone is reported stolen");
-await attack({ phone: structuredClone(phone.device()!), homeKey: recoveryKey.secret, unlocked: phone });
+console.log("11. An attacker with the stolen phone and the email inbox is stopped at every step, with Face ID once the phone is reported stolen, then with the Recovery Key and a forged ID");
+// MOCKED: the owner reads the number off their ID card; here the one the Swissquote app showed them.
+const identity = { document: signedIn.client.document };
+await attack({ phone: structuredClone(phone.device()!), homeKey: recoveryKey.secret, unlocked: phone, ownersId: identity });
 
-console.log("12. Lose the phone. New phone: ID check, new passkey and split; the recovery key signs, B and C rebuild the old key on the new phone");
+console.log("12. Lose the phone. New phone: ID card number, new passkey and split; the recovery key signs, B and C rebuild the old key on the new phone");
 const newOne = newPhone();
-// MOCKED: the owner's ID on file stands in for their own ID card and face.
-const { idOnFile } = await newOne.findRecovery(recoveryKey.secret);
-assert.equal(idOnFile?.name, signedIn.client.name);
-const identity = idOnFile;
+const found = await newOne.findRecovery(recoveryKey.secret);
+assert.deepEqual(found, { address: wallet, pendingRecovery: null, chainTime: found.chainTime, linked: true }, "the key finds the wallet and learns nothing about its owner");
 await newOne.splitKey(await newOne.createPasskey());
+await refused(newOne.startRecovery(recoveryKey.secret, { document: "C0000000" }), 403);
 const started = await newOne.startRecovery(recoveryKey.secret, identity);
 assert.equal(started.address, wallet);
 assert.equal(started.signedIn.client.number, signedIn.client.number, "the ID check signs the new phone in as the owner");
