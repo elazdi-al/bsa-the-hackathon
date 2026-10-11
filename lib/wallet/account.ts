@@ -96,6 +96,13 @@ export function encodeRecoverySignature(keySignature: Hex, recoverySignature: He
 export const cancelRecoveryMessage = (wallet: Address, executeAfter: number) =>
   `Cancel the recovery of wallet ${wallet.toLowerCase()} pending until ${executeAfter}.`;
 
+/**
+ * What the recovery key signs to have Swissquote lock the phone that holds the wallet now, reported lost or stolen, or
+ * unlock it. `at`, in seconds, keeps a logged signature from working later.
+ */
+export const lockPhoneMessage = (wallet: Address, locked: boolean, at: number) =>
+  `${locked ? "Lock" : "Unlock"} the phone holding wallet ${wallet.toLowerCase()}, at ${at}.`;
+
 /** What the wallet key signs to name the recovery key that may release its shares. */
 export const bindRecoveryKeyMessage = (signer: Address, recoveryKey: Address) =>
   `Wallet key ${signer.toLowerCase()} is recovered with ${recoveryKey.toLowerCase()}.`;

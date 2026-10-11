@@ -3,25 +3,21 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useReducer, useRef, useState, type ReactNode } from "react";
 import type { Address, Hex } from "viem";
-import { keepSession } from "@/app/(tabs)/_components/session";
 import { chainNow, refreshWallet, useWallet, type WalletSnapshot } from "@/app/(tabs)/_components/wallet";
-import { FaceIdIcon, IdCardIcon, LockIcon, RestoreIcon, ShieldIcon, type Icon } from "@/components/icons";
+import { FaceIdIcon, LockIcon, RestoreIcon, ShieldIcon, type Icon } from "@/components/icons";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { ApiError, phone, readRecoveryKey, type Credential, type Identity } from "@/lib/wallet/phone";
-import { IdentityIllustration } from "./identity-illustration";
+import { ApiError, phone, readRecoveryKey, type Credential } from "@/lib/wallet/phone";
 
 /**
- * The steps to start a recovery. `identity` comes only for a wallet linked to a Swissquote client: an unlinked one goes
- * from the key straight to `restore`. `notice` says why the key step is back. `pending`: the Recovery Key's wallet already has a
+ * The steps to start a recovery, the same for every wallet. `notice` says why the key step is back. `pending`: the Recovery Key's wallet already has a
  * recovery running that this phone didn't start; its holder may cancel it through Swissquote before going on. `refused`:
  * Swissquote said no, and `retry` is where trying again starts.
  */
 type Step =
   | { name: "key"; notice?: string }
   | { name: "pending"; secret: Hex; address: Address; executeAfter: number; skew: number }
-  | { name: "identity"; secret: Hex }
-  | { name: "restore"; secret: Hex; identity?: Identity }
+  | { name: "restore"; secret: Hex }
   | { name: "refused"; reason: keyof typeof REFUSED; retry: Step };
 
 /**
@@ -48,16 +44,6 @@ const REFUSED = {
     title: "This Recovery Key doesn't open a wallet",
     body: "No Swissquote Wallet uses it. Choose the Recovery Key file you saved when you set up your wallet.",
     retry: "Choose another file",
-  },
-  identity: {
-    title: "This ID doesn't match",
-    body: "Swissquote compared it with the ID on file for this wallet's owner. Your wallet is unchanged.",
-    retry: "Try again",
-  },
-  attempts: {
-    title: "Too many tries",
-    body: "Swissquote has stopped checking IDs for this wallet for an hour. Try again later, or call Swissquote. Your wallet is unchanged.",
-    retry: "Back",
   },
 } as const;
 
@@ -100,26 +86,22 @@ const holdCopy = (date: string) => ({
   },
 });
 
-/**
- * Lost phone: the Recovery Key from home, the number on the client's ID card if they linked their Swissquote account,
- * a new Passkey and Wallet Key, then the 48-hour hold in chain time.
- */
+/** Lost phone: the Recovery Key from home, a new Passkey and Wallet Key, then the 48-hour hold in chain time. */
 export function RecoveryFlow() {
   const router = useRouter();
   const at = standing(useWallet());
   const [step, setStep] = useState<Step>({ name: "key" });
   const [text, setText] = useState("");
-  const [idNumber, setIdNumber] = useState("");
   const [askKey, setAskKey] = useState(false);
   const [busy, setBusy] = useState<string>();
   const [error, setError] = useState<string>();
   // Kept across a failed restore, so a retry resumes where it stopped instead of asking for another passkey.
   const credential = useRef<Credential>(undefined);
   const split = useRef(false);
-  // The Recovery Key and ID this session started the recovery with, so cancelling or locking the old phone doesn't ask
-  // again. Only a linked wallet has an ID, and only its old phone can be locked: the lock needs the owner's ID check.
+  // The Recovery Key this session started the recovery with, so cancelling or locking the old phone doesn't ask for it
+  // again, and whether its wallet is linked to a Swissquote client: only a linked wallet's old phone can be locked.
   const recoveryKey = useRef<Hex>(undefined);
-  const identity = useRef<Identity>(undefined);
+  const linked = useRef(false);
 
   const home = () => router.replace("/home", { transitionTypes: ["push"] });
 
@@ -132,9 +114,9 @@ export function RecoveryFlow() {
     // This phone now holds the wallet with nothing to answer; or an old phone lost it to a finished recovery, which Home explains.
     if (at.name === "home" || (before === "answer" && at.name === "outside")) home();
     else if (before === "wait" && at.name === "outside") {
-      recoveryKey.current = identity.current = undefined;
+      recoveryKey.current = undefined;
+      linked.current = false;
       setText("");
-      setIdNumber("");
       setAskKey(false);
       setStep({ name: "key", notice: "Your recovery was cancelled and your wallet is unchanged. To start again, choose your Recovery Key file or paste its text." });
     }
@@ -167,17 +149,8 @@ export function RecoveryFlow() {
     return secret;
   };
 
-  // MOCKED: the scan reads the number the client typed. A real provider scans the card and the face in front of the
-  // phone; Swissquote matches either way when the recovery starts.
-  const scan = async (secret: Hex) => {
-    setBusy("Scanning your ID");
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setBusy(undefined);
-    setStep({ name: "restore", secret, identity: { document: idNumber.trim() } });
-  };
-
   // Face ID needs the click's user activation, so the passkey comes first, before anything else awaits.
-  const restore = async (secret: Hex, id?: Identity) => {
+  const restore = async (secret: Hex) => {
     setError(undefined);
     let failed: string = FAILED.passkey;
     try {
@@ -191,14 +164,10 @@ export function RecoveryFlow() {
       setBusy("Starting recovery");
       // Before the await: the recovery can start on-chain even if the read after it fails.
       recoveryKey.current = secret;
-      identity.current = id;
-      const { signedIn } = await phone.startRecovery(secret, id);
-      if (signedIn) keepSession(signedIn);
+      await phone.startRecovery(secret);
       await refreshWallet();
-    } catch (e) {
-      const refused = e instanceof ApiError ? e.body.refused : undefined;
-      if (refused === "identity" || refused === "attempts") setStep({ name: "refused", reason: refused, retry: { name: "identity", secret } });
-      else setError(failed);
+    } catch {
+      setError(failed);
     }
     setBusy(undefined);
   };
@@ -226,14 +195,13 @@ export function RecoveryFlow() {
     });
   };
 
-  const lockOldPhone = (id: Identity) =>
+  const lockOldPhone = (secret: Hex) =>
     run("Locking", FAILED.lock, async () => {
-      await phone.reportLost(id);
+      await phone.lockPhone(secret);
       await refreshWallet();
     });
 
-  // Before the ID check: a recovery someone else started blocks a new one, and only the key's holder can call it off. A
-  // wallet nobody linked to a Swissquote account has no ID to check.
+  // A recovery someone else started blocks a new one, and only the key's holder can call it off.
   const check = (secret: Hex) =>
     run("Checking", FAILED.offline, async () => {
       const found = await phone.findRecovery(secret).catch((e: unknown) => {
@@ -241,10 +209,11 @@ export function RecoveryFlow() {
         throw e;
       });
       if (!found) return setStep({ name: "refused", reason: "key", retry: { name: "key" } });
-      const { address, pendingRecovery, chainTime, linked } = found;
+      const { address, pendingRecovery, chainTime } = found;
+      linked.current = found.linked;
       const skew = Math.round(chainTime - Date.now() / 1000);
       if (pendingRecovery) return setStep({ name: "pending", secret, address, executeAfter: pendingRecovery.executeAfter, skew });
-      setStep(linked ? { name: "identity", secret } : { name: "restore", secret });
+      setStep({ name: "restore", secret });
     });
 
   const cancelTheirs = (secret: Hex, address: Address) =>
@@ -288,7 +257,7 @@ export function RecoveryFlow() {
           {askKey ? "Cancel with Recovery Key" : "Cancel recovery"}
         </Button>
         {/* Opt-in: once locked, the old phone can no longer cancel a stranger's recovery with Face ID. */}
-        {at.name === "wait" && (at.oldPhoneLocked || identity.current) && (
+        {at.name === "wait" && (at.oldPhoneLocked || (linked.current && recoveryKey.current)) && (
           // The height the action takes, held once it turns into the status line, so the centered screen doesn't jump.
           <div className="mt-3 flex min-h-22 flex-col items-center gap-1">
             {at.oldPhoneLocked ? (
@@ -298,7 +267,7 @@ export function RecoveryFlow() {
               </p>
             ) : (
               <>
-                <Button variant="ghost" onClick={() => lockOldPhone(identity.current!)} disabled={!!busy} aria-busy={busy === "Locking"}>
+                <Button variant="ghost" onClick={() => lockOldPhone(recoveryKey.current!)} disabled={!!busy} aria-busy={busy === "Locking"}>
                   {busy === "Locking" ? <Spinner aria-hidden className="size-5" /> : <LockIcon size={20} />}
                   Lock your old phone
                 </Button>
@@ -364,36 +333,6 @@ export function RecoveryFlow() {
       );
     }
 
-    case "identity":
-      return (
-        <Step
-          key="identity"
-          art={<IdentityIllustration />}
-          title="Confirm it's you"
-          body="Enter the number on your ID card. Swissquote matches it to the ID it has on file for you."
-          error={error}
-        >
-          <input
-            value={idNumber}
-            onChange={(e) => setIdNumber(e.target.value)}
-            aria-label="ID card number"
-            placeholder="Number on your ID card"
-            autoCapitalize="characters"
-            autoComplete="off"
-            spellCheck={false}
-            enterKeyHint="done"
-            className={`${field} h-13 px-4 text-center text-label uppercase tabular-nums placeholder:normal-case`}
-          />
-          <p data-demo="" className="-mt-1 text-caption text-muted-foreground">
-            Mock scan: the camera would read your ID card and check your face.
-          </p>
-          <Button size="lg" onClick={() => scan(step.secret)} disabled={!idNumber.trim() || !!busy} aria-busy={!!busy}>
-            {lead(IdCardIcon)}
-            {label("Scan ID")}
-          </Button>
-        </Step>
-      );
-
     case "restore":
       return (
         <Step
@@ -403,7 +342,7 @@ export function RecoveryFlow() {
           body="Face ID creates a new Passkey, and this phone gets a new Wallet Key. Then a 48-hour hold starts, which you can cancel."
           error={error}
         >
-          <Button size="lg" onClick={() => restore(step.secret, step.identity)} disabled={!!busy} aria-busy={!!busy}>
+          <Button size="lg" onClick={() => restore(step.secret)} disabled={!!busy} aria-busy={!!busy}>
             {lead(FaceIdIcon)}
             {label("Restore with Face ID")}
           </Button>
@@ -417,10 +356,7 @@ export function RecoveryFlow() {
           <Button
             size="lg"
             onClick={() => {
-              if (step.retry.name === "key") {
-                setText("");
-                setIdNumber("");
-              }
+              if (step.retry.name === "key") setText("");
               setStep(step.retry);
             }}
           >

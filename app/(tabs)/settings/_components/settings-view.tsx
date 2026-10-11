@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { shortAddress } from "@/app/choose-recipient/data";
-import { BankIcon, ChevronRightIcon, FaceIdIcon, IdCardIcon, PlusIcon, ShieldIcon, SignOutIcon, VerifiedIcon, type Icon } from "@/components/icons";
+import { BankIcon, ChevronRightIcon, FaceIdIcon, PlusIcon, ShieldIcon, SignOutIcon, VerifiedIcon, type Icon } from "@/components/icons";
 import { SwissquoteMark } from "@/components/swissquote-mark";
 import { Button } from "@/components/ui/button";
 import { DemoTag } from "@/components/ui/demo-tag";
@@ -12,7 +12,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Tray, TrayActions, TrayHeader } from "@/components/ui/tray";
 import { cn } from "@/lib/utils";
-import { ApiError, phone, type SignedIn } from "@/lib/wallet/phone";
+import { phone, type SignedIn } from "@/lib/wallet/phone";
 import { rowPress } from "../../_components/list";
 import { keepSession, storedSession, useSignedIn } from "../../_components/session";
 import { forgetWallet, refreshWallet, shownAddress, useWallet } from "../../_components/wallet";
@@ -133,7 +133,7 @@ function Hero({ Icon, color }: { Icon: Icon; color: string }) {
 
 /**
  * Links the wallet to the client's Swissquote account: the phone signs in (MOCKED), then the passkey signs, with Face ID,
- * that the wallet is theirs.
+ * that the wallet is theirs. A wallet already linked, as after a recovery, links back to the same client.
  */
 function LinkView({ done }: { done: () => void }) {
   const signing = useRef<Promise<SignedIn>>(undefined);
@@ -153,14 +153,11 @@ function LinkView({ done }: { done: () => void }) {
     setBusy(true);
     setError(undefined);
     try {
-      const signedIn = await signing.current!;
-      await phone.link(signedIn);
-      keepSession(signedIn);
+      keepSession(await phone.link(await signing.current!));
       await refreshWallet();
       done();
-    } catch (e) {
-      const taken = e instanceof ApiError && e.status === 409;
-      setError(taken ? "This wallet is already linked to another Swissquote account." : "Your wallet wasn't linked. Try again.");
+    } catch {
+      setError("Your wallet wasn't linked. Try again.");
       signIn();
     }
     setBusy(false);
@@ -193,7 +190,7 @@ function LinkView({ done }: { done: () => void }) {
         </p>
       )}
       <p data-demo="" className="mt-3 text-center text-caption text-muted-foreground">
-        Mock sign-in: you link as a made-up Swissquote client.
+        Mock sign-in: you link as a made-up Swissquote client, or as the one who linked this wallet before.
       </p>
     </>
   );
@@ -281,7 +278,7 @@ export function SettingsView() {
   const [stack, setStack] = useState<View[]>([]);
   const view = stack.at(-1);
 
-  // Linked: the client, and the ID card Swissquote has on file, which a recovery asks for. Unlinked: the offer to link.
+  // Linked: the client. Unlinked: the offer to link.
   const account: Row[] = client
     ? [
         {
@@ -296,7 +293,6 @@ export function SettingsView() {
           ),
           Icon: BankIcon,
         },
-        { kind: "info", label: "ID on file", demo: true, value: <span className="tabular-nums">{client.document}</span>, Icon: IdCardIcon },
       ]
     : [{ kind: "tray", opens: "link", label: "Link your Swissquote account", Icon: BankIcon }];
 

@@ -115,12 +115,8 @@ const phone2 = await newPhone();
 await phone2.goto(`${APP}/recover`);
 await shot(phone2, "recover", phone2.getByText("Recover your wallet"));
 await phone2.locator("input[type=file]").setInputFiles(kit);
+// A linked wallet recovers like any other, with the Recovery Key alone.
 await phone2.getByRole("button", { name: "Continue" }).click();
-// The wallet is linked, so the recovery checks the ID: the number on the owner's ID card, which Settings shows them.
-const idNumber = await phone1.evaluate(() => JSON.parse(localStorage.getItem("swissquote.session")!).client.document as string);
-await phone2.getByLabel("ID card number").fill(idNumber);
-await shot(phone2, "recover-id", phone2.getByRole("button", { name: "Scan ID" }));
-await phone2.getByRole("button", { name: "Scan ID" }).click();
 await phone2.getByRole("button", { name: "Restore with Face ID" }).click(SLOW);
 await shot(phone2, "recover-hold", phone2.getByRole("button", { name: "Lock your old phone" }));
 await phone1.goto(`${APP}/home`);

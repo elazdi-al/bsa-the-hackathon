@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { KEYS, type KeyId } from "@/app/onboarding-secure/data";
-import { BankIcon, BellIcon, CoinIcon, HelpIcon, IdCardIcon, KeyIcon, LightningIcon, LockIcon, SignOutIcon, type Icon } from "@/components/icons";
+import { BankIcon, BellIcon, CoinIcon, HelpIcon, KeyIcon, LightningIcon, LockIcon, SignOutIcon, type Icon } from "@/components/icons";
 
 export type { KeyId };
 
@@ -24,7 +24,7 @@ const about: Record<KeyId, { detail: string; about: string }> = {
   },
   recovery: {
     detail: "Saved as a file",
-    about: "Restores your wallet if you lose this phone, after a 48-hour hold you can cancel. If you linked your Swissquote account, Swissquote also checks your ID. Keep it at home; Swissquote never needs to see it.",
+    about: "Restores your wallet if you lose this phone, after a 48-hour hold you can cancel. Keep it at home; Swissquote never needs to see it.",
   },
 };
 
@@ -35,7 +35,6 @@ export const keys = KEYS.map(({ id, title, Icon, accent }) => ({ id, title, Icon
 export const linkAdds: { Icon: Icon; text: string }[] = [
   { Icon: BankIcon, text: "Move money between your Swissquote account and this wallet without extra checks." },
   { Icon: LightningIcon, text: "Swissquote pays your network fees, so your wallet needs no ETH." },
-  { Icon: IdCardIcon, text: "Swissquote checks your ID before anyone can recover your wallet." },
   { Icon: LockIcon, text: "Swissquote can lock this phone if it's lost or stolen." },
 ];
 

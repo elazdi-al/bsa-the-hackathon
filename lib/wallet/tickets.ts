@@ -14,7 +14,7 @@ const types = {
     { name: "slopeCommitment", type: "bytes" },
     { name: "expiry", type: "uint64" },
   ],
-  /** Swissquote verified the client's identity and approves this recovery UserOperation. */
+  /** The wallet's Recovery Key signed this recovery UserOperation, and Swissquote approves it. */
   RecoveryApproval: [
     { name: "wallet", type: "address" },
     { name: "userOpHash", type: "bytes32" },

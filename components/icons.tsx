@@ -207,8 +207,6 @@ export const ShieldIcon = duo(
   { fill: poly([[13, 3, 0.75], [19.5, 3, 2.5], [19.5, 11.5, 5.5], [13, 21, 1.5]], 1) },
 );
 
-export const IdCardIcon = duo({ fill: rr(2.5, 5, 19, 14, 4) }, { fill: circle(8.5, 12, 2.5), bar: "M14 10.25h3.5M14 13.75h2" }, true);
-
 export const BellIcon = duo(
   { bar: "M10.25 20.25h3.5" },
   {

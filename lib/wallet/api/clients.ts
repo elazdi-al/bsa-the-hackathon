@@ -1,27 +1,15 @@
-// Swissquote's clients: the session a wallet links with, the KYC record behind it, and the ID check matched against
-// that record before a linked wallet's recovery or lock.
+// Swissquote's clients: the session a wallet links with, and the client behind it.
 //
-// MOCKED: the bank side. In the product the client signs in to their Swissquote account, already KYC'd, to link
-// the wallet. Here a phone without a session signs in as a new, made-up client, and the ID check compares the typed
-// document number where a real provider scans a document and a face.
+// MOCKED: the bank side. In the product the client signs in to their own Swissquote account to link the wallet.
+// Here a phone without a session signs in as a new, made-up client.
 import { randomInt } from "node:crypto";
-import type { Address } from "viem";
-import type * as z from "zod";
-import type { identity } from "../schema.ts";
 import { store, type Client } from "./db.ts";
-import { HttpError } from "./http.ts";
 
-/** A made-up client with a KYC record. */
-export function mockClient(): Client {
-  return {
-    number: String(randomInt(1_000_000, 10_000_000)),
-    // A Swiss ID card number: one letter, seven digits.
-    document: `C${randomInt(1_000_000, 10_000_000)}`,
-  };
-}
+/** A made-up client. */
+const mockClient = (): Client => ({ number: String(randomInt(1_000_000, 10_000_000)) });
 
-/** What the phone learns about the client it is signed in as: their client number, and their ID card's, which a recovery asks for. */
-const seen = ({ number, document }: Client) => ({ number, document });
+/** What the phone learns about the client it is signed in as: their client number. */
+const seen = ({ number }: Client) => ({ number });
 
 /** The session's client, or a new made-up client and session when the phone has none Swissquote knows. */
 export function signIn(session?: string) {
@@ -33,33 +21,5 @@ export function signIn(session?: string) {
   return sessionFor(client);
 }
 
-/** Signs a new phone in as `client`, who just passed their linked wallet's ID check. */
+/** Signs a phone in as `client`. */
 export const sessionFor = (client: Client) => ({ session: store().addSession(client.number), client: seen(client) });
-
-const ownerOf = (wallet: Address) => {
-  const owner = store().owner(wallet);
-  return owner && store().client(owner.client);
-};
-
-// The number is seven digits, so whoever holds a wallet's Recovery Key, or just its address, must not get to guess
-// it: five misses stop the wallet's ID checks for an hour. A hit clears them.
-const MAX_MISSES = 5;
-const LOCKOUT = 60 * 60 * 1000;
-
-/**
- * The owner of `wallet` when the ID document matches their KYC record. MOCKED: the liveness check passes with the
- * document, where a real provider also matches the face in front of the phone to the one on the card.
- */
-export function checkIdentity(wallet: Address, { document }: z.infer<typeof identity>): Client {
-  const client = ownerOf(wallet);
-  if (!client) throw new HttpError(403, "This wallet isn't linked to a Swissquote client, so there is no ID to check against.", { refused: "unlinked" });
-  const missed = store().idMisses(wallet);
-  const misses = missed && Date.now() < missed.until ? missed.misses : 0;
-  if (misses >= MAX_MISSES) throw new HttpError(429, "Too many ID checks failed for this wallet. Try again in an hour.", { refused: "attempts" });
-  if (document.trim().toUpperCase() !== client.document) {
-    store().setIdMisses(wallet, misses + 1, Date.now() + LOCKOUT);
-    throw new HttpError(403, "This ID doesn't match the one on file for the wallet's owner.", { refused: "identity" });
-  }
-  if (misses) store().setIdMisses(wallet, 0, 0);
-  return client;
-}

@@ -1,5 +1,5 @@
 // Swissquote's storage: its vault of B shares, the wallets it serves, the operations it prepared, and its
-// clients: their KYC records, their app sessions, the wallets they own and the Plus they paid for.
+// clients: their app sessions, the wallets they own and the Plus they paid for.
 import { randomBytes } from "node:crypto";
 import type { Address, Hex } from "viem";
 import type { RpcUserOperation } from "viem/account-abstraction";
@@ -10,8 +10,8 @@ import { openVault } from "../vault.ts";
 
 export type Wallet = { address: Address; config: Config };
 export type Kind = "normal" | "recovery";
-/** A client's KYC record, as far as the wallet needs it: `document` is the number of the ID card they opened the account with. */
-export type Client = { number: string; document: string };
+/** A Swissquote client, as far as the wallet needs one. */
+export type Client = { number: string };
 /** The client who linked a wallet, and the wallet passkey's assertion, with Face ID, over the statement naming both. */
 export type Owner = { client: string; assertion: z.infer<typeof assertion>; createdAt: number };
 
@@ -37,7 +37,6 @@ function open() {
     create table if not exists sessions (token text primary key, client text not null, created_at integer not null);
     create table if not exists links (
       wallet text primary key collate nocase, client text not null, assertion text not null, created_at integer not null);
-    create table if not exists id_checks (wallet text primary key collate nocase, misses integer not null, until integer not null);
     create table if not exists plus (transaction_hash text primary key collate nocase, client text not null, until integer not null);
   `);
   const wallet = (row: { address: Address; config: string } | undefined): Wallet | undefined =>
@@ -76,13 +75,6 @@ function open() {
         | { kyc: string }
         | undefined;
       return row && JSON.parse(row.kyc);
-    },
-    /** Failed ID checks on the wallet, counted `until` a moment in ms. */
-    idMisses(wallet: Address) {
-      return db.prepare("select misses, until from id_checks where wallet = ?").get(wallet) as { misses: number; until: number } | undefined;
-    },
-    setIdMisses(wallet: Address, misses: number, until: number) {
-      db.prepare("insert or replace into id_checks values (?, ?, ?)").run(wallet, misses, until);
     },
     /**
      * Records a payment for Swissquote Plus, once per transaction: it runs `period` more from when the client's Plus

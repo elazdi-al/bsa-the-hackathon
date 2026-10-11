@@ -23,12 +23,12 @@ import { foundry } from "viem/chains";
 import { ownershipChallenge, type Config as AccountConfig, type Passkey } from "../lib/wallet/account.ts";
 import { verifyAssertion } from "../lib/wallet/api/http.ts";
 import { addresses, chain, credentials, partnerUrl, pendingRecovery, plus, publicClient } from "../lib/wallet/env.ts";
-import { ApiError, readRecoveryKey, RECOVERY_FILE, type Device, type Identity, type SignedIn } from "../lib/wallet/phone.ts";
+import { ApiError, readRecoveryKey, RECOVERY_FILE, type Device, type SignedIn } from "../lib/wallet/phone.ts";
 import { setSunset } from "../lib/wallet/sunset.ts";
 import { attack } from "./attack.ts";
 import { APP, mintUsdc, newPhone, sendEth } from "./software-phone.ts";
 
-/** `signedIn`: the Swissquote client the account's wallet is linked to (mocked), with the number of their ID card. None until npm run link. */
+/** `signedIn`: the Swissquote client the account's wallet is linked to (mocked). None until npm run link. */
 type AccountFile = { passkey: Hex; recoveryKey: Hex; device: Device | null; signedIn?: SignedIn };
 type Role = "active" | "recovering" | "inactive";
 
@@ -66,13 +66,6 @@ function loadAccount(name: string) {
   return { name, file, saved: account, recoveryKey: account.recoveryKey, signedIn: account.signedIn, phone: accountPhone(file, account) };
 }
 
-/** The owner's ID card. The software phone plays the owner, who holds the card, so the account file keeps its mock number. */
-function identityOf({ name, signedIn }: ReturnType<typeof loadAccount>): Identity {
-  if (!signedIn) throw new Error(`${name}'s wallet isn't linked to a Swissquote client, so Swissquote has no ID on file for it.`);
-  if (!signedIn.client.document) throw new Error(`${name} has no ID on file: it was made before Swissquote showed clients their ID card.`);
-  return { document: signedIn.client.document };
-}
-
 function walletOf(arg: string): Address {
   if (isAddress(arg)) return arg;
   const address = loadAccount(arg).phone.device()?.address;
@@ -80,22 +73,17 @@ function walletOf(arg: string): Address {
   return address;
 }
 
-/** Swissquote locks or unlocks the live credentials of an account's wallet, after the owner's mocked ID check. */
-async function setLock(name: string, method: "POST" | "DELETE") {
-  const account = loadAccount(name);
-  if (!account.signedIn) {
-    throw new Error(`${name}'s wallet isn't linked to a Swissquote client, so Swissquote has no ID to check and can't ${method === "POST" ? "lock" : "unlock"} its phone.`);
-  }
-  // The owner shows their ID card to Swissquote's hotline; the demo sends its number.
-  const identity = identityOf(account);
-  const res = await fetch(`${APP}/api/wallets/${walletOf(name)}/lock`, {
-    method,
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ identity }),
+/** Swissquote locks or unlocks the live credentials of an account's wallet, asked by its Recovery Key. */
+async function setLock(name: string, locked: boolean) {
+  const { phone, recoveryKey } = loadAccount(name);
+  await phone.lockPhone(recoveryKey, locked).catch((error: unknown) => {
+    if (error instanceof ApiError && error.body.refused === "unlinked") {
+      throw new Error(`${name}'s wallet isn't linked to a Swissquote client, so Swissquote can't ${locked ? "lock" : "unlock"} its phone.`);
+    }
+    throw error;
   });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(res.status, json);
-  return json as { wallet: Address; signer: Address };
+  const { address, signer } = await phone.state();
+  return { wallet: address, signer };
 }
 
 /** Reads Swissquote's database; nothing before the app first opened it. */
@@ -313,17 +301,13 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
     async run([name]) {
       const { file, saved: account, phone } = loadAccount(name);
       if (!phone.hasWallet()) throw new Error(`${name} has no wallet.`);
-      const signedIn = await phone.signIn(account.signedIn?.session);
-      await phone.link(signedIn);
-      account.signedIn = signedIn;
+      account.signedIn = await phone.link(await phone.signIn(account.signedIn?.session));
       writeFileSync(file, JSON.stringify(account, null, 2));
-      const { client } = account.signedIn;
       console.log(
         table(
           [
             ["Wallet", phone.device()!.address!],
-            ["Client", `Swissquote client ${client.number} (mock)`],
-            ["ID card", client.document],
+            ["Client", `Swissquote client ${account.signedIn.client.number} (mock)`],
           ],
           "",
         ),
@@ -376,9 +360,9 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
   },
 
   recover: {
-    usage: "recover <account | Recovery Key file> [new-account] [ID number]",
-    about: "Start a recovery onto a new software phone with the Recovery Key, and for a linked wallet the owner's ID card number. It can finish after 48 hours.",
-    async run([source, target, idNumber]) {
+    usage: "recover <account | Recovery Key file> [new-account]",
+    about: "Start a recovery onto a new software phone with the Recovery Key, the same for a linked wallet. It can finish after 48 hours.",
+    async run([source, target]) {
       const owner = NAME.test(source) && existsSync(accountFile(source)) ? loadAccount(source) : undefined;
       if (!owner && !existsSync(source)) throw new Error(`No account or Recovery Key file "${source}".`);
       const secret = owner ? owner.recoveryKey : readRecoveryKey(readFileSync(source, "utf8"));
@@ -395,17 +379,8 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
       const account: AccountFile = { passkey: P256.randomPrivateKey(), recoveryKey: secret, device: null };
       const phone = accountPhone(file, account);
       const { linked } = await phone.findRecovery(secret);
-      // A linked wallet's account keeps its owner's mock ID card; with a Recovery Key file, the owner reads the number off theirs.
-      if (linked && !owner && !idNumber) {
-        throw new Error(
-          `That wallet is linked to a Swissquote client, so Swissquote checks their ID. Add the number on the owner's ID card, shown in Settings: npm run recover ${source} ${target ?? "recovered"} <ID number>`,
-        );
-      }
-      const identity = !linked ? undefined : owner ? identityOf(owner) : { document: idNumber! };
       await phone.splitKey(await phone.createPasskey());
-      const { address, executeAfter, signedIn } = await phone.startRecovery(secret, identity);
-      account.signedIn = signedIn;
-      writeFileSync(file, JSON.stringify(account, null, 2));
+      const { address, executeAfter } = await phone.startRecovery(secret);
       const { time } = await chainClock();
       console.log(
         table(
@@ -415,6 +390,7 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
             ["Can finish", `${when(executeAfter)}, in ${duration(executeAfter - time)}`],
             ["To cancel", `npm run cancel ${name}`],
             ["To finish", `npm run warp, then npm run finish ${name}`],
+            ...(linked ? [["To link", `once finished, npm run link ${name} signs it in as the wallet's Swissquote client`]] : []),
           ],
           "",
         ),
@@ -462,26 +438,25 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
 
   attack: {
     usage: "attack <account>",
-    about: "An attacker with the account's phone and email inbox tries to take its wallet, then with the Recovery Key too; for a linked wallet also with Face ID once the phone is reported stolen, and a forged ID. Every attempt must fail.",
+    about: "An attacker with the account's phone and email inbox tries to take its wallet, then with the Recovery Key too; for a linked wallet also with Face ID, once the owner has Swissquote lock the phone. Every attempt must fail.",
     async run([name]) {
-      const account = loadAccount(name);
-      const { phone, recoveryKey } = account;
+      const { phone, recoveryKey } = loadAccount(name);
       const device = phone.device();
       if (!device?.address) throw new Error(`${name} has no wallet.`);
       const { pendingRecovery, locked } = await phone.state();
       if (pendingRecovery) throw new Error(`A recovery is pending for ${name}'s wallet. Cancel it first: npm run cancel ${name}.`);
       if (locked) throw new Error(`Swissquote has locked ${name}'s phone. Unlock it first: npm run unlock ${name}.`);
       const { linked } = await phone.findRecovery(recoveryKey);
-      await attack({ phone: structuredClone(device), homeKey: recoveryKey, unlocked: phone, ownersId: linked ? identityOf(account) : undefined });
+      await attack({ phone: structuredClone(device), homeKey: recoveryKey, unlocked: phone, linked });
       console.log(`Every attempt on ${name}'s wallet failed.`);
     },
   },
 
   lock: {
     usage: "lock <account>",
-    about: "Report an account's phone lost: Swissquote locks its credentials, after a mocked ID check. Only for a linked wallet.",
+    about: "Report an account's phone lost with its Recovery Key: Swissquote locks the phone's credentials. Only for a linked wallet.",
     async run([name]) {
-      const { wallet, signer } = await setLock(name, "POST");
+      const { wallet, signer } = await setLock(name, true);
       console.log(`Swissquote refuses Share B, sponsorship and submission for this phone until a recovery replaces it or npm run unlock ${name}.`);
       console.log(
         table(
@@ -497,9 +472,9 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
 
   unlock: {
     usage: "unlock <account>",
-    about: "Swissquote unlocks the phone, after a mocked ID check.",
+    about: "Swissquote unlocks the phone, asked by the Recovery Key.",
     async run([name]) {
-      const { wallet, signer } = await setLock(name, "DELETE");
+      const { wallet, signer } = await setLock(name, false);
       console.log("This phone can send again.");
       console.log(
         table(
