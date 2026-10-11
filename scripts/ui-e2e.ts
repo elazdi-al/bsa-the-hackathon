@@ -128,12 +128,12 @@ async function create(page: Page) {
   return kit;
 }
 
+/** Starts a recovery on `page` with the Recovery Key file: choosing it reads it, then Face ID. */
 async function recover(page: Page, kit: string) {
   await page.goto(`${APP}/recover`);
   await page.locator("input[type=file]").setInputFiles(kit);
-  await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Restore with Face ID" }).click(SLOW);
-  await page.getByText("Your wallet will be restored on").waitFor(SLOW);
+  await page.getByText("Recovery started").waitFor(SLOW);
 }
 
 console.log("1. Create, with no Swissquote account: passkey, split the wallet key 2-of-3, save the Recovery Key file and confirm it is kept off the phone");
@@ -170,17 +170,17 @@ const owner = await clientOf(phone1);
 await phone1.getByText(`Client ${owner.number}`, { exact: true }).waitFor(SLOW);
 assert.equal(await phone1.getByRole("button", { name: "Link your Swissquote account" }).count(), 0, "a linked wallet isn't offered the link again");
 
-console.log("5. New phone: a Recovery Key no wallet uses is refused; the owner's goes straight to Face ID, though the wallet is linked");
+console.log("5. New phone: a pasted Recovery Key no wallet uses is refused; the owner's file goes straight to Face ID, though the wallet is linked");
 const phone2 = await newPhone();
 await phone2.goto(`${APP}/recover`);
+await phone2.getByRole("button", { name: "Paste it instead" }).click();
 await phone2.getByLabel("Recovery Key").fill(`0x${"7".repeat(64)}`);
 await phone2.getByRole("button", { name: "Continue" }).click();
-await phone2.getByText("This Recovery Key doesn't open a wallet").waitFor(SLOW);
-await phone2.getByRole("button", { name: "Choose another file" }).click();
+await phone2.getByText("No wallet uses this key").waitFor(SLOW);
 await phone2.locator("input[type=file]").setInputFiles(kit);
-await phone2.getByRole("button", { name: "Continue" }).click();
 await phone2.getByRole("button", { name: "Restore with Face ID" }).click(SLOW);
-await phone2.getByText("Your wallet will be restored on").waitFor(SLOW);
+await phone2.getByText("Recovery started").waitFor(SLOW);
+assert.equal(await phone2.getByRole("button", { name: "Finish recovery" }).count(), 0, "nothing to finish until the hold is over");
 console.log("   Swissquote cancels it for the user");
 await phone2.getByRole("button", { name: "Cancel recovery" }).click();
 await phone2.getByText("Recover your wallet").waitFor(SLOW);
@@ -234,9 +234,8 @@ const wallet3 = (await walletOf(phone3)) as Address;
 const phone4 = await newPhone();
 await phone4.goto(`${APP}/recover`);
 await phone4.locator("input[type=file]").setInputFiles(kit3);
-await phone4.getByRole("button", { name: "Continue" }).click();
 await phone4.getByRole("button", { name: "Restore with Face ID" }).click(SLOW);
-await phone4.getByText("Your wallet will be restored on").waitFor(SLOW);
+await phone4.getByText("Recovery started").waitFor(SLOW);
 assert.equal(await phone4.getByRole("button", { name: "Lock your old phone" }).count(), 0, "an unlinked wallet's phone can't be locked");
 assert.equal(await clientOf(phone4), undefined, "the recovery signs the new phone in to nothing");
 assert.equal(await publicClient.getBalance({ address: wallet3 }), 0n, "Swissquote paid for the recovery");

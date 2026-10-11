@@ -114,15 +114,14 @@ console.log("New phone: recover with the Recovery Key file");
 const phone2 = await newPhone();
 await phone2.goto(`${APP}/recover`);
 await shot(phone2, "recover", phone2.getByText("Recover your wallet"));
+// Choosing the file reads it; a linked wallet recovers like any other, with the Recovery Key alone.
 await phone2.locator("input[type=file]").setInputFiles(kit);
-// A linked wallet recovers like any other, with the Recovery Key alone.
-await phone2.getByRole("button", { name: "Continue" }).click();
 await phone2.getByRole("button", { name: "Restore with Face ID" }).click(SLOW);
 await shot(phone2, "recover-hold", phone2.getByRole("button", { name: "Lock your old phone" }));
 await phone1.goto(`${APP}/home`);
 await shot(phone1, "home-recovery-alert", phone1.getByText("Someone started recovering your wallet"), 2000);
 await publicClient.request({ method: "evm_increaseTime", params: [numberToHex(48 * 3600 + 10)] } as never);
 await publicClient.request({ method: "evm_mine", params: [] } as never);
-await shot(phone2, "recover-ready", phone2.getByText("Your wallet is ready to restore"));
+await shot(phone2, "recover-ready", phone2.getByRole("button", { name: "Finish recovery" }));
 
 await browser.close();
