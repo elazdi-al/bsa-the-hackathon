@@ -230,9 +230,10 @@
   }
   .step b { display: block; padding-top: 12px; font-size: 38px; line-height: 1.15; font-weight: 600; letter-spacing: -0.03em; }
   .step span { display: block; margin-top: 6px; font-size: 28px; line-height: 1.3; font-weight: 500; letter-spacing: -0.015em; color: var(--secondary); text-wrap: balance; }
-  .steps.when .step { grid-template-columns: 150px 1fr; }
-  .steps.when .step::before { width: 150px; border-radius: 99px; font-size: 28px; letter-spacing: -0.01em; }
-  .steps.when .step:not(:last-child)::after { left: 74px; }
+  /* Soft steps: one lightness and chroma for every step, only the hue (--h) walks from blue to green. All in sRGB. */
+  .steps.soft { gap: 40px; }
+  .steps.soft .step::before { background: oklch(0.955 0.022 var(--h)); color: oklch(0.5 0.11 var(--h)); }
+  .steps.soft .step:not(:last-child)::after { top: 84px; bottom: -32px; background: oklch(0.92 0.01 var(--h)); }
 
   /* Party badge: a share letter or an icon on the party's colour. */
   .badge {
@@ -248,55 +249,43 @@
     letter-spacing: -0.02em;
   }
 
-  /* Problem: the client leaves with a withdrawal, for twelve words on paper. */
-  .leave { position: absolute; left: 128px; right: 128px; bottom: 120px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: stretch; }
-  .leave .tile { min-height: 380px; }
-  .exit-arrow { align-self: center; padding: 0 40px; text-align: center; white-space: nowrap; }
-  .exit-arrow b { display: block; font-size: 40px; font-weight: 600; letter-spacing: -0.03em; }
-  .exit-arrow span { display: block; margin-top: 14px; font-size: 28px; font-weight: 500; color: var(--secondary); }
-  .exit-arrow svg { display: block; width: 100%; height: 40px; margin-top: 18px; }
-  .seed { min-height: 380px; padding: 40px 44px; border-radius: 48px; background: #1c1c1e; color: #fff; }
-  .seed h2 { font-size: 36px; font-weight: 600; letter-spacing: -0.03em; }
-  .seed ol { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px 18px; margin-top: 26px; padding: 0; list-style: none; counter-reset: word; }
-  .seed li { counter-increment: word; display: flex; align-items: center; gap: 12px; font-size: 22px; font-weight: 600; color: rgb(255 255 255 / 0.4); font-variant-numeric: tabular-nums; }
-  .seed li::before { content: counter(word); width: 28px; text-align: right; }
+  /* Problem: two ways to hold crypto today, side by side. */
+  .today { position: absolute; left: 128px; right: 128px; bottom: 120px; display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+  .today > * { min-height: 440px; }
+  .seed { padding: 44px; display: flex; flex-direction: column; border-radius: 48px; background: #1c1c1e; color: #fff; }
+  .seed ol { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px 18px; padding: 0; list-style: none; counter-reset: word; }
+  .seed li { counter-increment: word; display: flex; align-items: center; gap: 10px; font-size: 22px; font-weight: 600; color: rgb(255 255 255 / 0.4); font-variant-numeric: tabular-nums; }
+  .seed li::before { content: counter(word); width: 26px; text-align: right; }
   .seed li::after { content: ""; flex: 1; height: 18px; border-radius: 6px; background: rgb(255 255 255 / 0.16); }
-  .seed p { display: grid; gap: 4px; margin-top: 28px; font-size: 26px; font-weight: 500; color: rgb(255 255 255 / 0.75); }
+  .seed h2 { margin-top: auto; padding-top: 40px; font-size: 48px; font-weight: 600; letter-spacing: -0.035em; }
+  .seed p { margin-top: 10px; font-size: 30px; line-height: 1.25; font-weight: 500; letter-spacing: -0.02em; color: rgb(255 255 255 / 0.6); text-wrap: balance; }
 
   /* Custody model: shares, any two, wallet key + passkey = an accepted payment. */
-  .equation { position: absolute; left: 128px; right: 128px; top: 450px; display: flex; align-items: stretch; gap: 22px; }
-  .shares { display: grid; gap: 18px; width: 470px; flex: none; }
-  .share { display: grid; grid-template-columns: 72px 1fr; column-gap: 22px; align-items: center; padding: 18px; border-radius: 40px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+  .equation { position: absolute; left: 128px; right: 128px; top: 490px; display: flex; align-items: stretch; gap: 28px; }
+  .shares { display: grid; gap: 18px; width: 540px; flex: none; }
+  .share { display: grid; grid-template-columns: 72px 1fr; column-gap: 22px; align-items: center; padding: 22px; border-radius: 40px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
   .share b { display: block; font-size: 32px; font-weight: 600; letter-spacing: -0.025em; }
   .share > div > span { display: block; margin-top: 2px; font-size: 24px; font-weight: 500; color: var(--secondary); }
-  .brace { flex: none; display: block; width: 150px; height: 360px; overflow: visible; }
+  .brace { flex: none; display: block; width: 132px; height: auto; overflow: visible; }
   .brace text { font-size: 24px; font-weight: 600; fill: var(--secondary); }
-  .term { flex: 1; min-height: 300px; padding: 32px; display: flex; flex-direction: column; border-radius: 44px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+  .term { flex: 1; min-height: 300px; padding: 36px; display: flex; flex-direction: column; border-radius: 44px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
   .term .icon { width: 72px; height: 72px; border-radius: 22px; font-size: 40px; }
   .term b { margin-top: auto; padding-top: 24px; font-size: 38px; font-weight: 600; letter-spacing: -0.03em; }
-  .term > span:last-child { margin-top: 8px; font-size: 26px; line-height: 1.25; font-weight: 500; color: var(--secondary); text-wrap: balance; }
+  .term > span:last-child { min-height: 2.5em; margin-top: 8px; font-size: 26px; line-height: 1.25; font-weight: 500; color: var(--secondary); text-wrap: balance; }
   .term.result { background: #000; color: #fff; box-shadow: none; }
   .term.result > span:last-child { color: rgb(255 255 255 / 0.7); }
   .op { flex: none; align-self: center; font-size: 64px; font-weight: 500; color: #c7c7cc; }
 
-  /* Comparison grid: five models and ours, four questions. */
-  .compare { position: absolute; left: 128px; right: 128px; top: 262px; display: grid; grid-template-columns: 1fr repeat(4, 208px); }
-  .compare > * { display: flex; align-items: center; min-height: 96px; padding: 0 20px; border-top: 1px solid #ececf0; }
-  .compare .head { min-height: 72px; border-top: 0; justify-content: center; text-align: center; font-size: 24px; line-height: 1.15; font-weight: 600; color: var(--secondary); }
-  .compare .head:first-child { justify-content: flex-start; }
-  .compare .model { flex-direction: column; align-items: flex-start; justify-content: center; padding-left: 28px; }
-  .compare .model b { font-size: 32px; font-weight: 600; letter-spacing: -0.025em; }
-  .compare .model span { margin-top: 4px; font-size: 24px; font-weight: 500; color: var(--secondary); }
-  .compare .mark { justify-content: center; font-size: 44px; }
-  .compare .ours { border-top: 0; background: color-mix(in srgb, var(--phone) 8%, #fff); }
-  .compare .ours.model { border-radius: 32px 0 0 32px; }
-  .compare .ours:last-child { border-radius: 0 32px 32px 0; }
-  .yes { color: var(--positive); }
-  .part { color: var(--warning); }
-  .no { color: #d1d1d6; }
-  .legend { position: absolute; left: 156px; bottom: 76px; display: flex; gap: 40px; font-size: 24px; font-weight: 500; color: var(--secondary); }
-  .legend span { display: flex; align-items: center; gap: 10px; }
-  .legend .i { font-size: 30px; }
+  /* Scenarios: four steps left to right, one big mark each. */
+  .story { position: absolute; left: 128px; right: 128px; top: 530px; display: grid; grid-template-columns: 1fr 72px 1fr 72px 1fr 72px 1fr; align-items: start; }
+  .node { display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .node .mark { display: grid; place-items: center; width: 168px; height: 168px; border-radius: 52px; background: var(--c); color: #fff; font-size: 88px; --icon-duo: 0.55; }
+  .node .mark.pair { display: flex; gap: 12px; justify-content: center; background: none; }
+  .node .mark.pair .badge { width: 96px; height: 96px; border-radius: 30px; font-size: 48px; }
+  .node.missing .mark { background: #fff; color: #c7c7cc; box-shadow: inset 0 0 0 3px #e5e5ea; }
+  .node b { margin-top: 36px; font-size: 44px; line-height: 1.1; font-weight: 600; letter-spacing: -0.035em; }
+  .node > span:last-child { margin-top: 10px; max-width: 340px; font-size: 30px; line-height: 1.25; font-weight: 500; letter-spacing: -0.02em; color: var(--secondary); text-wrap: balance; }
+  .arrow { width: 72px; height: 24px; margin-top: 72px; color: #c7c7cc; overflow: visible; }
 
   /* Threat model table. */
   .threats { position: absolute; left: 128px; right: 128px; top: 262px; display: grid; grid-template-columns: 400px 300px 1fr 1fr; }
@@ -309,19 +298,6 @@
   .threats .some { color: var(--warning-ink); }
   .threats .risk { color: var(--negative-ink); }
 
-  /* Architecture diagram, drawn in SVG so it stays sharp. */
-  .arch { position: absolute; left: 128px; top: 312px; width: 1664px; height: 700px; overflow: visible; font-family: inherit; }
-  .arch .box { fill: var(--surface); stroke: #e5e5ea; stroke-width: 2; }
-  .arch .part { fill: #fff; stroke: #e5e5ea; stroke-width: 2; }
-  .arch .mock { fill: #fff; stroke: #aeaeb2; stroke-width: 2.5; stroke-dasharray: 10 8; }
-  .arch .title { font-size: 34px; font-weight: 600; letter-spacing: -0.025em; fill: #000; }
-  .arch .label { font-size: 25px; font-weight: 500; letter-spacing: -0.01em; fill: #000; }
-  .arch .note { font-size: 23px; font-weight: 500; fill: var(--secondary); }
-  .arch .wire { fill: none; stroke: #000; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-  .arch .wire.soft { stroke: #8e8e93; stroke-dasharray: 2 10; }
-  .arch .wire-label { font-size: 23px; font-weight: 600; fill: #000; }
-  .arch .halo { paint-order: stroke; stroke: #fff; stroke-width: 14px; stroke-linejoin: round; }
-
   /* Amount bands for payment size. */
   .bands { display: grid; gap: 20px; }
   .band { display: grid; grid-template-columns: 390px 1fr; align-items: center; column-gap: 32px; padding: 26px 36px; border-radius: 40px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
@@ -330,17 +306,44 @@
   .band p { display: flex; align-items: center; gap: 18px; font-size: 30px; line-height: 1.25; font-weight: 500; letter-spacing: -0.015em; text-wrap: balance; }
   .band p .i { font-size: 44px; }
 
-  /* Compliance pipeline. */
-  .pipeline { display: grid; gap: 10px; }
-  .check { display: grid; grid-template-columns: 56px 280px 1fr; align-items: center; column-gap: 22px; padding: 12px 28px; border-radius: 32px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
-  .check .i { font-size: 44px; color: var(--positive); }
-  .check b { font-size: 32px; font-weight: 600; letter-spacing: -0.025em; }
-  .check span { font-size: 26px; font-weight: 500; color: var(--secondary); }
-  .quote { margin-top: 18px; padding: 22px 32px; border-radius: 32px; background: #000; color: #fff; font-size: 30px; font-weight: 500; letter-spacing: -0.015em; }
-  .quote small { display: block; margin-bottom: 8px; font-size: 22px; font-weight: 600; color: rgb(255 255 255 / 0.6); }
-  .refusal { display: grid; grid-template-columns: 44px 1fr; align-items: center; column-gap: 20px; margin-top: 14px; padding: 22px 32px; border-radius: 32px; background: color-mix(in srgb, var(--negative) 6%, #fff); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--negative) 22%, #fff); font-size: 28px; line-height: 1.25; font-weight: 500; letter-spacing: -0.015em; color: var(--negative-ink); text-wrap: balance; }
-  .refusal .i { font-size: 44px; color: var(--negative); }
-  .refusal small { display: block; margin-bottom: 6px; font-size: 22px; font-weight: 600; }
+  /* Pay: your face plus one more share. */
+  .sum { display: flex; align-items: stretch; gap: 20px; }
+  .sum .term { min-height: 300px; padding: 32px; }
+  .sum .badge { width: 72px; height: 72px; }
+  .sum .op { font-size: 56px; }
+  .ttl { display: flex; align-items: center; gap: 22px; margin-top: 28px; padding: 26px 32px; border-radius: 32px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); font-size: 28px; line-height: 1.3; font-weight: 500; letter-spacing: -0.015em; color: var(--secondary); text-wrap: pretty; }
+  .ttl .i { font-size: 48px; color: var(--phone); }
+  .ttl b { font-weight: 600; color: var(--ink); }
+
+  /* Know what you sign: Swissquote's reading, and the checks behind it. */
+  .reading { padding: 40px 44px 44px; border-radius: 44px; background: #000; color: #fff; }
+  .reading small { display: flex; align-items: center; gap: 14px; font-size: 26px; font-weight: 600; letter-spacing: -0.01em; color: rgb(255 255 255 / 0.65); }
+  .reading small .i { font-size: 36px; color: var(--positive); }
+  .reading p { margin-top: 22px; font-size: 56px; line-height: 1.1; font-weight: 600; letter-spacing: -0.035em; }
+  .checks { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 28px; }
+  .checks span { display: flex; align-items: center; gap: 12px; padding: 16px 28px 16px 20px; border-radius: 99px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); font-size: 28px; font-weight: 600; letter-spacing: -0.02em; }
+  .checks .i { font-size: 36px; color: var(--positive); }
+
+  /* Plans: two prices on the left, what Plus adds on the right. */
+  .plans { position: absolute; left: 128px; right: 128px; top: 420px; display: grid; grid-template-columns: 1fr 1fr; gap: 96px; align-items: center; }
+  .prices { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .price { min-height: 480px; padding: 44px; display: flex; flex-direction: column; border-radius: 48px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+  .price > span { display: flex; justify-content: space-between; align-items: center; min-height: 48px; font-size: 34px; font-weight: 600; letter-spacing: -0.03em; }
+  .price em { padding: 8px 18px; border-radius: 99px; background: rgb(48 178 86 / 0.18); color: #7ee2a0; font-size: 24px; font-style: normal; letter-spacing: -0.01em; }
+  .price strong { margin-top: auto; font-size: 136px; line-height: 1; font-weight: 600; letter-spacing: -0.06em; font-variant-numeric: tabular-nums; }
+  .price p { margin-top: 10px; font-size: 30px; font-weight: 500; color: var(--secondary); }
+  .price.best { background: #000; color: #fff; box-shadow: none; }
+  .price.best p { color: rgb(255 255 255 / 0.6); }
+  .perks { display: grid; gap: 26px; }
+  .perks .row b { font-size: 34px; }
+  .perks .row > div > span { margin-top: 2px; font-size: 27px; }
+
+  /* Swissquote's cut: five columns, the share first. */
+  .cut { position: absolute; left: 128px; right: 128px; top: 440px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 24px; }
+  .cut > div { min-height: 400px; padding: 40px 36px; display: flex; flex-direction: column; border-radius: 44px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+  .cut strong { font-size: 96px; line-height: 1; font-weight: 600; letter-spacing: -0.055em; font-variant-numeric: tabular-nums; }
+  .cut b { margin-top: auto; padding-top: 32px; font-size: 44px; font-weight: 600; letter-spacing: -0.035em; }
+  .cut span { margin-top: 10px; font-size: 28px; line-height: 1.25; font-weight: 500; letter-spacing: -0.02em; color: var(--secondary); text-wrap: balance; }
 
   /* Business case arithmetic, one line. */
   .math { position: absolute; left: 128px; right: 128px; bottom: 136px; display: flex; align-items: center; gap: 22px; padding: 36px 48px; border-radius: 48px; background: #000; color: #fff; font-size: 40px; white-space: nowrap; font-weight: 600; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
@@ -439,8 +442,8 @@
 <body>
 <!--
   Layouts: cover and closing (.slide.blue), statement (h1.display), tiles (.tiles), content (.slide.content),
-  content with a phone on the right (.content.with-phone). Story slides carry .tags with their step of four
-  (Create, Pay, Lose, Recover). Each slide ends with <aside class="notes">, shown with N.
+  content with a phone on the right (.content.with-phone), scenarios (.story). Story slides carry .tags with their
+  step of four (Create, Pay, Lose, Recover). Each slide ends with <aside class="notes">, shown with N.
   App screens are 393×852 captures in screens/, made by capture.ts.
 -->
 <svg width="0" height="0" style="position: absolute;" aria-hidden="true">
@@ -478,12 +481,14 @@
   <symbol id="i-yes" viewBox="0 0 24 24"><path d="M2.75 12A9.25 9.25 0 1 0 21.25 12A9.25 9.25 0 1 0 2.75 12Z"/><path d="M8 12.25 10.75 15 16 9.5" fill="none" stroke="#fff" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-part" viewBox="0 0 24 24"><path d="M12 2.75A9.25 9.25 0 0 1 12 21.25Z"/><path d="M12 4.13A7.87 7.87 0 1 0 12 19.87A7.87 7.87 0 1 0 12 4.13Z" fill="none" stroke="currentColor" stroke-width="2.75"/></symbol>
   <symbol id="i-no" viewBox="0 0 24 24"><path d="M2.75 12A9.25 9.25 0 1 0 21.25 12A9.25 9.25 0 1 0 2.75 12Z"/><path d="M9 9l6 6m0-6-6 6" fill="none" stroke="#fff" stroke-width="2.75" stroke-linecap="round"/></symbol>
+  <symbol id="arrow" viewBox="0 0 72 24"><path d="M4 12H66M56 3l10 9-10 9" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11m0-11-11 11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></symbol>
   <symbol id="i-next" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 </svg>
 
 <!-- 1. Cover -->
 <section class="slide blue" aria-label="Cover">
-  <h1 class="display">Your keys.<br>Our protection.</h1>
+  <h1 class="display">Your wallet.<br>Truly yours.</h1>
   <p class="sub">Swissquote Wallet, BSA Hackathon 2026</p>
   <div class="phone tilt visual" style="--w: 600px; left: 1140px; top: 150px;" aria-hidden="true">
     <div class="screen">
@@ -491,60 +496,48 @@
       <div class="status"><b>9:41</b><i></i><svg><use href="#status-icons"/></svg></div>
     </div>
   </div>
-  <aside class="notes">Swissquote Wallet is a self-custody wallet that lives inside the Swissquote app. The client holds the keys. Swissquote screens each payment, pays the network fee once the wallet is linked to a Swissquote account, and helps recover a lost phone, but it can never spend the funds.</aside>
+  <aside class="notes">Swissquote Wallet is a self-custody wallet that lives inside the Swissquote app. The client owns it: they hold the keys, and nobody else can spend. Swissquote screens each payment, pays the network fee once the wallet is linked to a Swissquote account, and helps recover a lost phone, but it can never spend the funds.</aside>
 </section>
 
 <!-- 2. Problem -->
 <section class="slide" aria-label="Problem">
-  <h1 style="max-width: 1500px;">Self-custody today means leaving Swissquote.</h1>
-  <p class="sub">For twelve words on paper.</p>
-  <div class="leave visual" aria-hidden="true">
+  <h1 style="max-width: 1500px;">Today, your crypto is fragile or locked in.</h1>
+  <div class="today visual stagger" aria-hidden="true">
+    <div class="seed">
+      <ol><li></li><li></li><li></li><li></li><li></li><li></li><li></li><li></li><li></li><li></li><li></li><li></li></ol>
+      <h2>12 words on paper</h2>
+      <p>Hard to keep safe for years. Lose them, and your funds are gone.</p>
+    </div>
     <div class="tile" style="--c: var(--swissquote);">
       <span class="icon"><svg class="i"><use href="#i-bank"/></svg></span>
-      <h2>Swissquote account</h2>
-      <p>Swissquote holds your keys. Your crypto can’t move without it.</p>
-    </div>
-    <div class="exit-arrow">
-      <b>USD 15 per USDC withdrawal</b>
-      <svg viewBox="0 0 400 40" preserveAspectRatio="none"><path d="M4 20H392M376 6l16 14-16 14" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>
-      <span>Then Swissquote sees nothing.</span>
-    </div>
-    <div class="seed">
-      <h2>Seed phrase</h2>
-      <ol><li></li><li></li><li></li><li></li><li></li><li></li><li></li><li></li><li></li><li></li><li></li><li></li></ol>
-      <p><span>On paper, kept safe for years.</span><span>Lost: funds gone.</span><span>Photographed: funds stolen.</span></p>
+      <h2>Locked in at Swissquote</h2>
+      <p>Swissquote holds the keys. Leave Swissquote, and your wallet stays behind.</p>
     </div>
   </div>
-  <aside class="notes">Today a Swissquote client depends on Swissquote: it holds the keys, so the client can't move their crypto without it. That is what we want to end. A client who wants their own keys has to whitelist an external address, prove they own it and pay 10 to 15 dollars per withdrawal. From then on Swissquote sees nothing. And the wallet they move to hangs on twelve words on paper, which a bank client must keep safe for years. One slip ends it: lose the paper and the funds are gone, photograph it and the funds are stolen.</aside>
+  <aside class="notes">Two ways to hold crypto today, and both fail the client. Take your own keys and you get a seed phrase: twelve words on paper that a client must keep safe for years. Lose the paper and the funds are gone; photograph it and they can be stolen. Or keep the crypto at Swissquote, which holds the keys. Then the wallet belongs to the bank: leave Swissquote, and the wallet stays behind. Moving out means whitelisting an outside address and paying 10 to 15 dollars per withdrawal, after which Swissquote sees nothing.</aside>
 </section>
 
-<!-- 3. Product and story -->
-<section class="slide" aria-label="Product">
-  <h1 style="max-width: 1500px;">Self-custody, inside the Swissquote app.</h1>
-  <p class="sub" style="max-width: 1500px; font-size: 44px; letter-spacing: -0.02em;">You hold the keys. Swissquote screens, helps recover and, if linked, pays fees.</p>
-  <div class="tiles visual stagger" style="--cols: 4; --lines: 2;">
+<!-- 3. Solution -->
+<section class="slide" aria-label="Solution">
+  <h1 style="max-width: 1500px;">Your wallet. Linked to Swissquote, never locked in.</h1>
+  <div class="tiles visual stagger" style="--lines: 2;">
     <div class="tile" style="--c: var(--phone);">
       <span class="icon"><svg class="i"><use href="#i-face-id"/></svg></span>
-      <h2><span>1</span> Create</h2>
-      <p>Face ID and a Recovery Key. No seed phrase.</p>
+      <h2>Yours alone</h2>
+      <p>Only your Face ID can move your funds.</p>
     </div>
-    <div class="tile" style="--c: var(--ink);">
-      <span class="icon"><svg class="i"><use href="#i-send"/></svg></span>
-      <h2><span>2</span> Pay</h2>
-      <p>Face ID approves. No fee once linked.</p>
-    </div>
-    <div class="tile" style="--c: var(--negative);">
-      <span class="icon"><svg class="i"><use href="#i-phone"/></svg></span>
-      <h2><span>3</span> Lose</h2>
-      <p>A thief gets a locked phone. Nothing moves.</p>
+    <div class="tile" style="--c: var(--swissquote);">
+      <span class="icon"><svg class="i"><use href="#i-wallet"/></svg></span>
+      <h2>No lock-in</h2>
+      <p>Use it with or without Swissquote. Leave any time.</p>
     </div>
     <div class="tile" style="--c: var(--home);">
       <span class="icon"><svg class="i"><use href="#i-restore"/></svg></span>
-      <h2><span>4</span> Recover</h2>
-      <p>Your Recovery Key and 48 hours. Same funds.</p>
+      <h2>No 12 words</h2>
+      <p>A Recovery Key at home and two helpers bring a lost wallet back.</p>
     </div>
   </div>
-  <aside class="notes">The demo follows one client through four steps: create a wallet, pay, lose the phone, recover it. Each story slide carries its step in the corner. Every step runs against a real smart account on a local chain, and none of them needs a Swissquote account. Linking one is optional and comes from Settings; its bank side, the sign-in, the KYC record and the ID check, is mocked, as the architecture slide marks. After the story come the arguments: why this model, the threat model, the architecture, the law and the business case.</aside>
+  <aside class="notes">Our answer: the wallet belongs to the client, and Swissquote is linked to it, not in charge of it. Only the client's Face ID can move funds. The wallet works on its own, needs no Swissquote account, and keeps working if the client leaves Swissquote, so there is no lock-in. And instead of twelve words on paper, a lost phone is recovered with a Recovery Key file kept at home and two independent helpers, Swissquote and an independent service. The demo follows one client through four steps: create, pay, lose the phone, recover it. Then come the scenarios that show why the design holds, the law, and the business model.</aside>
 </section>
 
 <!-- 4. Custody model -->
@@ -554,23 +547,23 @@
   <div class="equation visual" aria-hidden="true">
     <div class="shares">
       <div class="share" style="--c: var(--phone);"><span class="badge">A</span><div><b>Your phone</b><span>Sealed by your passkey</span></div></div>
-      <div class="share" style="--c: var(--swissquote);"><span class="badge">B</span><div><b>Swissquote</b><span>Released after your Face ID</span></div></div>
-      <div class="share" style="--c: var(--partner);"><span class="badge">C</span><div><b>Independent service</b><span>Released to recover, or to exit if Swissquote is gone</span></div></div>
+      <div class="share" style="--c: var(--swissquote);"><span class="badge">B</span><div><b>Swissquote</b><span>Released after Face ID</span></div></div>
+      <div class="share" style="--c: var(--partner);"><span class="badge">C</span><div><b>Independent service</b><span>Released to recover or exit</span></div></div>
     </div>
-    <svg class="brace" viewBox="0 0 150 360">
-      <path d="M4 6C20 6 22 10 22 34V150C22 170 28 180 40 180C28 180 22 190 22 210V326C22 350 20 354 4 354M52 180H140M128 168l12 12-12 12" fill="none" stroke="#c7c7cc" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-      <text x="96" y="162" text-anchor="middle">any two</text>
+    <svg class="brace" viewBox="0 0 132 384" preserveAspectRatio="none">
+      <path d="M4 6C20 6 22 10 22 34V162C22 182 28 192 40 192C28 192 22 202 22 222V350C22 374 20 378 4 378M52 192H124M112 180l12 12-12 12" fill="none" stroke="#c7c7cc" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="88" y="174" text-anchor="middle">any two</text>
     </svg>
     <div class="term" style="--c: var(--ink);">
       <span class="icon"><svg class="i"><use href="#i-key"/></svg></span>
       <b>Wallet key</b>
-      <span>Rebuilt in your phone’s memory.</span>
+      <span>Rebuilt on your phone.</span>
     </div>
     <span class="op">+</span>
     <div class="term" style="--c: var(--phone);">
       <span class="icon"><svg class="i"><use href="#i-face-id"/></svg></span>
       <b>Passkey</b>
-      <span>Face ID signs every payment.</span>
+      <span>Signed with your Face ID.</span>
     </div>
     <span class="op">=</span>
     <div class="term result" style="--c: var(--positive);">
@@ -587,12 +580,10 @@
   <div class="tags"><span class="tag">Step 1 of 4: Create</span></div>
   <h1>Create: every key is born on your phone.</h1>
   <p class="sub">No Swissquote account needed.</p>
-  <div class="rows visual stagger" style="position: absolute; left: 128px; top: 420px; width: 1080px;">
-    <div class="row" style="--c: var(--phone);"><span class="icon"><svg class="i"><use href="#i-face-id"/></svg></span><div><b>Passkey</b><span>Made by your phone, unlocked by Face ID.</span></div></div>
-    <div class="row" style="--c: var(--ink);"><span class="icon"><svg class="i"><use href="#i-key"/></svg></span><div><b>Wallet key, split 2-of-3</b><span>Share A stays on your phone, sealed by the passkey.</span></div></div>
-    <div class="row" style="--c: var(--swissquote);"><span class="badge">B</span><div><b>Share B to Swissquote</b><span>Checked against public commitments that prove it is genuine.</span></div></div>
-    <div class="row" style="--c: var(--partner);"><span class="badge">C</span><div><b>Share C to the independent service</b><span>Sent directly. Swissquote never sees it.</span></div></div>
-    <div class="row" style="--c: var(--home);"><span class="icon"><svg class="i"><use href="#i-restore"/></svg></span><div><b>Recovery Key</b><span>A file you keep at home. Only its address leaves.</span></div></div>
+  <div class="rows visual stagger" style="position: absolute; left: 128px; top: 448px; width: 1000px; gap: 44px;">
+    <div class="row" style="--c: var(--phone);"><span class="icon"><svg class="i"><use href="#i-face-id"/></svg></span><div><b>Face ID makes your passkey</b><span>It never leaves your phone.</span></div></div>
+    <div class="row" style="--c: var(--ink);"><span class="icon"><svg class="i"><use href="#i-key"/></svg></span><div><b>Your wallet key, split in three</b><span>A on your phone, B at Swissquote, C at an independent service.</span></div></div>
+    <div class="row" style="--c: var(--home);"><span class="icon"><svg class="i"><use href="#i-restore"/></svg></span><div><b>A Recovery Key for home</b><span>A file you keep safe. No 12 words.</span></div></div>
   </div>
   <div class="phone visual" aria-hidden="true">
     <div class="screen">
@@ -600,19 +591,35 @@
       <div class="status"><b>9:41</b><i></i><svg><use href="#status-icons"/></svg></div>
     </div>
   </div>
-  <aside class="notes">Step one, create. Anyone can create the wallet: it needs no Swissquote account and no sign-in. Face ID creates the passkey, then the phone makes the wallet key and splits it: A stays sealed on the phone, B goes to Swissquote, C goes straight to the independent service. Each holder checks its share against public commitments before storing it. Swissquote holds Share B whether or not the client has an account. The Recovery Key is saved as a file for home, and only its address leaves the phone.</aside>
+  <aside class="notes">Step one, create. Anyone can create the wallet: it needs no Swissquote account and no sign-in. Face ID creates the passkey, then the phone makes the wallet key and splits it: A stays sealed on the phone, B goes to Swissquote, C goes straight to the independent service, so Swissquote never sees it. Each holder checks its share against public commitments before storing it. The Recovery Key is saved as a file for home, and only its address leaves the phone. Linking a Swissquote account comes later, from Settings, and is optional.</aside>
 </section>
 
 <!-- 6. Pay -->
 <section class="slide content with-phone" aria-label="Pay">
   <div class="tags"><span class="tag">Step 2 of 4: Pay</span></div>
-  <h1>Pay: Face ID, verified on chain.</h1>
-  <p class="sub">Two signatures on every payment.</p>
-  <div class="steps visual stagger" style="position: absolute; left: 128px; top: 336px; width: 1080px;">
-    <div class="step" data-n="1"><div><b>Your phone builds the payment</b><span>Swissquote screens it. The phone checks nothing changed.</span></div></div>
-    <div class="step" data-n="2" style="--c: var(--phone);"><div><b>Face ID signs with your passkey</b><span>It signs this exact payment, nothing else.</span></div></div>
-    <div class="step" data-n="3"><div><b>Your wallet key signs too</b><span>From memory, or rebuilt from Shares A and B after your Face ID.</span></div></div>
-    <div class="step" data-n="4" style="--c: var(--positive-ink);"><div><b>The account checks both on chain</b><span>Swissquote submits it, and pays the fee if linked.</span></div></div>
+  <h1>Pay with your face.</h1>
+  <p class="sub">Face ID and one more share sign every payment.</p>
+  <div class="visual" style="position: absolute; left: 128px; top: 420px; width: 1040px;">
+    <div class="sum stagger">
+      <div class="term" style="--c: var(--phone);">
+        <span class="icon"><svg class="i"><use href="#i-face-id"/></svg></span>
+        <b>Your face</b>
+        <span>Opens Share A.</span>
+      </div>
+      <span class="op">+</span>
+      <div class="term" style="--c: var(--swissquote);">
+        <span class="badge">B</span>
+        <b>Share B</b>
+        <span>From Swissquote.</span>
+      </div>
+      <span class="op">=</span>
+      <div class="term result" style="--c: var(--positive);">
+        <span class="icon"><svg class="i"><use href="#i-check"/></svg></span>
+        <b>Signed</b>
+        <span>Checked on chain.</span>
+      </div>
+    </div>
+    <p class="ttl"><svg class="i"><use href="#i-clock"/></svg><span><b>Kept 3 hours in memory.</b> Face ID still signs each payment.</span></p>
   </div>
   <div class="phone visual" aria-hidden="true">
     <div class="screen">
@@ -620,31 +627,33 @@
       <div class="status"><b>9:41</b><i></i><svg><use href="#status-icons"/></svg></div>
     </div>
   </div>
-  <aside class="notes">Step two, pay. The phone builds the call, Swissquote screens it, and the phone checks Swissquote returned exactly that call before asking for Face ID. Face ID signs with the passkey, and the wallet key signs too, from memory or rebuilt from A and B. The smart account verifies both signatures on chain, so a payment without the client's face is rejected by the chain itself, not by our server. Swissquote submits it. For a linked wallet it also pays the fee. An unlinked wallet pays its own in ETH, and the phone shows the most that can cost before Face ID.</aside>
+  <aside class="notes">Step two, pay. A payment needs only two things: the client's face and one more share. Face ID unseals Share A on the phone and signs the payment with the passkey; Swissquote releases Share B after that Face ID, and A and B rebuild the wallet key, which signs too. The smart account verifies both signatures on chain, so a payment without the client's face is rejected by the chain itself, not by our server. The rebuilt key stays in the phone's memory for three hours, so the next payments skip Share B, but every payment still needs a fresh Face ID. Swissquote screens and submits the payment, and for a linked wallet it also pays the fee. An unlinked wallet pays its own in ETH.</aside>
 </section>
 
 <!-- 7. Know what you sign -->
 <section class="slide content with-phone" aria-label="Know what you sign">
   <div class="tags"><span class="tag">Step 2 of 4: Pay</span><span class="tag">Bonus: Compliant dApps</span></div>
-  <h1>Know what you sign.</h1>
-  <p class="sub">Swissquote checks every payment first, then says what it does in plain words.</p>
-  <div class="visual" style="position: absolute; left: 128px; top: 364px; width: 1080px;">
-    <div class="pipeline stagger">
-      <div class="check"><svg class="i"><use href="#i-check"/></svg><b>Decode</b><span>Reviewed functions, finite approvals only.</span></div>
-      <div class="check"><svg class="i"><use href="#i-check"/></svg><b>Allowlist</b><span>Approved contracts and tokens only.</span></div>
-      <div class="check"><svg class="i"><use href="#i-check"/></svg><b>Sanctions</b><span>Every address it touches.</span></div>
-      <div class="check"><svg class="i"><use href="#i-check"/></svg><b>Simulation</b><span>Balances move as you meant.</span></div>
+  <h1>Every payment, checked by Swissquote.</h1>
+  <p class="sub">Transparent and clear, as Swiss rules require.</p>
+  <div class="visual" style="position: absolute; left: 128px; top: 448px; width: 1000px;">
+    <div class="reading">
+      <small><svg class="i"><use href="#i-verified"/></svg>Validated by Swissquote, before your Face ID</small>
+      <p>“Send 20 USDC to 0x4BA4…c6B1.”</p>
     </div>
-    <p class="quote"><small>Swissquote’s reading, signed and logged</small>“Send 20 USDC to 0x4BA4…c6B1.”</p>
-    <p class="refusal"><svg class="i"><use href="#i-no"/></svg><span><small>A sanctioned address gets a refusal instead</small>“Swissquote can’t help with payments to or from 0x098b…2f96. It is on a sanctions list.”</span></p>
+    <div class="checks stagger">
+      <span><svg class="i"><use href="#i-check"/></svg>Sanctions</span>
+      <span><svg class="i"><use href="#i-check"/></svg>Allowlist</span>
+      <span><svg class="i"><use href="#i-check"/></svg>Simulation</span>
+      <span><svg class="i"><use href="#i-check"/></svg>Audit log</span>
+    </div>
   </div>
-  <div class="phone visual" style="top: 64px;" aria-hidden="true">
+  <div class="phone visual" aria-hidden="true">
     <div class="screen">
       <img src="screens/send-summary.png" alt="">
       <div class="status"><b>9:41</b><i></i><svg><use href="#status-icons"/></svg></div>
     </div>
   </div>
-  <aside class="notes">Before Swissquote prepares a payment, its compliance engine decodes the call, checks the allowlist, screens every address and simulates the balance changes. It signs a decision with a plain-language reading into a hash-chained audit log, and the phone shows that reading before Face ID, as here. A payment to a sanctioned address gets a refusal with the reason instead; that stops Swissquote's help, never the wallet. The engine is real. In the demo the sanctions list and the simulation are fixtures; live mode calls TRM Labs and simulates on the chain.</aside>
+  <aside class="notes">Swiss rules ask for transparency and clarity, so Swissquote validates every payment before the client approves it. Its compliance engine decodes the call, checks the contracts and tokens against an allowlist, screens every address against sanctions lists and simulates the balance changes. It signs its decision, with a plain-language reading, into a hash-chained audit log, and the phone shows that reading before Face ID, as here. A payment to a sanctioned address gets a refusal with the reason instead; that stops Swissquote's help, never the wallet. The engine is real. In the demo the sanctions list and the simulation are fixtures; live mode calls TRM Labs and simulates on the chain.</aside>
 </section>
 
 <!-- 8. Gasless -->
@@ -656,26 +665,24 @@
     <p>Network fee <span class="chip">Paid by Swissquote</span></p>
     <strong>$0<span class="cents">.00</span></strong>
   </div>
-  <div class="rows visual stagger" style="position: absolute; right: 128px; bottom: 120px; width: 760px;">
+  <div class="rows visual stagger" style="position: absolute; right: 128px; bottom: 120px; width: 760px; gap: 32px;">
     <div class="row" style="--c: var(--positive);"><span class="icon"><svg class="i"><use href="#i-verified"/></svg></span><div><b>Only what its policy allows</b><span>Screened payments, recovery and cancel.</span></div></div>
     <div class="row" style="--c: var(--swissquote);"><span class="icon"><svg class="i"><use href="#i-bank"/></svg></span><div><b>Only linked wallets</b><span>Plus every recovery. Unlinked ones pay in ETH.</span></div></div>
-    <div class="row" style="--c: var(--ink);"><span class="icon"><svg class="i"><use href="#i-receipt"/></svg></span><div><b>One operation, ten minutes</b><span>One exact operation, with fixed gas limits.</span></div></div>
     <div class="row" style="--c: var(--phone);"><span class="icon"><svg class="i"><use href="#i-clock"/></svg></span><div><b>A rate limit per wallet</b><span>No wallet can drain the gas deposit.</span></div></div>
-    <div class="row" style="--c: var(--negative);"><span class="icon"><svg class="i"><use href="#i-coins"/></svg></span><div><b>No zero-value transfers</b><span>A payment must move money to be sponsored.</span></div></div>
   </div>
-  <aside class="notes">Once the wallet is linked to a Swissquote account, the client never needs ETH outside exit mode: Swissquote's paymaster, a contract holding its gas deposit, pays every fee, and the client sees zero. Sponsorship is a service for Swissquote clients. An unlinked wallet pays its own gas in ETH and sees the most it can cost before Face ID. Every wallet's recovery stays sponsored, so a lost phone never needs ETH. Abuse is bounded by what Swissquote agrees to sign: only operations its policy allows, only for linked wallets and recoveries, one exact operation per sponsorship, valid for ten minutes and with fixed gas limits. Each wallet has a sponsorship rate limit, and zero-value transfers are refused, so nobody can burn the deposit with empty payments.</aside>
+  <aside class="notes">Once the wallet is linked to a Swissquote account, the client never needs ETH outside exit mode: Swissquote's paymaster, a contract holding its gas deposit, pays every fee, and the client sees zero. Sponsorship is a service for Swissquote clients. An unlinked wallet pays its own gas in ETH and sees the most it can cost before Face ID. Every wallet's recovery stays sponsored, so a lost phone never needs ETH. Abuse is bounded by what Swissquote agrees to sign: only operations its policy allows, only for linked wallets and recoveries, and a sponsorship rate limit per wallet, so nobody can drain the gas deposit.</aside>
 </section>
 
 <!-- 9. Link -->
 <section class="slide content with-phone" aria-label="Link">
   <div class="tags"><span class="tag">Optional</span></div>
-  <h1>Link your Swissquote account, if you want.</h1>
-  <p class="sub">Later, any time, from Settings. Face ID proves it’s yours.</p>
-  <div class="rows visual stagger" style="position: absolute; left: 128px; top: 420px; width: 1080px;">
-    <div class="row" style="--c: var(--positive);"><span class="icon"><svg class="i"><use href="#i-verified"/></svg></span><div><b>Transfers with your account, no extra checks</b><span>The signed statement is Swissquote’s Travel Rule proof.</span></div></div>
-    <div class="row" style="--c: var(--swissquote);"><span class="icon"><svg class="i"><use href="#i-id-card"/></svg></span><div><b>An ID check before any recovery</b><span>Swissquote matches your ID to its KYC record.</span></div></div>
-    <div class="row" style="--c: var(--ink);"><span class="icon"><svg class="i"><use href="#i-shield"/></svg></span><div><b>A lock for a lost phone</b><span>After your ID check, Swissquote stops helping that phone.</span></div></div>
-    <div class="row" style="--c: #aeaeb2;"><span class="icon"><svg class="i"><use href="#i-wallet"/></svg></span><div><b>Not linked? You pay the network fee.</b><span>In ETH. Transfers take Swissquote’s usual check for outside wallets.</span></div></div>
+  <h1>Link your Swissquote account for financial features.</h1>
+  <p class="sub">Swiss law asks for it. One redirect to Swissquote, and you’re linked.</p>
+  <div class="rows visual stagger" style="position: absolute; left: 128px; top: 476px; width: 1000px; gap: 36px;">
+    <div class="row" style="--c: var(--swissquote);"><span class="icon"><svg class="i"><use href="#i-bank"/></svg></span><div><b>Move money with your account</b><span>No extra checks.</span></div></div>
+    <div class="row" style="--c: var(--positive);"><span class="icon"><svg class="i"><use href="#i-lightning"/></svg></span><div><b>Network fees paid</b><span>Your wallet needs no ETH.</span></div></div>
+    <div class="row" style="--c: var(--phone);"><span class="icon"><svg class="i"><use href="#i-sparkle"/></svg></span><div><b>Plus, swaps and rewards</b><span>Financial features, within Swiss law.</span></div></div>
+    <div class="row" style="--c: #aeaeb2;"><span class="icon"><svg class="i"><use href="#i-wallet"/></svg></span><div><b>Not linked? Your wallet still works.</b><span>You pay your own network fee.</span></div></div>
   </div>
   <div class="phone visual" aria-hidden="true">
     <div class="screen">
@@ -683,7 +690,7 @@
       <div class="status"><b>9:41</b><i></i><svg><use href="#status-icons"/></svg></div>
     </div>
   </div>
-  <aside class="notes">Linking is optional and comes later, from Settings. The client signs in to Swissquote and, with Face ID, signs that this wallet belongs to their Swissquote client number. It is the passkey every payment needs, so no key leaves the phone and nothing goes on chain; Swissquote keeps the signed statement. That adds four things. Money moves between the Swissquote account and the wallet without extra checks, because the signed statement is Swissquote's Travel Rule ownership proof. Before anyone recovers the wallet, Swissquote also checks the ID against the client's KYC record. Swissquote pays the network fees, so the wallet needs no ETH. And Swissquote can lock a lost or stolen phone after that ID check. Without a link the wallet still works. It pays its own fees in ETH, and transfers from the Swissquote account take its usual procedure for external wallets.</aside>
+  <aside class="notes">Linking is optional and comes later, from Settings. To use financial features in line with Swiss law, the client links the wallet to their Swissquote account: the app redirects to Swissquote, the client is already a known, identified client there, and Swissquote accepts. Face ID then signs that this wallet belongs to their client number, with the passkey every payment needs, so no key leaves the phone and nothing goes on chain. No ID is scanned or checked. That signed statement is Swissquote's Travel Rule ownership proof, so money moves between the account and the wallet without extra checks. A linked wallet also gets its network fees paid, and access to Plus, swaps and rewards. Without a link the wallet still works: it pays its own fees in ETH, and transfers from the Swissquote account take its usual procedure for external wallets.</aside>
 </section>
 
 <!-- 10. Lose -->
@@ -697,7 +704,7 @@
       <div class="rows">
         <div class="row" style="--c: var(--phone);"><span class="badge">A</span><div><b>Share A</b><span>Sealed by your passkey. Shut without your Face ID.</span></div></div>
         <div class="row" style="--c: var(--phone);"><span class="icon"><svg class="i"><use href="#i-face-id"/></svg></span><div><b>Passkey</b><span>Behind Face ID. It signs nothing for a thief.</span></div></div>
-        <div class="row" style="--c: var(--ink);"><span class="icon"><svg class="i"><use href="#i-shield"/></svg></span><div><b>If a thief can unlock it</b><span>If linked, Swissquote locks it after an ID check.</span></div></div>
+        <div class="row" style="--c: var(--ink);"><span class="icon"><svg class="i"><use href="#i-shield"/></svg></span><div><b>If a thief can unlock it</b><span>Linked to Swissquote? It locks the phone.</span></div></div>
       </div>
     </section>
     <section>
@@ -705,23 +712,23 @@
       <div class="rows">
         <div class="row" style="--c: var(--home);"><span class="icon"><svg class="i"><use href="#i-restore"/></svg></span><div><b>Recovery Key file</b><span>At home, off the phone. It starts the recovery.</span></div></div>
         <div class="row" style="--c: var(--partner);"><span class="badge">B C</span><div><b>Shares B and C</b><span>With Swissquote and the independent service.</span></div></div>
-        <div class="row" style="--c: var(--swissquote);"><span class="icon"><svg class="i"><use href="#i-id-card"/></svg></span><div><b>Your ID, if you linked</b><span>Swissquote checks it against its KYC record.</span></div></div>
+        <div class="row" style="--c: var(--positive);"><span class="icon"><svg class="i"><use href="#i-coins"/></svg></span><div><b>Your funds</b><span>On chain, at the same address.</span></div></div>
       </div>
     </section>
   </div>
-  <aside class="notes">Step three, lose. The client loses the phone. Whoever finds it holds a locked phone: Share A is sealed by the passkey, and the passkey needs the client's face, so nothing can be signed. What the client still has is the Recovery Key file at home, and Shares B and C wait with their holders. If the client linked their Swissquote account, Swissquote also has their KYC record to check their ID against. And if a thief can unlock the phone, a linked client reports it, passes the ID check, and Swissquote locks that phone: no more Share B, no sponsorship.</aside>
+  <aside class="notes">Step three, lose. The client loses the phone. Whoever finds it holds a locked phone: Share A is sealed by the passkey, and the passkey needs the client's face, so nothing can be signed. What the client still has is the Recovery Key file at home, Shares B and C with their holders, and the funds, which never left the chain. If a thief can unlock the phone, a linked client asks Swissquote to lock it with their Recovery Key: no more Share B, no sponsorship for that phone.</aside>
 </section>
 
 <!-- 11. Recover -->
 <section class="slide content with-phone" aria-label="Recover">
   <div class="tags"><span class="tag">Step 4 of 4: Recover</span></div>
   <h1>Recover: same wallet in 48 hours.</h1>
-  <p class="sub">You, Swissquote and the independent service.</p>
-  <div class="steps when visual stagger" style="position: absolute; left: 128px; top: 420px; width: 1080px;">
-    <div class="step" data-n="Minute 0" style="--c: var(--home);"><div><b>New phone and your Recovery Key</b><span>Linked to Swissquote? Your ID must also match your KYC record.</span></div></div>
-    <div class="step" data-n="Minute 1" style="--c: var(--ink);"><div><b>B and C go to the new phone, once</b><span>Each checks your Recovery Key signed the request.</span></div></div>
-    <div class="step" data-n="48 hours" style="--c: var(--warning-ink);"><div><b>Anyone can see it. You can cancel it.</b><span>From your old phone, or through Swissquote with your Recovery Key.</span></div></div>
-    <div class="step" data-n="Done" style="--c: var(--positive-ink);"><div><b>Same address, same funds</b><span>Anyone can finish it. New passkey, new key.</span></div></div>
+  <p class="sub">Your Recovery Key, Swissquote and the independent service.</p>
+  <div class="steps soft visual stagger" style="position: absolute; left: 128px; top: 448px; width: 1040px;">
+    <div class="step" data-n="1" style="--h: 250;"><div><b>Open the app on a new phone</b><span>Load your Recovery Key file from home.</span></div></div>
+    <div class="step" data-n="2" style="--h: 290;"><div><b>Shares B and C come back</b><span>Each holder checks your Recovery Key first.</span></div></div>
+    <div class="step" data-n="3" style="--h: 65;"><div><b>48 hours, in public</b><span>Not you? Cancel from your old phone or through Swissquote.</span></div></div>
+    <div class="step" data-n="4" style="--h: 150;"><div><b>Same wallet, same funds</b><span>Same address. New passkey, new key.</span></div></div>
   </div>
   <div class="phone visual" aria-hidden="true">
     <div class="screen">
@@ -729,31 +736,29 @@
       <div class="status"><b>9:41</b><i></i><svg><use href="#status-icons"/></svg></div>
     </div>
   </div>
-  <aside class="notes">Step four, recover. On a new phone the client loads the Recovery Key from home. If they linked their Swissquote account, they also pass an ID check matched to their KYC record. Swissquote and the independent service each verify the Recovery Key signed this exact recovery and release B and C to the new phone, which rebuilds the old key once to start the 48-hour recovery on chain. During the hold the old phone can cancel, or Swissquote cancels when the Recovery Key asks, and a linked client can have a stolen old phone locked. After 48 hours anyone can finish it, and the wallet keeps its address and its funds.</aside>
+  <aside class="notes">Step four, recover. On a new phone the client loads the Recovery Key from home. Swissquote and the independent service each verify the Recovery Key signed this exact recovery and release B and C to the new phone, which rebuilds the old key once to start the 48-hour recovery on chain. Linked or not, it works the same way; nobody checks an ID. During the hold anyone can see the recovery: the old phone can cancel it with Face ID, or Swissquote cancels it when the Recovery Key asks, and a linked client can have a stolen old phone locked. After 48 hours anyone can finish it, and the wallet keeps its address and its funds.</aside>
 </section>
 
 <!-- 12. Attacker -->
 <section class="slide content" aria-label="Attacker">
   <div class="tags"><span class="tag">Step 4 of 4: Recover</span><span class="tag">Bonus: Attacker refused</span></div>
   <h1>A thief with your phone and email gets nothing.</h1>
-  <p class="sub">Linked or not: no Face ID, no email reset, no Recovery Key. npm run attack tries seven ways in.</p>
+  <p class="sub">No Face ID, no email reset, no Recovery Key.</p>
   <div class="attempts visual">
     <span class="n">1</span><b>Pay without your Face ID</b><span class="why">Share A stays sealed. Swissquote refuses Share B.</span><span class="stop"><svg class="i"><use href="#i-no"/></svg>Refused</span>
     <span class="n">2</span><b>Reset it by email</b><span class="why">There is no email reset.</span><span class="stop"><svg class="i"><use href="#i-no"/></svg>Refused</span>
     <span class="n">3</span><b>Forge a Recovery Key</b><span class="why">No wallet is bound to it. Both share holders refuse.</span><span class="stop"><svg class="i"><use href="#i-no"/></svg>Refused</span>
-    <span class="n">4</span><b>Show their own ID</b><span class="why">Linked wallet: it doesn’t match your KYC record.</span><span class="stop"><svg class="i"><use href="#i-no"/></svg>Refused</span>
-    <span class="n">5</span><b>Use your real Recovery Key</b><span class="why">Linked wallet: without your ID, the check refuses it.</span><span class="stop"><svg class="i"><use href="#i-no"/></svg>Refused</span>
-    <span class="n">6</span><b>Unlock the phone itself</b><span class="why">Linked wallet: it pays until you report it and it’s locked.</span><span class="stop"><svg class="i"><use href="#i-no"/></svg>Locked</span>
-    <span class="n">7</span><b>Pass with a forged ID</b><span class="why">The recovery waits 48 hours in public. You cancel it.</span><span class="stop"><svg class="i"><use href="#i-no"/></svg>Cancelled</span>
+    <span class="n">4</span><b>Use your real Recovery Key</b><span class="why">The recovery waits 48 hours in public. You cancel it.</span><span class="stop"><svg class="i"><use href="#i-no"/></svg>Cancelled</span>
+    <span class="n">5</span><b>Unlock the phone itself</b><span class="why">Linked wallet: it pays until you report it and it’s locked.</span><span class="stop"><svg class="i"><use href="#i-no"/></svg>Locked</span>
   </div>
-  <aside class="notes">The same recovery must not work for a thief. npm run attack plays someone who stole the phone and the email inbox, and tries seven ways into a linked wallet, five into an unlinked one. Linked or not, they are refused: without Face ID, Share A stays sealed and Swissquote refuses Share B, there is no email reset, and the Recovery Key lives at home, off the phone. A forged Recovery Key is bound to no wallet. A linked wallet adds the ID check: their own ID doesn't match the KYC record, and the real Recovery Key without the client's ID fails the same check. If they can unlock the phone, they can send the whole balance at once, in one payment, until the client reports it, passes the ID check and Swissquote locks it. Nothing delays or cancels a payment once Face ID approved it. And a forged ID that fools the check still meets the 48-hour delay, in public, which the client cancels through Swissquote. On an unlinked wallet there is no ID to check: without the Recovery Key both share holders refuse, the real one only starts the 48-hour recovery the client cancels, and there is no lock to try.</aside>
+  <aside class="notes">The same recovery must not work for a thief. Our attack script plays someone who stole the phone and the email inbox and tries every way in. Without Face ID, Share A stays sealed and Swissquote refuses Share B. There is no email reset, and the Recovery Key lives at home, off the phone. A forged Recovery Key is bound to no wallet, so both share holders refuse. Even the real Recovery Key only starts a 48-hour recovery in public, which the client cancels. If they can unlock the phone, they can send the whole balance at once, in one payment, until the client reports it and Swissquote locks it; that lock exists for linked wallets. Nothing delays or cancels a payment once Face ID approved it.</aside>
 </section>
 
 <!-- 13. Exit without Swissquote -->
 <section class="slide content" aria-label="Exit without Swissquote">
   <div class="tags"><span class="tag">Step 4 of 4: Recover</span></div>
   <h1>If Swissquote disappears, your funds don’t.</h1>
-  <p class="sub">Your phone and the independent service get them out. In this build, exit runs from the CLI.</p>
+  <p class="sub">Your phone and the independent service get them out.</p>
   <div class="flow visual stagger" style="--lines: 2;">
     <div class="tile gone" style="--c: var(--swissquote);">
       <span class="icon"><svg class="i"><use href="#i-bank"/></svg></span>
@@ -779,64 +784,76 @@
       <p>A and C rebuild the key on your phone.</p>
     </div>
   </div>
-  <aside class="notes">Last, the brief asks what happens if Swissquote's services are gone for good. After 30 days without Swissquote, the independent service opens exit mode: when the client's passkey approves a payment, it releases Share C for that payment. The phone rebuilds the key from A and C, signs with Face ID and the key, and submits straight to the chain. With no Swissquote paymaster, the client pays the fee, a few cents of ETH. In this build the exit runs from the command line, with npm run sunset and npm run exit.</aside>
+  <aside class="notes">Last, the brief asks what happens if Swissquote's services are gone for good. After 30 days without Swissquote, the independent service opens exit mode: when the client's passkey approves a payment, it releases Share C for that payment. The phone rebuilds the key from A and C, signs with Face ID and the key, and submits straight to the chain. With no Swissquote paymaster, the client pays the fee, a few cents of ETH.</aside>
 </section>
 
-<!-- 14. Why this model -->
-<section class="slide content" aria-label="Why this model">
-  <h1>Five models. Each misses something.</h1>
-  <div class="compare visual">
-    <div class="head">Model</div>
-    <div class="head">Only you can move funds</div>
-    <div class="head">Help after a lost phone</div>
-    <div class="head">Stolen backup not enough</div>
-    <div class="head">No seed phrase</div>
-
-    <div class="model"><b>Custodial account</b><span>Simple, but the bank moves the funds. That is custody.</span></div>
-    <div class="mark no"><svg class="i"><use href="#i-no"/></svg></div>
-    <div class="mark yes"><svg class="i"><use href="#i-yes"/></svg></div>
-    <div class="mark part"><svg class="i"><use href="#i-part"/></svg></div>
-    <div class="mark yes"><svg class="i"><use href="#i-yes"/></svg></div>
-
-    <div class="model"><b>Seed phrase</b><span>Full control, no help. The paper is the wallet.</span></div>
-    <div class="mark yes"><svg class="i"><use href="#i-yes"/></svg></div>
-    <div class="mark no"><svg class="i"><use href="#i-no"/></svg></div>
-    <div class="mark no"><svg class="i"><use href="#i-no"/></svg></div>
-    <div class="mark no"><svg class="i"><use href="#i-no"/></svg></div>
-
-    <div class="model"><b>MPC, 2-of-3</b><span>Parties sign together, no full key. Any two sign without you.</span></div>
-    <div class="mark no"><svg class="i"><use href="#i-no"/></svg></div>
-    <div class="mark yes"><svg class="i"><use href="#i-yes"/></svg></div>
-    <div class="mark yes"><svg class="i"><use href="#i-yes"/></svg></div>
-    <div class="mark yes"><svg class="i"><use href="#i-yes"/></svg></div>
-
-    <div class="model"><b>Passkey-only smart account</b><span>Face ID simple. The cloud account syncing it is the key.</span></div>
-    <div class="mark yes"><svg class="i"><use href="#i-yes"/></svg></div>
-    <div class="mark part"><svg class="i"><use href="#i-part"/></svg></div>
-    <div class="mark no"><svg class="i"><use href="#i-no"/></svg></div>
-    <div class="mark yes"><svg class="i"><use href="#i-yes"/></svg></div>
-
-    <div class="model"><b>Shamir backup, SLIP-39</b><span>A seed phrase split into shares. Enough shares take it all.</span></div>
-    <div class="mark yes"><svg class="i"><use href="#i-yes"/></svg></div>
-    <div class="mark no"><svg class="i"><use href="#i-no"/></svg></div>
-    <div class="mark part"><svg class="i"><use href="#i-part"/></svg></div>
-    <div class="mark no"><svg class="i"><use href="#i-no"/></svg></div>
-
-    <div class="model ours"><b>Swissquote Wallet</b><span>Shamir 2-of-3, a passkey on chain, recovery you can cancel.</span></div>
-    <div class="mark yes ours"><svg class="i"><use href="#i-yes"/></svg></div>
-    <div class="mark yes ours"><svg class="i"><use href="#i-yes"/></svg></div>
-    <div class="mark yes ours"><svg class="i"><use href="#i-yes"/></svg></div>
-    <div class="mark yes ours"><svg class="i"><use href="#i-yes"/></svg></div>
+<!-- 14. Scenario: Swissquote and its partner team up -->
+<section class="slide content" aria-label="Scenario: collusion">
+  <div class="tags"><span class="tag">Scenario 1 of 2</span></div>
+  <h1>Swissquote and its partner team up.</h1>
+  <p class="sub">They can rebuild the key. They still can’t move a cent.</p>
+  <div class="story visual stagger" aria-hidden="true">
+    <div class="node" style="--c: var(--swissquote);">
+      <span class="mark pair"><span class="badge">B</span><span class="badge" style="--c: var(--partner);">C</span></span>
+      <b>Two shares</b>
+      <span>Swissquote + partner</span>
+    </div>
+    <svg class="arrow"><use href="#arrow"/></svg>
+    <div class="node" style="--c: var(--ink);">
+      <span class="mark"><svg class="i"><use href="#i-key"/></svg></span>
+      <b>Wallet key</b>
+      <span>Rebuilt without you</span>
+    </div>
+    <svg class="arrow"><use href="#arrow"/></svg>
+    <div class="node missing" style="--c: var(--phone);">
+      <span class="mark"><svg class="i"><use href="#i-face-id"/></svg></span>
+      <b>No Face ID</b>
+      <span>Only your phone has it</span>
+    </div>
+    <svg class="arrow"><use href="#arrow"/></svg>
+    <div class="node" style="--c: var(--negative);">
+      <span class="mark"><svg class="i"><use href="#i-x"/></svg></span>
+      <b>Refused</b>
+      <span>By the chain itself</span>
+    </div>
   </div>
-  <div class="legend visual" aria-hidden="true">
-    <span class="yes"><svg class="i"><use href="#i-yes"/></svg><b style="color: var(--secondary); font-weight: 500;">Yes</b></span>
-    <span class="part"><svg class="i"><use href="#i-part"/></svg><b style="color: var(--secondary); font-weight: 500;">Partly</b></span>
-    <span class="no"><svg class="i"><use href="#i-no"/></svg><b style="color: var(--secondary); font-weight: 500;">No</b></span>
-  </div>
-  <aside class="notes">Now, why this design holds up. Of the five common models, custody is simple but it is the bank's wallet, and seed phrases or split paper backups (SLIP-39 is the standard for splitting a seed phrase) leave the client alone with paper. In a 2-of-3 MPC wallet, where the parties compute each signature together, any two holders can sign without the client, and a passkey-only wallet is only as safe as the cloud account that syncs the passkey. Ours keeps the bank out of spending even with a partner, needs no seed phrase, only a key file at home, and turns a stolen backup into a 48-hour recovery the client can cancel.</aside>
+  <aside class="notes">Two scenarios show why this model beats the alternatives. First, the worst case for a bank wallet: Swissquote and the independent service collude. Together they hold Shares B and C, enough to rebuild the wallet key. In a 2-of-3 MPC wallet, that would be enough to sign. Here it isn't: the smart account demands a passkey signature on every payment, and the passkey sits behind the client's Face ID on their phone. So the chain itself refuses. Neither the bank nor its partner, alone or together, can spend.</aside>
 </section>
 
-<!-- 15. Threat model -->
+<!-- 15. Scenario: a stolen Recovery Key -->
+<section class="slide content" aria-label="Scenario: stolen Recovery Key">
+  <div class="tags"><span class="tag">Scenario 2 of 2</span></div>
+  <h1>A thief steals your Recovery Key.</h1>
+  <p class="sub">You get 48 hours to stop them.</p>
+  <div class="story visual stagger" aria-hidden="true">
+    <div class="node" style="--c: var(--negative);">
+      <span class="mark"><svg class="i"><use href="#i-restore"/></svg></span>
+      <b>Key stolen</b>
+      <span>Taken from your home</span>
+    </div>
+    <svg class="arrow"><use href="#arrow"/></svg>
+    <div class="node" style="--c: var(--warning);">
+      <span class="mark"><svg class="i"><use href="#i-clock"/></svg></span>
+      <b>Recovery starts</b>
+      <span>48 hours, in public</span>
+    </div>
+    <svg class="arrow"><use href="#arrow"/></svg>
+    <div class="node" style="--c: var(--phone);">
+      <span class="mark"><svg class="i"><use href="#i-bell"/></svg></span>
+      <b>You’re alerted</b>
+      <span>Right in your app</span>
+    </div>
+    <svg class="arrow"><use href="#arrow"/></svg>
+    <div class="node" style="--c: var(--positive);">
+      <span class="mark"><svg class="i"><use href="#i-check"/></svg></span>
+      <b>You cancel</b>
+      <span>The wallet stays yours</span>
+    </div>
+  </div>
+  <aside class="notes">Second, the backup itself is stolen. With a seed phrase, a stolen backup is the wallet: the thief empties it at once. Here the Recovery Key only starts a recovery, and the smart account holds it for 48 hours in chain time, in public. The client's app shows that someone started recovering the wallet, and the client cancels with Face ID from their phone, or through Swissquote with their Recovery Key. The thief walks away with nothing. Production adds push and email alerts, which this build does not have yet.</aside>
+</section>
+
+<!-- 16. Threat model -->
 <section class="slide content" aria-label="Threat model">
   <h1>No server can move your funds.</h1>
   <div class="threats visual">
@@ -869,8 +886,8 @@
 
     <div class="who">Thief with your Recovery Key</div>
     <div class="some">If you miss 48 hours</div>
-    <div>Can cancel your recoveries.</div>
-    <div class="why">48 hours in public to cancel. A linked wallet also checks your ID.</div>
+    <div>Can cancel your recoveries, or lock a linked phone.</div>
+    <div class="why">48 hours in public to cancel. You see it in your app.</div>
 
     <div class="who">Thief who unlocks your phone</div>
     <div class="risk">Yes, all at once, until it’s locked</div>
@@ -882,79 +899,7 @@
     <div>In theory</div>
     <div class="why">Out of scope. Needs a native app, reproducible builds, audits.</div>
   </div>
-  <aside class="notes">No server can move funds, alone or together: payments need the passkey, and recovery needs the Recovery Key plus 48 hours anyone can see. Lock-out is another matter. Swissquote alone can lock a client out by withholding Share B, refusing sponsorship or cancelling recoveries; exit mode helps only once it has been offline for 30 days. Swissquote holding a stolen Recovery Key could take the wallet after 48 hours if the client misses it, because both cancel paths in the app run through Swissquote. A thief with the Recovery Key must wait 48 hours in public, and a linked wallet also makes them pass the ID check. The main residual risk is a thief who can unlock the phone: they can send the whole balance at once, in one payment, and nothing delays or cancels a payment once Face ID approved it. On a linked wallet that lasts until the client reports the phone, passes the ID check and Swissquote locks it. An unlinked wallet has no lock, so it lasts as long as the thief holds the phone, which is one reason to link. A malicious app build is out of the protocol's scope; production needs a native app, reproducible builds and audits.</aside>
-</section>
-
-<!-- 16. Architecture -->
-<section class="slide content" aria-label="Architecture">
-  <h1>Architecture</h1>
-  <p class="sub">Solid parts run for real in the demo. Dashed parts are mocked.</p>
-  <svg class="arch visual" viewBox="0 0 1664 700" role="img" aria-label="Phone, Swissquote, independent service and chain, and what talks to what">
-    <path class="wire soft" d="M210 70V22H1482V70"/>
-    <text class="wire-label halo" x="846" y="30" text-anchor="middle">Exit mode only: the phone submits directly</text>
-
-    <rect class="box" x="0" y="70" width="420" height="378" rx="40"/>
-    <text class="title" x="36" y="124">Phone</text>
-    <text class="note" x="36" y="158">The Swissquote app</text>
-    <rect class="part" x="24" y="182" width="372" height="52" rx="16"/><text class="label" x="48" y="217">Passkey, behind Face ID</text>
-    <rect class="part" x="24" y="244" width="372" height="52" rx="16"/><text class="label" x="48" y="279">Share A, sealed by it</text>
-    <rect class="part" x="24" y="306" width="372" height="52" rx="16"/><text class="label" x="48" y="341">Wallet key, 3 h in memory</text>
-    <rect class="mock" x="24" y="368" width="372" height="52" rx="16"/><text class="label" x="48" y="403">Swissquote link, optional</text>
-
-    <rect class="box" x="0" y="508" width="420" height="190" rx="40"/>
-    <text class="title" x="36" y="562">Recovery Key file</text>
-    <text class="note" x="36" y="596">At home.</text>
-    <text class="note" x="36" y="628">It starts or cancels a recovery.</text>
-    <path class="wire" d="M210 508V460M198 474l12-14 12 14"/>
-
-    <rect class="box" x="640" y="70" width="440" height="402" rx="40"/>
-    <text class="title" x="676" y="124">Swissquote</text>
-    <text class="note" x="676" y="158">Wallet API</text>
-    <rect class="part" x="664" y="176" width="392" height="48" rx="16"/><text class="label" x="688" y="209">Compliance engine</text>
-    <rect class="mock" x="664" y="232" width="392" height="48" rx="16"/><text class="label" x="688" y="265">Sanctions, simulation data</text>
-    <rect class="part" x="664" y="288" width="392" height="48" rx="16"/><text class="label" x="688" y="321">Paymaster signer, submitter</text>
-    <rect class="mock" x="664" y="344" width="392" height="48" rx="16"/><text class="label" x="688" y="377">Share B vault, software</text>
-    <rect class="mock" x="664" y="400" width="392" height="48" rx="16"/><text class="label" x="688" y="433">KYC and ID check, if linked</text>
-
-    <rect class="box" x="640" y="512" width="440" height="188" rx="40"/>
-    <text class="title" x="676" y="560">Independent service</text>
-    <text class="note" x="676" y="592">Real process, own database.</text>
-    <text class="note" x="676" y="620">The company is a stand-in.</text>
-    <rect class="mock" x="664" y="636" width="392" height="48" rx="16"/><text class="label" x="688" y="669">Share C vault, software</text>
-
-    <rect class="box" x="1300" y="70" width="364" height="630" rx="40"/>
-    <text class="title" x="1336" y="124">Chain</text>
-    <text class="note" x="1336" y="158">Local anvil chain</text>
-    <rect class="part" x="1324" y="182" width="316" height="52" rx="16"/><text class="label" x="1348" y="217">Smart account</text>
-    <rect class="part" x="1324" y="244" width="316" height="52" rx="16"/><text class="label" x="1348" y="279">EntryPoint v0.7</text>
-    <rect class="part" x="1324" y="306" width="316" height="52" rx="16"/><text class="label" x="1348" y="341">Account factory</text>
-    <rect class="part" x="1324" y="368" width="316" height="52" rx="16"/><text class="label" x="1348" y="403">Paymaster</text>
-    <rect class="part" x="1324" y="430" width="316" height="52" rx="16"/><text class="label" x="1348" y="465">USDC (test token)</text>
-    <text class="note" x="1336" y="532">EntryPoint: the standard</text>
-    <text class="note" x="1336" y="560">contract that checks and</text>
-    <text class="note" x="1336" y="588">runs every operation.</text>
-    <text class="note" x="1336" y="636">Passkey and 48-hour</text>
-    <text class="note" x="1336" y="664">delay enforced here.</text>
-
-    <path class="wire" d="M432 250H628M444 236l-12 14 12 14M616 236l12 14-12 14"/>
-    <text class="wire-label" x="530" y="226" text-anchor="middle">Operations</text>
-    <text class="note" x="530" y="290" text-anchor="middle">Share B after</text>
-    <text class="note" x="530" y="318" text-anchor="middle">Face ID</text>
-
-    <path class="wire" d="M1092 250H1288M1276 236l12 14-12 14"/>
-    <text class="wire-label" x="1190" y="226" text-anchor="middle">Submits</text>
-    <text class="note" x="1190" y="290" text-anchor="middle">pays gas if linked</text>
-
-    <path class="wire" d="M432 400H530V606H628M444 386l-12 14 12 14M616 592l12 14-12 14"/>
-    <text class="wire-label halo" x="546" y="500">Share C, direct</text>
-
-    <path class="wire" d="M1000 476V506M988 494l12 12 12-12"/>
-    <text class="wire-label" x="1026" y="500">Recovery Key check</text>
-
-    <path class="wire" d="M1092 606H1288M1276 592l12 14-12 14"/>
-    <text class="wire-label" x="1190" y="582" text-anchor="middle">Reads accounts</text>
-  </svg>
-  <aside class="notes">Four parts. The phone holds the passkey and Share A and rebuilds the key in memory. Swissquote screens every payment, submits every operation, sponsors those of linked wallets and every recovery, and holds Share B. The independent service is a real separate process with its own database, holding Share C, which the phone sends it directly; only the company behind it is a stand-in. The chain enforces the passkey and the 48-hour delay; its EntryPoint is the standard contract that checks and runs every account operation. Dashed parts are mocked: the Swissquote sign-in behind the optional account link, the KYC record and ID check that only a linked wallet gets, the sanctions and simulation data, and the vaults, which seal shares in software here and would be HSMs in production.</aside>
+  <aside class="notes">No server can move funds, alone or together: payments need the passkey, and recovery needs the Recovery Key plus 48 hours anyone can see. Lock-out is another matter. Swissquote alone can lock a client out by withholding Share B, refusing sponsorship or cancelling recoveries; exit mode helps only once it has been offline for 30 days. Swissquote holding a stolen Recovery Key could take the wallet after 48 hours if the client misses it, because both cancel paths in the app run through Swissquote. A thief with the Recovery Key must wait 48 hours in public, and the client cancels; they can also have a linked phone locked, which the client undoes with the same key. The main residual risk is a thief who can unlock the phone: they can send the whole balance at once, in one payment, and nothing delays or cancels a payment once Face ID approved it. On a linked wallet that lasts until the client reports the phone with their Recovery Key and Swissquote locks it. An unlinked wallet has no lock, so it lasts as long as the thief holds the phone, which is one reason to link. A malicious app build is out of the protocol's scope; production needs a native app, reproducible builds and audits.</aside>
 </section>
 
 <!-- 17. Legal -->
@@ -978,7 +923,51 @@
   <aside class="notes">Custody turns on who can move the funds: Swissquote can't, alone or with the independent service; it can only withhold help or cancel a recovery, which we argue is assistance, still under AML rules, hence the screening. For the Travel Rule, linking is optional. When the client links their Swissquote account, they sign with Face ID, the passkey every payment needs, that the wallet belongs to their client number, and Swissquote keeps that statement, so ownership evidence exists without a test transfer and money moves between the account and the wallet without extra checks. An unlinked wallet takes Swissquote's usual procedure for external wallets. When the client pays a third party, the client signs and the account sends, so we argue Swissquote is not the sending institution, an open question for counsel. Swissquote pays the gas only for wallets it can tie to an identified client, so an unlinked wallet pays its own.</aside>
 </section>
 
-<!-- 18. Business case -->
+<!-- 18. Plans -->
+<section class="slide content" aria-label="Plans">
+  <div class="tags"><span class="tag">Proposal</span></div>
+  <h1>Free to own. Plus to earn.</h1>
+  <p class="sub">The wallet is free. Plus pays its members back.</p>
+  <div class="plans visual">
+    <div class="prices stagger">
+      <div class="price">
+        <span>Monthly</span>
+        <strong>10</strong>
+        <p>USDC a month</p>
+      </div>
+      <div class="price best">
+        <span>Yearly <em>2 months free</em></span>
+        <strong>100</strong>
+        <p>USDC a year</p>
+      </div>
+    </div>
+    <div class="perks stagger">
+      <div class="row" style="--c: var(--phone);"><span class="icon"><svg class="i"><use href="#i-swap"/></svg></span><div><b>Cheaper swaps</b><span>0.5% instead of 1%.</span></div></div>
+      <div class="row" style="--c: var(--positive);"><span class="icon"><svg class="i"><use href="#i-percent"/></svg></span><div><b>Lending with interest</b><span>Lend your USDC, earn a yield.</span></div></div>
+      <div class="row" style="--c: var(--partner);"><span class="icon"><svg class="i"><use href="#i-sparkle"/></svg></span><div><b>On-chain rewards</b><span>Staking rewards, paid to your wallet.</span></div></div>
+      <div class="row" style="--c: var(--warning);"><span class="icon"><svg class="i"><use href="#i-coins"/></svg></span><div><b>Cashback</b><span>On card payments.</span></div></div>
+      <div class="row" style="--c: var(--swissquote);"><span class="icon"><svg class="i"><use href="#i-wallet"/></svg></span><div><b>A Swissquote card</b><span>Spend straight from your wallet. Next.</span></div></div>
+    </div>
+  </div>
+  <aside class="notes">A proposal for the business model. The wallet itself stays free: creating it, paying with Face ID and recovering it cost the client nothing. Swissquote Plus is the subscription, 10 USDC a month or 100 a year, two months free. The app already sells the monthly plan to linked wallets. Plus members swap at half the fee, earn interest by lending their USDC, receive on-chain staking rewards and get cashback on card payments. A Swissquote card that spends straight from the wallet is the natural next step. All of these are financial features, so they need a linked Swissquote account.</aside>
+</section>
+
+<!-- 19. Swissquote's cut -->
+<section class="slide content" aria-label="Swissquote's cut">
+  <div class="tags"><span class="tag">Proposal</span></div>
+  <h1>How Swissquote earns.</h1>
+  <p class="sub">A cut of everything the wallet does, never custody of the funds.</p>
+  <div class="cut visual stagger">
+    <div><strong>100%</strong><b>Plus</b><span>10 USDC a month, or 100 a year.</span></div>
+    <div><strong>1%</strong><b>Swaps</b><span>0.5% for Plus members.</span></div>
+    <div><strong>20%</strong><b>Lending</b><span>Of the interest. Clients keep 80%.</span></div>
+    <div><strong>10%</strong><b>Rewards</b><span>Commission on staking rewards.</span></div>
+    <div><strong>0.4%</strong><b>Card</b><span>Interchange on every payment.</span></div>
+  </div>
+  <aside class="notes">How Swissquote makes money. It keeps all of the Plus subscription. It earns the published 1 percent on swaps, half that for Plus members, who swap more. On lending, it keeps a fifth of the interest and passes the rest to the client. On on-chain rewards, it takes a 10 percent commission, as staking providers do. And a Swissquote card earns interchange on every payment, which also funds the cashback. None of this needs custody: the client keeps the keys, and Swissquote earns on the services around them. The rates are our proposal, to tune against Swissquote's current pricing.</aside>
+</section>
+
+<!-- 20. Business case -->
 <section class="slide content" aria-label="Business case">
   <h1>Keep the client. Keep the trading.</h1>
   <p class="sub">Today self-custody means leaving. The wallet keeps clients one tap from trading.</p>
@@ -1007,7 +996,7 @@
   <aside class="notes">A client who wants their own keys today pays 15 dollars to move USDC out, and some take the whole account with them. Swissquote's half-year results give about 600 francs of revenue a year and 79,000 francs of assets per account, so each client who leaves takes both. We model 10,000 wallets, under 1 percent of accounts. If 1 in 10 of those clients would otherwise have left and 1 in 10 is new, that is 2,000 clients times 600 francs, 1.2 million francs a year, and 79 million francs of assets that stay. The fee lines about cancel out: swaps at the 1 percent fee and Plus earn about 620,000 francs a year, and free transfers into the wallet and sponsored gas cost about 612,000. Costs fall too, by amounts we can't price from public data. There's no seed phrase to support, and coins in the client's own wallet need no cold storage at Swissquote. Every assumption is in the README.</aside>
 </section>
 
-<!-- 19. Real and mocked -->
+<!-- 21. Real and mocked -->
 <section class="slide content" aria-label="Real and mocked">
   <h1>What’s real, what’s mocked.</h1>
   <div class="ledger visual" style="top: 264px;">
@@ -1020,25 +1009,24 @@
         <li>48-hour delay and cancel <span>on chain</span></li>
         <li>Independent service <span>its own process and database; the company is a stand-in</span></li>
         <li>Compliance engine <span>with signed, logged decisions</span></li>
-        <li>Phone lock, exit mode <span>exit from the CLI</span></li>
+        <li>Phone lock and exit mode</li>
         <li>Signed transactions <span>on a local chain, Base Sepolia ready</span></li>
       </ul>
     </section>
     <section class="mocked">
       <h2><svg class="i" style="color: #aeaeb2;"><use href="#i-part"/></svg>Mocked</h2>
       <ul>
-        <li>Swissquote sign-in and KYC record <span>for the optional link</span></li>
-        <li>ID and selfie check <span>for linked wallets</span></li>
+        <li>Swissquote sign-in <span>the redirect that links an account</span></li>
         <li>HSMs <span>the vaults seal shares in software</span></li>
         <li>Sanctions and simulation <span>fixtures in the demo</span></li>
         <li>Secure chip <span>web storage. Without PRF, the passkey feature that seals Share A, it sits unsealed</span></li>
       </ul>
     </section>
   </div>
-  <aside class="notes">Everything in the protocol runs for real: the key split, the passkey checked on chain, the smart account, the paymaster, the 48-hour delay, the phone lock, exit mode, and the independent service as its own process and database, with a stand-in for the company behind it. What needs a real bank or real hardware is mocked and labelled: the Swissquote sign-in and KYC record behind the optional account link, the ID check that only a linked wallet gets, the HSMs, and the sanctions and simulation data. The production path is the native Swissquote app with the secure chip, real HSMs, a contracted independent service and Base mainnet.</aside>
+  <aside class="notes">Everything in the protocol runs for real: the key split, the passkey checked on chain, the smart account, the paymaster, the 48-hour delay, the phone lock, exit mode, and the independent service as its own process and database, with a stand-in for the company behind it. What needs a real bank or real hardware is mocked and labelled: the Swissquote sign-in behind the optional account link, the HSMs, and the sanctions and simulation data. The production path is the native Swissquote app with the secure chip, real HSMs, a contracted independent service and Base mainnet.</aside>
 </section>
 
-<!-- 20. Closing -->
+<!-- 22. Closing -->
 <section class="slide blue" aria-label="Closing">
   <h1 class="display">Your wallet.<br>A bank in your corner.</h1>
   <p class="sub">Thank you. Questions?</p>
