@@ -6,22 +6,38 @@
 //                            the share vaults and their keys kept in data/ across restarts, so a redeploy keeps every
 //                            wallet. Delete data/ for a fresh chain, as after a contract change. PUBLIC_PARTNER_URL is
 //                            the partner's public URL, where phones post Share C.
+//   CHAIN=base-sepolia npm run local -- --prod
+//                            the same on Base Sepolia instead of anvil. Swissquote's key stays in base-sepolia/key,
+//                            which must hold Base Sepolia ETH for the first deploy. The deployment is kept in .env.local
+//                            and data/ across restarts. RPC_URL picks another RPC.
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { connect } from "node:net";
 import { parseEnv } from "node:util";
-import type { Hex } from "viem";
+import { formatEther, type Hex } from "viem";
 import { generatePrivateKey, privateKeyToAddress } from "viem/accounts";
+import { baseSepolia, foundry } from "viem/chains";
 import { setSunset } from "../lib/wallet/sunset.ts";
 import { localDappPolicy } from "../services/dapps/local-policy.ts";
 
+const CHAIN = process.env.CHAIN ?? "anvil";
+if (CHAIN !== "anvil" && CHAIN !== "base-sepolia") {
+  console.error("CHAIN must be anvil or base-sepolia.");
+  process.exit(1);
+}
+const sepolia = CHAIN === "base-sepolia";
+const RPC_PORT = Number(process.env.RPC_PORT ?? 8545);
 const ports = {
   app: { env: "PORT", port: Number(process.env.PORT ?? 3000) },
-  anvil: { env: "RPC_PORT", port: Number(process.env.RPC_PORT ?? 8545) },
+  ...(sepolia ? {} : { anvil: { env: "RPC_PORT", port: RPC_PORT } }),
   partner: { env: "PARTNER_PORT", port: Number(process.env.PARTNER_PORT ?? 4002) },
 };
-const RPC_URL = `http://127.0.0.1:${ports.anvil.port}`;
+// History reads up to 50,000 blocks of logs at once. Base's own RPC (sepolia.base.org) serves 200.
+const RPC_URL = sepolia ? process.env.RPC_URL ?? "https://base-sepolia-rpc.publicnode.com" : `http://127.0.0.1:${RPC_PORT}`;
+const SEPOLIA_KEY = "base-sepolia/key";
+// Swissquote's paymaster deposit, which pays every sponsored operation's gas. Base Sepolia ETH comes from faucets.
+const DEPOSIT = sepolia ? 10n ** 16n : 10n ** 19n;
 const APP_URL = `http://localhost:${ports.app.port}`;
 const PARTNER_URL = `http://localhost:${ports.partner.port}`;
 const prod = process.argv.includes("--prod");
@@ -39,7 +55,7 @@ function fail(message: string): never {
 if (existsSync(".env.local") && !readFileSync(".env.local", "utf8").startsWith(MARKER)) {
   fail(".env.local was not written by npm run local. Move it aside first.");
 }
-for (const tool of ["anvil", "forge"]) {
+for (const tool of sepolia ? ["forge"] : ["anvil", "forge"]) {
   const version = spawnSync(tool, ["--version"], { encoding: "utf8" });
   if (version.error || version.status !== 0 || !version.stdout.startsWith(`${tool} Version:`)) {
     fail(`Expected Foundry's ${tool}. Run npm install, then npm run local. Unrelated packages named anvil or @forge/cli cannot run this stack.`);
@@ -54,13 +70,30 @@ if (!existsSync("contracts/dependencies")) {
 
 // A dev run starts by wiping data/, so it must not run where a --prod chain is saved: that is the live demo's.
 if (!prod && existsSync(STATE)) fail("data/ holds the live demo's chain. Restart it with npm run live, or run a dev stack in another worktree.");
-// --prod picks up the chain it saved last time, with the contracts, keys and policy that go with it.
-const resume = prod && existsSync(STATE) && existsSync(".env.local");
-const previous = resume ? parseEnv(readFileSync(".env.local", "utf8")) : {};
+const saved = existsSync(".env.local") ? parseEnv(readFileSync(".env.local", "utf8")) : {};
+if (saved.CHAIN && saved.CHAIN !== CHAIN && existsSync("data")) {
+  fail(`data/ and .env.local hold a ${saved.CHAIN} chain. Move them aside first: npm run live fresh does it for the live demo.`);
+}
+// --prod picks up the chain it saved last time, with the contracts, keys and policy that go with it. A Base Sepolia
+// deployment outlives any run, so every run picks it up.
+const resume = saved.CHAIN === CHAIN && (sepolia ? !!saved.FACTORY_ADDRESS : prod && existsSync(STATE));
+const previous = resume ? saved : {};
+if (sepolia && !existsSync(SEPOLIA_KEY)) {
+  mkdirSync("base-sepolia", { recursive: true });
+  writeFileSync(SEPOLIA_KEY, `${generatePrivateKey()}\n`, { mode: 0o600 });
+}
 // Anvil's first prefunded account plays Swissquote on a dev chain, where the tests know it. A public demo's chain
 // gets a Swissquote key no one else knows, since that key signs the sponsorships and the tickets the partner trusts.
 const ANVIL_ACCOUNT_0 = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
-const SWISSQUOTE_KEY = (resume ? previous.SWISSQUOTE_KEY ?? fail(".env.local has no SWISSQUOTE_KEY. Delete data/ for a fresh chain.") : prod ? generatePrivateKey() : ANVIL_ACCOUNT_0) as Hex;
+const SWISSQUOTE_KEY = (
+  sepolia
+    ? readFileSync(SEPOLIA_KEY, "utf8").trim()
+    : resume
+      ? previous.SWISSQUOTE_KEY ?? fail(".env.local has no SWISSQUOTE_KEY. Delete data/ for a fresh chain.")
+      : prod
+        ? generatePrivateKey()
+        : ANVIL_ACCOUNT_0
+) as Hex;
 
 const listening = (port: number) =>
   new Promise<boolean>((resolve) => {
@@ -126,34 +159,57 @@ if (!resume) {
 // A resumed --prod run keeps data/, and with it a sunset left on last time.
 setSunset(false);
 
-console.log(`Starting anvil on ${RPC_URL}`);
-run("anvil", "anvil", ["--silent", "--port", String(ports.anvil.port), ...(prod ? ["--state", STATE, "--state-interval", "5"] : [])]);
-await waitFor(`anvil on ${RPC_URL}`, rpcUp);
+if (sepolia) {
+  console.log(`Using Base Sepolia through ${RPC_URL}`);
+  await waitFor(`Base Sepolia at ${RPC_URL}`, rpcUp);
+} else {
+  console.log(`Starting anvil on ${RPC_URL}`);
+  run("anvil", "anvil", ["--silent", "--port", String(RPC_PORT), ...(prod ? ["--state", STATE, "--state-interval", "5"] : [])]);
+  await waitFor(`anvil on ${RPC_URL}`, rpcUp);
+}
 // A fresh key holds nothing: 10,000 ETH, like anvil's own accounts, pays the deployment, the paymaster deposit and the gas.
-if (!resume && SWISSQUOTE_KEY !== ANVIL_ACCOUNT_0 && !(await rpc("anvil_setBalance", [privateKeyToAddress(SWISSQUOTE_KEY), "0x21e19e0c9bab2400000"]))) {
+if (!sepolia && !resume && SWISSQUOTE_KEY !== ANVIL_ACCOUNT_0 && !(await rpc("anvil_setBalance", [privateKeyToAddress(SWISSQUOTE_KEY), "0x21e19e0c9bab2400000"]))) {
   fail("anvil did not fund Swissquote's key.");
+}
+if (sepolia && !resume) {
+  const address = privateKeyToAddress(SWISSQUOTE_KEY);
+  const res = await fetch(RPC_URL, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_getBalance", params: [address, "latest"] }),
+  });
+  const balance = BigInt((await res.json()).result);
+  // The deposit, and a fifth more for the deployment's gas.
+  const needed = DEPOSIT + DEPOSIT / 5n;
+  if (balance < needed) {
+    fail(
+      `Swissquote's Base Sepolia key (${SEPOLIA_KEY}) is ${address} and holds ${formatEther(balance)} ETH. The first deploy needs ${formatEther(needed)}.\n` +
+        "Send it Base Sepolia ETH from https://docs.base.org/base-chain/network-information/network-faucets, then run this again.",
+    );
+  }
 }
 
 const deployed = resume ? (Object.fromEntries(Object.entries(previous).filter(([k]) => k.endsWith("_ADDRESS"))) as Record<string, string>) : deployContracts();
-if (resume) console.log(`Resumed the chain in ${STATE}`);
+if (resume) console.log(sepolia ? "Resumed the Base Sepolia deployment in .env.local" : `Resumed the chain in ${STATE}`);
 
 function deployContracts() {
-  console.log("Deploying the contracts");
+  console.log(`Deploying the contracts${sepolia ? " to Base Sepolia" : ""}`);
   const deploy = spawnSync(
     "forge",
-    ["script", "script/Deploy.s.sol", "--rpc-url", RPC_URL, "--private-key", SWISSQUOTE_KEY, "--broadcast"],
-    { cwd: "contracts", encoding: "utf8", env: { ...process.env, SWISSQUOTE_ADDRESS: privateKeyToAddress(SWISSQUOTE_KEY), PAYMASTER_DEPOSIT: "10000000000000000000" } },
+    // --slow waits for each transaction before the next, which a public RPC needs to keep the nonces in order.
+    ["script", "script/Deploy.s.sol", "--rpc-url", RPC_URL, "--private-key", SWISSQUOTE_KEY, "--broadcast", ...(sepolia ? ["--slow"] : [])],
+    { cwd: "contracts", encoding: "utf8", env: { ...process.env, SWISSQUOTE_ADDRESS: privateKeyToAddress(SWISSQUOTE_KEY), PAYMASTER_DEPOSIT: String(DEPOSIT) } },
   );
   if (deploy.status !== 0) fail(`${deploy.stdout}\n${deploy.stderr}\nThe contracts did not deploy.`);
   return Object.fromEntries([...deploy.stdout.matchAll(/([A-Z_]+_ADDRESS)=(0x[0-9a-fA-F]{40})/g)].map((m) => [m[1], m[2]]));
 }
 
 // New chains include the deployed test vault. Never silently expand a resumed chain's policy.
-if (!resume || !existsSync(POLICY_FILE)) writeFileSync(POLICY_FILE, JSON.stringify(localDappPolicy(deployed.USDC_ADDRESS, deployed.VAULT_ADDRESS)));
+if (!resume || !existsSync(POLICY_FILE)) writeFileSync(POLICY_FILE, JSON.stringify(localDappPolicy(deployed.USDC_ADDRESS, deployed.VAULT_ADDRESS, (sepolia ? baseSepolia : foundry).id)));
 if (resume && !deployed.VAULT_ADDRESS) console.log("This older chain has no test vault. Its wallets and policy are preserved; deploy and review a vault explicitly to enable dApps.");
 
 const env = {
-  CHAIN: "anvil",
+  CHAIN,
   RPC_URL,
   SWISSQUOTE_KEY,
   SWISSQUOTE_ADDRESS: privateKeyToAddress(SWISSQUOTE_KEY),

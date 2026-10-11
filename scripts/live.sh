@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # The public demo at wallet.elazdi.com, partner.elazdi.com and slides.elazdi.com, also served on localhost:3000.
-# It runs in the repository's main checkout (bsa-the-hackathon), whichever worktree calls it: npm run local -- --prod,
-# the Cloudflare tunnel and the slides, in tmux session sq-live. That checkout's data/ and .env.local are the live
-# chain, so npm run status, fund, e2e and the rest run there act on the live demo.
+# It runs in the repository's main checkout (bsa-the-hackathon), whichever worktree calls it: npm run local -- --prod
+# on Base Sepolia, the Cloudflare tunnel and the slides, in tmux session sq-live. That checkout's data/ and .env.local
+# are the live deployment, so npm run status, fund, e2e and the rest run there act on the live demo. Swissquote's
+# Base Sepolia key is in base-sepolia/key. CHAIN=anvil npm run live fresh goes back to a local anvil chain.
 #
-#   npm run live         rebuild what the checkout holds, restart everything, then check every URL
-#   npm run live fresh   the same on a new chain; the old data/ and .env.local move to data-<time>/
+#   npm run live         pull origin's main, rebuild it, restart everything, then check every URL
+#   npm run live fresh   the same with a new deployment; the old data/ and .env.local move to data-<time>/
 #   npm run live check   check every URL
 #   npm run live stop    stop everything
 set -euo pipefail
@@ -14,6 +15,7 @@ LIVE=${LIVE_DIR:-$(dirname "$(git rev-parse --path-format=absolute --git-common-
 SESSION=sq-live
 TUNNEL=$HOME/.cloudflared/swissquote-wallet.yml
 APP=3000 PARTNER=4002 RPC=8545 SLIDES=4091
+CHAIN=${CHAIN:-base-sepolia}
 PORTS=tcp:$APP,$PARTNER,$RPC,$SLIDES
 LOG=/tmp/sq-live
 SERVICES="app https://wallet.elazdi.com http://localhost:$APP /api/config
@@ -50,6 +52,11 @@ for tool in tmux cloudflared; do command -v $tool >/dev/null || { echo "$tool is
 [ -f "$TUNNEL" ] || { echo "No tunnel config at $TUNNEL."; exit 1; }
 [ "$(git -C "$LIVE" branch --show-current)" = main ] || { echo "$LIVE is not on main. Check out main there first."; exit 1; }
 [ -z "$(git -C "$LIVE" status --porcelain --untracked-files=no)" ] || { echo "$LIVE has uncommitted changes. Commit or stash them first."; exit 1; }
+git -C "$LIVE" pull --rebase=merges --quiet origin main || {
+  git -C "$LIVE" rebase --abort 2>/dev/null || true
+  echo "$LIVE's main does not rebase cleanly onto origin's. Resolve it there, then run npm run live again."
+  exit 1
+}
 [ "$LIVE/node_modules/.package-lock.json" -nt "$LIVE/package-lock.json" ] || (cd "$LIVE" && npm install)
 
 stop
@@ -62,7 +69,7 @@ fi
 
 rm -f $LOG-stack.log $LOG-tunnel.log
 tmux new-session -d -s $SESSION -n stack -c "$LIVE" \
-  "caffeinate -is env PORT=$APP RPC_PORT=$RPC PARTNER_PORT=$PARTNER PUBLIC_PARTNER_URL=https://partner.elazdi.com npm run local -- --prod 2>&1 | tee $LOG-stack.log" \; \
+  "caffeinate -is env CHAIN=$CHAIN PORT=$APP RPC_PORT=$RPC PARTNER_PORT=$PARTNER PUBLIC_PARTNER_URL=https://partner.elazdi.com npm run local -- --prod 2>&1 | tee $LOG-stack.log" \; \
   set-option -t $SESSION:stack remain-on-exit on \; \
   new-window -d -t $SESSION: -n tunnel "cloudflared tunnel --config $TUNNEL run 2>&1 | tee $LOG-tunnel.log" \; \
   set-option -t $SESSION:tunnel remain-on-exit on \; \
