@@ -1,7 +1,7 @@
 import { encodeFunctionData, maxUint256, zeroAddress, type Address } from "viem";
 import { erc20Abi, vaultAbi } from "../../lib/compliance/decode";
 import { parsePolicy, parseRequest } from "../../lib/compliance/schema";
-import type { CompliancePolicy, ComplianceRequest, DecodedAction, ScreeningProvider, SimulationProvider, SimulationResult, UsageProvider } from "../../lib/compliance/types";
+import type { CompliancePolicy, ComplianceRequest, DecodedAction, ScreeningProvider, SimulationProvider, SimulationResult } from "../../lib/compliance/types";
 
 export const DEMO = {
   chainId: 84532,
@@ -20,10 +20,8 @@ export function demoPolicy(): CompliancePolicy {
     version: "hackathon-demo-1", decisionTtlSeconds: 120, screeningMaxAgeSeconds: 120,
     supportedChainIds: [DEMO.chainId], nativeTransfers: [],
     tokens: [
-      { chainId: DEMO.chainId, address: DEMO.usdc, symbol: "USDC", decimals: 6, approvedSpenders: [DEMO.vault],
-        maxTransactionAmount: "10000000000", stepUpAmount: "1000000000", dailyLimitAmount: "5000000000" },
-      { chainId: DEMO.chainId, address: DEMO.vault, symbol: "sqUSDC", decimals: 6, approvedSpenders: [],
-        maxTransactionAmount: "10000000000", stepUpAmount: "1000000000" },
+      { chainId: DEMO.chainId, address: DEMO.usdc, symbol: "USDC", decimals: 6, approvedSpenders: [DEMO.vault], stepUpAmount: "1000000000" },
+      { chainId: DEMO.chainId, address: DEMO.vault, symbol: "sqUSDC", decimals: 6, approvedSpenders: [], stepUpAmount: "1000000000" },
     ],
     contracts: [
       { chainId: DEMO.chainId, address: DEMO.usdc, name: "USDC", kind: "ERC20", allowedFunctions: ["transfer", "approve"], origins: [DEMO.origin] },
@@ -71,13 +69,6 @@ export class DemoSimulationProvider implements SimulationProvider {
       touchedAddresses: actions.flatMap((action) => action.addresses), coverage: "CALL_INTENT_ONLY",
     };
   }
-}
-export class DemoUsageProvider implements UsageProvider {
-  constructor(private readonly spent: Array<{ asset: Address | "native"; amount: string }> = []) {}
-  async read() { return { status: "AVAILABLE" as const, provider: "demo-daily-usage", mode: "demo" as const, spent: this.spent } }
-}
-export class UnavailableUsageProvider implements UsageProvider {
-  async read() { return { status: "UNAVAILABLE" as const, provider: "bank-ledger-not-connected", mode: "live" as const, spent: [] } }
 }
 
 export function demoRequest(name: string, nonce = "0"): ComplianceRequest {

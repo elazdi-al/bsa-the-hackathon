@@ -203,7 +203,7 @@ The [architecture diagram](../README.md#architecture) shows how these parts conn
 | `GET /api/wallets/:address` | Keys, lock, the USDC and ETH balances in their smallest units (`usdc`, `eth`), pending recovery, chain time and held payments. Releases held payments that are due. Returns the owner record, `{ client, createdAt, statement, assertion }`, only to the owner's own session (header `x-swissquote-session`). |
 | `POST /api/wallets/:address/link` | Links the wallet to a Swissquote client. Takes `{ session, assertion }`, the wallet passkey's Face ID assertion over keccak256 of "Wallet 0x… belongs to Swissquote client *number*.", checked against the wallet's live passkey, or the one in its config before deployment. Keeps the statement and the assertion as the owner record. Answers 401 without a known session, 403 if the wallet's passkey did not sign and 409 if another client already linked the wallet. Linking again as the same client is fine. There is no unlink. |
 | `GET /api/wallets/:address/activity` | The wallet's USDC transfers. |
-| `POST /api/wallets/:address/operations` | Runs compliance and Swissquote's limits, and sponsors the call. Returns the operation, its hash, Swissquote's `summary` and a `demo` flag. |
+| `POST /api/wallets/:address/operations` | Runs compliance and Swissquote's sponsorship rules, and sponsors the call. Returns the operation, its hash, Swissquote's `summary` and a `demo` flag. |
 | `POST /api/wallets/:address/share` | Releases Share B for an operation the passkey approved. |
 | `POST /api/wallets/:address/operations/:hash` | Submits the signed operation, or holds it if it was sponsored for later. |
 | `DELETE /api/wallets/:address/operations/:hash` | Cancels a held payment, with a Face ID assertion or a Recovery Key signature. |
@@ -238,7 +238,7 @@ Real in this build: the Shamir split with verified shares, passkeys verified on 
 | The ID document and liveness check of a linked wallet, during recovery and before a lock. The client types the ID card number, and **Scan ID** scans nothing. | A real identity provider with liveness, matched to the KYC record |
 | HSMs. Shares B and C are AES-GCM sealed in SQLite. | HSMs at Swissquote and at the independent service |
 | Share A and the key cache live in a web app. Without PRF, Share A sits unsealed in web storage. | The Swissquote iOS and Android apps, with Secure Enclave or Keystore |
-| Fixture sanctions and simulation in demo mode | Live mode with contracted list coverage and a bank usage ledger |
+| Fixture sanctions and simulation in demo mode | Live mode with contracted list coverage |
 | The independent service is a process, not a company. | A separate, supervised company under contract |
 | A local anvil chain | Base Sepolia, then Base mainnet |
 | The Investments, Earn and Card tiles, the promo cards, Swap and Swissquote Plus carry a **Demo** tag. Swap reads the wallet's real USDC, less what held payments will take, and its real ETH, and refuses more than that, but its prices are made up and it swaps nothing. Only `anna.eth` resolves as a recipient name, from a fixed list. | Swissquote's products, and real name resolution |
@@ -268,7 +268,7 @@ The engine runs these checks:
 1. **Decode and allowlist.** Only reviewed functions pass: ERC-20 `transfer` and finite `approve`, ERC-4626 `deposit`, `withdraw` and `redeem`, and batches of up to 16 calls. The contract, the function and the token must be in the policy, and a claimed dApp origin must be listed. It refuses unlisted contracts and functions, unknown calldata, unlimited approvals, `setApprovalForAll`, delegatecalls, account administration and unsupported chains. Fresh local deployments allow USDC `transfer` and finite `approve` for the deployed test vault, plus its ERC-4626 functions. Existing persisted policies are preserved.
 2. **Sanctions screening.** TRM Labs' address sanctions endpoint in live mode, fixtures in demo mode. In demo mode, `0x098B716B8Aaf21512996dC57EB0615e2383E2f96` is the sanctioned fixture. Every address the call touches is screened, including addresses the simulation finds.
 3. **Simulation.** In live mode, viem's `simulateCalls` over `eth_simulateV1`, from the account's address. The engine refuses an operation whose simulation removes more of an asset than the decoded call intends, or does not confirm the intended amount. Demo mode derives the changes from the decoded call without a chain call.
-4. **Limits and extra checks above a threshold.** Limits are integer token base units, never floating-point or CHF estimates. The local policy holds a payment above 1,000 USDC for 24 hours, caps one payment at 10,000 USDC and sets a 5,000 USDC daily limit. On the local chain the daily limit counts what the account sent in the last 24 hours of chain time.
+4. **Extra checks above a threshold.** Amounts are integer token base units, never floating-point or CHF estimates. The local policy holds a payment above 1,000 USDC for 24 hours. It sets no cap on one payment or on a day's total.
 5. **A signed decision.** An expiring Ed25519 decision, appended to a SHA-256 hash-chained audit log. A failed append blocks the decision.
 
 Outages and missing evidence never fall back to `ALLOW`.
@@ -281,7 +281,6 @@ The engine also has a standalone HTTP API for other backends: `POST /api/complia
 
 The engine's own limits:
 
-- Live mode has no bank usage ledger yet. Operations under a daily cap return `REVIEW` until one is connected with atomic spending reservations.
 - The audit file is single-process. A local hash chain cannot prove completeness or stop an operator rewriting history. Production needs shared, durable, externally anchored storage.
 - A TRM `CLEAR` means no match in that response. It is not SECO coverage, KYT or Travel Rule clearance.
 - Simulation is predictive. It is not proof against malicious tokens or state changes before inclusion.

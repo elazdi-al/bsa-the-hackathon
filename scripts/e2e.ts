@@ -183,13 +183,11 @@ assert.deepEqual((await phone.state()).held, []);
 assert.equal(await usdcOf(ANNA), before + parseUnits("2000", 6));
 await refused(phone.cancelPayment(third.hash), 404);
 
-console.log("11. The daily limit counts it: 3,500 USDC more today is refused, as is anything over the 10,000 USDC cap");
+console.log("11. No amount is capped: 15,000 USDC more today is held 24 hours like any large payment, and cancelled");
 await mintUsdc(wallet, "15000");
-for (const amount of ["3500", "10001"]) {
-  const { decision } = (await refused(phone.sendUsdc(ANNA, amount), 403)) as { decision: { status: string; reasons: string[] } };
-  assert.equal(decision.status, "DENY_ASSISTANCE");
-  console.log(`   ${amount} USDC: ${decision.status}, ${decision.reasons.join(" ")}`);
-}
+const huge = held(await phone.sendUsdc(ANNA, "15000"));
+await phone.cancelPayment(huge.hash);
+assert.deepEqual((await phone.state()).held, []);
 
 console.log("12. An attacker with the stolen phone and the email inbox is stopped at every step, with Face ID once the phone is reported stolen, then with the Recovery Key and a forged ID");
 // MOCKED: the owner reads the number off their ID card; here the one the Swissquote app showed them.

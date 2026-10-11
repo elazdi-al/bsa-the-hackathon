@@ -23,9 +23,7 @@ export interface TokenPolicy {
   symbol: string;
   decimals: number;
   approvedSpenders: Address[];
-  maxTransactionAmount?: string;
   stepUpAmount?: string;
-  dailyLimitAmount?: string;
 }
 export interface ContractPolicy {
   chainId: number;
@@ -44,7 +42,7 @@ export interface CompliancePolicy {
   supportedChainIds: number[];
   tokens: TokenPolicy[];
   contracts: ContractPolicy[];
-  nativeTransfers: Array<{ chainId: number; maxAmount: string; stepUpAmount: string }>;
+  nativeTransfers: Array<{ chainId: number; stepUpAmount: string }>;
 }
 
 export interface Finding {
@@ -96,12 +94,6 @@ export interface SimulationResult {
   touchedAddresses: Address[];
   coverage: "CALL_INTENT_ONLY";
 }
-export interface UsageSnapshot {
-  status: "AVAILABLE" | "UNAVAILABLE";
-  provider: string;
-  mode: ProviderMode;
-  spent: Array<{ asset: Address | "native"; amount: string }>;
-}
 export interface EvaluationContext {
   /** Resolved by trusted server-side authentication, outside the dApp body. */
   subject: string;
@@ -121,7 +113,6 @@ export interface ComplianceDecision {
   summary: string[];
   screening: ScreeningResult[];
   simulation: SimulationResult;
-  usage: UsageSnapshot;
   requiredActions: string[];
   issuedAt: string;
   expiresAt: string;
@@ -134,6 +125,5 @@ export interface SignedDecision {
 }
 export interface ScreeningProvider { screen(addresses: Address[], chainId: number): Promise<ScreeningResult[]> }
 export interface SimulationProvider { simulate(request: ComplianceRequest, actions: DecodedAction[]): Promise<SimulationResult> }
-export interface UsageProvider { read(context: EvaluationContext, request: ComplianceRequest): Promise<UsageSnapshot> }
 export interface DecisionSigner { sign(decision: ComplianceDecision): SignedDecision }
 export interface AuditSink { append(receipt: SignedDecision): Promise<void> }

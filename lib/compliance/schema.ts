@@ -31,8 +31,7 @@ export const requestSchema = z.object({
 const tokenSchema = z.object({
   chainId: z.number().int().positive(), address: addressSchema,
   symbol: z.string().min(1).max(32), decimals: z.number().int().min(0).max(36),
-  approvedSpenders: z.array(addressSchema), maxTransactionAmount: amountSchema.optional(),
-  stepUpAmount: amountSchema.optional(), dailyLimitAmount: amountSchema.optional(),
+  approvedSpenders: z.array(addressSchema), stepUpAmount: amountSchema.optional(),
 }).strict();
 const contractSchema = z.object({
   chainId: z.number().int().positive(), address: addressSchema, name: z.string().min(1).max(128),
@@ -45,7 +44,7 @@ export const policySchema = z.object({
   supportedChainIds: z.array(z.number().int().positive()).min(1),
   tokens: z.array(tokenSchema), contracts: z.array(contractSchema),
   nativeTransfers: z.array(z.object({ chainId: z.number().int().positive(),
-    maxAmount: amountSchema, stepUpAmount: amountSchema,
+    stepUpAmount: amountSchema,
   }).strict()),
 }).strict();
 

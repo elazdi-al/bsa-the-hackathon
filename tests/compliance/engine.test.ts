@@ -4,7 +4,7 @@ import { encodeFunctionData, parseAbi, type Address } from "viem";
 import { hashRequest } from "../../lib/compliance/canonical";
 import { erc20Abi, vaultAbi } from "../../lib/compliance/decode";
 import { parsePolicy, parseRequest } from "../../lib/compliance/schema";
-import { DEMO, demoPolicy, demoRequest, DemoUsageProvider, UnavailableUsageProvider } from "../../services/compliance/demo";
+import { DEMO, demoPolicy, demoRequest } from "../../services/compliance/demo";
 import { NOW, testEngine } from "./helpers";
 
 const context = { subject: "claire" };
@@ -139,20 +139,14 @@ test("additional simulated counterparties are screened", async () => {
   } } });
   assert.ok((await engine.evaluate(demoRequest("transfer"), context)).decision.reasons.some((reason) => reason.code === "SANCTIONS_MATCH"));
 });
-test("transaction and daily limits aggregate an entire batch", async () => {
+test("the step-up aggregates an entire batch, and no amount is capped", async () => {
   const original = demoRequest("transfer");
-  const call = { ...original.calls[0], data: encodeFunctionData({ abi: erc20Abi, functionName: "transfer", args: [DEMO.recipient, 3_000_000_000n] }) };
+  const transfer = (amount: bigint) => ({ ...original.calls[0], data: encodeFunctionData({ abi: erc20Abi, functionName: "transfer", args: [DEMO.recipient, amount] }) });
   const { engine } = testEngine();
-  assert.ok((await engine.evaluate({ ...original, calls: [call, call] }, context)).decision.reasons.some((reason) => reason.code === "DAILY_LIMIT_EXCEEDED"));
-  const usage = new DemoUsageProvider([{ asset: DEMO.usdc, amount: "4990000000" }]);
-  assert.equal((await testEngine({ usage }).engine.evaluate(original, context)).decision.status, "DENY_ASSISTANCE");
+  assert.equal((await engine.evaluate({ ...original, calls: [transfer(600_000_000n), transfer(600_000_000n)] }, context)).decision.status, "STEP_UP");
+  assert.equal((await engine.evaluate({ ...original, calls: [transfer(1_000_000_000_000n)] }, context)).decision.status, "STEP_UP");
 });
-test("approve plus deposit counts actual daily spending once", async () => {
-  const usage = new DemoUsageProvider([{ asset: DEMO.usdc, amount: "4700000000" }]);
-  assert.equal((await testEngine({ usage }).engine.evaluate(demoRequest("vault-deposit"), context)).decision.status, "ALLOW");
-});
-test("missing bank usage and demo providers in live mode cannot produce ALLOW", async () => {
-  assert.equal((await testEngine({ usage: new UnavailableUsageProvider() }).engine.evaluate(demoRequest("transfer"), context)).decision.status, "REVIEW");
+test("demo providers in live mode cannot produce ALLOW", async () => {
   assert.equal((await testEngine({ mode: "live" }).engine.evaluate(demoRequest("transfer"), context)).decision.status, "REVIEW");
 });
 test("audit write failure never returns an authorizing decision", async () => {
@@ -162,8 +156,8 @@ test("audit write failure never returns an authorizing decision", async () => {
 
 test("the engine's normalized policy is immutable", () => {
   const { engine, policy } = testEngine();
-  policy.tokens[0].maxTransactionAmount = "0";
-  assert.notEqual(engine.policy.tokens[0].maxTransactionAmount, "0");
+  policy.tokens[0].stepUpAmount = "0";
+  assert.notEqual(engine.policy.tokens[0].stepUpAmount, "0");
   assert.throws(() => engine.policy.tokens.push(policy.tokens[0]));
 });
 

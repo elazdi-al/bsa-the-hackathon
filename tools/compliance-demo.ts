@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { ComplianceEngine } from "../lib/compliance/engine";
 import { hashPayload } from "../lib/compliance/canonical";
 import { MemoryAuditSink, verifyAuditRecords } from "../services/compliance/audit";
-import { DEMO, demoPolicy, demoRequest, DemoScreeningProvider, DemoSimulationProvider, DemoUsageProvider } from "../services/compliance/demo";
+import { DEMO, demoPolicy, demoRequest, DemoScreeningProvider, DemoSimulationProvider } from "../services/compliance/demo";
 import { Ed25519DecisionSigner, verifyDecision } from "../services/compliance/signing";
 
 async function main() {
@@ -10,7 +10,7 @@ async function main() {
   const signer = new Ed25519DecisionSigner();
   const audit = new MemoryAuditSink();
   const engine = new ComplianceEngine(policy, { mode: "demo", newId: randomUUID, signer, audit,
-    screening: new DemoScreeningProvider(), simulation: new DemoSimulationProvider(policy), usage: new DemoUsageProvider() });
+    screening: new DemoScreeningProvider(), simulation: new DemoSimulationProvider(policy) });
   const names = ["transfer", "high-value", "vault-deposit", "sanctioned", "unknown-contract", "unlimited-approval"];
   const api = process.argv.includes("--http");
   const requestOnly = process.argv.indexOf("--request");

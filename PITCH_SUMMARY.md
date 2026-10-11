@@ -42,7 +42,7 @@ Later, the client can link the wallet to their Swissquote account from Settings,
 
 ## Small and large payments
 
-A payment up to 1,000 USDC goes with one Face ID. A larger payment also takes one Face ID, then leaves 24 hours later, and the client can cancel it until then. The money it will take is set aside, so the client cannot spend it twice. Swissquote refuses a payment above 10,000 USDC, or one that takes the day's total above 5,000 USDC.
+A payment up to 1,000 USDC goes with one Face ID. A larger payment also takes one Face ID, then leaves 24 hours later, and the client can cancel it until then. The money it will take is set aside, so the client cannot spend it twice. There is no cap on how much the client sends.
 
 ## What happens when the phone is lost
 
@@ -66,7 +66,7 @@ The Recovery Key is a separate key, not a fourth share. Neither Swissquote nor t
 
 A thief who holds the client's phone and email inbox gets nowhere, whether the wallet is linked or not. Without the client's Face ID, the phone signs nothing. There is no email reset to abuse. The Recovery Key is not on the phone, and a forged one matches no wallet. On a linked wallet the thief's own ID does not match the client's KYC record either. If a thief with the real Recovery Key did start a recovery, the client would have 48 hours to cancel it, from the old phone or through Swissquote. On a linked wallet that thief would also need a forged ID. The demo plays this attacker with `npm run attack <account>`, and every attempt fails.
 
-A thief who can unlock the phone is harder. On a linked wallet, they are stopped once the client reports the phone and Swissquote locks it. An unlinked wallet has no lock, so they can pay within Swissquote's limits for as long as they hold the phone.
+A thief who can unlock the phone is harder. They can send up to 1,000 USDC a payment at once, at most 20 payments an hour. A larger payment waits 24 hours, so the client can cancel it. On a linked wallet, they are stopped once the client reports the phone and Swissquote locks it. An unlinked wallet has no lock, so they can pay for as long as they hold the phone.
 
 ## If Swissquote's services are gone
 

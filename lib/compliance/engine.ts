@@ -3,13 +3,12 @@ import { hashPayload, hashRequest } from "./canonical";
 import { decodeRequest, findToken } from "./decode";
 import { parsePolicy, parseRequest } from "./schema";
 import type { AuditSink, ComplianceDecision, CompliancePolicy, ComplianceRequest, DecodedAction, DecisionSigner, DecisionStatus,
-  EvaluationContext, Finding, ScreeningProvider, ScreeningResult, SignedDecision, SimulationProvider, SimulationResult, UsageProvider, UsageSnapshot } from "./types";
+  EvaluationContext, Finding, ScreeningProvider, ScreeningResult, SignedDecision, SimulationProvider, SimulationResult } from "./types";
 
 const rank: Record<DecisionStatus, number> = { ALLOW: 0, STEP_UP: 1, REVIEW: 2, DENY_ASSISTANCE: 3 };
 export interface EngineDependencies {
   screening: ScreeningProvider;
   simulation: SimulationProvider;
-  usage: UsageProvider;
   signer: DecisionSigner;
   audit: AuditSink;
   now?: () => Date;
@@ -36,18 +35,15 @@ export class ComplianceEngine {
     let simulation: SimulationResult = { status: "UNAVAILABLE", provider: "not-run", mode: this.dependencies.mode, checkedAt: issuedAt,
       calls: [], assetChanges: [], approvalChanges: [], transfers: [], touchedAddresses: [], coverage: "CALL_INTENT_ONLY" };
     let screening: ScreeningResult[] = [];
-    let usage: UsageSnapshot = { status: "UNAVAILABLE", provider: "not-run", mode: this.dependencies.mode, spent: [] };
 
     if (!findings.some((item) => item.status === "DENY_ASSISTANCE")) {
       const addresses = uniqueAddresses([request.account, ...request.calls.map((call) => call.to), ...actions.flatMap((action) => action.addresses)]);
       const results = await Promise.allSettled([
         this.dependencies.screening.screen(addresses, request.chainId),
         this.dependencies.simulation.simulate(request, actions),
-        this.dependencies.usage.read(context, request),
       ]);
       if (results[0].status === "fulfilled") screening = results[0].value;
       if (results[1].status === "fulfilled") simulation = results[1].value;
-      if (results[2].status === "fulfilled") usage = results[2].value;
       const extra = uniqueAddresses(simulation.touchedAddresses).filter((item) => !addresses.includes(item));
       if (extra.length) {
         try { screening.push(...await this.dependencies.screening.screen(extra, request.chainId)); }
@@ -59,8 +55,8 @@ export class ComplianceEngine {
         add("SIMULATION_STALE", "Swissquote's check of this payment is out of date. Try again in a moment.", "REVIEW");
       }
       this.checkSimulation(request, actions, simulation, add);
-      this.checkLimits(request, actions, simulation, usage, add);
-      if (this.dependencies.mode === "live" && [simulation.mode, usage.mode, ...screening.map((result) => result.mode)].includes("demo")) {
+      this.checkStepUp(request, actions, simulation, add);
+      if (this.dependencies.mode === "live" && [simulation.mode, ...screening.map((result) => result.mode)].includes("demo")) {
         add("DEMO_PROVIDER_IN_LIVE_MODE", "Swissquote can't approve a real payment using test checks.", "REVIEW");
       }
     }
@@ -72,7 +68,7 @@ export class ComplianceEngine {
       subjectHash: hashPayload("swissquote-compliance/subject/v1", context.subject),
       status, riskLevel: status === "DENY_ASSISTANCE" ? "CRITICAL" : status === "REVIEW" ? "HIGH" : status === "STEP_UP" ? "MEDIUM" : "LOW",
       reasons: findings, decodedActions: actions, summary: actions.map((action) => action.summary),
-      screening, simulation, usage,
+      screening, simulation,
       requiredActions: status === "STEP_UP" ? ["REQUIRE_ADDITIONAL_USER_AUTHENTICATION"] :
         status === "REVIEW" ? ["REQUIRE_MANUAL_REVIEW_OR_RETRY"] : status === "DENY_ASSISTANCE" ? ["REFUSE_COSIGNING_AND_SPONSORSHIP"] : [],
       issuedAt, expiresAt: new Date(clock().getTime() + this.policy.decisionTtlSeconds * 1000).toISOString(),
@@ -80,7 +76,6 @@ export class ComplianceEngine {
       limitations: ["Policy governs Swissquote assistance; it cannot freeze an independently controlled wallet.",
         "Call simulation does not validate wallet wrappers, deployment, execution modules, signatures or gas payment.",
         "dApp origins are self-reported; an allowlist match does not authenticate the website.",
-        "Daily usage is a snapshot; the caller must atomically reserve and settle spending before signing.",
         "This decision is not Travel Rule clearance, KYC clearance or a legal compliance certification."],
     };
     const receipt = this.dependencies.signer.sign(decision);
@@ -173,7 +168,7 @@ export class ComplianceEngine {
     }
   }
 
-  private checkLimits(request: ComplianceRequest, actions: DecodedAction[], simulation: SimulationResult, usage: UsageSnapshot,
+  private checkStepUp(request: ComplianceRequest, actions: DecodedAction[], simulation: SimulationResult,
     add: (code: string, message: string, status: Finding["status"]) => void) {
     const spending = new Map<string, bigint>();
     const approvals = new Map<string, bigint>();
@@ -181,25 +176,17 @@ export class ComplianceEngine {
       if (action.debit) spending.set(action.debit.asset, (spending.get(action.debit.asset) ?? 0n) + BigInt(action.debit.amount));
       if (action.approval) approvals.set(action.approval.token, (approvals.get(action.approval.token) ?? 0n) + BigInt(action.amount));
     }
-    // A withdraw's share cost is known only after simulation. Do not omit it from limits.
+    // A withdraw's share cost is known only after simulation. Do not omit it from the step-up check.
     for (const change of simulation.assetChanges) if (BigInt(change.amount) < 0n) {
       const amount = -BigInt(change.amount);
       if (amount > (spending.get(change.asset) ?? 0n)) spending.set(change.asset, amount);
     }
-    const amounts = new Map(spending);
-    for (const [asset, amount] of approvals) if (amount > (amounts.get(asset) ?? 0n)) amounts.set(asset, amount);
-    for (const [asset, amount] of amounts) {
+    for (const [asset, amount] of approvals) if (amount > (spending.get(asset) ?? 0n)) spending.set(asset, amount);
+    for (const [asset, amount] of spending) {
       const token = findToken(this.policy, request.chainId, asset);
       const native = asset === "native" ? this.policy.nativeTransfers.find((item) => item.chainId === request.chainId) : undefined;
-      const max = token?.maxTransactionAmount ?? native?.maxAmount;
       const stepUp = token?.stepUpAmount ?? native?.stepUpAmount;
-      if (max && amount > BigInt(max)) add("TRANSACTION_LIMIT_EXCEEDED", token ? `This payment is over the ${token.symbol} limit for a single payment.` : "This payment is over the limit for a single payment.", "DENY_ASSISTANCE");
-      else if (stepUp && amount > BigInt(stepUp)) add("HIGH_VALUE_STEP_UP", "Payments this large need an extra check that it's you.", "STEP_UP");
-      if (token?.dailyLimitAmount) {
-        const spent = usage.spent.filter((item) => item.asset === asset).reduce((sum, item) => sum + BigInt(item.amount), 0n);
-        if (usage.status !== "AVAILABLE") add("DAILY_USAGE_UNAVAILABLE", "Swissquote couldn't check how much you've sent today. Try again in a moment.", "REVIEW");
-        else if (spent + (spending.get(asset) ?? 0n) > BigInt(token.dailyLimitAmount)) add("DAILY_LIMIT_EXCEEDED", "This payment would go over your daily limit.", "DENY_ASSISTANCE");
-      }
+      if (stepUp && amount > BigInt(stepUp)) add("HIGH_VALUE_STEP_UP", "Payments this large need an extra check that it's you.", "STEP_UP");
     }
   }
 }

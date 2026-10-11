@@ -75,7 +75,7 @@ More: [Custody model](docs/SECURITY.md#custody-model) has each model's pros and 
 | Who | Can they steal? | Can they lock the client out? |
 | --- | --- | --- |
 | Thief with a locked phone | No | No |
-| Thief who can unlock the phone | Within Swissquote's limits. On a linked wallet, until the client reports the phone and Swissquote [locks](docs/SECURITY.md#the-lock) it, though a cached key can still pay through a public bundler for up to 3 hours. An unlinked wallet has no lock. | On a linked wallet, until the report. On an unlinked wallet, while they hold the phone. |
+| Thief who can unlock the phone | Yes. Up to 1,000 USDC a payment leaves at once, at most 20 an hour. A larger payment waits 24 hours, and the client can cancel it. On a linked wallet, until the client reports the phone and Swissquote [locks](docs/SECURITY.md#the-lock) it, though a cached key can still pay through a public bundler for up to 3 hours. An unlinked wallet has no lock. | On a linked wallet, until the report. On an unlinked wallet, while they hold the phone. |
 | Thief with the phone and the email inbox | No. No email reset exists, and the Recovery Key is not on the phone. | No |
 | Thief with the Recovery Key file | Only if the client does not cancel within 48 hours. A linked wallet also needs the owner's ID number. | No |
 | Swissquote alone | No | Yes, while it runs |
@@ -100,7 +100,7 @@ flowchart LR
   rk["Recovery Key file<br/>kept at home"]
 
   subgraph sq["Swissquote API: Next.js route handlers, app/api"]
-    api["Wallet API<br/>holds, locks, limits"]
+    api["Wallet API<br/>holds, locks"]
     comp["Compliance engine<br/>sanctions and simulation are<br/>fixtures in demo mode"]
     vb[("Share B vault<br/>SQLite, AES-GCM, no HSM")]
     kyc["MOCKED: optional link to a client,<br/>Swissquote sign-in, KYC record, ID check"]:::mock
@@ -165,10 +165,9 @@ These are the local policy's numbers:
 | Payment | What the client does | What happens |
 | --- | --- | --- |
 | Up to 1,000 USDC | One Face ID | It leaves at once. |
-| Above 1,000 USDC, within the limits | One Face ID | It leaves 24 hours later in chain time. The client can cancel it until then. Compliance runs again before release. |
-| Above 10,000 USDC in one payment, or above 5,000 USDC sent in 24 hours of chain time | Nothing | Swissquote refuses it. |
+| Above 1,000 USDC | One Face ID | It leaves 24 hours later in chain time. The client can cancel it until then. Compliance runs again before release. |
 
-Swissquote's servers enforce these limits. The account itself enforces only the signatures. The hold has two halves. The paymaster's sponsorship is valid only from the release time, so the EntryPoint refuses the payment before then, whoever submits it. Swissquote runs compliance again before it releases the payment.
+There is no cap on how much the client sends. The account itself enforces only the signatures. The hold has two halves. The paymaster's sponsorship is valid only from the release time, so the EntryPoint refuses the payment before then, whoever submits it. Swissquote runs compliance again before it releases the payment.
 
 More: [Authentication](docs/SECURITY.md#authentication) and [the two halves of the hold](docs/SECURITY.md#small-and-large-payments).
 
@@ -246,7 +245,7 @@ More: [Gasless payments](docs/REFERENCE.md#gasless-payments) has each rule and i
 
 ## Bonus: compliant dApp interaction
 
-Every payment Swissquote sponsors goes through the compliance engine first. The engine checks the call against an allowlist, screens every address it touches for sanctions, simulates it, applies limits with extra checks above a threshold, and signs its decision into a hash-chained audit log. The client reads Swissquote's plain-language summary on the **Checked by Swissquote** card before Face ID. A refusal shows its reasons and never freezes the wallet. In demo mode, fixtures do the screening and the simulation, and the card carries a **Demo** tag.
+Every payment Swissquote sponsors goes through the compliance engine first. The engine checks the call against an allowlist, screens every address it touches for sanctions, simulates it, adds extra checks above a threshold, and signs its decision into a hash-chained audit log. The client reads Swissquote's plain-language summary on the **Checked by Swissquote** card before Face ID. A refusal shows its reasons and never freezes the wallet. In demo mode, fixtures do the screening and the simulation, and the card carries a **Demo** tag.
 
 **Home → Reviewed dApps** (`/dapps`) runs the same checks on a reviewed ERC-4626 vault: deposit, withdraw, an exact-amount approval and its revoke, each with Face ID and with Swissquote paying the fee. A dApp call that needs step-up is refused, not held: only a payment waits 24 hours.
 
