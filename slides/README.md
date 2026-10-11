@@ -1,6 +1,6 @@
 # Shamir transactions and recovery presentation
 
-Open [index.html](index.html) directly in a browser. The deck has 11 slides and uses a plain white layout, Fuse typography, and a 16:9 format. It does not require the wallet services to run.
+Open [index.html](index.html) directly in a browser. The deck has 14 slides and uses a plain white layout, Fuse typography, and a 16:9 format. It does not require the wallet services to run.
 
 The presentation follows the decisions in order:
 
@@ -9,7 +9,7 @@ The presentation follows the decisions in order:
 3. Collusion during recovery and impersonated requests motivate a separate secret Recovery Key.
 4. Theft of the Recovery Key motivates a 48-hour on-chain delay with a chance to cancel.
 
-The slides explain the protocol in plain language: the smart account, share holders, server collusion, transaction approval, recovery authorization, initial setup, recovery initiation, the 48-hour delay, cancellation, and finalization. Setup, payment signing, and lost-phone recovery use diagrams to show share movement, signature requirements, and the smart account checks. Core steps are visible on the slides. Speaker notes provide implementation details and limitations.
+Each slide contains one short statement, at most one small visual, and one optional caption. Share holders, signing, recovery authorization, the waiting period, and finalization are spread across separate steps. Full protocol details remain in speaker notes.
 
 ## Present
 
