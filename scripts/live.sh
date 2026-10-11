@@ -66,7 +66,7 @@ tmux new-session -d -s $SESSION -n stack -c "$LIVE" \
   set-option -t $SESSION:stack remain-on-exit on \; \
   new-window -d -t $SESSION: -n tunnel "cloudflared tunnel --config $TUNNEL run 2>&1 | tee $LOG-tunnel.log" \; \
   set-option -t $SESSION:tunnel remain-on-exit on \; \
-  new-window -d -t $SESSION: -n slides -c "$LIVE/slides" "python3 -m http.server $SLIDES --bind 127.0.0.1" \; \
+  new-window -d -t $SESSION: -n slides -c "$LIVE/slides" "python3 serve.py $SLIDES" \; \
   set-option -t $SESSION:slides remain-on-exit on
 
 echo "Building and starting $(git -C "$LIVE" log -1 --format='%h %s')"
