@@ -72,6 +72,8 @@ try {
     SWISSQUOTE_DB: join(directory, "bank.db"), PARTNER_DB: join(directory, "partner.db"),
     SWISSQUOTE_SHARE_KEY: randomBytes(32).toString("hex"), PARTNER_SHARE_KEY: randomBytes(32).toString("hex"),
     COMPLIANCE_MODE: "demo", COMPLIANCE_POLICY_FILE: policyFile, COMPLIANCE_AUDIT_FILE: join(directory, "audit.ndjson"),
+    // scripts/e2e.ts ends by closing Swissquote and leaving through the exit, which the partner opens after this many seconds.
+    EXIT_AFTER: "5",
   };
   start("partner", process.execPath, ["services/partner/server.ts"], env);
   start("app", process.execPath, ["node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", String(appPort)], env);
