@@ -29,6 +29,8 @@
     --swissquote: #ff5a1f;
     --partner: #a945e8;
     --home: #00a67e;
+    /* Mocked parts, the same yellow on the architecture and on What's real. */
+    --mock: #ffcc00;
     --blue: linear-gradient(118deg, #0151ff 0%, #0151ff 34%, #1685ff 50%, #3fc8ff 64%, #8dd0ff 80%, #e8f4ff 94%, #fdfeff 100%);
     --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   }
@@ -365,10 +367,29 @@
   .flow .tile.gone .icon { --c: #aeaeb2; }
   .flow > .i { align-self: center; justify-self: center; font-size: 44px; color: #c7c7cc; }
 
+  /* Architecture: who holds what and what talks to what. Yellow dashed parts are mocked, as on What's real. */
+  .arch { position: absolute; left: 128px; top: 304px; width: 1664px; height: 712px; overflow: visible; font-family: inherit; }
+  .arch .box { fill: var(--surface); stroke: #e5e5ea; stroke-width: 2; }
+  .arch .part { fill: #fff; stroke: #e5e5ea; stroke-width: 2; }
+  .arch .mock { fill: color-mix(in oklab, var(--mock) 14%, #fff); stroke: color-mix(in oklab, var(--mock) 88%, #000); stroke-width: 2.5; stroke-dasharray: 9 7; }
+  .arch .glyph { color: #fff; fill: #fff; --icon-duo: 0.55; }
+  .arch .title { font-size: 32px; font-weight: 600; letter-spacing: -0.025em; }
+  .arch .label { font-size: 25px; font-weight: 500; letter-spacing: -0.01em; }
+  .arch .note { font-size: 22px; font-weight: 500; fill: var(--secondary); }
+  .arch .wire { fill: none; stroke: #000; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+  .arch .wire.soft { stroke: #8e8e93; stroke-dasharray: 2 10; }
+  .arch .wire-label { font-size: 23px; font-weight: 600; }
+  .arch .halo { paint-order: stroke; stroke: #fff; stroke-width: 14px; stroke-linejoin: round; }
+  .arch .claim { fill: #000; }
+  .arch .claim-text { font-size: 25px; font-weight: 600; letter-spacing: -0.02em; fill: #fff; }
+
   /* Real and mocked, side by side. */
   .ledger { position: absolute; left: 128px; right: 128px; top: 330px; display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
   .ledger section { padding: 44px 48px; border-radius: 48px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
-  .ledger section.mocked { background: #fff; box-shadow: none; outline: 2.5px dashed #aeaeb2; outline-offset: -2.5px; }
+  .ledger section.real { background: color-mix(in oklab, var(--positive) 8%, #fff); box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--positive) 16%, transparent); }
+  .ledger section.real h2 .i { color: var(--positive); }
+  .ledger section.mocked { background: color-mix(in oklab, var(--mock) 12%, #fff); box-shadow: none; outline: 2.5px dashed color-mix(in oklab, var(--mock) 88%, #000); outline-offset: -2.5px; }
+  .ledger section.mocked h2 .i { color: color-mix(in oklab, var(--mock) 88%, #000); }
   .ledger section.gone { background: #fff; box-shadow: inset 0 0 0 2px #e5e5ea; }
   .ledger .rows { margin-top: 32px; gap: 28px; }
   .ledger h2 { display: flex; align-items: center; gap: 16px; font-size: 44px; font-weight: 600; letter-spacing: -0.035em; }
@@ -826,7 +847,86 @@
   <aside class="notes">Second, the backup itself is stolen. With a seed phrase, a stolen backup is the wallet: the thief empties it at once. Here the Recovery Key only starts a recovery, and the smart account holds it for 48 hours in chain time, in public. The client's app shows that someone started recovering the wallet, and the client cancels with Face ID from their phone, or through Swissquote with their Recovery Key. The thief walks away with nothing. Production adds push and email alerts, which this build does not have yet.</aside>
 </section>
 
-<!-- 15. Legal -->
+<!-- 15. Architecture -->
+<section class="slide content" aria-label="Architecture">
+  <h1>Architecture.</h1>
+  <p class="sub">Solid parts run for real in the demo. Yellow dashed parts are mocked.</p>
+  <svg class="arch visual" viewBox="0 0 1664 712" role="img" aria-label="Phone, Recovery Key, Swissquote, independent service and chain, and what talks to what">
+    <path class="wire soft" d="M210 64V20H1462V64"/>
+    <text class="wire-label halo" x="836" y="28" text-anchor="middle">Exit mode only: the phone submits directly</text>
+
+    <rect class="box" x="0" y="64" width="420" height="404" rx="40"/>
+    <rect x="24" y="88" width="56" height="56" rx="16" style="fill: var(--phone);"/><use class="glyph" href="#i-phone" x="36" y="100" width="32" height="32"/>
+    <text class="title" x="96" y="112">Phone</text>
+    <text class="note" x="96" y="140">The Swissquote Wallet app</text>
+    <rect class="part" x="24" y="164" width="372" height="48" rx="14"/><text class="label" x="46" y="196">Passkey, behind Face ID</text>
+    <rect class="part" x="24" y="222" width="372" height="48" rx="14"/><text class="label" x="46" y="254">Share A, sealed by it</text>
+    <rect class="part" x="24" y="280" width="372" height="48" rx="14"/><text class="label" x="46" y="312">Wallet key, 3 h in memory</text>
+    <rect class="part" x="24" y="338" width="372" height="48" rx="14"/><text class="label" x="46" y="370">Phone lock, exit mode</text>
+    <rect class="mock" x="24" y="396" width="372" height="48" rx="14"/><text class="label" x="46" y="428">Secure chip: web storage</text>
+
+    <rect class="box" x="0" y="536" width="420" height="172" rx="40"/>
+    <rect x="24" y="560" width="56" height="56" rx="16" style="fill: var(--home);"/><use class="glyph" href="#i-restore" x="36" y="572" width="32" height="32"/>
+    <text class="title" x="96" y="584">Recovery Key file</text>
+    <text class="note" x="96" y="612">At home, off the phone.</text>
+    <text class="note" x="24" y="658">Starts or cancels a recovery</text>
+    <text class="note" x="24" y="686">and locks a lost phone.</text>
+    <path class="wire" d="M210 536V480M198 494l12-14 12 14"/>
+    <text class="wire-label" x="228" y="516">Recovery only</text>
+
+    <rect class="box" x="620" y="64" width="440" height="404" rx="40"/>
+    <rect x="644" y="88" width="56" height="56" rx="16" style="fill: var(--swissquote);"/><use class="glyph" href="#i-bank" x="656" y="100" width="32" height="32"/>
+    <text class="title" x="716" y="112">Swissquote</text>
+    <text class="note" x="716" y="140">Wallet API</text>
+    <rect class="part" x="644" y="164" width="392" height="48" rx="14"/><text class="label" x="666" y="196">Compliance engine</text>
+    <rect class="mock" x="644" y="222" width="392" height="48" rx="14"/><text class="label" x="666" y="254">Sanctions, simulation data</text>
+    <rect class="part" x="644" y="280" width="392" height="48" rx="14"/><text class="label" x="666" y="312">Paymaster signer, submitter</text>
+    <rect class="mock" x="644" y="338" width="392" height="48" rx="14"/><text class="label" x="666" y="370">Share B vault, software</text>
+    <rect class="mock" x="644" y="396" width="392" height="48" rx="14"/><text class="label" x="666" y="428">Sign-in to link, optional</text>
+
+    <rect class="box" x="620" y="536" width="440" height="172" rx="40"/>
+    <rect x="644" y="560" width="56" height="56" rx="16" style="fill: var(--partner);"/><use class="glyph" href="#i-shield" x="656" y="572" width="32" height="32"/>
+    <text class="title" x="716" y="584">Independent service</text>
+    <text class="note" x="716" y="612">Own process, own database</text>
+    <rect class="mock" x="644" y="636" width="392" height="48" rx="14"/><text class="label" x="666" y="668">Share C vault, software</text>
+
+    <rect class="box" x="1260" y="64" width="404" height="644" rx="40"/>
+    <rect x="1284" y="88" width="56" height="56" rx="16" style="fill: #000;"/><use class="glyph" href="#i-grid" x="1296" y="100" width="32" height="32"/>
+    <text class="title" x="1356" y="112">Chain</text>
+    <text class="note" x="1356" y="140">Anvil or Base Sepolia</text>
+    <rect class="part" x="1284" y="164" width="356" height="48" rx="14"/><text class="label" x="1306" y="196">Smart account</text>
+    <rect class="part" x="1284" y="222" width="356" height="48" rx="14"/><text class="label" x="1306" y="254">EntryPoint v0.7</text>
+    <rect class="part" x="1284" y="280" width="356" height="48" rx="14"/><text class="label" x="1306" y="312">Account factory</text>
+    <rect class="part" x="1284" y="338" width="356" height="48" rx="14"/><text class="label" x="1306" y="370">Paymaster</text>
+    <rect class="part" x="1284" y="396" width="356" height="48" rx="14"/><text class="label" x="1306" y="428">USDC, test token</text>
+    <rect class="claim" x="1284" y="536" width="356" height="148" rx="24"/>
+    <use href="#i-check" x="1308" y="556" width="40" height="40" style="color: var(--positive); fill: var(--positive);"/>
+    <text class="claim-text" x="1308" y="636">Passkey and 48-hour delay</text>
+    <text class="claim-text" x="1308" y="666">enforced on chain.</text>
+
+    <path class="wire" d="M432 250H608M444 238l-12 12 12 12M596 238l12 12-12 12"/>
+    <text class="wire-label" x="520" y="228" text-anchor="middle">Operations</text>
+    <text class="note" x="520" y="286" text-anchor="middle">Share B after</text>
+    <text class="note" x="520" y="314" text-anchor="middle">Face ID</text>
+
+    <path class="wire" d="M1072 250H1248M1236 238l12 12-12 12"/>
+    <text class="wire-label" x="1160" y="228" text-anchor="middle">Submits</text>
+    <text class="note" x="1160" y="286" text-anchor="middle">pays gas</text>
+    <text class="note" x="1160" y="314" text-anchor="middle">if linked</text>
+
+    <path class="wire" d="M432 420H520V622H608M444 408l-12 12 12 12M596 610l12 12-12 12"/>
+    <text class="wire-label halo" x="536" y="520">Share C, direct</text>
+
+    <path class="wire" d="M840 480V524M828 512l12 12 12-12"/>
+    <text class="wire-label" x="858" y="508">Recovery Key check</text>
+
+    <path class="wire" d="M1072 622H1248M1236 610l12 12-12 12"/>
+    <text class="wire-label" x="1160" y="600" text-anchor="middle">Reads accounts</text>
+  </svg>
+  <aside class="notes">Four parties and a file at home. The phone holds the passkey and Share A and rebuilds the wallet key in memory for up to three hours. Swissquote screens every payment, submits every operation, pays the gas for linked wallets, and holds Share B. The independent service is a real separate process with its own database, holding Share C, which the phone sends it directly; only the company behind it is a stand-in. The Recovery Key file stays at home: it starts or cancels a recovery and locks a lost phone. The chain enforces the passkey and the 48-hour delay; its EntryPoint is the standard contract that checks and runs every account operation. In exit mode, with Swissquote gone, the phone submits operations itself and pays its own gas. Yellow parts are mocked: the Swissquote sign-in behind the optional account link, the sanctions and simulation data, the secure chip, and the vaults, which seal shares in software here and would be HSMs in production.</aside>
+</section>
+
+<!-- 16. Legal -->
 <section class="slide content" aria-label="Legal">
   <h1>Assistance, not custody. Ownership signed when you link.</h1>
   <p class="sub">Our reading of Swiss law, for counsel to confirm.</p>
@@ -855,7 +955,7 @@
   <aside class="notes">Custody turns on who can move the funds: Swissquote can't, alone or with the independent service; it can only withhold help or cancel a recovery, which we argue is assistance, still under AML rules, hence the screening. For the Travel Rule, linking is optional. When the client links their Swissquote account, they sign with Face ID, the passkey every payment needs, that the wallet belongs to their client number, and Swissquote keeps that statement, so ownership evidence exists without a test transfer and money moves between the account and the wallet without extra checks. An unlinked wallet takes Swissquote's usual procedure for external wallets. When the client pays a third party, the client signs and the account sends, so we argue Swissquote is not the sending institution, an open question for counsel. Swissquote pays the gas only for wallets it can tie to an identified client, so an unlinked wallet pays its own.</aside>
 </section>
 
-<!-- 16. Plans -->
+<!-- 17. Plans -->
 <section class="slide content" aria-label="Plans">
   <div class="tags"><span class="tag">Proposal</span></div>
   <h1>Free to own. Plus to earn.</h1>
@@ -884,7 +984,7 @@
   <aside class="notes">A proposal for the business model. The wallet itself stays free: creating it, paying with Face ID and recovering it cost the client nothing. Swissquote Plus is the subscription, 10 USDC a month or 100 a year, two months free. The app already sells the monthly plan to linked wallets. Plus members swap at half the fee, earn interest by lending their USDC, receive on-chain staking rewards and get cashback on card payments. A Swissquote card that spends straight from the wallet is the natural next step. All of these are financial features, so they need a linked Swissquote account.</aside>
 </section>
 
-<!-- 17. Swissquote's cut -->
+<!-- 18. Swissquote's cut -->
 <section class="slide content" aria-label="Swissquote's cut">
   <div class="tags"><span class="tag">Proposal</span></div>
   <h1>How Swissquote earns.</h1>
@@ -909,7 +1009,7 @@
   <aside class="notes">How Swissquote makes money. It keeps all of the Plus subscription. It earns the published 1 percent on swaps, half that for Plus members, who swap more. On lending, it keeps a fifth of the interest and passes the rest to the client. On on-chain rewards, it takes a 10 percent commission, as staking providers do. And a Swissquote card earns interchange on every payment, which also funds the cashback. None of this needs custody: the client keeps the keys, and Swissquote earns on the services around them. The rates are our proposal, to tune against Swissquote's current pricing.</aside>
 </section>
 
-<!-- 18. Business case -->
+<!-- 19. Business case -->
 <section class="slide content" aria-label="Business case">
   <h1>Keep the client. Keep the trading.</h1>
   <p class="sub">Today self-custody means leaving. The wallet keeps clients one tap from trading.</p>
@@ -938,12 +1038,12 @@
   <aside class="notes">A client who wants their own keys today pays 15 dollars to move USDC out, and some take the whole account with them. Swissquote's half-year results give about 600 francs of revenue a year and 79,000 francs of assets per account, so each client who leaves takes both. We model 10,000 wallets, under 1 percent of accounts. If 1 in 10 of those clients would otherwise have left and 1 in 10 is new, that is 2,000 clients times 600 francs, 1.2 million francs a year, and 79 million francs of assets that stay. The fee lines about cancel out: swaps at the 1 percent fee and Plus earn about 620,000 francs a year, and free transfers into the wallet and sponsored gas cost about 612,000. Costs fall too, by amounts we can't price from public data. There's no seed phrase to support, and coins in the client's own wallet need no cold storage at Swissquote. Every assumption is in the README.</aside>
 </section>
 
-<!-- 19. Real and mocked -->
+<!-- 20. Real and mocked -->
 <section class="slide content" aria-label="Real and mocked">
   <h1>What’s real, what’s mocked.</h1>
   <div class="ledger visual" style="top: 264px;">
-    <section>
-      <h2><svg class="i yes"><use href="#i-yes"/></svg>Real</h2>
+    <section class="real">
+      <h2><svg class="i"><use href="#i-yes"/></svg>Real</h2>
       <ul>
         <li>Shamir 2-of-3 <span>with verified shares</span></li>
         <li>Passkeys <span>checked on chain</span></li>
@@ -956,7 +1056,7 @@
       </ul>
     </section>
     <section class="mocked">
-      <h2><svg class="i" style="color: #aeaeb2;"><use href="#i-part"/></svg>Mocked</h2>
+      <h2><svg class="i"><use href="#i-part"/></svg>Mocked</h2>
       <ul>
         <li>Swissquote sign-in <span>the redirect that links an account</span></li>
         <li>HSMs <span>the vaults seal shares in software</span></li>
@@ -968,7 +1068,7 @@
   <aside class="notes">Everything in the protocol runs for real: the key split, the passkey checked on chain, the smart account, the paymaster, the 48-hour delay, the phone lock, exit mode, and the independent service as its own process and database, with a stand-in for the company behind it. What needs a real bank or real hardware is mocked and labelled: the Swissquote sign-in behind the optional account link, the HSMs, and the sanctions and simulation data. The production path is the native Swissquote app with the secure chip, real HSMs, a contracted independent service and Base mainnet.</aside>
 </section>
 
-<!-- 20. Closing -->
+<!-- 21. Closing -->
 <section class="slide blue" aria-label="Closing">
   <h1 class="display">Your wallet.<br>A bank in your corner.</h1>
   <p class="sub">Thank you. Questions?</p>
