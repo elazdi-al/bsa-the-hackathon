@@ -1,7 +1,7 @@
 // Drives the real app through the demo story and writes the deck's phone screens to slides/screens/: an iPhone 15 Pro
 // (393 × 852 at 3x) with its safe areas, so content sits below the status bar the deck draws on top. Each phone is a
 // fresh browser profile with a virtual passkey authenticator. The app's demo labels (`data-demo`) are hidden, and a
-// screen that still shows "demo", "mock" or a middle dot fails the run. Run against a fresh `npm run local`:
+// screen that still shows "demo", "mock", "signed in" or a middle dot fails the run. Run against a fresh `npm run local`:
 //
 //   node --env-file-if-exists=.env.local slides/capture.ts      (APP_URL, else http://localhost:$PORT)
 import { chromium, type Locator, type Page } from "playwright";
@@ -55,7 +55,7 @@ async function newPhone() {
 async function shot(page: Page, name: string, ready: Locator, settle = 1000) {
   await ready.waitFor(SLOW);
   await page.waitForTimeout(settle);
-  const label = (await page.evaluate(() => document.body.innerText)).match(/\b(demo|mock)\b|·/i);
+  const label = (await page.evaluate(() => document.body.innerText)).match(/\b(demo|mock|signed in)\b|·/i);
   if (label) throw new Error(`${name}.png would show "${label[0]}". Mark the label data-demo, or reword it.`);
   await page.screenshot({ path: new URL(`screens/${name}.png`, import.meta.url).pathname });
   console.log(`   ${name}.png`);
