@@ -67,7 +67,7 @@ export function Accounts() {
           <PromoStack className="col-span-2 md:col-span-4 lg:col-span-2" onOpenAccount={show} />
         </section>
         <Link href="/dapps" transitionTypes={["push"]} className="flex items-center justify-between rounded-3xl border border-border bg-surface px-5 py-4">
-          <span><span className="block text-label">Reviewed dApps</span><span className="mt-1 block text-caption text-muted-foreground">Vaults, transaction checks and sponsored gas</span></span>
+          <span><span className="block text-label">Reviewed dApps</span><span className="mt-1 block text-caption text-muted-foreground">Vaults and transaction checks</span></span>
           <span aria-hidden className="text-heading">↗</span>
         </Link>
       </div>

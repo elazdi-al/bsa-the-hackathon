@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { RequireWallet } from "@/app/(tabs)/_components/wallet";
-import { LightningIcon } from "@/components/icons";
 import { Screen } from "@/components/navigation";
 import { SendReview } from "./_components/send-review";
 
@@ -13,15 +12,7 @@ export default function Page() {
       <main className="flex min-h-dvh flex-col bg-white pt-[env(safe-area-inset-top)] pb-[max(2rem,env(safe-area-inset-bottom))]">
         <RequireWallet />
         <Suspense>
-          <SendReview>
-            <dl className="mt-6 flex items-center justify-between text-body">
-              <dt className="text-muted-foreground">Network fee</dt>
-              <dd className="flex items-center gap-1 font-semibold text-positive">
-                <LightningIcon size={16} />
-                Paid by Swissquote
-              </dd>
-            </dl>
-          </SendReview>
+          <SendReview />
         </Suspense>
       </main>
     </Screen>

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { KEYS, type KeyId } from "@/app/onboarding-secure/data";
-import { BankIcon, BellIcon, CoinIcon, HelpIcon, IdCardIcon, KeyIcon, LockIcon, SignOutIcon, type Icon } from "@/components/icons";
+import { BankIcon, BellIcon, CoinIcon, HelpIcon, IdCardIcon, KeyIcon, LightningIcon, LockIcon, SignOutIcon, type Icon } from "@/components/icons";
 
 export type { KeyId };
 
@@ -31,9 +31,10 @@ const about: Record<KeyId, { detail: string; about: string }> = {
 // Labels, glyphs and colours come from onboarding, so a key looks the same where it was made.
 export const keys = KEYS.map(({ id, title, Icon, accent }) => ({ id, title, Icon, accent, ...about[id] }));
 
-/** What linking a Swissquote account adds, in the link tray. The wallet works the same without it. */
+/** What linking a Swissquote account adds, in the link tray. */
 export const linkAdds: { Icon: Icon; text: string }[] = [
   { Icon: BankIcon, text: "Move money between your Swissquote account and this wallet without extra checks." },
+  { Icon: LightningIcon, text: "Swissquote pays your network fees, so your wallet needs no ETH." },
   { Icon: IdCardIcon, text: "Swissquote checks your ID before anyone can recover your wallet." },
   { Icon: LockIcon, text: "Swissquote can lock this phone if it's lost or stolen." },
 ];

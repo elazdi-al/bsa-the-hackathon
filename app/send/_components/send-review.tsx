@@ -8,10 +8,11 @@ import { grouped, retyped } from "@/app/(tabs)/_components/amount";
 import { usd } from "@/app/(tabs)/_components/money";
 import { refreshWallet, useWallet, type WalletSnapshot } from "@/app/(tabs)/_components/wallet";
 import { recipientFor, sendDraft, shortAddress } from "@/app/choose-recipient/data";
-import { CheckIcon, ShieldIcon, WalletIcon } from "@/components/icons";
+import { CheckIcon, LightningIcon, ShieldIcon, WalletIcon } from "@/components/icons";
 import { useBack } from "@/components/navigation";
 import { BackButton } from "@/components/ui/back-button";
 import { DemoTag } from "@/components/ui/demo-tag";
+import { ethAmount } from "@/lib/wallet/account";
 import { ApiError, phone, type Prepared, type Sent } from "@/lib/wallet/phone";
 import { blurSwap } from "./motion";
 import { SendButton, type Phase } from "./send-button";
@@ -40,7 +41,7 @@ function blocker(snapshot: WalletSnapshot, amount: number): string | undefined {
 }
 
 /**
- * What Swissquote confirmed before it sponsored a payment: it refuses one that fails screening or simulation, so
+ * What Swissquote confirmed before it prepared a payment: it refuses one that fails screening or simulation, so
  * reaching Send means both passed. The fee is the row above.
  */
 const CHECKS = ["Recipient not on a sanctions list", "Simulated: it moves only this amount"];
@@ -87,7 +88,7 @@ function failure(e: unknown): string[] {
   return [e.message, ...(decision?.reasons ?? [])];
 }
 
-export function SendReview({ children }: { children: ReactNode }) {
+export function SendReview() {
   const params = useSearchParams();
   const to = params.get("to");
   const wallet = useWallet();
@@ -116,12 +117,11 @@ export function SendReview({ children }: { children: ReactNode }) {
           </span>
         </p>
       </section>
-      {children}
     </Review>
   );
 }
 
-/** Continue asks Swissquote to sponsor the transfer; Send is Face ID approving exactly that operation. */
+/** Continue asks Swissquote to prepare the transfer, sponsored if the wallet is linked; Send is Face ID approving exactly that operation. */
 function Review({ to, address, asked, children }: { to: string; address: Address; asked: string | null; children: ReactNode }) {
   const router = useRouter();
   const back = useBack("/choose-recipient");
@@ -142,13 +142,13 @@ function Review({ to, address, asked, children }: { to: string; address: Address
   useEffect(() => {
     if (!sent) return;
     const id = setTimeout(() => {
+      const tracked = new URLSearchParams({ hash: sent.transactionHash, amount, to: address });
+      if (prepared?.fee) tracked.set("fee", prepared.fee);
       // Replace, so Back from the tracker can't land on a review that's already sent.
-      router.replace(`/transaction-tracking?${new URLSearchParams({ hash: sent.transactionHash, amount, to: address })}`, {
-        transitionTypes: ["push"],
-      });
+      router.replace(`/transaction-tracking?${tracked}`, { transitionTypes: ["push"] });
     }, SENT_MS);
     return () => clearTimeout(id);
-  }, [sent, amount, address, router]);
+  }, [sent, amount, address, prepared?.fee, router]);
 
   function reset() {
     setPhase("review");
@@ -182,7 +182,7 @@ function Review({ to, address, asked, children }: { to: string; address: Address
       setPhase("sent");
       refreshWallet();
     } catch (e) {
-      // Start over with a fresh operation: Swissquote's sponsorship of this one expires within minutes.
+      // Start over with a fresh operation: Swissquote's check of this one expires within minutes.
       reset();
       setError(failure(e));
     }
@@ -223,6 +223,22 @@ function Review({ to, address, asked, children }: { to: string; address: Address
         </div>
 
         {children}
+
+        <dl className="mt-6 flex items-start justify-between gap-4 text-body">
+          <dt className="shrink-0 text-muted-foreground">Network fee</dt>
+          {prepared?.fee ? (
+            <dd className="text-right font-semibold text-balance">
+              Up to {ethAmount(BigInt(prepared.fee))} ETH<span className="font-normal text-muted-foreground">, paid from your wallet</span>
+            </dd>
+          ) : prepared || (snapshot.status === "ready" && snapshot.wallet.owner) ? (
+            <dd className="flex items-center gap-1 font-semibold text-positive">
+              <LightningIcon size={16} />
+              Paid by Swissquote
+            </dd>
+          ) : (
+            <dd className="font-semibold">{snapshot.status === "ready" && "Paid from your wallet"}</dd>
+          )}
+        </dl>
 
         <AnimatePresence initial={false}>{prepared?.summary && <Checked summary={prepared.summary} demo={prepared.demo} />}</AnimatePresence>
 

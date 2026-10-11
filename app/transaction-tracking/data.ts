@@ -13,8 +13,8 @@ export type Tracked = {
   rows: Row[];
   rail: Row;
   txHash: string;
-  networkFee: string;
-  feePaidBy: string;
+  /** The most the wallet paid in network fee, in ETH as shown; none when Swissquote paid it. */
+  fee?: string;
   demo?: true;
 };
 
@@ -38,8 +38,6 @@ export const withdrawal: Tracked & { step: number } = {
   ] satisfies Row[],
   rail: { label: "Payment rail", value: "ACH Same Day" },
   txHash: "0x8a55c56a9e65bdd7272062049178313a783f72f5f04276892279affd49ea0c4c",
-  networkFee: "Free",
-  feePaidBy: "paid by Swissquote",
   demo: true,
 };
 

@@ -325,10 +325,14 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
                       <Detail label="Rate">
                         1 {pay.symbol} ≈ {fmt(pay.price / get.price, get.decimals)} {get.symbol}
                       </Detail>
-                      <Detail label="Network fee" className="flex items-center gap-1 font-semibold text-positive">
-                        <LightningIcon size={16} />
-                        Paid by Swissquote
-                      </Detail>
+                      {wallet && !wallet.owner ? (
+                        <Detail label="Network fee">Paid from your wallet</Detail>
+                      ) : (
+                        <Detail label="Network fee" className="flex items-center gap-1 font-semibold text-positive">
+                          <LightningIcon size={16} />
+                          Paid by Swissquote
+                        </Detail>
+                      )}
                     </dl>
                   </div>
 

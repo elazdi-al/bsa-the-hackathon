@@ -11,6 +11,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import type { ComplianceDecision } from "@/lib/compliance/types";
 import { buildVaultCall, decisionAllowsSigning, needsApproval, parseVaultAmount, type DappCatalog, type VaultAction, type VaultDapp, type VaultQuote, type VaultSnapshot, type VaultStep } from "@/lib/dapps/model";
+import { ethAmount } from "@/lib/wallet/account";
 import { ApiError, phone, type Prepared } from "@/lib/wallet/phone";
 
 const units = (amount: string, decimals: number) => formatUnits(BigInt(amount), decimals);
@@ -58,7 +59,7 @@ export function DappsScreen() {
         <Button variant="ghost" size="sm" className="ml-auto" disabled={loading || busy} onClick={load}>Refresh</Button>
       </header>
       <div className="mx-auto max-w-5xl px-6 pt-7">
-        <p className="max-w-xl text-body text-muted-foreground">Use policy-listed vaults with your wallet. Swissquote checks each call and sponsors only the operations it allows.</p>
+        <p className="max-w-xl text-body text-muted-foreground">Use policy-listed vaults with your wallet. Swissquote checks each call and assists only the operations it allows.</p>
         {catalog && <p className="mt-4 rounded-2xl bg-secondary p-4 text-caption" role="status">
           {catalog.mode === "demo" ? "Demo checks · screening and simulation use fixtures, not live compliance evidence. The local test vault earns no yield." : "Live-provider mode · assistance still depends on available evidence. A registry listing is not a legal certification or a guarantee of safety."}
           <span className="mt-1 block text-muted-foreground">Network {catalog.chainId} · Policy {catalog.policyVersion}</span>
@@ -101,6 +102,7 @@ function VaultPanel({ vault, wallet, onBusyChange }: { vault: VaultDapp; wallet:
   const [now, setNow] = useState(Date.now());
   const blocked = !vault.available ? vault.unavailableReason ?? "This vault is unavailable." : walletBlocker(wallet);
   const busy = phase === "checking" || phase === "signing";
+  const unlinked = wallet.status === "ready" && !wallet.wallet.owner;
   useEffect(() => { onBusyChange(busy); return () => onBusyChange(false); }, [busy, onBusyChange]);
 
   async function refresh(afterTx?: Hex) {
@@ -150,7 +152,7 @@ function VaultPanel({ vault, wallet, onBusyChange }: { vault: VaultDapp; wallet:
         setNotice("Permission granted, but no deposit has been sent. Check the deposit again for a fresh review and passkey approval. If you stop here, revoke the remaining permission.");
         setPhase("edit");
       } else {
-        setNotice(`${labels[step]} confirmed on-chain. Swissquote paid the network fee.`);
+        setNotice(`${labels[step]} confirmed on-chain. ${prepared.fee ? "Your wallet paid the network fee in ETH." : "Swissquote paid the network fee."}`);
         setPhase("done");
       }
     } catch (e) { failed(e); await refresh(); }
@@ -176,7 +178,9 @@ function VaultPanel({ vault, wallet, onBusyChange }: { vault: VaultDapp; wallet:
           onChange={(event) => { reset(); setAmount(event.target.value.replace(",", ".")); }}
           className="mt-2 block w-full rounded-2xl border border-input px-4 py-3 text-heading outline-none focus:border-brand" />
       </label>}
-      <p className="mt-4 flex items-center gap-2 text-caption text-positive"><LightningIcon size={16} /> Approved operations: network fee paid by Swissquote</p>
+      {prepared?.fee ? <p className="mt-4 text-caption text-muted-foreground">Up to {ethAmount(BigInt(prepared.fee))} ETH network fee, paid from your wallet</p>
+        : unlinked && !prepared ? <p className="mt-4 text-caption text-muted-foreground">Your wallet pays the network fee in ETH. Link your Swissquote account in Settings and Swissquote pays it.</p>
+        : <p className="mt-4 flex items-center gap-2 text-caption text-positive"><LightningIcon size={16} /> Approved operations: network fee paid by Swissquote</p>}
       <p className="mt-3 text-caption text-muted-foreground">Deposits may require two separate transactions and passkey approvals. Permission can remain if the deposit fails or you cancel. Vault previews are indicative, with no minimum-output protection. No yield or capital protection is promised.</p>
       {notice && <p role="status" className="mt-4 rounded-2xl bg-brand/5 p-4 text-body">{notice}</p>}
       {quote && <div className="mt-5 rounded-2xl bg-secondary p-4 text-body">
@@ -202,7 +206,7 @@ function VaultPanel({ vault, wallet, onBusyChange }: { vault: VaultDapp; wallet:
 
 function ComplianceReview({ decision }: { decision: ComplianceDecision }) {
   const allowed = decision.status === "ALLOW";
-  const status: Record<ComplianceDecision["status"], string> = { ALLOW: "Policy allows sponsorship", REVIEW: "Review required", DENY_ASSISTANCE: "Swissquote assistance refused" };
+  const status: Record<ComplianceDecision["status"], string> = { ALLOW: "Policy allows this call", REVIEW: "Review required", DENY_ASSISTANCE: "Swissquote assistance refused" };
   return <section aria-label="Compliance review" className="mt-5 rounded-2xl border border-border p-4">
     <h3 className={`flex items-center gap-2 text-label ${allowed ? "text-positive" : "text-pending"}`}>{allowed ? <CheckIcon size={18} /> : <WarningIcon size={18} />}{status[decision.status]}</h3>
     <p className="mt-2 text-caption text-muted-foreground">{decision.assurance === "DEMO" ? "Demo evidence" : "Live-provider evidence"} · Risk {decision.riskLevel.toLowerCase()}</p>

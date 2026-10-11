@@ -1,11 +1,11 @@
 // The wallet's screens end to end in Chromium, each phone a fresh browser profile with a virtual
 // passkey authenticator: create a wallet without a Swissquote account, scan a friend's QR code with a fake
-// camera to pay them, send USDC under Swissquote's reading of each payment, a large one at once like any other;
-// link the wallet to a Swissquote account in Settings; lose the phone and recover with the Recovery
-// Key file and the number on the client's ID card, once a key no wallet uses and someone else's ID are refused;
-// Swissquote cancels once, the old phone cancels once from Home, the new phone locks the old one from its
-// countdown, then the 48-hour delay passes and the new phone sends.
-// Last, an unlinked wallet's recovery asks for no ID and offers no lock.
+// camera to pay them, send USDC under Swissquote's reading of each payment, its fee paid from the wallet's ETH, a
+// large one at once like any other; link the wallet to a Swissquote account in Settings, and Swissquote pays its fees
+// from then on; lose the phone and recover with the Recovery Key file and the number on the client's ID card, once a
+// key no wallet uses and someone else's ID are refused; Swissquote cancels once, the old phone cancels once from Home,
+// the new phone locks the old one from its countdown, then the 48-hour delay passes and the new phone sends.
+// Last, an unlinked wallet with no ETH is recovered on Swissquote's gas, with no ID asked and no lock offered.
 //
 //   npm run e2e:ui            (against `npm run local`; HEADED=1 to watch)
 import assert from "node:assert/strict";
@@ -14,13 +14,16 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium, type Page } from "playwright";
 import { encode } from "uqr";
-import { createWalletClient, erc20Abi, formatUnits, http, numberToHex, parseAbi, parseUnits, type Address, type Hex } from "viem";
+import { createWalletClient, erc20Abi, formatUnits, http, numberToHex, parseAbi, parseEther, parseUnits, type Address, type Hex } from "viem";
 import { generatePrivateKey, privateKeyToAccount, privateKeyToAddress } from "viem/accounts";
 import { addresses, chain, publicClient, rpcUrl } from "../lib/wallet/env.ts";
 
 const APP = process.env.APP_URL ?? "http://localhost:3000";
 const FRIEND = privateKeyToAddress(generatePrivateKey());
 const SLOW = { timeout: 30_000 };
+/** The Send review's network fee: Swissquote's for a linked wallet, the wallet's own ETH for an unlinked one. */
+const SPONSORED = /^Paid by Swissquote$/;
+const FROM_WALLET = /^Up to [\d.]+ ETH, paid from your wallet$/;
 
 /**
  * A still for Chromium's fake camera (.y4m, 640x480 greyscale): `text` as the Receive sheet draws its QR code,
@@ -77,8 +80,16 @@ const warp = async (seconds: number) => {
   await publicClient.request({ method: "evm_mine", params: [] } as never);
 };
 
-/** Continue on the Send screen, up to the Face ID button, under Swissquote's plain reading of the payment. */
-async function review(page: Page, to: Address, amount: string) {
+async function until(check: () => Promise<boolean>, what: string) {
+  for (const end = Date.now() + SLOW.timeout; !(await check()); await new Promise((r) => setTimeout(r, 500)))
+    if (Date.now() > end) throw new Error(`Timed out waiting until ${what}`);
+}
+
+/**
+ * Continue on the Send screen, up to the Face ID button, under Swissquote's plain reading of the payment and the
+ * network fee it reads `fee`.
+ */
+async function review(page: Page, to: Address, amount: string, fee: RegExp) {
   await page.goto(`${APP}/send?to=${to}`);
   await page.getByLabel("Amount in USDC").fill(amount);
   await page.getByRole("button", { name: "Continue" }).click();
@@ -87,10 +98,12 @@ async function review(page: Page, to: Address, amount: string) {
   await checked.getByText(`Send ${Number(amount).toLocaleString("en-US")} USDC to ${to.slice(0, 6)}...${to.slice(-4)}.`, { exact: true }).waitFor(SLOW);
   await checked.getByText("Recipient not on a sanctions list").waitFor(SLOW);
   await checked.getByText("Simulated: it moves only this amount").waitFor(SLOW);
+  const shown = page.locator("dl").filter({ hasText: "Network fee" }).locator("dd");
+  await until(async () => fee.test(await shown.innerText()), `the network fee reads ${fee}`);
 }
 
-async function send(page: Page, to: Address, amount: string) {
-  await review(page, to, amount);
+async function send(page: Page, to: Address, amount: string, fee = SPONSORED) {
+  await review(page, to, amount, fee);
   await page.getByRole("button", { name: "Send", exact: true }).click(SLOW);
   await page.waitForURL("**/transaction-tracking?**", SLOW);
   await page.getByText("Completed").first().waitFor(SLOW);
@@ -131,25 +144,27 @@ const wallet = (await walletOf(phone1)) as Address;
 assert.equal(await clientOf(phone1), undefined, "creating a wallet signs in to nothing");
 console.log(`   wallet ${wallet}`);
 await swissquote.writeContract({ address: addresses.usdc, abi: parseAbi(["function mint(address, uint256)"]), functionName: "mint", args: [wallet, parseUnits("100", 6)] });
+await publicClient.waitForTransactionReceipt({ hash: await swissquote.sendTransaction({ to: wallet, value: parseEther("0.01") }) });
 
-console.log("2. Scan the friend's QR code to pick them, then send 20 USDC: Swissquote's reading of it before Face ID, Swissquote pays the gas, tracking shows it completed");
+console.log("2. Scan the friend's QR code to pick them, then send 20 USDC: Swissquote's reading of it and the fee in ETH, paid from the unlinked wallet, before Face ID; tracking shows it completed");
 await phone1.goto(`${APP}/choose-recipient`);
 await phone1.getByRole("button", { name: "Scan QR code" }).click();
 await phone1.getByRole("dialog", { name: "Scan QR code" }).waitFor({ state: "detached", ...SLOW });
 await phone1.getByRole("button", { name: "Continue" }).click();
 await phone1.waitForURL(`**/send?to=${FRIEND}`, SLOW);
-await send(phone1, FRIEND, "20");
+await send(phone1, FRIEND, "20", FROM_WALLET);
 assert.equal(await usdcOf(FRIEND), parseUnits("20", 6));
 
-console.log("3. 1,500 USDC leaves at once, like any payment: no amount waits");
+console.log("3. 1,500 USDC leaves at once, like any payment: no amount waits, and the unlinked wallet pays its fee in ETH");
 await swissquote.writeContract({ address: addresses.usdc, abi: parseAbi(["function mint(address, uint256)"]), functionName: "mint", args: [wallet, parseUnits("1500", 6)] });
-await send(phone1, FRIEND, "1500");
+await send(phone1, FRIEND, "1500", FROM_WALLET);
 assert.equal(await usdcOf(FRIEND), parseUnits("1520", 6));
 
 console.log("4. Settings offers to link a Swissquote account and says what it adds; Face ID links it, and Settings shows the client as linked");
 await phone1.goto(`${APP}/settings`);
 await phone1.getByRole("button", { name: "Link your Swissquote account" }).click(SLOW);
 await phone1.getByText("Swissquote checks your ID before anyone can recover your wallet.").waitFor(SLOW);
+await phone1.getByText("Swissquote pays your network fees, so your wallet needs no ETH.").waitFor(SLOW);
 await phone1.getByRole("button", { name: "Link with Face ID" }).click();
 await phone1.getByText("Swissquote account", { exact: true }).waitFor(SLOW);
 const owner = await clientOf(phone1);
@@ -222,9 +237,10 @@ await phone2.getByText(`Client ${owner.number}`, { exact: true }).waitFor(SLOW);
 await phone2.getByText("ID on file").waitFor(SLOW);
 await phone2.getByText(owner.document).waitFor(SLOW);
 
-console.log("12. An unlinked wallet: its recovery goes from the Recovery Key to Face ID with no ID check, and offers no lock; the new phone cancels it");
+console.log("12. An unlinked wallet with no ETH: its recovery goes from the Recovery Key to Face ID with no ID check, on Swissquote's gas, and offers no lock; the new phone cancels it");
 const phone3 = await newPhone();
 const kit3 = await create(phone3);
+const wallet3 = (await walletOf(phone3)) as Address;
 const phone4 = await newPhone();
 await phone4.goto(`${APP}/recover`);
 await phone4.locator("input[type=file]").setInputFiles(kit3);
@@ -233,6 +249,7 @@ await phone4.getByRole("button", { name: "Restore with Face ID" }).click(SLOW);
 await phone4.getByText("Your wallet will be restored on").waitFor(SLOW);
 assert.equal(await phone4.getByRole("button", { name: "Lock your old phone" }).count(), 0, "an unlinked wallet's phone can't be locked");
 assert.equal(await clientOf(phone4), undefined, "the recovery signs the new phone in to nothing");
+assert.equal(await publicClient.getBalance({ address: wallet3 }), 0n, "Swissquote paid for the recovery");
 await phone4.getByRole("button", { name: "Cancel recovery" }).click();
 await phone4.getByText("Recover your wallet").waitFor(SLOW);
 

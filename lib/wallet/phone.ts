@@ -102,8 +102,8 @@ export type SignedIn = { session: string; client: { number: string; document: st
 /** The statement that the wallet belongs to `client`, and the passkey's assertion over it: Swissquote's ownership proof. */
 export type Owner = { client: string; createdAt: number; statement: string; assertion: z.infer<typeof assertion> };
 
-/** A USDC transfer in or out of the wallet. `value` is in base units. */
-export type Transfer = { hash: Hex; from: Address; to: Address; value: string; timestamp: number };
+/** A USDC transfer in or out of the wallet. `value` is in base units. `sponsored`: Swissquote's paymaster paid its gas. */
+export type Transfer = { hash: Hex; from: Address; to: Address; value: string; timestamp: number; sponsored: boolean };
 
 /** What an ID check reads: the number on the ID card. MOCKED: typed, where a real check scans the card and the face. */
 export type Identity = { document: string };

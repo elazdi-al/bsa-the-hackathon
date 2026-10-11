@@ -156,7 +156,7 @@ function LinkView({ done }: { done: () => void }) {
       <TrayHeader
         icon={<SwissquoteMark size={56} />}
         title="Link your Swissquote account"
-        description="Optional. Your wallet works the same without it."
+        description="Optional. Without it, your wallet pays its own network fees."
       />
       <ul className="mt-6 space-y-4">
         {linkAdds.map(({ Icon, text }) => (

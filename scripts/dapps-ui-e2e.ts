@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdirSync } from "node:fs";
 import { chromium, type Page } from "playwright";
 import { chain } from "../lib/wallet/env";
-import { APP, mintUsdc } from "./software-phone";
+import { APP, mintUsdc, sendEth } from "./software-phone";
 import type { Address } from "viem";
 
 assert.equal(chain.id, 31337, "UI mutation tests are local-chain only.");
@@ -28,7 +28,7 @@ try {
     hasUserVerification: true, isUserVerified: true, hasPrf: true, automaticPresenceSimulation: true,
   } });
   const slow = { timeout: 30_000 };
-  console.log("1. Create wallet and open Reviewed dApps from Home");
+  console.log("1. Create an unlinked wallet, give it USDC and ETH for its own network fees, and open Reviewed dApps from Home");
   await page.goto(`${APP}/onboarding-secure`);
   await page.getByRole("button", { name: "Create Passkey" }).click(slow);
   await page.getByRole("button", { name: "Split Wallet Key" }).click(slow);
@@ -37,6 +37,7 @@ try {
   await page.waitForURL("**/home", slow);
   const wallet = await page.evaluate(() => JSON.parse(localStorage.getItem("swissquote.wallet.device")!).address as Address);
   await mintUsdc(wallet, "3000");
+  await sendEth(wallet, "0.02");
   await page.getByRole("link", { name: /Reviewed dApps/ }).click();
   const panel = page.getByRole("region", { name: "Vault interaction" });
   await panel.getByText("3000 USDC", { exact: true }).waitFor(slow);
@@ -46,6 +47,7 @@ try {
   console.log("2. Editing the amount after a check takes the sign action away");
   await input.fill("25"); await check.click();
   await page.getByRole("button", { name: "Approve amount with passkey", exact: true }).waitFor(slow);
+  await page.getByText(/^Up to [\d.]+ ETH network fee, paid from your wallet$/).waitFor(slow);
   await input.fill("26");
   assert.equal(await page.getByRole("button", { name: /with passkey/ }).count(), 0, "editing intent invalidates the prepared review");
 
@@ -56,14 +58,14 @@ try {
   await panel.getByText("Remaining spending permission: 25 USDC", { exact: true }).waitFor(slow);
   await check.click();
   await page.getByRole("button", { name: "Deposit with passkey", exact: true }).click(slow);
-  await page.getByText("Deposit confirmed on-chain. Swissquote paid the network fee.", { exact: true }).waitFor(slow);
+  await page.getByText("Deposit confirmed on-chain. Your wallet paid the network fee in ETH.", { exact: true }).waitFor(slow);
   await panel.getByText("2975 USDC", { exact: true }).waitFor(slow);
 
   console.log("4. Withdraw to the same wallet");
   await page.getByRole("button", { name: "Withdraw", exact: true }).click();
   await input.fill("10"); await check.click();
   await page.getByRole("button", { name: "Withdraw with passkey", exact: true }).click(slow);
-  await page.getByText("Withdraw confirmed on-chain. Swissquote paid the network fee.", { exact: true }).waitFor(slow);
+  await page.getByText("Withdraw confirmed on-chain. Your wallet paid the network fee in ETH.", { exact: true }).waitFor(slow);
   await panel.getByText("2985 USDC", { exact: true }).waitFor(slow);
 
   console.log("5. Expired review is not signable (injected stale response, no transaction)");

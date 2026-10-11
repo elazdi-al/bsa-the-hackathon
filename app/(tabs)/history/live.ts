@@ -30,8 +30,8 @@ export function transferToTx(transfer: Transfer, wallet: Pick<Wallet, "address" 
     flow: out ? "out" : "in",
     status: "Completed",
     rows: [{ label: out ? "To" : "From", value: minted ? "Local test faucet" : shortAddress(other) }],
-    // Swissquote's paymaster paid for the wallet's own sends; an incoming payment's fee was the sender's.
-    fee: out,
+    // Swissquote's paymaster paid for the sends it sponsored; the rest came from the wallet's ETH, and an incoming payment's fee was the sender's.
+    fee: out && transfer.sponsored,
     hash: transfer.hash,
   };
 }

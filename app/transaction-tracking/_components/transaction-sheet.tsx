@@ -71,13 +71,14 @@ export function TransactionSheet({
 
 /**
  * A direct visit to /transaction-tracking: the sheet is up on arrival and closing it leaves the screen.
- * With `hash`, `amount` and `to` it tracks that send; without, the mock USDC withdrawal.
+ * With `hash`, `amount` and `to` it tracks that send, its gas paid from the wallet up to `fee` if Swissquote didn't
+ * sponsor it; without, the mock USDC withdrawal.
  * A live send has nothing to go back to (its review is spent), so it closes to Home.
  */
 export function TransactionRoute() {
   const params = useSearchParams();
-  const [hash, amount, to] = [params.get("hash"), params.get("amount"), params.get("to")];
-  const live = hash !== null && amount !== null && to !== null ? { hash: hash as Hex, amount, to } : undefined;
+  const [hash, amount, to, fee] = [params.get("hash"), params.get("amount"), params.get("to"), params.get("fee")];
+  const live = hash !== null && amount !== null && to !== null ? { hash: hash as Hex, amount, to, fee: fee ?? undefined } : undefined;
   const router = useRouter();
   const back = useBack("/history");
   const [open, setOpen] = useState(true);
@@ -164,11 +165,17 @@ export function Tracking({ tx, step, badge }: { tx: Tracked; step: number; badge
                   </CopyButton>
                 </Row>
                 <Row label="Network fee">
-                  <span className="flex items-center gap-1 text-positive">
-                    <LightningIcon size={16} />
-                    {tx.networkFee},
-                    <span className="font-normal text-muted-foreground">{tx.feePaidBy}</span>
-                  </span>
+                  {tx.fee ? (
+                    <span className="block text-right text-balance">
+                      Up to {tx.fee} ETH<span className="font-normal text-muted-foreground">, paid from your wallet</span>
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-positive">
+                      <LightningIcon size={16} />
+                      Free,
+                      <span className="font-normal text-muted-foreground">paid by Swissquote</span>
+                    </span>
+                  )}
                 </Row>
               </dl>
             </motion.div>

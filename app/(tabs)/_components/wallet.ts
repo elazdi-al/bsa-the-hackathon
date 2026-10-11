@@ -9,7 +9,7 @@ export type Wallet = {
   address: Address;
   /** USDC, in dollars. */
   usdc: number;
-  /** ETH. Swissquote pays the gas, so only an exit without Swissquote needs any. */
+  /** ETH. Swissquote pays a linked wallet's gas; an unlinked wallet pays its own from this, as an exit without Swissquote does. */
   eth: number;
   /** This phone's key is the wallet key. False on a new phone mid-recovery, and on an old phone once a recovery finished elsewhere. */
   controls: boolean;
