@@ -64,7 +64,7 @@ async function review(page: Page, to: Address, amount: string) {
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Send", exact: true }).waitFor(SLOW);
   const checked = page.locator("section").filter({ hasText: "Checked by Swissquote" });
-  await checked.getByText(`Send ${amount} USDC to ${to.slice(0, 6)}...${to.slice(-4)}.`, { exact: true }).waitFor(SLOW);
+  await checked.getByText(`Send ${Number(amount).toLocaleString("en-US")} USDC to ${to.slice(0, 6)}...${to.slice(-4)}.`, { exact: true }).waitFor(SLOW);
   await checked.getByText("Recipient not on a sanctions list").waitFor(SLOW);
   await checked.getByText("Simulated: it moves only this amount").waitFor(SLOW);
   return page.getByText("Large payment.").isVisible();
