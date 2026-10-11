@@ -165,6 +165,10 @@ await phone1.getByRole("button", { name: "Link your Swissquote account" }).click
 await phone1.getByText("Swissquote pays your network fees, so your wallet needs no ETH.").waitFor(SLOW);
 assert.equal(await phone1.getByRole("dialog").getByText(/\bID\b/).filter({ hasNotText: "Face ID" }).count(), 0, "linking asks for no ID");
 await phone1.getByRole("button", { name: "Link with Face ID" }).click();
+// The link unlocks Swissquote's services, and says so, with Swissquote now paying the network fees.
+await phone1.getByText("You unlocked Swissquote").waitFor(SLOW);
+await phone1.getByText(/Your transactions are now gas‑less/).waitFor(SLOW);
+await phone1.getByRole("button", { name: "Done" }).click();
 await phone1.getByText("Swissquote account", { exact: true }).waitFor(SLOW);
 const owner = await clientOf(phone1);
 await phone1.getByText(`Client ${owner.number}`, { exact: true }).waitFor(SLOW);
@@ -224,6 +228,7 @@ assert.equal(await clientOf(phone2), undefined, "a recovery signs in to nothing"
 await phone2.goto(`${APP}/settings`);
 await phone2.getByRole("button", { name: "Link your Swissquote account" }).click(SLOW);
 await phone2.getByRole("button", { name: "Link with Face ID" }).click();
+await phone2.getByRole("button", { name: "Done" }).click(SLOW);
 await phone2.getByText(`Client ${owner.number}`, { exact: true }).waitFor(SLOW);
 assert.deepEqual(await clientOf(phone2), owner, "signed in as the client who linked the wallet");
 

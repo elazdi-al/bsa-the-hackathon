@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { shortAddress } from "@/app/choose-recipient/data";
-import { BankIcon, ChevronRightIcon, FaceIdIcon, PlusIcon, ShieldIcon, SignOutIcon, VerifiedIcon, type Icon } from "@/components/icons";
+import { BankIcon, ChevronRightIcon, FaceIdIcon, LightningIcon, PlusIcon, ShieldIcon, SignOutIcon, SparkleIcon, SwapIcon, VerifiedIcon, type Icon } from "@/components/icons";
 import { SwissquoteMark } from "@/components/swissquote-mark";
 import { Button } from "@/components/ui/button";
 import { DemoTag } from "@/components/ui/demo-tag";
@@ -13,10 +13,11 @@ import { Switch } from "@/components/ui/switch";
 import { Tray, TrayActions, TrayHeader } from "@/components/ui/tray";
 import { cn } from "@/lib/utils";
 import { phone, type SignedIn } from "@/lib/wallet/phone";
+import { tileLooks } from "../../home/_components/asset-tile";
 import { rowPress } from "../../_components/list";
 import { keepSession, storedSession, useSignedIn } from "../../_components/session";
 import { forgetWallet, refreshWallet, shownAddress, useWallet } from "../../_components/wallet";
-import { keys, linkAdds, sections, version, type KeyId, type Row, type TrayRoot } from "../data";
+import { keys, linkAdds, sections, unlocks, version, type KeyId, type Row, type TrayRoot } from "../data";
 
 type View = { name: TrayRoot } | { name: "key"; id: KeyId };
 
@@ -196,10 +197,68 @@ function LinkView({ done }: { done: () => void }) {
   );
 }
 
-function TrayBody({ view, push, close, remove }: { view: View; push: (next: View) => void; close: () => void; remove: () => void }) {
+// Swap isn't a Home tile; it wears the blue of a swap, as Investments does.
+const unlockLooks = { ...tileLooks, swap: { Icon: SwapIcon, fill: "bg-brand" } };
+
+/** Right after the link: what the client just unlocked, and that Swissquote now pays their network fees. */
+function UnlockedView({ done }: { done: () => void }) {
+  return (
+    <>
+      <TrayHeader
+        icon={<Hero Icon={SparkleIcon} color="var(--color-brand)" />}
+        title="You unlocked Swissquote"
+        description="Your wallet is linked to your Swissquote account, so its services are yours now."
+      />
+      <ul className="mt-6 space-y-3">
+        {unlocks.map(({ id, label, text }) => {
+          const { Icon, fill } = unlockLooks[id];
+          return (
+            <li key={id} className="flex items-center gap-3">
+              <span aria-hidden className={`grid size-10 shrink-0 place-items-center rounded-[12px] text-white ${fill}`}>
+                <Icon size={24} />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-label">{label}</span>
+                <span className="block text-body text-muted-foreground">{text}</span>
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="mt-6 flex gap-3 rounded-2xl bg-secondary p-4 text-body text-pretty">
+        <LightningIcon size={20} className="shrink-0 text-brand" />
+        Your transactions are now gas‑less: Swissquote pays the network fees, so your wallet needs no ETH.
+      </p>
+      <TrayActions>
+        <Button size="lg" className="h-12" onClick={done}>
+          Done
+        </Button>
+      </TrayActions>
+      <p data-demo="" className="mt-3 text-center text-caption text-muted-foreground">
+        These services are demos in this build.
+      </p>
+    </>
+  );
+}
+
+function TrayBody({
+  view,
+  push,
+  unlock,
+  close,
+  remove,
+}: {
+  view: View;
+  push: (next: View) => void;
+  unlock: () => void;
+  close: () => void;
+  remove: () => void;
+}) {
   switch (view.name) {
     case "link":
-      return <LinkView done={close} />;
+      return <LinkView done={unlock} />;
+    case "unlocked":
+      return <UnlockedView done={close} />;
     case "keys":
       return (
         <>
@@ -330,7 +389,16 @@ export function SettingsView() {
         onBack={stack.length > 1 ? () => setStack((s) => s.slice(0, -1)) : undefined}
         onClosed={() => setStack([])}
       >
-        {view && <TrayBody view={view} push={(next) => setStack((s) => [...s, next])} close={() => setOpen(false)} remove={remove} />}
+        {view && (
+          <TrayBody
+            view={view}
+            push={(next) => setStack((s) => [...s, next])}
+            // The link replaces its own view: there is nothing to go back to once it's made.
+            unlock={() => setStack([{ name: "unlocked" }])}
+            close={() => setOpen(false)}
+            remove={remove}
+          />
+        )}
       </Tray>
     </div>
   );

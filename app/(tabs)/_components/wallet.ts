@@ -165,6 +165,12 @@ export const phoneDate = (wallet: Pick<Wallet, "skew">, chainSeconds: number) =>
 /** The wallet's address once read. */
 export const shownAddress = (snapshot: WalletSnapshot) => (snapshot.status === "ready" ? snapshot.wallet.address : undefined);
 
+/**
+ * A wallet this phone hasn't linked to a Swissquote client, so Swissquote's services stay locked. Not while it loads,
+ * and not on a phone without a wallet, whose Home is the design preview.
+ */
+export const isUnlinked = (snapshot: WalletSnapshot) => snapshot.status === "ready" && snapshot.wallet.owner === null;
+
 /** Sends a phone with no wallet to onboarding. Every screen that shows the wallet renders one. */
 export function RequireWallet() {
   const router = useRouter();

@@ -40,7 +40,7 @@ export function historyFor(total: number, now: number, balanceAt: (time: number)
   return Object.fromEntries(entries) as Record<Range, { values: number[]; heights: number[]; dates: string[] }>;
 }
 
-export type TileId = "cash" | "investments" | "earn" | "card";
+export type TileId = "cash" | "investments" | "earn" | "card" | "staking" | "borrowing";
 /** A tile either pushes its own screen or opens an account sheet that says what the account is. `value` is undefined until known. */
 export type Tile = { id: TileId; label: string; value: number | undefined; demo?: true } & ({ href: string } | { about: string });
 
@@ -49,7 +49,12 @@ export const tiles: Tile[] = [
   { id: "investments", label: "Investments", value: undefined, href: "/coin-breakdown", demo: true },
   { id: "earn", label: "Earn", value: undefined, about: "Interest on your USDC", demo: true },
   { id: "card", label: "Card", value: undefined, about: "A virtual Visa card for your USDC", demo: true },
+  { id: "staking", label: "Staking", value: undefined, about: "Rewards for staking your ETH with Swissquote", demo: true },
+  { id: "borrowing", label: "Borrowing", value: undefined, about: "USDC lent against your Swissquote investments", demo: true },
 ];
+
+/** Every account but Cash is a Swissquote service, so it opens once the wallet is linked to the client's Swissquote account. */
+export const needsLink = (id: TileId) => id !== "cash";
 
 /** The sum of the tiles, or undefined while any of them isn't known yet. */
 export const totalOf = (tiles: Tile[]) =>

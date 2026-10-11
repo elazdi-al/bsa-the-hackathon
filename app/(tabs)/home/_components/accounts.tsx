@@ -14,9 +14,9 @@ import { dayLabel, type Tx } from "../../history/data";
 import { transferToTx } from "../../history/live";
 import { sectionLabel } from "../../_components/list";
 import { Money } from "../../_components/money";
-import { forgetWallet, phoneDate, refreshWallet, useActivity, useWallet, type WalletSnapshot } from "../../_components/wallet";
-import { tiles, type Tile, type TileId } from "../data";
-import { AssetTile, tileLooks } from "./asset-tile";
+import { forgetWallet, isUnlinked, phoneDate, refreshWallet, useActivity, useWallet, type WalletSnapshot } from "../../_components/wallet";
+import { needsLink, tiles, type Tile, type TileId } from "../data";
+import { AssetTile, lockedFill, tileLooks } from "./asset-tile";
 import { MoneyPlaceholder } from "./blur-money";
 import { PromoStack } from "./promo-stack";
 
@@ -40,6 +40,8 @@ export function Accounts() {
   // Read while Home shows, so the Cash sheet opens on its transfers.
   useActivity();
   const alert = alertFor(wallet);
+  // Until the wallet is linked, every account but Cash is locked.
+  const locked = (id: TileId) => isUnlinked(wallet) && needsLink(id);
   const [open, setOpen] = useState(false);
   // Kept after close so the sheet's content doesn't vanish mid-exit.
   const [id, setId] = useState<TileId>("cash");
@@ -62,7 +64,7 @@ export function Accounts() {
         )}
         <section aria-label="Accounts" className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-2">
           {shown.map((tile, i) => (
-            <AssetTile key={tile.id} tile={tile} index={i} onOpen={() => show(tile.id)} />
+            <AssetTile key={tile.id} tile={tile} index={i} locked={locked(tile.id)} onOpen={() => show(tile.id)} />
           ))}
           <PromoStack className="col-span-2 md:col-span-4 lg:col-span-2" onOpenAccount={show} />
         </section>
@@ -71,7 +73,7 @@ export function Accounts() {
       <Drawer open={open} onOpenChange={setOpen}>
         <FloatingSheetContent>
           <div className="min-h-0 overflow-y-auto px-4 pb-4">
-            <AccountSheet tile={shown.find((t) => t.id === id)!} wallet={wallet} />
+            <AccountSheet tile={shown.find((t) => t.id === id)!} wallet={wallet} locked={locked(id)} />
           </div>
         </FloatingSheetContent>
       </Drawer>
@@ -201,7 +203,7 @@ function recentActivity(id: TileId, wallet: WalletSnapshot): Tx[] | undefined {
   return wallet.wallet.activity?.slice(0, 4).map((t) => transferToTx(t, wallet.wallet));
 }
 
-function AccountSheet({ tile, wallet }: { tile: Tile; wallet: WalletSnapshot }) {
+function AccountSheet({ tile, wallet, locked }: { tile: Tile; wallet: WalletSnapshot; locked: boolean }) {
   const { Icon, fill } = tileLooks[tile.id];
   const activity = recentActivity(tile.id, wallet);
 
@@ -209,36 +211,52 @@ function AccountSheet({ tile, wallet }: { tile: Tile; wallet: WalletSnapshot }) 
     <>
       <FloatingSheetHeader
         icon={
-          <span aria-hidden className={`grid size-14 place-items-center rounded-[18px] text-white ${fill}`}>
+          <span aria-hidden className={`grid size-14 place-items-center rounded-[18px] ${locked ? lockedFill : `text-white ${fill}`}`}>
             <Icon size={32} />
           </span>
         }
         title={tile.label}
       >
-        <p className="mt-1 text-amount">{tile.value === undefined ? <MoneyPlaceholder /> : <Money value={tile.value} />}</p>
-        {"about" in tile && <p className="mt-1 text-body text-pretty text-muted-foreground">{tile.about}</p>}
+        {locked ? (
+          <p className="mt-1 text-body text-pretty text-muted-foreground">
+            {tile.label} is a Swissquote service. Link your wallet to your Swissquote account to unlock it.
+          </p>
+        ) : (
+          <>
+            <p className="mt-1 text-amount">{tile.value === undefined ? <MoneyPlaceholder /> : <Money value={tile.value} />}</p>
+            {"about" in tile && <p className="mt-1 text-body text-pretty text-muted-foreground">{tile.about}</p>}
+          </>
+        )}
         {tile.demo && <DemoTag className="mt-3" />}
       </FloatingSheetHeader>
 
-      <section aria-label="Recent activity" className="mt-8">
-        <h3 className={sectionLabel}>Recent activity</h3>
-        <ul>
-          {activity?.map((t) => (
-            <li key={t.id} className="flex min-h-[68px] items-center gap-4 py-3">
-              <RowBody tx={t} when={dayLabel(t.date)} />
-            </li>
-          ))}
-        </ul>
-        {activity?.length === 0 && <p className="py-3 text-body text-muted-foreground">No activity yet</p>}
-      </section>
+      {locked ? (
+        <Link href="/settings" transitionTypes={["tab-forward"]} className={buttonVariants({ className: "mt-8 w-full" })}>
+          Link your Swissquote account
+        </Link>
+      ) : (
+        <>
+          <section aria-label="Recent activity" className="mt-8">
+            <h3 className={sectionLabel}>Recent activity</h3>
+            <ul>
+              {activity?.map((t) => (
+                <li key={t.id} className="flex min-h-[68px] items-center gap-4 py-3">
+                  <RowBody tx={t} when={dayLabel(t.date)} />
+                </li>
+              ))}
+            </ul>
+            {activity?.length === 0 && <p className="py-3 text-body text-muted-foreground">No activity yet</p>}
+          </section>
 
-      <Link
-        href={`/history?account=${tile.id}`}
-        transitionTypes={["tab-forward"]}
-        className={buttonVariants({ variant: "secondary", className: "mt-4 w-full" })}
-      >
-        See all activity
-      </Link>
+          <Link
+            href={`/history?account=${tile.id}`}
+            transitionTypes={["tab-forward"]}
+            className={buttonVariants({ variant: "secondary", className: "mt-4 w-full" })}
+          >
+            See all activity
+          </Link>
+        </>
+      )}
     </>
   );
 }

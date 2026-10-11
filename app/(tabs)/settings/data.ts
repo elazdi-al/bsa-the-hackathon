@@ -1,11 +1,12 @@
 import type { ReactNode } from "react";
 import { KEYS, type KeyId } from "@/app/onboarding-secure/data";
-import { BankIcon, BellIcon, CoinIcon, HelpIcon, KeyIcon, LightningIcon, LockIcon, SignOutIcon, type Icon } from "@/components/icons";
+import { BankIcon, BellIcon, CoinIcon, HelpIcon, KeyIcon, LightningIcon, LockIcon, SignOutIcon, SparkleIcon, type Icon } from "@/components/icons";
+import type { TileId } from "../home/data";
 
 export type { KeyId };
 
 /** The trays a row can open; each is the root of its own view stack. */
-export type TrayRoot = "keys" | "link" | "remove";
+export type TrayRoot = "keys" | "link" | "remove" | "unlocked";
 
 /** What pressing a row does. `info` rows don't press, so they get no chevron. */
 type Behaviour =
@@ -36,6 +37,17 @@ export const linkAdds: { Icon: Icon; text: string }[] = [
   { Icon: BankIcon, text: "Move money between your Swissquote account and this wallet without extra checks." },
   { Icon: LightningIcon, text: "Swissquote pays your network fees, so your wallet needs no ETH." },
   { Icon: LockIcon, text: "Swissquote can lock this phone if it's lost or stolen." },
+  { Icon: SparkleIcon, text: "Unlocks Swissquote's services: Investments, Swap, Earn, Staking, Borrowing and Card." },
+];
+
+/** What linking unlocks, told once the link is made: Swissquote's services, each in its Home tile's colours. All demos. */
+export const unlocks: { id: Exclude<TileId, "cash"> | "swap"; label: string; text: string }[] = [
+  { id: "investments", label: "Investments", text: "Trade stocks, ETFs and crypto." },
+  { id: "swap", label: "Swap", text: "Swap between your coins." },
+  { id: "earn", label: "Earn", text: "Interest on your USDC." },
+  { id: "staking", label: "Staking", text: "Rewards for staking your ETH." },
+  { id: "borrowing", label: "Borrowing", text: "Borrow USDC against your investments." },
+  { id: "card", label: "Card", text: "A virtual Visa card for your USDC." },
 ];
 
 /** Groups of rows, set apart by space alone. */

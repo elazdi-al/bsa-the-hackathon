@@ -110,6 +110,7 @@ await phone1.goto(`${APP}/settings`);
 await phone1.getByRole("button", { name: "Link your Swissquote account" }).click(SLOW);
 await shot(phone1, "settings-link", phone1.getByRole("button", { name: "Link with Face ID" }));
 await phone1.getByRole("button", { name: "Link with Face ID" }).click();
+await phone1.getByRole("button", { name: "Done" }).click(SLOW);
 await phone1.getByText("Swissquote account", { exact: true }).waitFor(SLOW);
 
 console.log("New phone: recover with the Recovery Key file");

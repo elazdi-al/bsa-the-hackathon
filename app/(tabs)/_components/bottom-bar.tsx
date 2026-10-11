@@ -6,13 +6,14 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { RecipientSheet } from "@/app/choose-recipient/_components/recipient-sheet";
 import { sendDraft } from "@/app/choose-recipient/data";
-import { ClockIcon, GearIcon, GridIcon, HomeIcon, PlusIcon } from "@/components/icons";
+import { ClockIcon, GearIcon, GridIcon, HomeIcon, LockIcon, PlusIcon } from "@/components/icons";
 import { transitionFor } from "@/components/navigation";
 import { kinds } from "../history/_components/tx-row";
 import { column } from "./column";
 import { ReceiveSheet } from "./receive-sheet";
 import { SwapSheet } from "./swap-sheet";
 import { blurred, leave, sharp, snappy } from "./transitions";
+import { isUnlinked, useWallet } from "./wallet";
 
 // Each sheet is named for the transaction kind it makes, so its glyph is that kind's glyph in History.
 type Sheet = "receive" | "send" | "swap";
@@ -58,6 +59,8 @@ export function BottomBar() {
   const [open, setOpen] = useState(false);
   const [sheet, setSheet] = useState<Sheet | null>(null);
   const fab = useRef<HTMLButtonElement>(null);
+  // Swap is a Swissquote service: grey, and inert, until the wallet is linked.
+  const swapLocked = isUnlinked(useWallet());
 
   const close = () => {
     setOpen(false);
@@ -160,20 +163,25 @@ export function BottomBar() {
             >
               {actions.map((action, i) => {
                 const { Icon, text } = kinds[action.sheet];
+                const locked = action.sheet === "swap" && swapLocked;
                 return (
                   <motion.li key={action.label} custom={i} variants={item} className="origin-right">
                     <button
                       type="button"
+                      aria-disabled={locked || undefined}
                       onClick={() => {
+                        if (locked) return;
                         setOpen(false);
                         setSheet(action.sheet);
                       }}
-                      className={menuItem}
+                      className={`${menuItem} ${locked ? "text-faint" : ""}`}
                       autoFocus={i === 0}
                     >
+                      {locked && <LockIcon size={20} />}
                       {action.label}
+                      {locked && <span className="sr-only">, locked until you link your Swissquote account</span>}
                       <span className="grid size-12 place-items-center">
-                        <Icon size={32} className={text} />
+                        <Icon size={32} className={locked ? undefined : text} />
                       </span>
                     </button>
                   </motion.li>
