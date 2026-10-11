@@ -74,15 +74,13 @@ test("each separate approval, deposit, withdrawal and revocation is evaluated", 
     assert.equal(decisionAllowsSigning(decision, Date.parse(decision.expiresAt)), false);
   }
 });
-test("high-value and unlisted origins do not authorize signing", async () => {
+test("unlisted origins do not authorize signing", async () => {
   const { engine } = testEngine();
   const call = buildVaultCall(vault, DEMO.account, "approve", 2_000_000_000n);
-  const request = { requestId: "high-value", nonce: "1", account: DEMO.account, chainId: DEMO.chainId, dapp: { origin: vault.origin }, calls: [call] };
-  const high = (await engine.evaluate(request, { subject: DEMO.account })).decision;
-  assert.equal(high.status, "STEP_UP");
-  assert.equal(decisionAllowsSigning(high, NOW.getTime()), false);
-  const denied = (await engine.evaluate({ ...request, dapp: { origin: "https://unlisted.example" } }, { subject: DEMO.account })).decision;
+  const request = { requestId: "unlisted", nonce: "1", account: DEMO.account, chainId: DEMO.chainId, dapp: { origin: "https://unlisted.example" }, calls: [call] };
+  const denied = (await engine.evaluate(request, { subject: DEMO.account })).decision;
   assert.equal(denied.status, "DENY_ASSISTANCE");
+  assert.equal(decisionAllowsSigning(denied, NOW.getTime()), false);
   assert.ok(denied.reasons.some((reason) => reason.code === "DAPP_ORIGIN_NOT_APPROVED"));
 });
 test("unsupported token decimals remain a policy validation error", () => {

@@ -129,11 +129,4 @@ await publicClient.request({ method: "evm_increaseTime", params: [numberToHex(48
 await publicClient.request({ method: "evm_mine", params: [] } as never);
 await shot(phone2, "recover-ready", phone2.getByText("Your wallet is ready to restore"));
 
-// Last, so Home and History above show the 80 USDC left after the first payment.
-console.log("Old phone: a large payment, with enough USDC to cover it");
-await mint(wallet, "5000");
-await review(phone1, "anna.eth", "2500");
-await phone1.getByRole("button", { name: "Continue" }).click();
-await shot(phone1, "send-large", phone1.getByText(/^Large payment\./));
-
 await browser.close();

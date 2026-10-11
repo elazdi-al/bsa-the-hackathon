@@ -142,10 +142,7 @@ function VaultPanel({ vault, wallet, onBusyChange }: { vault: VaultDapp; wallet:
     if (!canSign || !prepared || deadline <= Date.now() || !decisionAllowsSigning(review)) return;
     setPhase("signing"); setError("");
     try {
-      const sent = await phone.approve(prepared);
-      // Swissquote holds only payments. A reviewed dApp call goes on-chain at once or is refused.
-      if (!("transactionHash" in sent)) throw new Error("Swissquote held this call instead of sending it.");
-      const hash = sent.transactionHash;
+      const { transactionHash: hash } = await phone.approve(prepared);
       setReceipts((previous) => [...previous, { step, hash }]);
       setPrepared(undefined); setReview(undefined); setQuote(undefined);
       await Promise.all([refresh(hash), refreshWallet()]);
@@ -205,14 +202,14 @@ function VaultPanel({ vault, wallet, onBusyChange }: { vault: VaultDapp; wallet:
 
 function ComplianceReview({ decision }: { decision: ComplianceDecision }) {
   const allowed = decision.status === "ALLOW";
-  const status: Record<ComplianceDecision["status"], string> = { ALLOW: "Policy allows sponsorship", STEP_UP: "Additional verification required", REVIEW: "Review required", DENY_ASSISTANCE: "Swissquote assistance refused" };
+  const status: Record<ComplianceDecision["status"], string> = { ALLOW: "Policy allows sponsorship", REVIEW: "Review required", DENY_ASSISTANCE: "Swissquote assistance refused" };
   return <section aria-label="Compliance review" className="mt-5 rounded-2xl border border-border p-4">
     <h3 className={`flex items-center gap-2 text-label ${allowed ? "text-positive" : "text-pending"}`}>{allowed ? <CheckIcon size={18} /> : <WarningIcon size={18} />}{status[decision.status]}</h3>
     <p className="mt-2 text-caption text-muted-foreground">{decision.assurance === "DEMO" ? "Demo evidence" : "Live-provider evidence"} · Risk {decision.riskLevel.toLowerCase()}</p>
     <ul className="mt-3 space-y-2 text-body">{decision.summary.map((line, index) => <li key={index}>{line}</li>)}</ul>
     {!allowed && <>
       <ul className="mt-3 space-y-2 text-caption text-negative">{decision.reasons.map((reason, index) => <li key={index}>{reason.message}</li>)}</ul>
-      <p className="mt-3 text-caption">No passkey request or transaction submission. This build has no additional-verification or manual-review workflow.</p>
+      <p className="mt-3 text-caption">No passkey request or transaction submission. This build has no manual-review workflow.</p>
     </>}
     <details className="mt-4 text-caption">
       <summary className="cursor-pointer text-muted-foreground">Checks and limitations</summary>

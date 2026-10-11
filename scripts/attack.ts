@@ -160,7 +160,7 @@ export async function attack({ phone: stolen, homeKey, unlocked, ownersId }: { p
     await heldThenCancelled(withKey, started.executeAfter, homeKey, wallet);
 
     console.log(
-      "A6. A thief who can unlock the phone, so Face ID passes: not run. Only a linked wallet's owner can have Swissquote lock the phone, after the ID check; a thief who unlocks this one pays like the owner, and anything over 1,000 USDC waits 24 hours",
+      "A6. A thief who can unlock the phone, so Face ID passes: not run. Only a linked wallet's owner can have Swissquote lock the phone, after the ID check; a thief who unlocks this one pays like the owner, at once",
     );
     return;
   }
@@ -183,7 +183,7 @@ export async function attack({ phone: stolen, homeKey, unlocked, ownersId }: { p
 
   console.log("A6. The thief can unlock the phone, so Face ID passes. The owner reports it stolen");
   const payment = await unlocked.prepare({ to: addresses.usdc, data: transfer });
-  say("Phone", "Face ID passes, so it pays like the owner until they report it, and anything over 1,000 USDC waits 24 hours. Here it only prepares 50 USDC to the attacker");
+  say("Phone", "Face ID passes, so it pays like the owner, at once, until they report it. Here it only prepares 50 USDC to the attacker");
   const owner = newPhone();
   // The owner shows their ID card to Swissquote's hotline; the demo types its number.
   const lock = (method: "POST" | "DELETE") => send(`${APP}/api/wallets/${wallet}/lock`, { identity: ownersId }, method);

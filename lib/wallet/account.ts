@@ -1,6 +1,6 @@
 // SwissquoteAccount ABIs, gas limits and signature encoding, shared by the phone, the Wallet API and the partner.
 import type { WebAuthnP256 } from "ox";
-import { concat, decodeAbiParameters, encodeAbiParameters, keccak256, numberToHex, parseAbi, parseAbiParameter, slice, toHex, type Address, type Hex } from "viem";
+import { concat, encodeAbiParameters, keccak256, numberToHex, parseAbi, parseAbiParameter, toHex, type Address, type Hex } from "viem";
 
 export type Passkey = { x: Hex; y: Hex };
 
@@ -47,14 +47,8 @@ export const ACCOUNT_GAS = { callGasLimit: 300_000n, verificationGasLimit: 1_000
 
 const validity = [{ type: "uint48" }, { type: "uint48" }] as const;
 
-/** The VerifyingPaymaster's window in paymasterData, in chain seconds: no sooner than validAfter (0: at once), no later than validUntil. */
-export const encodeSponsorship = (validUntil: number, validAfter: number, signature: Hex) =>
-  concat([encodeAbiParameters(validity, [validUntil, validAfter]), signature]);
-
-export function decodeSponsorship(paymasterData: Hex) {
-  const [validUntil, validAfter] = decodeAbiParameters(validity, slice(paymasterData, 0, 64));
-  return { validUntil, validAfter };
-}
+/** The VerifyingPaymaster's window in paymasterData, in chain seconds: valid at once (validAfter 0), no later than validUntil. */
+export const encodeSponsorship = (validUntil: number, signature: Hex) => concat([encodeAbiParameters(validity, [validUntil, 0]), signature]);
 
 const webAuthnAuth = parseAbiParameter(
   "(bytes32 r, bytes32 s, uint256 challengeIndex, uint256 typeIndex, bytes authenticatorData, string clientDataJSON)",
@@ -89,12 +83,6 @@ export function encodeRecoverySignature(keySignature: Hex, recoverySignature: He
 /** What the recovery key signs to have Swissquote cancel a pending recovery for the client. */
 export const cancelRecoveryMessage = (wallet: Address, executeAfter: number) =>
   `Cancel the recovery of wallet ${wallet.toLowerCase()} pending until ${executeAfter}.`;
-
-/** What the passkey signs, with Face ID, to cancel a payment Swissquote holds. */
-export const cancelPaymentChallenge = (hash: Hex) => keccak256(toHex(`Cancel the held payment ${hash}.`));
-
-/** What the recovery key signs to have Swissquote cancel a held payment for the client, who may no longer have the phone. */
-export const cancelPaymentMessage = (wallet: Address, hash: Hex) => `Cancel the payment ${hash} held for wallet ${wallet.toLowerCase()}.`;
 
 /** What the wallet key signs to name the recovery key that may release its shares. */
 export const bindRecoveryKeyMessage = (signer: Address, recoveryKey: Address) =>

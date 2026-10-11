@@ -31,7 +31,7 @@ test("non-authorizing compliance reviews never ask for a passkey", async () => {
   const { decision } = await engine.evaluate({ requestId: "review", nonce: "1", account: DEMO.account, chainId: DEMO.chainId,
     dapp: { origin: vault.origin }, calls: [buildVaultCall(vault, DEMO.account, "approve", 2_000_000_000n)] }, { subject: DEMO.account });
   decision.expiresAt = new Date(Date.now() + 60_000).toISOString();
-  for (const status of ["STEP_UP", "REVIEW", "DENY_ASSISTANCE"] as const) {
+  for (const status of ["REVIEW", "DENY_ASSISTANCE"] as const) {
     await assert.rejects(phone.approve({ hash, userOp: {} as Prepared["userOp"], review: { ...decision, status } }), /does not authorize/);
   }
   assert.equal(authentications(), 0);
@@ -53,7 +53,7 @@ test("phone forwards dApp metadata but rejects altered wallet calldata before si
         sender: DEMO.account, nonce: 0n, callData: tamper ? "0x1234" : expected, callGasLimit: 300_000n,
         verificationGasLimit: 1_000_000n, preVerificationGas: 50_000n, maxFeePerGas: 1n, maxPriorityFeePerGas: 1n,
         paymaster: DEMO.recipient, paymasterVerificationGasLimit: 100_000n, paymasterPostOpGasLimit: 0n,
-        paymasterData: encodeSponsorship(0, 0, "0x"), signature: "0x",
+        paymasterData: encodeSponsorship(0, "0x"), signature: "0x",
       };
       return Response.json({ hash: getUserOperationHash({ chainId: DEMO.chainId, entryPointAddress: entryPoint07Address, entryPointVersion: "0.7", userOperation: op }), userOp: formatUserOperationRequest(op) });
     };

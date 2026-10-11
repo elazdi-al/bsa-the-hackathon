@@ -11,7 +11,7 @@ async function main() {
   const audit = new MemoryAuditSink();
   const engine = new ComplianceEngine(policy, { mode: "demo", newId: randomUUID, signer, audit,
     screening: new DemoScreeningProvider(), simulation: new DemoSimulationProvider(policy) });
-  const names = ["transfer", "high-value", "vault-deposit", "sanctioned", "unknown-contract", "unlimited-approval"];
+  const names = ["transfer", "vault-deposit", "sanctioned", "unknown-contract", "unlimited-approval"];
   const api = process.argv.includes("--http");
   const requestOnly = process.argv.indexOf("--request");
   if (requestOnly >= 0) {

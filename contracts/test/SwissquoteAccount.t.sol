@@ -110,30 +110,6 @@ contract SwissquoteAccountTest is Test {
         _handle(op);
     }
 
-    // ---------------------------------------------------------------- held payment
-
-    /// Above 1,000 USDC, Swissquote sponsors the payment only from 24 hours on, under a nonce key of its own.
-    function test_heldPaymentLeavesOnlyAfterItsRelease() public {
-        _deploy();
-        PackedUserOperation memory held = _op(_transfer(anna, 500e6), false);
-        held.nonce = entryPoint.getNonce(address(account), 7);
-        uint48 releaseAt = uint48(block.timestamp + 24 hours);
-        _sponsor(held, releaseAt + 7 days, releaseAt);
-        _signNormal(held, walletKey, passkeyKey);
-
-        vm.expectRevert(abi.encodeWithSelector(IEntryPoint.FailedOp.selector, 0, "AA32 paymaster expired or not due"));
-        _handle(held);
-
-        // A payment sent meanwhile uses nonce key 0 and leaves the held one valid.
-        PackedUserOperation memory small = _op(_transfer(anna, 5e6), false);
-        _signNormal(small, walletKey, passkeyKey);
-        _handle(small);
-
-        vm.warp(releaseAt);
-        _handle(held);
-        assertEq(usdc.balanceOf(anna), 525e6);
-    }
-
     // ---------------------------------------------------------------- recovery
 
     function test_recoveryFlow() public {

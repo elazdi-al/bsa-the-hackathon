@@ -6,9 +6,9 @@ import { useEffect, useState, type ReactNode } from "react";
 import { encodeFunctionData, erc20Abi, getAddress, parseUnits, type Address } from "viem";
 import { grouped, retyped } from "@/app/(tabs)/_components/amount";
 import { usd } from "@/app/(tabs)/_components/money";
-import { available, phoneDate, refreshWallet, useWallet, type WalletSnapshot } from "@/app/(tabs)/_components/wallet";
+import { refreshWallet, useWallet, type WalletSnapshot } from "@/app/(tabs)/_components/wallet";
 import { recipientFor, sendDraft, shortAddress } from "@/app/choose-recipient/data";
-import { CheckIcon, ClockIcon, ShieldIcon, WalletIcon } from "@/components/icons";
+import { CheckIcon, ShieldIcon, WalletIcon } from "@/components/icons";
 import { useBack } from "@/components/navigation";
 import { BackButton } from "@/components/ui/back-button";
 import { DemoTag } from "@/components/ui/demo-tag";
@@ -30,13 +30,13 @@ const UNAVAILABLE: Record<Exclude<WalletSnapshot["status"], "ready">, string> = 
 /** What stops Continue and Send, as a calm line; "" holds them without a word while the wallet loads, undefined lets them run. */
 function blocker(snapshot: WalletSnapshot, amount: number): string | undefined {
   if (snapshot.status !== "ready") return UNAVAILABLE[snapshot.status];
-  const { controls, locked, recovery, restoring } = snapshot.wallet;
+  const { controls, locked, recovery, restoring, usdc } = snapshot.wallet;
   if (!controls) {
     if (recovery?.mine) return "You can send once your wallet is restored on this phone.";
     return restoring ? "Your recovery was cancelled, so this phone can't send yet." : "Your wallet moved to another phone, so this one can't send from it.";
   }
   if (locked) return "Swissquote locked this phone after it was reported lost.";
-  if (amount > available(snapshot.wallet)) return `Only ${usd.format(available(snapshot.wallet))} available.`;
+  if (amount > usdc) return `Only ${usd.format(usdc)} available.`;
 }
 
 /**
@@ -136,22 +136,19 @@ function Review({ to, address, asked, children }: { to: string; address: Address
   const snapshot = useWallet();
   // Only while the button can act: a send landing mid-flight would otherwise flash "Only $0.00 available." under Sending.
   const blocked = phase === "review" || phase === "confirm" ? blocker(snapshot, Number(amount)) : undefined;
-  // When a payment Swissquote holds leaves, on this phone's clock.
-  const leaves = prepared?.releaseAt !== undefined && snapshot.status === "ready" ? phoneDate(snapshot.wallet, prepared.releaseAt) : undefined;
 
   useEffect(() => sendDraft.set(to), [to]);
 
   useEffect(() => {
     if (!sent) return;
     const id = setTimeout(() => {
-      const tracked = new URLSearchParams({ hash: "transactionHash" in sent ? sent.transactionHash : sent.hash, amount, to: address });
-      // The tracker repeats the time the client approved, as they read it here.
-      if ("releaseAt" in sent && leaves) tracked.set("leaves", leaves);
       // Replace, so Back from the tracker can't land on a review that's already sent.
-      router.replace(`/transaction-tracking?${tracked}`, { transitionTypes: ["push"] });
+      router.replace(`/transaction-tracking?${new URLSearchParams({ hash: sent.transactionHash, amount, to: address })}`, {
+        transitionTypes: ["push"],
+      });
     }, SENT_MS);
     return () => clearTimeout(id);
-  }, [sent, amount, address, leaves, router]);
+  }, [sent, amount, address, router]);
 
   function reset() {
     setPhase("review");
@@ -221,7 +218,7 @@ function Review({ to, address, asked, children }: { to: string; address: Address
           </label>
           {/* One line tall whatever it says: a blocker that wraps spills into the padding below, so nothing moves. */}
           <p className="mt-2 h-lh text-body text-balance text-muted-foreground tabular-nums">
-            {blocked ?? (snapshot.status === "ready" && `${usd.format(available(snapshot.wallet))} available`)}
+            {blocked ?? (snapshot.status === "ready" && `${usd.format(snapshot.wallet.usdc)} available`)}
           </p>
         </div>
 
@@ -230,17 +227,6 @@ function Review({ to, address, asked, children }: { to: string; address: Address
         <AnimatePresence initial={false}>{prepared?.summary && <Checked summary={prepared.summary} demo={prepared.demo} />}</AnimatePresence>
 
         <div className="mt-auto pt-10 md:mt-0">
-          {/* Two lines kept free whatever it says, so the button doesn't move when a large payment's notice comes in. */}
-          <div className="mb-3 flex h-[2lh] items-end justify-center text-center text-caption text-balance text-muted-foreground tabular-nums">
-            <AnimatePresence initial={false}>
-              {leaves && (
-                <motion.p key="held" {...blurSwap}>
-                  <ClockIcon size={16} className="mr-1 inline-block align-[-3px]" />
-                  Large payment. It leaves on {leaves}, and you can cancel until then.
-                </motion.p>
-              )}
-            </AnimatePresence>
-          </div>
           {error.length > 0 && (
             <div role="alert" className="mb-3 text-center text-caption text-negative">
               {error.map((line) => (
@@ -250,7 +236,7 @@ function Review({ to, address, asked, children }: { to: string; address: Address
               ))}
             </div>
           )}
-          <SendButton phase={phase} held={prepared?.releaseAt !== undefined} disabled={!valid || blocked !== undefined} onPress={phase === "confirm" ? send : check} />
+          <SendButton phase={phase} disabled={!valid || blocked !== undefined} onPress={phase === "confirm" ? send : check} />
         </div>
       </div>
     </MotionConfig>

@@ -1,8 +1,7 @@
 // The phone's side of the protocol. It holds Share A and the passkey. To sign, it rebuilds the
 // wallet key from A and Swissquote's B, then keeps the key in memory only: for three hours at
 // most, and never past the app closing. It builds every call itself, and before Face ID signs it
-// checks that Swissquote's operation carries that call, is sponsored, and hashes to what it signs,
-// and reads from the sponsorship when it may leave, so a held payment shows its release time.
+// checks that Swissquote's operation carries that call, is sponsored, and hashes to what it signs.
 // If Swissquote's services are gone for good, it rebuilds the key from A and the partner's C and pays
 // its own gas, without asking Swissquote anything.
 import { P256, WebAuthnP256 } from "ox";
@@ -33,10 +32,7 @@ import {
   ACCOUNT_GAS,
   accountAbi,
   bindRecoveryKeyMessage,
-  cancelPaymentChallenge,
-  cancelPaymentMessage,
   cancelRecoveryMessage,
-  decodeSponsorship,
   encodeNormalSignature,
   encodeRecoverySignature,
   factoryAbi,
@@ -93,8 +89,6 @@ export type WalletState = {
   chainTime: number;
   /** Swissquote's record that the wallet is its client's. Only for that client, signed in on this phone: who owns a wallet is bank secrecy. */
   owner?: Owner;
-  /** Large payments Swissquote holds, soonest first. */
-  held: HeldPayment[];
 };
 
 /**
@@ -106,12 +100,6 @@ export type SignedIn = { session: string; client: { number: string; document: st
 /** The statement that the wallet belongs to `client`, and the passkey's assertion over it: Swissquote's ownership proof. */
 export type Owner = { client: string; createdAt: number; statement: string; assertion: z.infer<typeof assertion> };
 
-/**
- * A payment Swissquote holds until `releaseAt`, in chain seconds, which the client can cancel until it leaves.
- * `value` is in USDC base units; `stopped` says why it won't leave, when Swissquote's check at release refused it.
- */
-export type HeldPayment = { hash: Hex; to: Address; value: string; releaseAt: number; stopped: string | null };
-
 /** A USDC transfer in or out of the wallet. `value` is in base units. */
 export type Transfer = { hash: Hex; from: Address; to: Address; value: string; timestamp: number };
 
@@ -120,13 +108,10 @@ export type Identity = { document: string };
 
 type Storage = Pick<globalThis.Storage, "getItem" | "setItem" | "removeItem">;
 type Config = { chainId: number; entryPoint: Address; usdc: Address };
-/**
- * `summary`: Swissquote's plain reading of a payment it checked; `demo` when test providers did the checks.
- * `releaseAt`: the chain time a held payment leaves, read by this phone from the sponsorship it signs.
- */
-export type Prepared = { hash: Hex; userOp: RpcUserOperation<"0.7">; summary?: string[]; demo?: boolean; releaseAt?: number; review?: ComplianceDecision; expiresAt?: string };
-/** On-chain, or held by Swissquote until `releaseAt` and cancellable by its operation `hash`. */
-export type Sent = { transactionHash: Hex } | { hash: Hex; releaseAt: number };
+/** `summary`: Swissquote's plain reading of a payment it checked; `demo` when test providers did the checks. */
+export type Prepared = { hash: Hex; userOp: RpcUserOperation<"0.7">; summary?: string[]; demo?: boolean; review?: ComplianceDecision; expiresAt?: string };
+/** On-chain. */
+export type Sent = { transactionHash: Hex };
 
 /** What leaving without Swissquote needs, pinned in the app like `partner`: never fetched from Swissquote. */
 export type ExitRoute = {
@@ -222,11 +207,8 @@ export function createPhone({
   // A throttled timer can fire late, so the expiry is checked on every use too.
   const cachedKey = () => (cached && Date.now() < cached.expiresAt ? cached.key : undefined);
 
-  /**
-   * Rejects anything but this phone's call, sponsored so the wallet never pays gas, then hashes it itself. Any
-   * nonce key will do: a held payment has one of its own. Resolves to when it may leave, if Swissquote holds it.
-   */
-  async function verify({ hash, userOp }: Prepared, sender: Address, callData: Hex): Promise<number | undefined> {
+  /** Rejects anything but this phone's call, sponsored so the wallet never pays gas, then hashes it itself. */
+  async function verify({ hash, userOp }: Prepared, sender: Address, callData: Hex) {
     const { chainId, entryPoint } = await getConfig();
     const op = formatUserOperation(userOp);
     const ours =
@@ -236,7 +218,6 @@ export function createPhone({
       !!op.paymasterData &&
       getUserOperationHash({ chainId, entryPointAddress: entryPoint, entryPointVersion: "0.7", userOperation: op }) === hash;
     if (!ours) throw new Error("Swissquote returned a different operation than this phone built.");
-    return decodeSponsorship(op.paymasterData!).validAfter || undefined;
   }
 
   /** The freshly split key signs a statement; the phone keeps it in memory for three hours at most. */
@@ -258,19 +239,15 @@ export function createPhone({
     const wallet = requireWallet();
     const callData = encodeFunctionData({ abi: accountAbi, functionName: "execute", args: [call_.to, call_.value ?? 0n, call_.data] });
     const prepared = await call<Prepared>(`/api/wallets/${wallet.address}/operations`, { callData, ...(dapp ? { dapp } : {}) });
-    return { ...prepared, releaseAt: await verify(prepared, wallet.address, callData) };
+    await verify(prepared, wallet.address, callData);
+    return prepared;
   }
 
-  /**
-   * Face ID approves the exact operation; the cached key, or one rebuilt from A and B, signs it. Resolves once it
-   * is on-chain, or, for a payment Swissquote holds, once it is held.
-   */
+  /** Face ID approves the exact operation; the cached key, or one rebuilt from A and B, signs it. Resolves once it is on-chain. */
   async function approve(prepared: Prepared): Promise<Sent> {
     const wallet = requireWallet();
     if (prepared.expiresAt && (!Number.isFinite(Date.parse(prepared.expiresAt)) || Date.parse(prepared.expiresAt) <= Date.now())) throw new Error("This approval expired. Check the transaction again.");
-    // Swissquote meets a step-up review by holding the payment: this phone read its release time from the sponsorship.
-    const held = prepared.releaseAt !== undefined && prepared.review?.status === "STEP_UP";
-    if (prepared.review && !held && !decisionAllowsSigning(prepared.review)) throw new Error("This compliance review does not authorize signing. Check the transaction again.");
+    if (prepared.review && !decisionAllowsSigning(prepared.review)) throw new Error("This compliance review does not authorize signing. Check the transaction again.");
     const { assertion, secret } = await authenticator.sign(wallet.credentialId, prepared.hash);
     let key = cachedKey();
     if (!key) {
@@ -467,19 +444,6 @@ export function createPhone({
     },
 
     finalizeRecovery: () => call<{ transactionHash: Hex }>(`/api/wallets/${requireWallet().address}/recovery`, {}, "PATCH"),
-
-    /** Face ID asks Swissquote to cancel a payment it holds. */
-    async cancelPayment(hash: Hex) {
-      const wallet = requireWallet();
-      const { assertion } = await authenticator.sign(wallet.credentialId, cancelPaymentChallenge(hash));
-      await call(`/api/wallets/${wallet.address}/operations/${hash}`, { assertion: wire(assertion) }, "DELETE");
-    },
-
-    /** Swissquote cancels a held payment for the client, who proves it with the recovery key: the phone may be in a thief's hands. */
-    async cancelPaymentWithSwissquote(secret: Hex, hash: Hex, address = requireWallet().address) {
-      const signature = await privateKeyToAccount(secret).signMessage({ message: cancelPaymentMessage(address, hash) });
-      await call(`/api/wallets/${address}/operations/${hash}`, { signature }, "DELETE");
-    },
 
     /**
      * Reports the phone that holds a linked wallet now as lost or stolen. After the owner's ID check Swissquote locks it;

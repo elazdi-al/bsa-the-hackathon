@@ -31,7 +31,7 @@ Approval alone moves no assets, but it grants permission. If the user stops or t
 ## Visible decisions and failure handling
 
 - `ALLOW`: review, decoded intent, evidence mode, risk label, simulation result, expected asset changes, decision/policy reference and expiry.
-- `STEP_UP`, `REVIEW`, `DENY_ASSISTANCE`: reasons, with no signing button. Existing additional-verification and case-management gaps are not replaced with a cosmetic confirmation.
+- `REVIEW`, `DENY_ASSISTANCE`: reasons, with no signing button. Existing case-management gaps are not replaced with a cosmetic confirmation.
 - Expired approval: signing is disabled; a new check is required. Editing amount/action invalidates the old review.
 - Missing wallet, wrong phone after recovery, unavailable backend, missing deployment or mismatched asset metadata: interaction is disabled or rejected.
 - Confirmed calls: transaction hashes and refreshed on-chain balances/allowances. The screen's receipt list is session-local; existing wallet history also sees the USDC transfers, not a full dApp-labelled history. Home still reports cash USDC; vault position/value is shown on this screen rather than added to Home's portfolio chart.

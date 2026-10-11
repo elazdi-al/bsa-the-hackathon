@@ -9,7 +9,7 @@ import { NOW, testEngine } from "./helpers";
 
 const context = { subject: "claire" };
 for (const [name, status, code] of [
-  ["transfer", "ALLOW", undefined], ["high-value", "STEP_UP", "HIGH_VALUE_STEP_UP"],
+  ["transfer", "ALLOW", undefined],
   ["vault-deposit", "ALLOW", undefined], ["sanctioned", "DENY_ASSISTANCE", "SANCTIONS_MATCH"],
   ["unknown-contract", "DENY_ASSISTANCE", "CONTRACT_NOT_APPROVED"],
   ["unlimited-approval", "DENY_ASSISTANCE", "UNLIMITED_APPROVAL"],
@@ -139,12 +139,12 @@ test("additional simulated counterparties are screened", async () => {
   } } });
   assert.ok((await engine.evaluate(demoRequest("transfer"), context)).decision.reasons.some((reason) => reason.code === "SANCTIONS_MATCH"));
 });
-test("the step-up aggregates an entire batch, and no amount is capped", async () => {
+test("no amount is capped or held, in one payment or a batch", async () => {
   const original = demoRequest("transfer");
   const transfer = (amount: bigint) => ({ ...original.calls[0], data: encodeFunctionData({ abi: erc20Abi, functionName: "transfer", args: [DEMO.recipient, amount] }) });
   const { engine } = testEngine();
-  assert.equal((await engine.evaluate({ ...original, calls: [transfer(600_000_000n), transfer(600_000_000n)] }, context)).decision.status, "STEP_UP");
-  assert.equal((await engine.evaluate({ ...original, calls: [transfer(1_000_000_000_000n)] }, context)).decision.status, "STEP_UP");
+  assert.equal((await engine.evaluate({ ...original, calls: [transfer(600_000_000n), transfer(600_000_000n)] }, context)).decision.status, "ALLOW");
+  assert.equal((await engine.evaluate({ ...original, calls: [transfer(1_000_000_000_000n)] }, context)).decision.status, "ALLOW");
 });
 test("demo providers in live mode cannot produce ALLOW", async () => {
   assert.equal((await testEngine({ mode: "live" }).engine.evaluate(demoRequest("transfer"), context)).decision.status, "REVIEW");
@@ -156,8 +156,8 @@ test("audit write failure never returns an authorizing decision", async () => {
 
 test("the engine's normalized policy is immutable", () => {
   const { engine, policy } = testEngine();
-  policy.tokens[0].stepUpAmount = "0";
-  assert.notEqual(engine.policy.tokens[0].stepUpAmount, "0");
+  policy.tokens[0].symbol = "X";
+  assert.notEqual(engine.policy.tokens[0].symbol, "X");
   assert.throws(() => engine.policy.tokens.push(policy.tokens[0]));
 });
 

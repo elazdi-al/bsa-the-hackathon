@@ -15,7 +15,7 @@ import { grouped, press, quote, typed, type Key, type Unit } from "./amount";
 import { usd } from "./money";
 import { Numpad } from "./numpad";
 import { blurred, easeOut, leave, sharp, snappy } from "./transitions";
-import { available, useWallet } from "./wallet";
+import { useWallet } from "./wallet";
 
 type Side = "eth" | "usdc";
 type Step = { name: "amount" | "review"; dir: 1 | -1 };
@@ -94,8 +94,7 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
   const still = useReducedMotion();
   const snapshot = useWallet();
   const wallet = snapshot.status === "ready" ? snapshot.wallet : undefined;
-  // USDC that held payments will take isn't the client's to swap.
-  const balances = { eth: wallet?.eth ?? 0, usdc: wallet ? available(wallet) : 0 };
+  const balances = { eth: wallet?.eth ?? 0, usdc: wallet?.usdc ?? 0 };
 
   const to: Side = from === "eth" ? "usdc" : "eth";
   const pay = { ...tokens[from], balance: balances[from] };

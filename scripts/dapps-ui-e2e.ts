@@ -43,10 +43,7 @@ try {
   const input = page.getByLabel("Vault amount in USDC");
   const check = page.getByRole("button", { name: "Check transaction", exact: true });
 
-  console.log("2. STEP_UP is visible and has no sign action");
-  await input.fill("2000"); await check.click();
-  await page.getByRole("heading", { name: "Additional verification required" }).waitFor(slow);
-  assert.equal(await page.getByRole("button", { name: /with passkey/ }).count(), 0);
+  console.log("2. Editing the amount after a check takes the sign action away");
   await input.fill("25"); await check.click();
   await page.getByRole("button", { name: "Approve amount with passkey", exact: true }).waitFor(slow);
   await input.fill("26");

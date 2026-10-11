@@ -1,11 +1,11 @@
 import { zeroAddress, type Address } from "viem";
 import { hashPayload, hashRequest } from "./canonical";
-import { decodeRequest, findToken } from "./decode";
+import { decodeRequest } from "./decode";
 import { parsePolicy, parseRequest } from "./schema";
 import type { AuditSink, ComplianceDecision, CompliancePolicy, ComplianceRequest, DecodedAction, DecisionSigner, DecisionStatus,
   EvaluationContext, Finding, ScreeningProvider, ScreeningResult, SignedDecision, SimulationProvider, SimulationResult } from "./types";
 
-const rank: Record<DecisionStatus, number> = { ALLOW: 0, STEP_UP: 1, REVIEW: 2, DENY_ASSISTANCE: 3 };
+const rank: Record<DecisionStatus, number> = { ALLOW: 0, REVIEW: 1, DENY_ASSISTANCE: 2 };
 export interface EngineDependencies {
   screening: ScreeningProvider;
   simulation: SimulationProvider;
@@ -55,7 +55,6 @@ export class ComplianceEngine {
         add("SIMULATION_STALE", "Swissquote's check of this payment is out of date. Try again in a moment.", "REVIEW");
       }
       this.checkSimulation(request, actions, simulation, add);
-      this.checkStepUp(request, actions, simulation, add);
       if (this.dependencies.mode === "live" && [simulation.mode, ...screening.map((result) => result.mode)].includes("demo")) {
         add("DEMO_PROVIDER_IN_LIVE_MODE", "Swissquote can't approve a real payment using test checks.", "REVIEW");
       }
@@ -66,11 +65,10 @@ export class ComplianceEngine {
       requestHash: hashRequest(request), policyVersion: this.policy.version,
       policyHash: hashPayload("swissquote-compliance/policy/v1", this.policy),
       subjectHash: hashPayload("swissquote-compliance/subject/v1", context.subject),
-      status, riskLevel: status === "DENY_ASSISTANCE" ? "CRITICAL" : status === "REVIEW" ? "HIGH" : status === "STEP_UP" ? "MEDIUM" : "LOW",
+      status, riskLevel: status === "DENY_ASSISTANCE" ? "CRITICAL" : status === "REVIEW" ? "HIGH" : "LOW",
       reasons: findings, decodedActions: actions, summary: actions.map((action) => action.summary),
       screening, simulation,
-      requiredActions: status === "STEP_UP" ? ["REQUIRE_ADDITIONAL_USER_AUTHENTICATION"] :
-        status === "REVIEW" ? ["REQUIRE_MANUAL_REVIEW_OR_RETRY"] : status === "DENY_ASSISTANCE" ? ["REFUSE_COSIGNING_AND_SPONSORSHIP"] : [],
+      requiredActions: status === "REVIEW" ? ["REQUIRE_MANUAL_REVIEW_OR_RETRY"] : status === "DENY_ASSISTANCE" ? ["REFUSE_COSIGNING_AND_SPONSORSHIP"] : [],
       issuedAt, expiresAt: new Date(clock().getTime() + this.policy.decisionTtlSeconds * 1000).toISOString(),
       assurance: this.dependencies.mode === "demo" ? "DEMO" : "LIVE_PROVIDERS",
       limitations: ["Policy governs Swissquote assistance; it cannot freeze an independently controlled wallet.",
@@ -165,28 +163,6 @@ export class ComplianceEngine {
       if (!result.approvalChanges.some((actual) => actual.owner === request.account && actual.token === approval.token && actual.spender === approval.spender && actual.amount === approval.amount)) {
         add("APPROVAL_EVIDENCE_MISSING", "Swissquote couldn't confirm the spending permission this payment asks for.", "REVIEW");
       }
-    }
-  }
-
-  private checkStepUp(request: ComplianceRequest, actions: DecodedAction[], simulation: SimulationResult,
-    add: (code: string, message: string, status: Finding["status"]) => void) {
-    const spending = new Map<string, bigint>();
-    const approvals = new Map<string, bigint>();
-    for (const action of actions) {
-      if (action.debit) spending.set(action.debit.asset, (spending.get(action.debit.asset) ?? 0n) + BigInt(action.debit.amount));
-      if (action.approval) approvals.set(action.approval.token, (approvals.get(action.approval.token) ?? 0n) + BigInt(action.amount));
-    }
-    // A withdraw's share cost is known only after simulation. Do not omit it from the step-up check.
-    for (const change of simulation.assetChanges) if (BigInt(change.amount) < 0n) {
-      const amount = -BigInt(change.amount);
-      if (amount > (spending.get(change.asset) ?? 0n)) spending.set(change.asset, amount);
-    }
-    for (const [asset, amount] of approvals) if (amount > (spending.get(asset) ?? 0n)) spending.set(asset, amount);
-    for (const [asset, amount] of spending) {
-      const token = findToken(this.policy, request.chainId, asset);
-      const native = asset === "native" ? this.policy.nativeTransfers.find((item) => item.chainId === request.chainId) : undefined;
-      const stepUp = token?.stepUpAmount ?? native?.stepUpAmount;
-      if (stepUp && amount > BigInt(stepUp)) add("HIGH_VALUE_STEP_UP", "Payments this large need an extra check that it's you.", "STEP_UP");
     }
   }
 }

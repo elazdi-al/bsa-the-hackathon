@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
 import { formatUnits, isAddressEqual, type Address } from "viem";
-import { ApiError, phone, type HeldPayment, type Transfer } from "@/lib/wallet/phone";
+import { ApiError, phone, type Transfer } from "@/lib/wallet/phone";
 
 export type Wallet = {
   address: Address;
@@ -26,8 +26,6 @@ export type Wallet = {
   restoring: boolean;
   /** The Swissquote client number the passkey signed the wallet belongs to, kept by Swissquote; null if none. */
   owner: string | null;
-  /** Large payments Swissquote holds before they leave, soonest first. */
-  held: HeldPayment[];
   /** USDC in and out, newest first, once a screen asked for it with `useActivity`. */
   activity?: Transfer[];
 };
@@ -81,7 +79,6 @@ async function load() {
         activity: activity ?? last?.activity,
         restoring: !controls && !!device.restoring,
         owner: state.owner?.client ?? null,
-        held: state.held,
       },
     });
   } catch (error) {
@@ -161,9 +158,6 @@ export const onPhoneClock = (wallet: Pick<Wallet, "skew">, chainSeconds: number)
 /** A chain timestamp as a day and time on this phone, as in "12 October at 14:03". */
 export const phoneDate = (wallet: Pick<Wallet, "skew">, chainSeconds: number) =>
   onPhoneClock(wallet, chainSeconds).toLocaleString("en-GB", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
-
-/** What a new payment may spend: the balance less what held payments take when they leave. */
-export const available = ({ usdc, held }: Wallet) => usdc - held.filter((p) => !p.stopped).reduce((sum, p) => sum + Number(formatUnits(BigInt(p.value), 6)), 0);
 
 /** The wallet's address once read. */
 export const shownAddress = (snapshot: WalletSnapshot) => (snapshot.status === "ready" ? snapshot.wallet.address : undefined);

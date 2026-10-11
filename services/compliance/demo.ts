@@ -20,8 +20,8 @@ export function demoPolicy(): CompliancePolicy {
     version: "hackathon-demo-1", decisionTtlSeconds: 120, screeningMaxAgeSeconds: 120,
     supportedChainIds: [DEMO.chainId], nativeTransfers: [],
     tokens: [
-      { chainId: DEMO.chainId, address: DEMO.usdc, symbol: "USDC", decimals: 6, approvedSpenders: [DEMO.vault], stepUpAmount: "1000000000" },
-      { chainId: DEMO.chainId, address: DEMO.vault, symbol: "sqUSDC", decimals: 6, approvedSpenders: [], stepUpAmount: "1000000000" },
+      { chainId: DEMO.chainId, address: DEMO.usdc, symbol: "USDC", decimals: 6, approvedSpenders: [DEMO.vault] },
+      { chainId: DEMO.chainId, address: DEMO.vault, symbol: "sqUSDC", decimals: 6, approvedSpenders: [] },
     ],
     contracts: [
       { chainId: DEMO.chainId, address: DEMO.usdc, name: "USDC", kind: "ERC20", allowedFunctions: ["transfer", "approve"], origins: [DEMO.origin] },
@@ -77,7 +77,6 @@ export function demoRequest(name: string, nonce = "0"): ComplianceRequest {
     data: encodeFunctionData({ abi: erc20Abi, functionName: "transfer", args: [recipient, amount] }) });
   const examples: Record<string, unknown> = {
     transfer: { ...base, calls: [transfer(DEMO.recipient)] },
-    "high-value": { ...base, calls: [transfer(DEMO.recipient, 2_000_000_000n)] },
     sanctioned: { ...base, calls: [transfer(DEMO.sanctioned)] },
     "unknown-contract": { ...base, calls: [{ ...transfer(DEMO.recipient), to: DEMO.unknown }] },
     "unlimited-approval": { ...base, calls: [{ to: DEMO.usdc,

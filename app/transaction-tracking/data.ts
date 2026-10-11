@@ -1,4 +1,4 @@
-export type StepId = "awaiting" | "received" | "payout" | "signed" | "submitted" | "scheduled" | "completed";
+export type StepId = "awaiting" | "received" | "payout" | "signed" | "submitted" | "completed";
 
 export type Row = { label: string; value: string };
 export type Step = { id: StepId; label: string };
@@ -12,8 +12,7 @@ export type Tracked = {
   steps: Step[];
   rows: Row[];
   rail: Row;
-  /** None yet for a payment Swissquote holds. */
-  txHash?: string;
+  txHash: string;
   networkFee: string;
   feePaidBy: string;
   demo?: true;
@@ -48,13 +47,6 @@ export const withdrawal: Tracked & { step: number } = {
 export const sendSteps: Step[] = [
   { id: "signed", label: "Signed with Face ID" },
   { id: "submitted", label: "Sent to Base" },
-  { id: "completed", label: "Completed" },
-];
-
-/** A large send Swissquote holds before it leaves; Face ID approval resolves once it is scheduled. */
-export const scheduledSteps: Step[] = [
-  { id: "signed", label: "Signed with Face ID" },
-  { id: "scheduled", label: "Scheduled" },
   { id: "completed", label: "Completed" },
 ];
 

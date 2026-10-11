@@ -22,7 +22,7 @@ test("signature prevents status, summary, evidence and expiry tampering", async 
   for (const property of ["status", "summary", "expiresAt", "policyHash"] as const) {
     const copy = structuredClone(receipt);
     if (property === "summary") copy.decision.summary = ["Attacker controls the explanation"];
-    else if (property === "status") copy.decision.status = "STEP_UP";
+    else if (property === "status") copy.decision.status = "REVIEW";
     else copy.decision[property] = "changed" as `0x${string}`;
     assert.equal(verifyDecision(copy, options), false);
   }
@@ -40,12 +40,7 @@ test("expired, not-yet-issued and demo receipts are rejected by default", async 
   assert.equal(verifyDecision(receipt, { ...options, now: new Date(NOW.getTime() - 10_000) }), false);
   assert.equal(verifyDecision(receipt, { ...options, allowDemo: false }), false);
 });
-test("STEP_UP requires the host to attest completed extra authentication", async () => {
-  const { receipt, options } = await signedExample("high-value");
-  assert.equal(verifyDecision(receipt, options), false);
-  assert.equal(verifyDecision(receipt, { ...options, allowStepUp: true }), true);
-});
 test("a signed refusal never authorizes signing", async () => {
   const { receipt, options } = await signedExample("sanctioned");
-  assert.equal(verifyDecision(receipt, { ...options, allowStepUp: true }), false);
+  assert.equal(verifyDecision(receipt, options), false);
 });

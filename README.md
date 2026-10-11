@@ -25,7 +25,7 @@ Each section links to its depth in [`docs/`](docs/). The [pitch summary](PITCH_S
 One story, end to end: create a wallet, pay with Face ID, link it to a Swissquote account, lose the phone, recover the wallet. Run `npm run local`, then open http://localhost:3000/onboarding-welcome in two browsers, or two browser profiles, as the old phone and the new phone.
 
 1. **Create a wallet.** No Swissquote account and no sign-in. Tap **Create new wallet**, then **Create Passkey**, **Split Wallet Key**, **Save Recovery Key** and **I saved it off this phone**. Run `npm run fund` for 100 USDC.
-2. **Pay.** On Home, tap the action button, then **Send**. Enter an address, or tap the scan button next to **Paste** to scan the recipient's QR code. Enter an amount, read the **Checked by Swissquote** card, tap **Send** and approve with Face ID. Above 1,000 USDC the payment waits 24 hours.
+2. **Pay.** On Home, tap the action button, then **Send**. Enter an address, or tap the scan button next to **Paste** to scan the recipient's QR code. Enter an amount, read the **Checked by Swissquote** card, tap **Send** and approve with Face ID. The payment leaves at once, whatever the amount.
 3. **Link Swissquote.** In Settings, tap **Link your Swissquote account**, then **Link with Face ID**. Settings now shows the account as **Linked**, with the ID card number on file. Note the number.
 4. **Lose the phone and recover.** In the second browser, tap **Recover existing wallet** and load the Recovery Key file. The wallet is linked, so Swissquote checks the ID. Type the ID card number, tap **Scan ID**, then **Restore with Face ID**. Run `npm run warp` to pass the 48-hour hold, then tap **Finish recovery**. The new phone now controls the same address with the same funds.
 
@@ -34,9 +34,6 @@ The same story runs without a browser, on software phones. Run these in order ag
 ```bash
 npm run account phone                                               # a wallet with 100 USDC, not linked
 npm run send phone 0x000000000000000000000000000000000000dEaD 20    # leaves at once
-npm run fund phone 2000
-npm run send phone 0x000000000000000000000000000000000000dEaD 2000  # held for 24 hours
-npm run warp 24                                                     # prints "Released"
 npm run link phone                                                  # links it to a mock Swissquote client
 npm run attack phone                                                # A1 to A7, each refused
 npm run recover phone                                               # lost phone: recovery onto phone-new
@@ -75,7 +72,7 @@ More: [Custody model](docs/SECURITY.md#custody-model) has each model's pros and 
 | Who | Can they steal? | Can they lock the client out? |
 | --- | --- | --- |
 | Thief with a locked phone | No | No |
-| Thief who can unlock the phone | Yes. Up to 1,000 USDC a payment leaves at once, at most 20 an hour. A larger payment waits 24 hours, and the client can cancel it. On a linked wallet, until the client reports the phone and Swissquote [locks](docs/SECURITY.md#the-lock) it, though a cached key can still pay through a public bundler for up to 3 hours. An unlinked wallet has no lock. | On a linked wallet, until the report. On an unlinked wallet, while they hold the phone. |
+| Thief who can unlock the phone | Yes. They can send the whole balance at once, in one payment, and nothing delays or cancels it. On a linked wallet, until the client reports the phone and Swissquote [locks](docs/SECURITY.md#the-lock) it, though a cached key can still pay through a public bundler for up to 3 hours. An unlinked wallet has no lock. | On a linked wallet, until the report. On an unlinked wallet, while they hold the phone. |
 | Thief with the phone and the email inbox | No. No email reset exists, and the Recovery Key is not on the phone. | No |
 | Thief with the Recovery Key file | Only if the client does not cancel within 48 hours. A linked wallet also needs the owner's ID number. | No |
 | Swissquote alone | No | Yes, while it runs |
@@ -100,7 +97,7 @@ flowchart LR
   rk["Recovery Key file<br/>kept at home"]
 
   subgraph sq["Swissquote API: Next.js route handlers, app/api"]
-    api["Wallet API<br/>holds, locks"]
+    api["Wallet API<br/>locks"]
     comp["Compliance engine<br/>sanctions and simulation are<br/>fixtures in demo mode"]
     vb[("Share B vault<br/>SQLite, AES-GCM, no HSM")]
     kyc["MOCKED: optional link to a client,<br/>Swissquote sign-in, KYC record, ID check"]:::mock
@@ -160,23 +157,16 @@ More: [Wallet creation](docs/SECURITY.md#wallet-creation) has each step and when
 
 The client proves who they are with the passkey, behind Face ID, for every operation. The wallet itself uses no password, SMS code or email link. Before Face ID, the phone checks the operation Swissquote built. The passkey signs that exact hash, and the account requires the authenticator's user-verified flag on chain. Share A never leaves the phone, which binds the wallet to the device.
 
-These are the local policy's numbers:
+Every payment takes one Face ID and leaves at once, whatever the amount. There is no cap on how much the client sends. Nothing delays a payment once Face ID approved it, and nobody can cancel it. The account itself enforces only the signatures.
 
-| Payment | What the client does | What happens |
-| --- | --- | --- |
-| Up to 1,000 USDC | One Face ID | It leaves at once. |
-| Above 1,000 USDC | One Face ID | It leaves 24 hours later in chain time. The client can cancel it until then. Compliance runs again before release. |
-
-There is no cap on how much the client sends. The account itself enforces only the signatures. The hold has two halves. The paymaster's sponsorship is valid only from the release time, so the EntryPoint refuses the payment before then, whoever submits it. Swissquote runs compliance again before it releases the payment.
-
-More: [Authentication](docs/SECURITY.md#authentication) and [the two halves of the hold](docs/SECURITY.md#small-and-large-payments).
+More: [Authentication](docs/SECURITY.md#authentication).
 
 ## Recovery
 
 | What happened | Who is involved | How long |
 | --- | --- | --- |
 | Phone lost, destroyed or stolen | The client with a new phone and the Recovery Key file, and their ID if the wallet is linked. Swissquote and the independent service. | Minutes, then 48 hours |
-| Recovery Key lost, phone fine | The client moves the funds to a new wallet. | Minutes, then days for a large balance |
+| Recovery Key lost, phone fine | The client moves the funds to a new wallet. | Minutes |
 | Phone and Recovery Key both lost | Nobody can help. | Never |
 | Independent service gone | The client and Swissquote. Payments keep working. | Recovery waits until C is available. |
 | Swissquote gone | The client and the independent service | 30 days, then minutes |
@@ -245,9 +235,9 @@ More: [Gasless payments](docs/REFERENCE.md#gasless-payments) has each rule and i
 
 ## Bonus: compliant dApp interaction
 
-Every payment Swissquote sponsors goes through the compliance engine first. The engine checks the call against an allowlist, screens every address it touches for sanctions, simulates it, adds extra checks above a threshold, and signs its decision into a hash-chained audit log. The client reads Swissquote's plain-language summary on the **Checked by Swissquote** card before Face ID. A refusal shows its reasons and never freezes the wallet. In demo mode, fixtures do the screening and the simulation, and the card carries a **Demo** tag.
+Every payment Swissquote sponsors goes through the compliance engine first. The engine checks the call against an allowlist, screens every address it touches for sanctions, simulates it and signs its decision into a hash-chained audit log. The client reads Swissquote's plain-language summary on the **Checked by Swissquote** card before Face ID. A refusal shows its reasons and never freezes the wallet. In demo mode, fixtures do the screening and the simulation, and the card carries a **Demo** tag.
 
-**Home → Reviewed dApps** (`/dapps`) runs the same checks on a reviewed ERC-4626 vault: deposit, withdraw, an exact-amount approval and its revoke, each with Face ID and with Swissquote paying the fee. A dApp call that needs step-up is refused, not held: only a payment waits 24 hours.
+**Home → Reviewed dApps** (`/dapps`) runs the same checks on a reviewed ERC-4626 vault: deposit, withdraw, an exact-amount approval and its revoke, each with Face ID and with Swissquote paying the fee.
 
 More: the [compliance engine](docs/REFERENCE.md#compliance-engine) has each check, its HTTP API and its own limits, and [dApp integration](docs/DAPP_INTEGRATION.md) has the vault flow and its tests.
 
@@ -271,7 +261,7 @@ More: [What is real and what is mocked](docs/REFERENCE.md#what-is-real-and-what-
 - The key split is our own code and needs an audit.
 - The phone rebuilds the key. This is Shamir sharing, not threshold signing.
 - It is EVM-only.
-- Cancelling a held payment is not trustless.
+- Nothing delays or cancels a payment once Face ID approved it.
 - The lock is Swissquote's, not the chain's.
 - An unlinked wallet has no ID check and no lock.
 - A link cannot be undone, and a thief who can unlock the phone can link an unlinked wallet.

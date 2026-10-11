@@ -16,7 +16,6 @@ const icons: Record<StepId, Icon> = {
   payout: PayoutIcon,
   signed: FaceIdIcon,
   submitted: SendIcon,
-  scheduled: ClockIcon,
   completed: CheckCircleIcon,
 };
 

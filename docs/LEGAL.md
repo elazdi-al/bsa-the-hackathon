@@ -35,7 +35,7 @@ Our position is that Swissquote is not the ordering institution for that transfe
 Until FINMA or counsel confirms that reading, we would launch conservatively and treat each sponsored payment as if Swissquote were the ordering institution:
 
 - A payment to an address Swissquote can attribute to another institution, such as an exchange deposit address, gets originator and beneficiary data sent through a Travel Rule protocol before Swissquote sponsors it. If the receiving institution cannot take the data, Swissquote does not sponsor the payment.
-- A payment to another self-hosted wallet keeps the 1,000 USDC hold, and above that threshold asks the client for the beneficiary's name.
+- A payment above 1,000 USDC to another self-hosted wallet asks the client for the beneficiary's name.
 - Swissquote records originator data for every sponsored payment.
 
 This posture is a design. This build exchanges no Travel Rule messages.

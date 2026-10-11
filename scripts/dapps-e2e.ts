@@ -26,16 +26,13 @@ async function execute(step: "approve" | "deposit" | "withdraw" | "revoke", amou
   const prepared = await phone.prepare(buildVaultCall(vault, wallet, step, amount), metadata);
   assert.equal(prepared.review?.status, "ALLOW");
   assert.ok(prepared.expiresAt);
-  const sent = await phone.approve(prepared);
-  assert.ok("transactionHash" in sent, "Swissquote holds only payments, never a reviewed dApp call");
-  const hash = sent.transactionHash;
+  const { transactionHash: hash } = await phone.approve(prepared);
   assert.equal((await publicClient.getTransactionReceipt({ hash })).status, "success");
   console.log(`   ${step}: ${hash}`);
   return hash;
 }
 
 console.log("1. Policy refusals never authorize dApp signing");
-await refused(phone.prepare(buildVaultCall(vault, wallet, "approve", 2_000_000_000n), metadata), 403, "STEP_UP");
 await refused(phone.prepare(buildVaultCall(vault, wallet, "approve", 25_000_000n), { origin: "https://unlisted.example" }), 403, "DENY_ASSISTANCE");
 await refused(phone.prepare({ to: vault.asset.address, data: encodeFunctionData({ abi: erc20Abi, functionName: "approve", args: [vault.address, maxUint256] }) }, metadata), 403, "DENY_ASSISTANCE");
 const unknown: Address = "0x3333333333333333333333333333333333333333";
@@ -80,8 +77,4 @@ await execute("revoke", 0n);
 assert.equal((await phone.vaultSnapshot(vault.address)).allowance, "0");
 assert.equal(await publicClient.getBalance({ address: wallet }), 0n, "wallet never acquired native gas tokens");
 assert.equal(await publicClient.readContract({ address: vault.address, abi: vaultReadAbi, functionName: "balanceOf", args: [wallet] }), 15_000_000n);
-
-console.log("5. Money a held payment will take is not available to a deposit");
-assert.ok("releaseAt" in (await phone.sendUsdc("0x000000000000000000000000000000000000dEaD", "2500")));
-await assert.rejects(phone.prepare(buildVaultCall(vault, wallet, "deposit", 600_000_000n), metadata), /^Error: Only 485 USDC is available\. 2,500 USDC is set aside/);
 console.log("dApp API end-to-end checks passed.");

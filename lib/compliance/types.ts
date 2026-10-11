@@ -1,7 +1,7 @@
 import type { Address, Hex } from "viem";
 
-export type DecisionStatus = "ALLOW" | "STEP_UP" | "REVIEW" | "DENY_ASSISTANCE";
-export type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+export type DecisionStatus = "ALLOW" | "REVIEW" | "DENY_ASSISTANCE";
+export type RiskLevel = "LOW" | "HIGH" | "CRITICAL";
 export type ProviderMode = "demo" | "live";
 
 export interface ComplianceRequest {
@@ -23,7 +23,6 @@ export interface TokenPolicy {
   symbol: string;
   decimals: number;
   approvedSpenders: Address[];
-  stepUpAmount?: string;
 }
 export interface ContractPolicy {
   chainId: number;
@@ -42,7 +41,7 @@ export interface CompliancePolicy {
   supportedChainIds: number[];
   tokens: TokenPolicy[];
   contracts: ContractPolicy[];
-  nativeTransfers: Array<{ chainId: number; stepUpAmount: string }>;
+  nativeTransfers: Array<{ chainId: number }>;
 }
 
 export interface Finding {

@@ -28,7 +28,6 @@ export interface VerificationOptions {
   policyHash: string;
   now?: Date;
   allowDemo?: boolean;
-  allowStepUp?: boolean; // true only after the host has verified extra authentication
 }
 export function verifyDecision(receipt: SignedDecision, options: VerificationOptions): boolean {
   try {
@@ -45,6 +44,6 @@ export function verifyDecision(receipt: SignedDecision, options: VerificationOpt
     if (decision.requestHash !== hashRequest(options.request) || decision.policyHash !== options.policyHash) return false;
     if (decision.subjectHash !== hashPayload("swissquote-compliance/subject/v1", options.subject)) return false;
     if (decision.assurance === "DEMO" && !options.allowDemo) return false;
-    return decision.status === "ALLOW" || (decision.status === "STEP_UP" && options.allowStepUp === true);
+    return decision.status === "ALLOW";
   } catch { return false }
 }
