@@ -88,7 +88,8 @@ function failure(e: unknown): string[] {
 }
 
 export function SendReview({ children }: { children: ReactNode }) {
-  const to = useSearchParams().get("to");
+  const params = useSearchParams();
+  const to = params.get("to");
   const wallet = useWallet();
   // The picker refuses the wallet's own address; a typed-in link to it goes back there too.
   const own = wallet.status === "ready" ? wallet.wallet.address.toLowerCase() : undefined;
@@ -102,7 +103,7 @@ export function SendReview({ children }: { children: ReactNode }) {
 
   if (to === null || !shown || !usable) return null;
   return (
-    <Review to={to} address={shown.address as Address}>
+    <Review to={to} address={shown.address as Address} asked={params.get("amount")}>
       <section aria-label="Recipient" className="flex items-center gap-4">
         <span aria-hidden className="grid size-11 shrink-0 place-items-center rounded-full bg-secondary text-muted-foreground">
           <WalletIcon />
@@ -121,10 +122,11 @@ export function SendReview({ children }: { children: ReactNode }) {
 }
 
 /** Continue asks Swissquote to sponsor the transfer; Send is Face ID approving exactly that operation. */
-function Review({ to, address, children }: { to: string; address: Address; children: ReactNode }) {
+function Review({ to, address, asked, children }: { to: string; address: Address; asked: string | null; children: ReactNode }) {
   const router = useRouter();
   const back = useBack("/choose-recipient");
-  const [amount, setAmount] = useState("");
+  // A scanned payment request fills in its amount; the client can still change it.
+  const [amount, setAmount] = useState(() => (asked && AMOUNT.test(asked) ? asked : ""));
   const [phase, setPhase] = useState<Phase>("review");
   const [prepared, setPrepared] = useState<Prepared>();
   const [sent, setSent] = useState<Sent>();

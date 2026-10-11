@@ -243,6 +243,11 @@ export const ShareIcon = duo({ bar: "M5 11.5v6A3 3 0 0 0 8 20.5h8a3 3 0 0 0 3-3v
 
 export const PasteIcon = duo({ fill: rr(4.5, 4.5, 15, 16.5, 4) }, { fill: rr(8.5, 2.5, 7, 4.5, 2.25) }, true);
 
+export const ScanIcon = duo(
+  { bar: corners },
+  { fill: rr(7, 7, 4.25, 4.25, 1.25) + rr(12.75, 7, 4.25, 4.25, 1.25) + rr(7, 12.75, 4.25, 4.25, 1.25) + rr(13.25, 13.25, 3.25, 3.25, 1) },
+);
+
 export const GridIcon = duo(
   { fill: circle(17.25, 6.75, 3.75) + circle(6.75, 17.25, 3.75) },
   { fill: circle(6.75, 6.75, 3.75) + circle(17.25, 17.25, 3.75) },

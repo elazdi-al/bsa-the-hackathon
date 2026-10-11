@@ -53,8 +53,8 @@ export function shortAddress(address: string) {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
-/** The send review for `to`, an address or .eth handle. */
-export const reviewHref = (to: string) => `/send?${new URLSearchParams({ to })}`;
+/** The send review for `to`, an address or .eth handle, with the amount a scanned payment request asked for. */
+export const reviewHref = (to: string, amount?: string) => `/send?${new URLSearchParams(amount ? { to, amount } : { to })}`;
 
 /** How the review names `to`, and the address it pays, or null when it isn't a recipient. `demo`: a name the mock ENS resolved. */
 export function recipientFor(to: string): { name: string; detail: string; address: string; demo?: true } | null {
