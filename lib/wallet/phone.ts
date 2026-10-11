@@ -1,7 +1,8 @@
 // The phone's side of the protocol. It holds Share A and the passkey. To sign, it rebuilds the
 // wallet key from A and Swissquote's B, then keeps the key in memory only: for three hours at
 // most, and never past the app closing. It builds every call itself, and before Face ID signs it
-// checks that Swissquote's operation carries that call, is sponsored, and hashes to what it signs.
+// checks that Swissquote's operation carries that call and hashes to what it signs. Without a
+// sponsorship, the wallet pays the gas, and the phone works out the most that can cost.
 // If Swissquote's services are gone for good, it rebuilds the key from A and the partner's C and pays
 // its own gas, without asking Swissquote anything.
 import { P256, WebAuthnP256 } from "ox";
@@ -36,6 +37,7 @@ import {
   encodeNormalSignature,
   encodeRecoverySignature,
   factoryAbi,
+  maxFee,
   type Config as AccountConfig,
   findWalletMessage,
   ownershipChallenge,
@@ -108,8 +110,11 @@ export type Identity = { document: string };
 
 type Storage = Pick<globalThis.Storage, "getItem" | "setItem" | "removeItem">;
 type Config = { chainId: number; entryPoint: Address; usdc: Address };
-/** `summary`: Swissquote's plain reading of a payment it checked; `demo` when test providers did the checks. */
-export type Prepared = { hash: Hex; userOp: RpcUserOperation<"0.7">; summary?: string[]; demo?: boolean; review?: ComplianceDecision; expiresAt?: string };
+/**
+ * `summary`: Swissquote's plain reading of a payment it checked; `demo` when test providers did the checks.
+ * `fee`: for an operation Swissquote doesn't sponsor, the most its gas can cost the wallet, in wei, worked out by this phone.
+ */
+export type Prepared = { hash: Hex; userOp: RpcUserOperation<"0.7">; summary?: string[]; demo?: boolean; fee?: string; review?: ComplianceDecision; expiresAt?: string };
 /** On-chain. */
 export type Sent = { transactionHash: Hex };
 
@@ -207,17 +212,20 @@ export function createPhone({
   // A throttled timer can fire late, so the expiry is checked on every use too.
   const cachedKey = () => (cached && Date.now() < cached.expiresAt ? cached.key : undefined);
 
-  /** Rejects anything but this phone's call, sponsored so the wallet never pays gas, then hashes it itself. */
-  async function verify({ hash, userOp }: Prepared, sender: Address, callData: Hex) {
+  /**
+   * Rejects anything but this phone's call, sponsored or carrying no paymaster at all, then hashes it itself. If the
+   * wallet pays the gas, resolves to the most that can cost.
+   */
+  async function verify({ hash, userOp }: Prepared, sender: Address, callData: Hex): Promise<Pick<Prepared, "fee">> {
     const { chainId, entryPoint } = await getConfig();
     const op = formatUserOperation(userOp);
     const ours =
       isAddressEqual(op.sender, sender) &&
       op.callData === callData &&
-      !!op.paymaster &&
-      !!op.paymasterData &&
+      (!op.paymaster || !!op.paymasterData) &&
       getUserOperationHash({ chainId, entryPointAddress: entryPoint, entryPointVersion: "0.7", userOperation: op }) === hash;
     if (!ours) throw new Error("Swissquote returned a different operation than this phone built.");
+    return op.paymaster ? {} : { fee: maxFee(op).toString() };
   }
 
   /** The freshly split key signs a statement; the phone keeps it in memory for three hours at most. */
@@ -234,13 +242,13 @@ export function createPhone({
     return signature;
   }
 
-  /** Swissquote sponsors a call this phone built; the summary is its compliance reading of it. */
+  /** Swissquote prepares a call this phone built, sponsored if the wallet is linked; the summary is its compliance reading of it. */
   async function prepare(call_: { to: Address; value?: bigint; data: Hex }, dapp?: DappMetadata): Promise<Prepared> {
     const wallet = requireWallet();
     const callData = encodeFunctionData({ abi: accountAbi, functionName: "execute", args: [call_.to, call_.value ?? 0n, call_.data] });
     const prepared = await call<Prepared>(`/api/wallets/${wallet.address}/operations`, { callData, ...(dapp ? { dapp } : {}) });
-    await verify(prepared, wallet.address, callData);
-    return prepared;
+    const { fee } = await verify(prepared, wallet.address, callData);
+    return { ...prepared, fee };
   }
 
   /** Face ID approves the exact operation; the cached key, or one rebuilt from A and B, signs it. Resolves once it is on-chain. */

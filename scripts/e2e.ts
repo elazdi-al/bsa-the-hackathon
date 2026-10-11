@@ -1,16 +1,17 @@
 // The protocol end to end against `npm run local`, with phones simulated in Node through the
-// app's own phone module: create a wallet without a Swissquote account, link it to a Swissquote client, send,
-// get refused, send a large payment that leaves at once, refuse an attacker with the stolen phone and email, on
-// the linked wallet and on one never linked, which Swissquote can't lock and which the Recovery Key alone recovers,
-// lose the phone, cancel recoveries both ways, have Swissquote lock the stolen phone, recover after the 48-hour
-// delay, send from the new phones, refuse to farm Swissquote's free gas, and leave without Swissquote.
+// app's own phone module: create a wallet without a Swissquote account, link it to a Swissquote client, send on
+// Swissquote's gas, get refused, send a large payment that leaves at once, refuse an attacker with the stolen phone and
+// email, on the linked wallet and on one never linked, which pays its own gas, can't have its phone locked and is
+// recovered by the Recovery Key alone, on Swissquote's gas even with no ETH, lose the phone, cancel recoveries both
+// ways, have Swissquote lock the stolen phone, recover after the 48-hour delay, send from the new phones, refuse to farm
+// Swissquote's free gas, and leave without Swissquote.
 //
 //   npm run e2e
 import assert from "node:assert/strict";
 import { setTimeout as sleep } from "node:timers/promises";
 import { P256 } from "ox";
-import { encodeFunctionData, erc20Abi, formatUnits, keccak256, numberToHex, parseUnits, toHex, type Address } from "viem";
-import { formatUserOperation, getUserOperationHash } from "viem/account-abstraction";
+import { encodeFunctionData, erc20Abi, formatEther, formatUnits, keccak256, numberToHex, parseUnits, toHex, type Address } from "viem";
+import { entryPoint07Abi, formatUserOperation, getUserOperationHash } from "viem/account-abstraction";
 import { generatePrivateKey, privateKeyToAccount, privateKeyToAddress } from "viem/accounts";
 import { bindRecoveryKeyMessage, ownershipChallenge, ownershipMessage } from "../lib/wallet/account.ts";
 import { verifyAssertion } from "../lib/wallet/api/http.ts";
@@ -23,6 +24,7 @@ import { APP, mintUsdc, newPhone, sendEth } from "./software-phone.ts";
 const ANNA = privateKeyToAddress(generatePrivateKey());
 const BOB = privateKeyToAddress(generatePrivateKey());
 const CARL = privateKeyToAddress(generatePrivateKey());
+const DORA = privateKeyToAddress(generatePrivateKey());
 const SANCTIONED: Address = "0x098B716B8Aaf21512996dC57EB0615e2383E2f96"; // flagged by the compliance demo screening
 
 process.on("exit", () => setSunset(false));
@@ -56,6 +58,12 @@ async function exitRefusal(body: unknown) {
 }
 
 const usdcOf = (owner: Address) => publicClient.readContract({ address: addresses.usdc, abi: erc20Abi, functionName: "balanceOf", args: [owner] });
+const ethOf = (owner: Address) => publicClient.getBalance({ address: owner });
+const depositOf = (owner: Address) => publicClient.readContract({ address: addresses.entryPoint, abi: entryPoint07Abi, functionName: "balanceOf", args: [owner] });
+const transfer = (to: Address, amount: string) => ({
+  to: addresses.usdc,
+  data: encodeFunctionData({ abi: erc20Abi, functionName: "transfer", args: [to, parseUnits(amount, 6)] }),
+});
 async function warp(hours: number) {
   await publicClient.request({ method: "evm_increaseTime", params: [numberToHex(hours * 3600)] } as never);
   await publicClient.request({ method: "evm_mine", params: [] } as never);
@@ -108,9 +116,14 @@ await refused(phone.link(await phone.signIn()), 409);
 await phone.link(await phone.signIn(signedIn.session));
 assert.equal((await phone.state()).owner?.createdAt, owner.createdAt, "linking again as the same client changes nothing");
 
-console.log("3. Send 20 USDC: deploys the account, Face ID + the key cached since the split");
-await phone.sendUsdc(ANNA, "20");
+console.log("3. Send 20 USDC: deploys the account, Face ID + the key cached since the split, Swissquote's paymaster pays the gas");
+const depositBefore = await depositOf(addresses.paymaster);
+const linkedPayment = await phone.prepare(transfer(ANNA, "20"));
+assert.ok(linkedPayment.userOp.paymaster && linkedPayment.fee === undefined, "Swissquote sponsors a linked wallet's payment");
+await phone.approve(linkedPayment);
 assert.equal(await usdcOf(ANNA), parseUnits("20", 6));
+assert.equal(await ethOf(wallet), 0n, "the linked wallet holds no ETH");
+assert.ok((await depositOf(addresses.paymaster)) < depositBefore, "Swissquote's paymaster paid the gas");
 assert.equal(shareRequests.length, 0, "the key made at the split is still cached");
 
 console.log("4. Cache expired or app reopened: one Face ID unlocks Share B, then the key is cached again");
@@ -135,12 +148,32 @@ console.log("7. An attacker with the stolen phone and the email inbox is stopped
 const identity = { document: signedIn.client.document };
 await attack({ phone: structuredClone(phone.device()!), homeKey: recoveryKey.secret, unlocked: phone, ownersId: identity });
 
-console.log("8. A wallet never linked: Swissquote can't lock its phone, the attacker is stopped without an ID check, and the Recovery Key alone starts its recovery");
+console.log("8. A wallet never linked pays its own gas in ETH, whatever the amount. Swissquote can't lock its phone, the attacker is stopped without an ID check, and the Recovery Key alone starts its recovery, on Swissquote's gas, even with no ETH");
 const plain = newPhone();
 await plain.splitKey(await plain.createPasskey());
 const plainKey = plain.createRecoveryKey();
 const plainWallet = await plain.register(plainKey.address);
-await mintUsdc(plainWallet, "100");
+await mintUsdc(plainWallet, "3000");
+const noGas = (await refused(plain.sendUsdc(DORA, "1"), 403)) as { error: string; refused: string };
+assert.equal(noGas.refused, "gas");
+assert.match(noGas.error, /^Your wallet needs up to [\d.]+ ETH for the network fee\. Add ETH to your wallet, or link your Swissquote account in Settings and Swissquote pays it\.$/);
+console.log(`   with no ETH: ${noGas.error}`);
+await sendEth(plainWallet, "0.01");
+const [plainEth, plainDeposit, paymasterBefore] = [await ethOf(plainWallet), await depositOf(plainWallet), await depositOf(addresses.paymaster)];
+const unsponsored = await plain.prepare(transfer(DORA, "1"));
+assert.equal(unsponsored.userOp.paymaster, undefined, "no paymaster: the wallet pays");
+assert.ok(unsponsored.fee, "the phone works out the most the gas can cost");
+await plain.approve(unsponsored);
+assert.equal(await usdcOf(DORA), parseUnits("1", 6));
+const putUp = plainEth - (await ethOf(plainWallet));
+const paid = putUp - ((await depositOf(plainWallet)) - plainDeposit);
+assert.ok(paid > 0n && putUp <= BigInt(unsponsored.fee), "its ETH paid, and put up no more than the phone showed");
+assert.equal(await depositOf(addresses.paymaster), paymasterBefore, "Swissquote's paymaster paid nothing");
+console.log(`   with 0.01 ETH: it leaves. The wallet paid ${formatEther(paid)} ETH of the ${formatEther(putUp)} it put up; the rest waits at the EntryPoint for its next fee`);
+assert.match((await plain.sendUsdc(DORA, "1500")).transactionHash, /^0x[0-9a-f]{64}$/);
+assert.equal(await usdcOf(DORA), parseUnits("1501", 6));
+assert.equal(await depositOf(addresses.paymaster), paymasterBefore, "no amount makes Swissquote pay an unlinked wallet's gas");
+console.log("   1,500 USDC: it leaves at once, on the wallet's own ETH");
 assert.equal((await refused(plain.reportLost({ document: "C0000000" }), 403)).refused, "unlinked", "no ID to check, so no lock");
 await attack({ phone: structuredClone(plain.device()!), homeKey: plainKey.secret, unlocked: plain });
 const plainNew = newPhone();
@@ -150,6 +183,19 @@ await plainNew.splitKey(await plainNew.createPasskey());
 const plainStarted = await plainNew.startRecovery(plainKey.secret);
 assert.equal(plainStarted.signedIn, undefined, "no ID check, so no Swissquote client to sign in as");
 await refused(plainNew.finalizeRecovery(), 409);
+const broke = newPhone();
+await broke.splitKey(await broke.createPasskey());
+const brokeKey = broke.createRecoveryKey();
+const brokeWallet = await broke.register(brokeKey.address);
+await mintUsdc(brokeWallet, "10");
+assert.equal((await refused(broke.sendUsdc(DORA, "1"), 403)).refused, "gas");
+const brokeNew = newPhone();
+await brokeNew.splitKey(await brokeNew.createPasskey());
+await brokeNew.startRecovery(brokeKey.secret);
+await broke.cancelRecovery();
+assert.equal((await broke.state()).pendingRecovery, null, "the old phone's cancel goes through on Swissquote's gas");
+await brokeNew.startRecovery(brokeKey.secret);
+assert.equal(await ethOf(brokeWallet), 0n, "a wallet with no ETH starts and cancels a recovery all the same");
 
 console.log("9. Lose the phone. New phone: ID card number, new passkey and split; the recovery key signs, B and C rebuild the old key on the new phone");
 const newOne = newPhone();
@@ -211,16 +257,21 @@ assert.equal((await newOne.state()).locked, false);
 console.log(`   Anna has ${formatUnits(await usdcOf(ANNA), 6)} USDC, the wallet ${formatUnits(await usdcOf(wallet), 6)} USDC`);
 assert.equal(await usdcOf(ANNA), parseUnits("15028", 6));
 
-console.log("15. The never-linked wallet's recovery, started at step 8, finishes too, and its new phone sends 5 USDC");
+console.log("15. The never-linked wallets' recoveries, started at step 8, finish too, the one with no ETH included, and the new phone sends 5 USDC from its ETH");
 await plainNew.finalizeRecovery();
 assert.equal((await plainNew.state()).signer, plainNew.device()!.signer);
 await plainNew.sendUsdc(CARL, "5");
 assert.equal(await usdcOf(CARL), parseUnits("5", 6));
+await brokeNew.finalizeRecovery();
+assert.equal((await brokeNew.state()).signer, brokeNew.device()!.signer);
+assert.equal(await ethOf(brokeWallet), 0n, "Swissquote paid for the whole recovery");
+assert.equal((await refused(brokeNew.sendUsdc(DORA, "1"), 403)).refused, "gas", "a payment still needs ETH");
 
-console.log("16. Swissquote's free gas can't be farmed: it refuses a payment of 0, and a wallet's 21st operation within an hour of chain time");
+console.log("16. Swissquote's free gas can't be farmed: it refuses a payment of 0, and a linked wallet's 21st operation within an hour of chain time");
 const farmer = newPhone();
 await farmer.splitKey(await farmer.createPasskey());
 const farm = await farmer.register(farmer.createRecoveryKey().address);
+await farmer.link(await farmer.signIn());
 await mintUsdc(farm, "1");
 const zero = (await refused(farmer.sendUsdc(BOB, "0"), 403)) as { error: string };
 assert.equal(zero.error, "Swissquote doesn't pay for a payment of 0 USDC.");

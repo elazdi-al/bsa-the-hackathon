@@ -11,6 +11,8 @@ const phone = newPhone();
 await phone.splitKey(await phone.createPasskey());
 const recovery = phone.createRecoveryKey();
 const wallet = await phone.register(recovery.address);
+// Linked, so Swissquote pays its gas: an unlinked wallet pays its own in ETH.
+await phone.link(await phone.signIn());
 await mintUsdc(wallet, "3000");
 const catalog = await phone.dapps();
 const vault = catalog.vaults.find((item) => item.available)!;

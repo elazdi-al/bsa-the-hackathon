@@ -133,6 +133,14 @@ function usdcAmount(text: string) {
 
 const usdcOf = (owner: Address) => publicClient.readContract({ address: addresses.usdc, abi: erc20Abi, functionName: "balanceOf", args: [owner] });
 const usdc = (amount: bigint) => `${Number(formatUnits(amount, 6)).toFixed(2)} USDC`;
+const eth = (wei: bigint) => `${Number(formatEther(wei)).toFixed(4)} ETH`;
+
+/** Test USDC, and the ETH an unlinked wallet pays its network fees with: Swissquote pays only a linked wallet's. */
+async function fundWallet(to: Address, amount: string) {
+  await mintUsdc(to, amount);
+  if (chain.id === foundry.id) return sendEth(to, "0.01");
+  console.log(`Sending ETH only works on anvil. Get Base Sepolia ETH for ${to} at https://docs.base.org/base-chain/network-information/network-faucets.`);
+}
 function duration(seconds: number) {
   const minutes = Math.ceil(seconds / 60);
   return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
@@ -192,7 +200,6 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
           }),
         ),
       ]);
-      const eth = (wei: bigint) => `${Number(formatEther(wei)).toFixed(4)} ETH`;
       const owners = (address: Address) =>
         accounts.filter(({ device }) => device?.address?.toLowerCase() === address.toLowerCase()).map(({ name }) => name).join(", ");
       const walletLines = table(wallets.map((w) => [w.address, usdc(w.balance), w.deployed ? "deployed" : "not deployed", owners(w.address)])).split("\n");
@@ -252,17 +259,17 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
 
   fund: {
     usage: "fund [wallet] [amount=100]",
-    about: "Mint test USDC to an account or address, by default the newest wallet.",
+    about: "Mint test USDC to an account or address, by default the newest wallet, and send it 0.01 ETH for network fees.",
     async run([target, amount = "100"]) {
       usdcAmount(amount);
       const to = target ? walletOf(target) : walletRows().at(-1)?.address;
       if (!to) throw new Error("No wallets yet. Create one in the browser or with npm run account <account>.");
-      await mintUsdc(to, amount);
+      await fundWallet(to, amount);
       console.log(
         table(
           [
             ["Wallet", to],
-            ["Balance", usdc(await usdcOf(to))],
+            ["Balance", `${usdc(await usdcOf(to))}, ${eth(await publicClient.getBalance({ address: to }))}`],
           ],
           "",
         ),
@@ -272,7 +279,7 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
 
   account: {
     usage: "account <account>",
-    about: "Create a wallet with a software passkey, not linked to a Swissquote client, save its Recovery Key file and fund it with 100 USDC.",
+    about: "Create a wallet with a software passkey, not linked to a Swissquote client, save its Recovery Key file and fund it with 100 USDC and 0.01 ETH.",
     async run([name]) {
       const file = accountFile(name);
       if (existsSync(file) && loadAccount(name).phone.hasWallet()) throw new Error(`Account "${name}" exists already.`);
@@ -283,7 +290,7 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
       const wallet = await phone.register(privateKeyToAddress(account.recoveryKey));
       const keyFile = `${ACCOUNTS}/${name} Recovery Key.txt`;
       writeFileSync(keyFile, RECOVERY_FILE.text(account.recoveryKey));
-      await mintUsdc(wallet, "100");
+      await fundWallet(wallet, "100");
       console.log(
         table(
           [
@@ -291,7 +298,7 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
             ["Swissquote", `not linked to a client. To link it: npm run link ${name}`],
             ["Account", file],
             ["Recovery Key", keyFile],
-            ["Balance", usdc(await usdcOf(wallet))],
+            ["Balance", `${usdc(await usdcOf(wallet))}, ${eth(await publicClient.getBalance({ address: wallet }))}`],
           ],
           "",
         ),

@@ -1,5 +1,6 @@
-// Builds, sponsors and submits UserOperations. Swissquote submits them to the EntryPoint
-// itself and pays the gas through its paymaster, so the client never needs ETH.
+// Builds, sponsors and submits UserOperations. Swissquote submits them to the EntryPoint itself. For a wallet linked
+// to a Swissquote client, and for every wallet's recovery, it pays the gas through its paymaster, so that client never
+// needs ETH; an unlinked wallet pays its own from its ETH.
 import { randomUUID } from "node:crypto";
 import {
   BaseError,
@@ -33,7 +34,9 @@ import {
   accountAbi,
   bindRecoveryKeyMessage,
   encodeSponsorship,
+  ethAmount,
   factoryAbi,
+  maxFee,
   paymasterAbi,
   type Config,
   type Passkey,
@@ -48,7 +51,7 @@ import { refuseLocked } from "./locks.ts";
 export const swissquote = () => privateKeyToAccount(process.env.SWISSQUOTE_KEY as Hex);
 const operator = () => createWalletClient({ account: swissquote(), chain, transport: http(rpcUrl) });
 
-const GAS = { ...ACCOUNT_GAS, paymasterVerificationGasLimit: 100_000n, paymasterPostOpGasLimit: 0n };
+const PAYMASTER_GAS = { paymasterVerificationGasLimit: 100_000n, paymasterPostOpGasLimit: 0n };
 /** Seconds a sponsorship lasts: as long as a compliance decision lives, so it never outlives the decision behind it. */
 const sponsorshipTtl = () => getComplianceRuntime().engine.policy.decisionTtlSeconds;
 /** So its free gas can't be farmed, Swissquote refuses a payment once it paid for this many of the wallet's operations in an hour of chain time. */
@@ -136,8 +139,20 @@ export async function assist(wallet: Wallet, callData: Hex, dapp?: DappMetadata)
 const nonceOf = (sender: Address, key: bigint) =>
   publicClient.readContract({ address: addresses.entryPoint, abi: entryPoint07Abi, functionName: "getNonce", args: [sender, key] });
 
-/** Fills in nonce, gas, fees and Swissquote's sponsorship, and keeps the operation for submission. */
+/**
+ * Swissquote pays the gas for a wallet linked to its client, and for every wallet's recovery: starting one, and
+ * cancelling one from the phone, the only call to the account itself `assist` lets through. So a lost phone never
+ * leaves a wallet unrecoverable for lack of ETH. Swissquote finishes a recovery itself, with `callAccount`.
+ */
+function sponsors(wallet: Wallet, kind: Kind, callData: Hex) {
+  if (kind === "recovery" || store().owner(wallet.address)) return true;
+  const [to] = decodeFunctionData({ abi: accountAbi, data: callData }).args as readonly [Address, bigint, Hex];
+  return isAddressEqual(to, wallet.address);
+}
+
+/** Fills in nonce, gas, fees and, if Swissquote pays the gas, its sponsorship, and keeps the operation for submission. */
 export async function prepare(wallet: Wallet, kind: Kind, callData: Hex, decisionExpiresAt?: string) {
+  const sponsored = sponsors(wallet, kind, callData);
   const [code, nonce, fees, block] = await Promise.all([
     publicClient.getCode({ address: wallet.address }),
     nonceOf(wallet.address, 0n),
@@ -153,30 +168,47 @@ export async function prepare(wallet: Wallet, kind: Kind, callData: Hex, decisio
     ...(code
       ? {}
       : { factory: addresses.factory, factoryData: encodeFunctionData({ abi: factoryAbi, functionName: "createAccount", args: [wallet.config, 0n] }) }),
-    ...GAS,
+    ...ACCOUNT_GAS,
     maxFeePerGas: fees.maxFeePerGas,
     maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
-    paymaster: addresses.paymaster,
-    paymasterData: "0x",
+    ...(sponsored ? { ...PAYMASTER_GAS, paymaster: addresses.paymaster, paymasterData: "0x" as Hex } : {}),
     signature: "0x",
   };
   // The policy can use a shorter TTL than the paymaster. Never sponsor past its decision.
   const remaining = decisionExpiresAt ? Math.floor((Date.parse(decisionExpiresAt) - Date.now()) / 1000) : sponsorshipTtl();
   if (!Number.isFinite(remaining) || remaining <= 0) throw new HttpError(410, "This compliance decision expired. Check it again.");
   const ttl = Math.min(remaining, sponsorshipTtl());
-  const validUntil = Number(block.timestamp) + ttl;
-  const sponsored = await publicClient.readContract({
-    address: addresses.paymaster,
-    abi: paymasterAbi,
-    functionName: "getHash",
-    args: [toPackedUserOperation(userOp), validUntil, 0],
-  });
-  userOp.paymasterData = encodeSponsorship(validUntil, await swissquote().signMessage({ message: { raw: sponsored } }));
+  if (sponsored) {
+    const validUntil = Number(block.timestamp) + ttl;
+    const sponsorship = await publicClient.readContract({
+      address: addresses.paymaster,
+      abi: paymasterAbi,
+      functionName: "getHash",
+      args: [toPackedUserOperation(userOp), validUntil, 0],
+    });
+    userOp.paymasterData = encodeSponsorship(validUntil, await swissquote().signMessage({ message: { raw: sponsorship } }));
+  } else await requireGas(wallet, userOp);
   const hash = getUserOperationHash({ chainId: chain.id, entryPointAddress: addresses.entryPoint, entryPointVersion: "0.7", userOperation: userOp });
   const rpc = formatUserOperationRequest(userOp);
   store().pruneOperations(Date.now() - sponsorshipTtl() * 1000);
   store().addOperation(hash, wallet.address, kind, rpc);
   return { hash, userOp: rpc, expiresAt: new Date(Date.now() + ttl * 1000).toISOString() };
+}
+
+/** An operation Swissquote doesn't sponsor pays its gas from the wallet's ETH, and from what earlier ones left at the EntryPoint. */
+async function requireGas(wallet: Wallet, userOp: UserOperation<"0.7">) {
+  const fee = maxFee(userOp);
+  const [eth, deposit] = await Promise.all([
+    publicClient.getBalance({ address: wallet.address }),
+    publicClient.readContract({ address: addresses.entryPoint, abi: entryPoint07Abi, functionName: "balanceOf", args: [wallet.address] }),
+  ]);
+  if (eth + deposit < fee) {
+    throw new HttpError(
+      403,
+      `Your wallet needs up to ${ethAmount(fee)} ETH for the network fee. Add ETH to your wallet, or link your Swissquote account in Settings and Swissquote pays it.`,
+      { refused: "gas" },
+    );
+  }
 }
 
 /** An operation Swissquote prepared and hasn't submitted yet, while its sponsorship lasts. */

@@ -1,6 +1,6 @@
-// SwissquoteAccount ABIs, gas limits and signature encoding, shared by the phone, the Wallet API and the partner.
+// SwissquoteAccount ABIs, gas limits and fees, and signature encoding, shared by the phone, the Wallet API and the partner.
 import type { WebAuthnP256 } from "ox";
-import { concat, encodeAbiParameters, keccak256, numberToHex, parseAbi, parseAbiParameter, toHex, type Address, type Hex } from "viem";
+import { concat, encodeAbiParameters, formatEther, keccak256, numberToHex, parseAbi, parseAbiParameter, toHex, type Address, type Hex } from "viem";
 
 export type Passkey = { x: Hex; y: Hex };
 
@@ -44,6 +44,18 @@ export const paymasterAbi = parseAbi([
 // ponytail: fixed limits sized for a first operation that deploys the account plus a token
 // transfer with on-chain P-256 verification; estimate per operation once dApp calls need more.
 export const ACCOUNT_GAS = { callGasLimit: 300_000n, verificationGasLimit: 1_000_000n, preVerificationGas: 50_000n };
+
+/**
+ * The most an operation without a paymaster can cost the account, in wei: what the EntryPoint takes up front, every gas
+ * limit at maxFeePerGas. Deploying the account runs within verificationGasLimit. What it doesn't use stays the account's
+ * deposit at the EntryPoint, toward the next fee.
+ */
+export const maxFee = (op: Record<keyof typeof ACCOUNT_GAS | "maxFeePerGas", bigint>) =>
+  (op.callGasLimit + op.verificationGasLimit + op.preVerificationGas) * op.maxFeePerGas;
+
+/** ETH in wei as a client reads it: two significant digits, rounded up, so a fee never shows below what it can cost. */
+export const ethAmount = (wei: bigint) =>
+  new Intl.NumberFormat("en-US", { maximumSignificantDigits: 2, roundingMode: "ceil" }).format(Number(formatEther(wei)));
 
 const validity = [{ type: "uint48" }, { type: "uint48" }] as const;
 

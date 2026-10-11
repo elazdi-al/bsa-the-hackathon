@@ -36,12 +36,13 @@ test("non-authorizing compliance reviews never ask for a passkey", async () => {
   }
   assert.equal(authentications(), 0);
 });
-test("phone forwards dApp metadata but rejects altered wallet calldata before signing", async () => {
+test("phone forwards dApp metadata, prices an unsponsored operation itself and rejects altered wallet calldata before signing", async () => {
   const originalFetch = globalThis.fetch;
   const vault = selectVaults(demoPolicy(), DEMO.chainId)[0];
   const call = buildVaultCall(vault, DEMO.account, "approve", 25_000_000n);
   const expected = encodeFunctionData({ abi: accountAbi, functionName: "execute", args: [call.to, 0n, call.data] });
   let tamper = false;
+  let sponsored = true;
   try {
     globalThis.fetch = async (input, init) => {
       if (String(input) === "/api/config") return Response.json({ chainId: DEMO.chainId, entryPoint: entryPoint07Address, usdc: DEMO.usdc });
@@ -51,15 +52,18 @@ test("phone forwards dApp metadata but rejects altered wallet calldata before si
       assert.equal(body.callData, expected);
       const op: UserOperation<"0.7"> = {
         sender: DEMO.account, nonce: 0n, callData: tamper ? "0x1234" : expected, callGasLimit: 300_000n,
-        verificationGasLimit: 1_000_000n, preVerificationGas: 50_000n, maxFeePerGas: 1n, maxPriorityFeePerGas: 1n,
-        paymaster: DEMO.recipient, paymasterVerificationGasLimit: 100_000n, paymasterPostOpGasLimit: 0n,
-        paymasterData: encodeSponsorship(0, "0x"), signature: "0x",
+        verificationGasLimit: 1_000_000n, preVerificationGas: 50_000n, maxFeePerGas: 2n, maxPriorityFeePerGas: 1n,
+        ...(sponsored && { paymaster: DEMO.recipient, paymasterVerificationGasLimit: 100_000n, paymasterPostOpGasLimit: 0n, paymasterData: encodeSponsorship(0, "0x") }),
+        signature: "0x",
       };
-      return Response.json({ hash: getUserOperationHash({ chainId: DEMO.chainId, entryPointAddress: entryPoint07Address, entryPointVersion: "0.7", userOperation: op }), userOp: formatUserOperationRequest(op) });
+      // A fee from Swissquote is ignored: the phone works out its own.
+      return Response.json({ hash: getUserOperationHash({ chainId: DEMO.chainId, entryPointAddress: entryPoint07Address, entryPointVersion: "0.7", userOperation: op }), userOp: formatUserOperationRequest(op), fee: "1" });
     };
     const { phone, authentications } = fixturePhone();
     const metadata = { origin: vault.origin, name: vault.name };
-    assert.ok(await phone.prepare(call, metadata));
+    assert.equal((await phone.prepare(call, metadata)).fee, undefined, "Swissquote pays a sponsored operation's gas");
+    sponsored = false;
+    assert.equal((await phone.prepare(call, metadata)).fee, String(1_350_000n * 2n), "every gas limit at maxFeePerGas");
     tamper = true;
     await assert.rejects(phone.prepare(call, metadata), /different operation/);
     assert.equal(authentications(), 0);

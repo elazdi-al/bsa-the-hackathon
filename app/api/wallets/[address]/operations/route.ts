@@ -6,7 +6,9 @@ import { assist, prepare, requireSponsorable, requireWallet } from "@/lib/wallet
 import { hex } from "@/lib/wallet/schema.ts";
 
 /**
- * Sponsors an operation the phone built. The phone checks the returned operation against its own callData, computes the hash itself and signs it with the passkey and the wallet key.
+ * Prepares an operation the phone built: sponsored for a linked wallet, and paid from the wallet's own ETH for an
+ * unlinked one. The phone checks the returned operation against its own callData, computes the hash itself and signs
+ * it with the passkey and the wallet key.
  */
 export const POST = route(async (request: Request, ctx: RouteContext<"/api/wallets/[address]/operations">) => {
   const wallet = requireWallet((await ctx.params).address as Address);
