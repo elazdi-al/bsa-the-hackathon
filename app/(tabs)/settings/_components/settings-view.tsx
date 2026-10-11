@@ -2,18 +2,21 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { shortAddress } from "@/app/choose-recipient/data";
-import { ChevronRightIcon, IdCardIcon, ShieldIcon, SignOutIcon, VerifiedIcon, type Icon } from "@/components/icons";
+import { BankIcon, ChevronRightIcon, FaceIdIcon, IdCardIcon, ShieldIcon, SignOutIcon, VerifiedIcon, type Icon } from "@/components/icons";
+import { SwissquoteMark } from "@/components/swissquote-mark";
 import { Button } from "@/components/ui/button";
 import { DemoTag } from "@/components/ui/demo-tag";
+import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Tray, TrayActions, TrayHeader } from "@/components/ui/tray";
 import { cn } from "@/lib/utils";
+import { ApiError, phone, type Prepared } from "@/lib/wallet/phone";
 import { rowPress } from "../../_components/list";
-import { useSignedIn } from "../../_components/session";
-import { forgetWallet, shownAddress, useWallet } from "../../_components/wallet";
-import { keys, sections, version, type KeyId, type Row, type TrayRoot } from "../data";
+import { keepSession, storedSession, useSignedIn } from "../../_components/session";
+import { forgetWallet, refreshWallet, shownAddress, useWallet } from "../../_components/wallet";
+import { keys, linkAdds, sections, version, type KeyId, type Row, type TrayRoot } from "../data";
 
 type View = { name: TrayRoot } | { name: "key"; id: KeyId };
 
@@ -68,10 +71,21 @@ function SettingsRow({ item, onOpen }: { item: Row; onOpen: (root: TrayRoot) => 
 
 const reveal = (shown: unknown) => cn("transition-[opacity,visibility] duration-200 ease-out", !shown && "invisible opacity-0");
 
+/**
+ * Whether the wallet is read yet, and the Swissquote client it is linked to, when this phone is signed in as them:
+ * Swissquote names a wallet's owner only to the owner's own session.
+ */
+function useLinked() {
+  const snapshot = useWallet();
+  const client = useSignedIn()?.client;
+  const ready = snapshot.status === "ready";
+  return { ready, client: ready && client && snapshot.wallet.owner === client.number ? client : undefined };
+}
+
 /** The member's card: their plan, name and address on the brand blue, like the card in a wallet. It opens Swissquote Plus. */
 function MemberCard() {
   const address = shownAddress(useWallet());
-  const name = useSignedIn()?.client.name;
+  const name = useLinked().client?.name;
   return (
     <Link
       href="/plus"
@@ -92,19 +106,6 @@ function MemberCard() {
   );
 }
 
-/** Swissquote holds the wallet key's signed statement that this wallet belongs to the client signed in on this phone. */
-function Verified() {
-  const snapshot = useWallet();
-  const client = useSignedIn()?.client.number;
-  const verified = snapshot.status === "ready" && !!client && snapshot.wallet.owner === client;
-  return (
-    <p className={cn("mt-3 flex items-center gap-1.5 px-1 text-caption text-muted-foreground", reveal(verified))}>
-      <VerifiedIcon size={16} className="shrink-0 text-positive" />
-      Verified as yours by Swissquote · Mock
-    </p>
-  );
-}
-
 function Hero({ Icon, color }: { Icon: Icon; color: string }) {
   return (
     <span aria-hidden style={{ color }} className="grid size-14 place-items-center rounded-full bg-current/12">
@@ -113,8 +114,76 @@ function Hero({ Icon, color }: { Icon: Icon; color: string }) {
   );
 }
 
+/**
+ * Links the wallet to the client's Swissquote account. Face ID approves an operation Swissquote prepared, as for a
+ * payment, which unlocks the wallet key; the phone then signs in (MOCKED) and the key signs that the wallet is theirs.
+ */
+function LinkView({ done }: { done: () => void }) {
+  const preparing = useRef<Promise<Prepared>>(undefined);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
+
+  // Prepared while the client reads, so the tap goes straight to Face ID, which needs the tap's user activation.
+  const prepare = () => {
+    preparing.current = phone.prepareLink();
+    preparing.current.catch(() => {});
+  };
+  useEffect(() => {
+    if (!preparing.current) prepare();
+  }, []);
+
+  async function link() {
+    setBusy(true);
+    setError(undefined);
+    try {
+      keepSession(await phone.link(await preparing.current!, storedSession()?.session));
+      await refreshWallet();
+      done();
+    } catch (e) {
+      const taken = e instanceof ApiError && e.status === 409;
+      setError(taken ? "This wallet is already linked to another Swissquote account." : "Your wallet wasn't linked. Try again.");
+      prepare();
+    }
+    setBusy(false);
+  }
+
+  return (
+    <>
+      <TrayHeader
+        icon={<SwissquoteMark size={56} />}
+        title="Link your Swissquote account"
+        description="Optional. Your wallet works the same without it."
+      />
+      <ul className="mt-6 space-y-4">
+        {linkAdds.map(({ Icon, text }) => (
+          <li key={text} className="flex gap-3 text-body text-pretty">
+            <Icon size={20} className="shrink-0 text-brand" />
+            {text}
+          </li>
+        ))}
+      </ul>
+      <TrayActions>
+        <Button size="lg" className="h-12" onClick={link} disabled={busy} aria-busy={busy}>
+          {busy ? <Spinner aria-hidden className="size-5" /> : <FaceIdIcon size={20} />}
+          {busy ? "Linking" : "Link with Face ID"}
+        </Button>
+      </TrayActions>
+      {error && (
+        <p role="alert" className="mt-3 text-center text-caption text-negative">
+          {error}
+        </p>
+      )}
+      <p data-demo="" className="mt-3 text-center text-caption text-muted-foreground">
+        Mock sign-in: you link as a made-up Swissquote client.
+      </p>
+    </>
+  );
+}
+
 function TrayBody({ view, push, close, remove }: { view: View; push: (next: View) => void; close: () => void; remove: () => void }) {
   switch (view.name) {
+    case "link":
+      return <LinkView done={close} />;
     case "keys":
       return (
         <>
@@ -187,20 +256,30 @@ function TrayBody({ view, push, close, remove }: { view: View; push: (next: View
 
 export function SettingsView() {
   const router = useRouter();
-  const client = useSignedIn()?.client;
+  const { ready, client } = useLinked();
   const [open, setOpen] = useState(false);
   // Outlives `open` until the close animation ends, so the tray doesn't empty mid-exit.
   const [stack, setStack] = useState<View[]>([]);
   const view = stack.at(-1);
 
-  // The ID card Swissquote has on file, shown where the Swissquote app would: a recovery asks for its number.
-  const idOnFile: Row = {
-    kind: "info",
-    label: "ID on file · Mock",
-    detail: <span className={reveal(client)}>{client?.name ?? " "}</span>,
-    value: <span className={cn("tabular-nums", reveal(client))}>{client?.document}</span>,
-    Icon: IdCardIcon,
-  };
+  // Linked: the client, and the ID card Swissquote has on file, which a recovery asks for. Unlinked: the offer to link.
+  const account: Row[] = client
+    ? [
+        {
+          kind: "info",
+          label: "Swissquote account",
+          detail: `${client.name}, client ${client.number}`,
+          value: (
+            <span className="flex items-center gap-1.5">
+              <VerifiedIcon size={16} className="text-positive" />
+              Linked
+            </span>
+          ),
+          Icon: BankIcon,
+        },
+        { kind: "info", label: "ID on file", demo: true, value: <span className="tabular-nums">{client.document}</span>, Icon: IdCardIcon },
+      ]
+    : [{ kind: "tray", opens: "link", label: "Link your Swissquote account", Icon: BankIcon }];
 
   function show(root: TrayRoot) {
     setStack([{ name: root }]);
@@ -214,14 +293,13 @@ export function SettingsView() {
 
   return (
     <div className="mt-6 max-w-xl lg:grid lg:max-w-none lg:grid-cols-[20rem_minmax(0,1fr)] lg:items-start lg:gap-12">
-      <div>
-        <MemberCard />
-        <Verified />
-      </div>
+      <MemberCard />
 
       <div>
-        {[[idOnFile, ...sections[0]], ...sections.slice(1)].map((rows, i) => (
+        {[[...(ready ? account : []), ...sections[0]], ...sections.slice(1)].map((rows, i) => (
           <div key={i} className={`-mx-3 ${i ? "mt-6" : "mt-6 lg:mt-0"}`}>
+            {/* Holds the account row's place while the wallet loads, so the rows below don't jump. */}
+            {!i && !ready && <div className="min-h-14" />}
             {rows.map((item) => (
               <SettingsRow key={item.label} item={item} onOpen={show} />
             ))}

@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
 import { KEYS, type KeyId } from "@/app/onboarding-secure/data";
-import { BellIcon, CoinIcon, HelpIcon, KeyIcon, SignOutIcon, type Icon } from "@/components/icons";
+import { BankIcon, BellIcon, CoinIcon, HelpIcon, IdCardIcon, KeyIcon, LockIcon, SignOutIcon, type Icon } from "@/components/icons";
 
 export type { KeyId };
 
 /** The trays a row can open; each is the root of its own view stack. */
-export type TrayRoot = "keys" | "remove";
+export type TrayRoot = "keys" | "link" | "remove";
 
 /** What pressing a row does. `info` rows don't press, so they get no chevron. */
 type Behaviour =
@@ -24,12 +24,19 @@ const about: Record<KeyId, { detail: string; about: string }> = {
   },
   recovery: {
     detail: "Saved as a file",
-    about: "Restores your wallet if you lose this phone. A recovery also needs Swissquote's ID check, then a 48-hour hold you can cancel. Keep it at home; Swissquote never needs to see it.",
+    about: "Restores your wallet if you lose this phone, after a 48-hour hold you can cancel. If you linked your Swissquote account, Swissquote also checks your ID. Keep it at home; Swissquote never needs to see it.",
   },
 };
 
 // Labels, glyphs and colours come from onboarding, so a key looks the same where it was made.
 export const keys = KEYS.map(({ id, title, Icon, accent }) => ({ id, title, Icon, accent, ...about[id] }));
+
+/** What linking a Swissquote account adds, in the link tray. The wallet works the same without it. */
+export const linkAdds: { Icon: Icon; text: string }[] = [
+  { Icon: BankIcon, text: "Move money between your Swissquote account and this wallet without extra checks." },
+  { Icon: IdCardIcon, text: "Swissquote checks your ID before anyone can recover your wallet." },
+  { Icon: LockIcon, text: "Swissquote can lock this phone if it's lost or stolen." },
+];
 
 /** Groups of rows, set apart by space alone. */
 export const sections: Row[][] = [
