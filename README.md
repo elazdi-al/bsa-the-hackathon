@@ -32,18 +32,18 @@ One story, end to end: create a wallet, pay with Face ID, link it to a Swissquot
 The same story runs without a browser, on software phones. Run these in order against a fresh `npm run local`:
 
 ```bash
-npm run account anna                                                # a wallet with 100 USDC, not linked
-npm run send anna 0x000000000000000000000000000000000000dEaD 20     # leaves at once
-npm run fund anna 2000
-npm run send anna 0x000000000000000000000000000000000000dEaD 2000   # held for 24 hours
+npm run account phone                                               # a wallet with 100 USDC, not linked
+npm run send phone 0x000000000000000000000000000000000000dEaD 20    # leaves at once
+npm run fund phone 2000
+npm run send phone 0x000000000000000000000000000000000000dEaD 2000  # held for 24 hours
 npm run warp 24                                                     # prints "Released"
-npm run link anna                                                   # links it to a mock Swissquote client
-npm run attack anna                                                 # A1 to A7, each refused
-npm run recover anna                                                # lost phone: recovery onto anna-new
+npm run link phone                                                  # links it to a mock Swissquote client
+npm run attack phone                                                # A1 to A7, each refused
+npm run recover phone                                               # lost phone: recovery onto phone-new
 npm run warp
-npm run finish anna-new                                             # anna-new controls the same address
+npm run finish phone-new                                            # phone-new controls the same address
 npm run sunset                                                      # Swissquote is gone
-npm run exit anna-new 0x000000000000000000000000000000000000dEaD all
+npm run exit phone-new 0x000000000000000000000000000000000000dEaD all
 npm run sunset off
 ```
 
@@ -148,7 +148,7 @@ Every key is generated on the client's phone. The passkey lives in the phone's s
 
 Creating a wallet needs no Swissquote account and no sign-in. Swissquote still stores Share B, and the independent service Share C.
 
-Later, the client can link the wallet to their Swissquote account from Settings. Face ID unlocks the wallet key as for a payment, the app signs in to Swissquote, which is mocked, and the wallet key signs "Wallet 0x… belongs to Swissquote client *number*." Swissquote keeps that statement. Linking adds three things:
+Later, the client can link the wallet to their Swissquote account from Settings. The app signs in to Swissquote, which is mocked, and the client signs "Wallet 0x… belongs to Swissquote client *number*." with Face ID, using the passkey the account requires for every payment. Swissquote checks the signature against the wallet's passkey and keeps both. Linking adds three things:
 
 1. Money moves between the Swissquote account and the wallet with no extra checks, because the statement is Swissquote's Travel Rule ownership proof.
 2. Before anyone recovers the wallet, Swissquote also checks the ID against the client's KYC record.
@@ -210,7 +210,7 @@ This is engineering research checked on 10 October 2026, not legal advice.
 
 **Custody.** The practical test for custody is who can move the funds. Swissquote cannot. The account accepts a transfer only with the passkey in the client's phone, and no Swissquote key meets that rule, even combined with the independent service's. Swissquote's other powers decide whether it helps and move no asset. The weak point is that withholding Share B stops the client paying while Swissquote runs, so the client contract should allow refusal only on a legal ground.
 
-**Travel Rule.** FINMA requires ownership of a client's own wallet to be proven by suitable technical means. Swissquote Wallet makes the proof automatic for a linked wallet. When the client links it in the signed-in app, the wallet key signs a statement that the wallet belongs to that client number. Transfers between the Swissquote account and a linked wallet then need no whitelisting form and no test transfer. An unlinked wallet goes through Swissquote's usual procedure for any self-hosted wallet. A production proof should also verify the account through ERC-1271, which is not built.
+**Travel Rule.** FINMA requires ownership of a client's own wallet to be proven by suitable technical means. Swissquote Wallet makes the proof automatic for a linked wallet. When the client links it in the signed-in app, they sign with Face ID a statement that the wallet belongs to that client number. The passkey that signs it is the one the account requires for every payment. Transfers between the Swissquote account and a linked wallet then need no whitelisting form and no test transfer. An unlinked wallet goes through Swissquote's usual procedure for any self-hosted wallet. A production proof should also verify the account through ERC-1271, which is not built.
 
 **Sending institution.** When the client pays a third party, the client signs and the client's account sends. Swissquote screens, pays gas and relays, and cannot change the recipient or the amount. Our position is that Swissquote is not the ordering institution, but it is a financial intermediary for the assistance, so KYC, monitoring and sanctions duties apply. Until FINMA or counsel confirms that reading, we would treat each sponsored payment as if Swissquote were the ordering institution.
 

@@ -34,7 +34,7 @@ The prototype rebuilds the complete key on the phone and then signs. It uses Sha
 
 ## Linking a Swissquote account
 
-Later, the client can link the wallet to their Swissquote account from Settings, with one Face ID. The wallet key signs that the wallet belongs to their client number, and Swissquote keeps that statement. Linking adds three things:
+Later, the client can link the wallet to their Swissquote account from Settings, with one Face ID. The passkey, which the account requires for every payment, signs that the wallet belongs to their client number, and Swissquote keeps that signed statement. Linking adds three things:
 
 1. Money moves between the Swissquote account and the wallet with no extra checks. The signed statement is the ownership proof the Travel Rule asks for. An unlinked wallet goes through Swissquote's usual procedure for an external wallet.
 2. Before anyone recovers the wallet, Swissquote also checks the client's ID.

@@ -113,9 +113,8 @@ The Recovery Key binding matters because a share holder must not be able to subs
 
 Later, from Settings, the user can link the wallet to their Swissquote account. Linking adds Swissquote's Travel Rule ownership proof, an ID check before recovery and the lock on a lost phone. It changes nothing in the shares or on chain.
 
-1. Face ID unlocks the Wallet Key as for a payment, from the cache or from A and B. Swissquote releases B only for an operation the passkey approved, so the phone has Swissquote prepare one that changes nothing, the wallet allowing itself 0 USDC, and never sends it.
-2. The phone signs in to Swissquote. The session and the client's KYC record are mocked. A phone without a session Swissquote knows signs in as a new made-up client.
-3. The Wallet Key signs "Wallet 0x… belongs to Swissquote client *number*." `POST /api/wallets/:address/link` checks the session and that signature against the wallet's live signer, and keeps the statement as the owner record. A wallet linked to one client cannot be linked to another, and there is no unlink.
+1. The phone signs in to Swissquote. The session and the client's KYC record are mocked. A phone without a session Swissquote knows signs in as a new made-up client.
+2. With Face ID, the passkey signs keccak256 of "Wallet 0x… belongs to Swissquote client *number*.", as it does to cancel a held payment. No Wallet Key is rebuilt and Share B is not released. `POST /api/wallets/:address/link` checks the session and the assertion against the wallet's live passkey, and keeps the statement and the assertion as the owner record. A wallet linked to one client cannot be linked to another, and there is no unlink.
 
 ## Sending a payment
 
@@ -290,7 +289,7 @@ Availability is a separate issue from signing authority. Swissquote can refuse B
 | [tickets.ts](../lib/wallet/tickets.ts) | Signed share-registration and recovery-approval tickets |
 | [operations.ts](../lib/wallet/api/operations.ts) | Sponsorship, limits, binding checks, operation preparation, held payments and submission |
 | [clients.ts](../lib/wallet/api/clients.ts) | The mocked Swissquote sign-in for linking, the KYC record and the ID check of a linked wallet |
-| [link route](../app/api/wallets/[address]/link/route.ts) | The owner record a linked wallet's key signs |
+| [link route](../app/api/wallets/[address]/link/route.ts) | The owner record a linked wallet's passkey signs |
 | [locks.ts](../lib/wallet/api/locks.ts) | The lock on a reported phone of a linked wallet |
 | [partner/server.ts](../services/partner/server.ts) | Independent validation and release of Share C |
 | [SwissquoteAccount.sol](../contracts/src/SwissquoteAccount.sol) | Both signature modes, 48-hour delay, cancellation, and finalization |
