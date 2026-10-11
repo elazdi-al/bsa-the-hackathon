@@ -572,7 +572,7 @@
       <span>The chain checks both.</span>
     </div>
   </div>
-  <aside class="notes">One idea carries the design. The wallet key is split 2-of-3 with Shamir secret sharing: Share A on the phone, sealed so only Face ID opens it, B at Swissquote, C at an independent service. Any two rebuild the key on the phone, which keeps it in memory for three hours at most. The key alone moves nothing: the smart account also checks a passkey signature on every payment, so Swissquote and the independent service together still cannot move funds. Share C also has a second job, exit mode: if Swissquote is gone, it lets the client leave without it. We come back to that at the end of the story.</aside>
+  <aside class="notes">One idea carries the design. The wallet key is split 2-of-3 with Shamir secret sharing: Share A on the phone, sealed so only Face ID opens it, B at Swissquote, C at an independent service. Any two rebuild the key on the phone, which keeps it in memory for three hours at most. The key alone moves nothing: the smart account also checks a passkey signature on every payment, so Swissquote and the independent service together still cannot move funds. Share C also has a second job, recovery mode: if Swissquote is gone, it lets the client leave without it. We come back to that at the end of the story.</aside>
 </section>
 
 <!-- 5. Create -->
@@ -644,7 +644,7 @@
     <div class="row" style="--c: var(--swissquote);"><span class="icon"><svg class="i"><use href="#i-bank"/></svg></span><div><b>Only linked wallets</b><span>Plus every recovery. Unlinked ones pay in ETH.</span></div></div>
     <div class="row" style="--c: var(--phone);"><span class="icon"><svg class="i"><use href="#i-clock"/></svg></span><div><b>A rate limit per wallet</b><span>No wallet can drain the gas deposit.</span></div></div>
   </div>
-  <aside class="notes">Once the wallet is linked to a Swissquote account, the client never needs ETH outside exit mode: Swissquote's paymaster, a contract holding its gas deposit, pays every fee, and the client sees zero. Sponsorship is a service for Swissquote clients. An unlinked wallet pays its own gas in ETH and sees the most it can cost before Face ID. Every wallet's recovery stays sponsored, so a lost phone never needs ETH. Abuse is bounded by what Swissquote agrees to sign: only operations its policy allows, only for linked wallets and recoveries, and a sponsorship rate limit per wallet, so nobody can drain the gas deposit.</aside>
+  <aside class="notes">Once the wallet is linked to a Swissquote account, the client never needs ETH outside recovery mode: Swissquote's paymaster, a contract holding its gas deposit, pays every fee, and the client sees zero. Sponsorship is a service for Swissquote clients. An unlinked wallet pays its own gas in ETH and sees the most it can cost before Face ID. Every wallet's recovery stays sponsored, so a lost phone never needs ETH. Abuse is bounded by what Swissquote agrees to sign: only operations its policy allows, only for linked wallets and recoveries, and a sponsorship rate limit per wallet, so nobody can drain the gas deposit.</aside>
 </section>
 
 <!-- 8. Link -->
@@ -727,7 +727,7 @@
     <svg class="i"><use href="#i-next"/></svg>
     <div class="tile" style="--c: var(--partner);">
       <span class="icon"><svg class="i"><use href="#i-shield"/></svg></span>
-      <h2>Exit mode opens</h2>
+      <h2>Recovery mode opens</h2>
       <p>The independent service runs it.</p>
     </div>
     <svg class="i"><use href="#i-next"/></svg>
@@ -743,7 +743,7 @@
       <p>A and C rebuild the key on your phone.</p>
     </div>
   </div>
-  <aside class="notes">Last, the brief asks what happens if Swissquote's services are gone for good. After 30 days without Swissquote, the independent service opens exit mode: when the client's passkey approves a payment, it releases Share C for that payment. The phone rebuilds the key from A and C, signs with Face ID and the key, and submits straight to the chain. With no Swissquote paymaster, the client pays the fee, a few cents of ETH.</aside>
+  <aside class="notes">Last, the brief asks what happens if Swissquote's services are gone for good. After 30 days without Swissquote, the independent service opens recovery mode: when the client's passkey approves a payment, it releases Share C for that payment. The phone rebuilds the key from A and C, signs with Face ID and the key, and submits straight to the chain. With no Swissquote paymaster, the client pays the fee, a few cents of ETH.</aside>
 </section>
 
 <!-- 12. Scenario: Swissquote and its partner team up -->
@@ -818,7 +818,7 @@
   <p class="sub">Solid parts run for real in the demo. Yellow dashed parts are mocked.</p>
   <svg class="arch visual" viewBox="0 0 1664 712" role="img" aria-label="Phone, Recovery Key, Swissquote, independent service and chain, and what talks to what">
     <path class="wire soft" d="M210 64V20H1462V64"/>
-    <text class="wire-label halo" x="836" y="28" text-anchor="middle">Exit mode only: the phone submits directly</text>
+    <text class="wire-label halo" x="836" y="28" text-anchor="middle">Recovery mode only: the phone submits directly</text>
 
     <rect class="box" x="0" y="64" width="420" height="404" rx="40"/>
     <rect x="24" y="88" width="56" height="56" rx="16" style="fill: var(--phone);"/><use class="glyph" href="#i-phone" x="36" y="100" width="32" height="32"/>
@@ -827,7 +827,7 @@
     <rect class="part" x="24" y="164" width="372" height="48" rx="14"/><text class="label" x="46" y="196">Passkey, behind Face ID</text>
     <rect class="part" x="24" y="222" width="372" height="48" rx="14"/><text class="label" x="46" y="254">Share A, sealed by it</text>
     <rect class="part" x="24" y="280" width="372" height="48" rx="14"/><text class="label" x="46" y="312">Wallet key, 3 h in memory</text>
-    <rect class="part" x="24" y="338" width="372" height="48" rx="14"/><text class="label" x="46" y="370">Phone lock, exit mode</text>
+    <rect class="part" x="24" y="338" width="372" height="48" rx="14"/><text class="label" x="46" y="370">Phone lock, recovery mode</text>
     <rect class="mock" x="24" y="396" width="372" height="48" rx="14"/><text class="label" x="46" y="428">Secure chip: web storage</text>
 
     <rect class="box" x="0" y="536" width="420" height="172" rx="40"/>
@@ -888,7 +888,7 @@
     <path class="wire" d="M1072 622H1248M1236 610l12 12-12 12"/>
     <text class="wire-label" x="1160" y="600" text-anchor="middle">Reads accounts</text>
   </svg>
-  <aside class="notes">Four parties and a file at home. The phone holds the passkey and Share A and rebuilds the wallet key in memory for up to three hours. Swissquote screens every payment, submits every operation, pays the gas for linked wallets, and holds Share B. The independent service is a real separate process with its own database, holding Share C, which the phone sends it directly; only the company behind it is a stand-in. The Recovery Key file stays at home: it starts or cancels a recovery and locks a lost phone. The chain enforces the passkey and the 48-hour delay; its EntryPoint is the standard contract that checks and runs every account operation. In exit mode, with Swissquote gone, the phone submits operations itself and pays its own gas. Yellow parts are mocked: the Swissquote sign-in behind the optional account link, the sanctions and simulation data, the secure chip, and the vaults, which seal shares in software here and would be HSMs in production.</aside>
+  <aside class="notes">Four parties and a file at home. The phone holds the passkey and Share A and rebuilds the wallet key in memory for up to three hours. Swissquote screens every payment, submits every operation, pays the gas for linked wallets, and holds Share B. The independent service is a real separate process with its own database, holding Share C, which the phone sends it directly; only the company behind it is a stand-in. The Recovery Key file stays at home: it starts or cancels a recovery and locks a lost phone. The chain enforces the passkey and the 48-hour delay; its EntryPoint is the standard contract that checks and runs every account operation. In recovery mode, with Swissquote gone, the phone submits operations itself and pays its own gas. Yellow parts are mocked: the Swissquote sign-in behind the optional account link, the sanctions and simulation data, the secure chip, and the vaults, which seal shares in software here and would be HSMs in production.</aside>
 </section>
 
 <!-- 15. Legal -->
@@ -1016,7 +1016,7 @@
         <li>48-hour delay and cancel <span>on chain</span></li>
         <li>Independent service <span>its own process and database; the company is a stand-in</span></li>
         <li>Compliance engine <span>with signed, logged decisions</span></li>
-        <li>Phone lock and exit mode</li>
+        <li>Phone lock and recovery mode</li>
         <li>Signed transactions <span>on a local chain, Base Sepolia ready</span></li>
       </ul>
     </section>
@@ -1030,7 +1030,7 @@
       </ul>
     </section>
   </div>
-  <aside class="notes">Everything in the protocol runs for real: the key split, the passkey checked on chain, the smart account, the paymaster, the 48-hour delay, the phone lock, exit mode, and the independent service as its own process and database, with a stand-in for the company behind it. What needs a real bank or real hardware is mocked and labelled: the Swissquote sign-in behind the optional account link, the HSMs, and the sanctions and simulation data. The production path is the native Swissquote app with the secure chip, real HSMs, a contracted independent service and Base mainnet.</aside>
+  <aside class="notes">Everything in the protocol runs for real: the key split, the passkey checked on chain, the smart account, the paymaster, the 48-hour delay, the phone lock, recovery mode, and the independent service as its own process and database, with a stand-in for the company behind it. What needs a real bank or real hardware is mocked and labelled: the Swissquote sign-in behind the optional account link, the HSMs, and the sanctions and simulation data. The production path is the native Swissquote app with the secure chip, real HSMs, a contracted independent service and Base mainnet.</aside>
 </section>
 
 <!-- 20. Closing -->
