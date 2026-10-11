@@ -237,10 +237,10 @@ Swissquote pays every fee. Its `VerifyingPaymaster`, the eth-infinitism v0.7 sam
 
 Swissquote limits what it signs:
 
-- **Only payments compliance allows.** `ALLOW` is sponsored at once, and `STEP_UP` is held 24 hours and checked again. Every other payment is refused.
+- **Only calls compliance allows.** `ALLOW` is sponsored at once, and a payment's `STEP_UP` is held 24 hours and checked again. Everything else is refused, a dApp call's `STEP_UP` included.
 - **Only `execute`, plus recovery.** The operations endpoint sponsors only calls through the account's `execute`, and no call to the account itself except `cancelRecovery`. The one other operation Swissquote sponsors is the `initiateRecovery` it prepares after the ID check. Neither recovery call goes through compliance.
 - **No payment of 0.** It answers 403 "Swissquote doesn't pay for a payment of 0 USDC."
-- **20 an hour.** Swissquote sponsors at most 20 of a wallet's operations per hour of chain time. It counts what its paymaster paid in the EntryPoint's events over the last 5,000 blocks. The next one gets 429 "Swissquote pays the network fee for up to 20 payments an hour. Try again in N minutes." A recovery cancel and a held payment's release are never refused, but they count.
+- **20 an hour.** Swissquote sponsors at most 20 of a wallet's operations per hour of chain time, dApp calls included. It counts what its paymaster paid in the EntryPoint's events over the last 5,000 blocks. The next one gets 429 "Swissquote pays the network fee for up to 20 payments an hour. Try again in N minutes." A recovery cancel and a held payment's release are never refused, but they count.
 - **10 minutes.** The sponsorship of a payment that leaves at once lasts the policy's `decisionTtlSeconds`, 600 seconds in the local policy, so it never outlives the compliance decision behind it. After that the API answers 410 "This approval expired. Start again." Each prepared operation can be submitted once, and expired ones are deleted at the next prepare. A held payment's sponsorship instead runs for 48 hours from its release time, and compliance runs again at release.
 - **Fixed gas limits.** 300,000 for the call, 1,000,000 for verification, 50,000 before verification and 100,000 for the paymaster.
 - **Simulated first.** The API simulates `handleOps` before it submits, which catches a bad signature, sponsorship or nonce before Swissquote pays.
@@ -249,7 +249,7 @@ A call that reverts inside the account still costs Swissquote its gas. The Send 
 
 ## Compliance engine
 
-Every payment Swissquote sponsors goes through the compliance engine first. `ALLOW` is sponsored at once. `STEP_UP`, above 1,000 USDC, is held 24 hours and checked again. `REVIEW` and `DENY_ASSISTANCE` are refused. A refusal shows its reasons to the client in plain words, stops Swissquote's assistance and never freezes the wallet.
+Every payment Swissquote sponsors goes through the compliance engine first. `ALLOW` is sponsored at once. `STEP_UP`, above 1,000 USDC, is held 24 hours and checked again. A dApp call that needs step-up is refused instead, since only a USDC payment can be held. `REVIEW` and `DENY_ASSISTANCE` are refused. A refusal shows its reasons to the client in plain words, stops Swissquote's assistance and never freezes the wallet.
 
 The engine runs these checks:
 
