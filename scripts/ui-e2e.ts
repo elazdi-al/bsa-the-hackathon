@@ -1,9 +1,10 @@
 // The wallet's screens end to end in Chromium, each phone a fresh browser profile with a virtual
-// passkey authenticator: create a wallet, send USDC; a payment over 1,000 USDC is scheduled instead, the
-// client cancels one from Home and another leaves once its 24 hours pass (fast-forwarded on anvil); lose
-// the phone and recover with the Recovery Key file once a key no wallet uses and someone else's ID are
-// refused; Swissquote cancels once, the old phone cancels once from Home, the new phone locks the old one
-// from its countdown, then the 48-hour delay passes and the new phone sends.
+// passkey authenticator: create a wallet, send USDC under Swissquote's reading of each payment; a payment
+// over 1,000 USDC is scheduled instead, the client cancels one from Home and another leaves once its 24
+// hours pass (fast-forwarded on anvil); lose the phone and recover with the Recovery Key file once a key
+// no wallet uses and someone else's ID are refused; Swissquote cancels once, the old phone cancels once
+// from Home, the new phone locks the old one from its countdown, then the 48-hour delay passes and the new
+// phone sends.
 //
 //   npm run e2e:ui            (against `npm run local`; HEADED=1 to watch)
 import assert from "node:assert/strict";
@@ -53,12 +54,19 @@ async function until(check: () => Promise<boolean>, what: string) {
     if (Date.now() > end) throw new Error(`Timed out waiting until ${what}`);
 }
 
-/** Continue on the Send screen, up to the Face ID button; says whether it's a large payment Swissquote holds. */
+/**
+ * Continue on the Send screen, up to the Face ID button, under Swissquote's plain reading of the payment; says
+ * whether it's a large payment Swissquote holds.
+ */
 async function review(page: Page, to: Address, amount: string) {
   await page.goto(`${APP}/send?to=${to}`);
   await page.getByLabel("Amount in USDC").fill(amount);
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Send", exact: true }).waitFor(SLOW);
+  const checked = page.locator("section").filter({ hasText: "Checked by Swissquote" });
+  await checked.getByText(`Send ${amount} USDC to ${to.slice(0, 6)}...${to.slice(-4)}.`, { exact: true }).waitFor(SLOW);
+  await checked.getByText("Recipient not on a sanctions list").waitFor(SLOW);
+  await checked.getByText("Simulated: it moves only this amount").waitFor(SLOW);
   return page.getByText("Large payment.").isVisible();
 }
 
@@ -105,7 +113,7 @@ const wallet = (await walletOf(phone1)) as Address;
 console.log(`   wallet ${wallet}`);
 await swissquote.writeContract({ address: addresses.usdc, abi: parseAbi(["function mint(address, uint256)"]), functionName: "mint", args: [wallet, parseUnits("100", 6)] });
 
-console.log("2. Send 20 USDC from the Send screen: Face ID, Swissquote pays the gas, tracking shows it completed");
+console.log("2. Send 20 USDC from the Send screen: Swissquote's reading of it before Face ID, Swissquote pays the gas, tracking shows it completed");
 await send(phone1, FRIEND, "20");
 assert.equal(await usdcOf(FRIEND), parseUnits("20", 6));
 

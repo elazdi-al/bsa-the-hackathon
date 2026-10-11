@@ -3,14 +3,15 @@
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { encodeFunctionData, erc20Abi, formatUnits, parseUnits, type Address } from "viem";
+import { encodeFunctionData, erc20Abi, formatUnits, getAddress, parseUnits, type Address } from "viem";
 import { grouped, retyped } from "@/app/(tabs)/_components/amount";
 import { usd } from "@/app/(tabs)/_components/money";
 import { phoneDate, refreshWallet, useWallet, type Wallet, type WalletSnapshot } from "@/app/(tabs)/_components/wallet";
-import { recipientFor, sendDraft } from "@/app/choose-recipient/data";
-import { ClockIcon, WalletIcon } from "@/components/icons";
+import { recipientFor, sendDraft, shortAddress } from "@/app/choose-recipient/data";
+import { CheckIcon, ClockIcon, ShieldIcon, WalletIcon } from "@/components/icons";
 import { useBack } from "@/components/navigation";
 import { BackButton } from "@/components/ui/back-button";
+import { DemoTag } from "@/components/ui/demo-tag";
 import { ApiError, phone, type Prepared, type Sent } from "@/lib/wallet/phone";
 import { blurSwap } from "./motion";
 import { SendButton, type Phase } from "./send-button";
@@ -39,6 +40,38 @@ function blocker(snapshot: WalletSnapshot, amount: number): string | undefined {
   }
   if (locked) return "Swissquote locked this phone after it was reported lost.";
   if (amount > available(snapshot.wallet)) return `Only ${usd.format(available(snapshot.wallet))} available.`;
+}
+
+/**
+ * What Swissquote confirmed before it sponsored a payment: it refuses one that fails screening or simulation, so
+ * reaching Send means both passed. The fee is the row above.
+ */
+const CHECKS = ["Recipient not on a sanctions list", "Simulated: it moves only this amount"];
+
+/** Swissquote's reading of the payment it checked, before Face ID: its summary and the checks it passed. */
+function Checked({ summary, demo }: { summary: string[]; demo?: boolean }) {
+  return (
+    <motion.section key="checked" {...blurSwap} className="mt-6 rounded-[22px] bg-secondary p-4">
+      <h2 className="flex items-center gap-2 text-label">
+        <ShieldIcon size={20} className="shrink-0 text-positive" />
+        Checked by Swissquote
+        {demo && <DemoTag className="ml-auto" />}
+      </h2>
+      {summary.map((line) => (
+        <p key={line} className="mt-2 text-body text-pretty">
+          {line.replace(/0x[0-9a-f]{40}/gi, (address) => shortAddress(getAddress(address)))}
+        </p>
+      ))}
+      <ul className="mt-3 flex flex-col gap-1.5 text-body text-muted-foreground">
+        {CHECKS.map((check) => (
+          <li key={check} className="flex gap-2">
+            <CheckIcon size={16} className="mt-0.5 shrink-0 text-positive" />
+            {check}
+          </li>
+        ))}
+      </ul>
+    </motion.section>
+  );
 }
 
 /** Swissquote's refusal and its reasons, a known failure in plain words, or the error as is. */
@@ -191,6 +224,8 @@ function Review({ to, address, children }: { to: string; address: Address; child
         </div>
 
         {children}
+
+        <AnimatePresence initial={false}>{prepared?.summary && <Checked summary={prepared.summary} demo={prepared.demo} />}</AnimatePresence>
 
         <div className="mt-auto pt-10 md:mt-0">
           {/* Two lines kept free whatever it says, so the button doesn't move when a large payment's notice comes in. */}

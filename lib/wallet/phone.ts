@@ -116,8 +116,11 @@ export type Identity = { document: string; selfie: string };
 
 type Storage = Pick<globalThis.Storage, "getItem" | "setItem" | "removeItem">;
 type Config = { chainId: number; entryPoint: Address; usdc: Address };
-/** `releaseAt`: the chain time a held payment leaves, read by this phone from the sponsorship it signs. */
-export type Prepared = { hash: Hex; userOp: RpcUserOperation<"0.7">; summary?: string[]; review?: ComplianceDecision; expiresAt?: string; releaseAt?: number };
+/**
+ * `summary`: Swissquote's plain reading of a payment it checked; `demo` when test providers did the checks.
+ * `releaseAt`: the chain time a held payment leaves, read by this phone from the sponsorship it signs.
+ */
+export type Prepared = { hash: Hex; userOp: RpcUserOperation<"0.7">; summary?: string[]; demo?: boolean; releaseAt?: number; review?: ComplianceDecision; expiresAt?: string };
 /** On-chain, or held by Swissquote until `releaseAt` and cancellable by its operation `hash`. */
 export type Sent = { transactionHash: Hex } | { hash: Hex; releaseAt: number };
 

@@ -12,7 +12,7 @@ import { hex } from "@/lib/wallet/schema.ts";
 export const POST = route(async (request: Request, ctx: RouteContext<"/api/wallets/[address]/operations">) => {
   const wallet = requireWallet((await ctx.params).address as Address);
   const { callData, dapp } = await parse(request, z.object({ callData: hex, dapp: requestSchema.shape.dapp }).strict());
-  const { summary, hold, review } = await assist(wallet, callData, dapp);
+  const { summary, hold, demo, review } = await assist(wallet, callData, dapp);
   await requireAvailable(wallet, callData);
-  return Response.json({ ...(await prepare(wallet, "normal", callData, hold, review?.expiresAt)), summary, review }, { headers: { "cache-control": "no-store" } });
+  return Response.json({ ...(await prepare(wallet, "normal", callData, hold, review?.expiresAt)), summary, demo, review }, { headers: { "cache-control": "no-store" } });
 });

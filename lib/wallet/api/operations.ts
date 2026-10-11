@@ -109,7 +109,8 @@ export async function bindShares(signer: Address, recoveryKey: Address, signatur
 
 /**
  * Swissquote assists only operations its compliance policy allows; refusing never freezes the wallet itself.
- * `hold`: the policy asks for step-up, which Swissquote meets by holding the payment for 24 hours.
+ * `hold`: the policy asks for step-up, which Swissquote meets by holding the payment for 24 hours. `demo`: test
+ * providers did the screening and simulation.
  */
 export async function assist(wallet: Wallet, callData: Hex, dapp?: DappMetadata) {
   const call = decodeFunctionData({ abi: accountAbi, data: callData });
@@ -118,7 +119,7 @@ export async function assist(wallet: Wallet, callData: Hex, dapp?: DappMetadata)
   const [to, value, data] = call.args;
   if (isAddressEqual(to, wallet.address)) {
     if (!dapp && data === encodeFunctionData({ abi: accountAbi, functionName: "cancelRecovery" })) {
-      return { summary: ["You cancel the pending recovery of your wallet."], hold: false };
+      return { summary: ["You cancel the pending recovery of your wallet."], hold: false, demo: false };
     }
     throw new HttpError(403, "The app can't change the account itself.");
   }
@@ -135,7 +136,7 @@ export async function assist(wallet: Wallet, callData: Hex, dapp?: DappMetadata)
       review: decision,
     });
   }
-  return { summary: decision.summary, hold, review: decision };
+  return { summary: decision.summary, hold, demo: decision.assurance === "DEMO", review: decision };
 }
 
 const nonceOf = (sender: Address, key: bigint) =>
