@@ -1,6 +1,6 @@
 // Builds, sponsors and submits UserOperations. Swissquote submits them to the EntryPoint
 // itself and pays the gas through its paymaster, so the client never needs ETH. A payment its
-// policy marks for step-up is held: sponsored only from 24 hours on, and for an hour after, so the
+// policy marks for step-up is held: sponsored only from 24 hours on, and for 48 hours after, so the
 // EntryPoint refuses it sooner and later, and kept by Swissquote, which the client can ask to cancel it until then.
 import { randomBytes, randomUUID } from "node:crypto";
 import {
