@@ -1,5 +1,5 @@
 // The protocol from a terminal, against npm run local. Each account is a phone simulated in Node,
-// saved in data/accounts/<name>.json with its passkey, Recovery Key and device record.
+// saved in data/accounts/<account>.json with its passkey, Recovery Key and device record.
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -240,7 +240,7 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
         console.log(`    recovery pending, ${left > 0 ? `can finish in ${duration(left)}` : "can finish now"}`);
       });
       console.log("\nAccounts");
-      if (!accounts.length) console.log("  No CLI accounts. Create one with npm run account <name>.");
+      if (!accounts.length) console.log("  No CLI accounts. Create one with npm run account <account>.");
       else
         console.log(
           table(
@@ -260,7 +260,7 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
     async run([target, amount = "100"]) {
       usdcAmount(amount);
       const to = target ? walletOf(target) : walletRows().at(-1)?.address;
-      if (!to) throw new Error("No wallets yet. Create one in the browser or with npm run account <name>.");
+      if (!to) throw new Error("No wallets yet. Create one in the browser or with npm run account <account>.");
       await mintUsdc(to, amount);
       console.log(
         table(
@@ -275,7 +275,7 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
   },
 
   account: {
-    usage: "account <name>",
+    usage: "account <account>",
     about: "Create a wallet with a software passkey, not linked to a Swissquote client, save its Recovery Key file and fund it with 100 USDC.",
     async run([name]) {
       const file = accountFile(name);
@@ -367,7 +367,7 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
   },
 
   recover: {
-    usage: "recover <account | Recovery Key file> [new-name] [ID number]",
+    usage: "recover <account | Recovery Key file> [new-account] [ID number]",
     about: "Start a recovery onto a new software phone with the Recovery Key, and for a linked wallet the owner's ID card number. It can finish after 48 hours.",
     async run([source, target, idNumber]) {
       const owner = NAME.test(source) && existsSync(accountFile(source)) ? loadAccount(source) : undefined;
