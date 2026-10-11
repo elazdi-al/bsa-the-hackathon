@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Swissquote Wallet, App Store screenshots</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&display=swap">
+<style>
+  /* App Store screenshots: 1290 × 2796 panels (6.7" iPhone), the deck's phone and colours. store.ts exports them. */
+  :root {
+    --secondary: #6e6e73;
+    --phone: #0a84ff;
+    --swissquote: #ff5a1f;
+    --home: #00a67e;
+  }
+
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+    background: #e5e5ea;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* Preview: every panel in a row, shrunk. store.ts sets zoom back to 1 before it shoots. */
+  .gallery { display: flex; gap: 80px; width: max-content; padding: 120px; zoom: 0.24; }
+
+  /* The phone's size lives on the panel, since a lift sits outside the phone. */
+  .panel {
+    --c: var(--phone);
+    --w: 1000px;
+    --pt: calc(var(--w) * 0.932 / 393);
+    --inset: calc(var(--w) * 0.034);
+    --top: 780px;
+    position: relative;
+    flex: none;
+    width: 1290px;
+    height: 2796px;
+    overflow: hidden;
+    padding-top: 150px;
+    text-align: center;
+    color: #000;
+    background: linear-gradient(180deg, #f5f5f7 0%, #fff 70%);
+  }
+  .panel.dark { color: #fff; }
+  .panel.dark .sub { color: rgb(255 255 255 / 0.78); }
+
+  .eyebrow { display: inline-flex; align-items: center; gap: 16px; font-size: 44px; font-weight: 600; letter-spacing: -0.02em; color: var(--c); }
+  .eyebrow .i { width: 56px; height: 56px; --icon-duo: 0.45; }
+  .dark .eyebrow { color: #fff; }
+  h1 { margin-top: 36px; font-size: 128px; line-height: 1; font-weight: 700; letter-spacing: -0.05em; }
+  .sub { max-width: 1000px; margin: 32px auto 0; font-size: 48px; line-height: 1.25; font-weight: 500; letter-spacing: -0.025em; color: var(--secondary); text-wrap: balance; }
+
+  .i { display: block; width: 1em; height: 1em; fill: currentColor; flex: none; }
+
+  /* Phone, as on the deck: one --w sets the size, and inside the screen 1em is one iPhone point (393 × 852). */
+  .phone {
+    position: absolute;
+    left: calc(50% - var(--w) / 2);
+    top: var(--top);
+    width: var(--w);
+    border: calc(var(--w) * 0.009) solid transparent;
+    padding: calc(var(--w) * 0.025);
+    border-radius: calc(55 * var(--pt) + var(--inset));
+    background:
+      linear-gradient(#050505 0 0) padding-box,
+      linear-gradient(140deg, #f4f4f4, #a2a2a2 24%, #ececec 50%, #8e8e8e 78%, #d6d6d6) border-box;
+    box-shadow: 0 80px 160px -50px rgb(0 0 0 / 0.35), 0 16px 32px -16px rgb(0 0 0 / 0.15);
+  }
+  .screen {
+    position: relative;
+    height: calc(852 * var(--pt));
+    border-radius: calc(55 * var(--pt));
+    overflow: hidden;
+    background: #fff;
+    font-size: var(--pt);
+  }
+  .screen > img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .status {
+    position: absolute;
+    inset: 0 0 auto;
+    height: 59em;
+    display: grid;
+    grid-template-columns: 1fr 126em 1fr;
+    align-items: center;
+    justify-items: center;
+    color: #000;
+  }
+  .status b { font-size: 17em; font-weight: 600; letter-spacing: -0.01em; }
+  .status i { width: 126em; height: 37em; border-radius: 99em; background: #000; }
+  .status svg { width: 74em; height: 13em; fill: currentColor; }
+  .status.light { color: #fff; }
+
+  /* Callout: a part of the screen lifted out of it, --m times larger. --x --y --cw --ch is its box in points. */
+  .lift {
+    --m: 1.2;
+    --r: 26;
+    position: absolute;
+    left: calc(50% - 196.5 * var(--pt) + (var(--x) + var(--cw) / 2) * var(--pt));
+    top: calc(var(--top) + var(--inset) + (var(--y) + var(--ch) / 2) * var(--pt));
+    width: calc(var(--cw) * var(--pt) * var(--m));
+    height: calc(var(--ch) * var(--pt) * var(--m));
+    translate: -50% -50%;
+    border-radius: calc(var(--r) * var(--pt) * var(--m));
+    background: var(--src) calc(var(--x) * var(--pt) * var(--m) * -1) calc(var(--y) * var(--pt) * var(--m) * -1) / calc(393 * var(--pt) * var(--m)) auto no-repeat;
+    box-shadow: 0 0 0 1px rgb(0 0 0 / 0.04), 0 50px 100px -30px rgb(0 0 0 / 0.35), 0 12px 24px -12px rgb(0 0 0 / 0.15);
+  }
+
+  /* Hero: the deck's blue, a bigger title, the phone leaning back. */
+  .hero { --top: 1080px; padding-top: 190px; background: linear-gradient(165deg, #0151ff 0%, #0151ff 30%, #1685ff 52%, #3fc8ff 74%, #8dd0ff 90%, #e8f4ff 100%); }
+  .hero h1 { font-size: 168px; letter-spacing: -0.055em; }
+  .hero .app { display: grid; place-items: center; width: 168px; height: 168px; margin: 0 auto; border-radius: 40px; background: #fff; box-shadow: 0 24px 48px -16px rgb(0 0 0 / 0.3); }
+  .hero .app img { width: 112px; }
+  .hero .phone { left: calc(50% - var(--w) / 2 + 40px); transform: perspective(3000px) rotateX(18deg) rotateY(-12deg) rotateZ(10deg); }
+
+  .split { --c: #fff; background: linear-gradient(180deg, #ff5a1f 0%, #ff7a2e 55%, #ff9d4d 100%); }
+  .recover { background: linear-gradient(180deg, #008f6c 0%, #00a67e 50%, #19c79a 100%); }
+  .link { background: linear-gradient(180deg, #000 0%, #16161a 100%); }
+  .link .phone { background: linear-gradient(#050505 0 0) padding-box, linear-gradient(140deg, #6a6a6e, #2c2c2e 24%, #5a5a5e 50%, #1c1c1e 78%, #48484a) border-box; }
+  .pay { background: linear-gradient(180deg, #eaf3ff 0%, #fff 70%); }
+  .alert { --c: var(--swissquote); background: linear-gradient(180deg, #fff1eb 0%, #fff 70%); }
+</style>
+</head>
+<body>
+<!--
+  One <section class="panel"> per App Store screenshot, 1290 × 2796. Screens come from screens/ (made by capture.ts).
+  data-name is the exported file name: node slides/store.ts writes store/<n>-<name>.png.
+-->
+<svg width="0" height="0" style="position: absolute;" aria-hidden="true">
+  <symbol id="status-icons" viewBox="0 0 74 13">
+    <rect y="8" width="3" height="4.5" rx="1"/><rect x="5" y="5.5" width="3" height="7" rx="1"/><rect x="10" y="3" width="3" height="9.5" rx="1"/><rect x="15" y=".5" width="3" height="12" rx="1"/>
+    <path transform="translate(24 .5)" d="M8 0a12 12 0 0 1 8 3.1l-1.4 1.5A10 10 0 0 0 8 2 10 10 0 0 0 1.4 4.6L0 3.1A12 12 0 0 1 8 0Zm0 4a8 8 0 0 1 5.3 2l-1.4 1.6A6 6 0 0 0 8 6a6 6 0 0 0-3.9 1.6L2.7 6A8 8 0 0 1 8 4Zm0 4c1 0 1.9.4 2.6 1L8 12 5.4 9C6.1 8.4 7 8 8 8Z"/>
+    <g transform="translate(46 0)"><rect x=".5" y=".5" width="24" height="12" rx="3.8" fill="none" stroke="currentColor" stroke-opacity=".35"/><rect x="2" y="2" width="21" height="9" rx="2.4"/><path d="M26 4.5v4c.8-.3 1.5-1.1 1.5-2s-.7-1.7-1.5-2Z" opacity=".4"/></g>
+  </symbol>
+  <symbol id="i-face-id" viewBox="0 0 24 24"><g style="opacity:var(--icon-duo, 0.62)"><path d="M3.5 8.5v-2a3 3 0 0 1 3-3h2M15.5 3.5h2a3 3 0 0 1 3 3v2M20.5 15.5v2a3 3 0 0 1-3 3h-2M8.5 20.5h-2a3 3 0 0 1-3-3v-2" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"></path></g><path d="M9 9v1.5M15 9v1.5M9 15c1.7 1.4 4.3 1.4 6 0" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"></path></symbol>
+  <symbol id="i-bank" viewBox="0 0 24 24"><g style="opacity:var(--icon-duo, 0.62)"><path d="M6 12.5H6.5A1.5 1.5 0 0 1 8 14V19A1.5 1.5 0 0 1 6.5 20.5H6A1.5 1.5 0 0 1 4.5 19V14A1.5 1.5 0 0 1 6 12.5ZM11.75 12.5H12.25A1.5 1.5 0 0 1 13.75 14V19A1.5 1.5 0 0 1 12.25 20.5H11.75A1.5 1.5 0 0 1 10.25 19V14A1.5 1.5 0 0 1 11.75 12.5ZM17.5 12.5H18A1.5 1.5 0 0 1 19.5 14V19A1.5 1.5 0 0 1 18 20.5H17.5A1.5 1.5 0 0 1 16 19V14A1.5 1.5 0 0 1 17.5 12.5Z" fill-rule="evenodd" stroke-linejoin="round"></path></g><path d="M4.75 10.5Q3 10.5 4.38 9.43L10.62 4.57Q12 3.5 13.38 4.57L19.62 9.43Q21 10.5 19.25 10.5Z" fill-rule="evenodd" stroke-linejoin="round"></path></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><g style="opacity:var(--icon-duo, 0.62)"><path d="M14.75 9.25 20.25 3.75M17.5 6.5 20 9" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"></path></g><path d="M3 15.5A5.5 5.5 0 1 0 14 15.5A5.5 5.5 0 1 0 3 15.5ZM6.5 15.5A2 2 0 1 0 10.5 15.5A2 2 0 1 0 6.5 15.5Z" fill-rule="evenodd" stroke-linejoin="round"></path></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><g style="opacity:var(--icon-duo, 0.62)"><path d="M10.25 20.25h3.5" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"></path></g><path d="M12 3c-3.6 0-6.5 2.9-6.5 6.5v2.3c0 .6-.2 1.2-.6 1.7l-1 1.3c-.7.9-.1 2.2 1.1 2.2h14c1.2 0 1.8-1.3 1.1-2.2l-1-1.3c-.4-.5-.6-1.1-.6-1.7V9.5C18.5 5.9 15.6 3 12 3Z" fill-rule="evenodd" stroke-linejoin="round"></path></symbol>
+  <symbol id="i-restore" viewBox="0 0 24 24"><g style="opacity:var(--icon-duo, 0.62)"><path d="M5.66 10.69A6.75 6.75 0 1 0 15.87 7.47" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"></path></g><path d="M9.04 6.94Q8 6.25 9.04 5.56L11.46 3.94Q12.5 3.25 12.5 4.5L12.5 8Q12.5 9.25 11.46 8.56Z" fill-rule="evenodd" stroke-linejoin="round"></path></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><mask id="m-send" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24"><rect width="24" height="24" fill="#fff"></rect><g color="#000" fill="#000"><path d="M10.81 12.4Q12 12 11.6 13.19L9.4 19.81Q9 21 8.44 19.88L7.45 17.89Q7 17 6.11 16.55L4.12 15.56Q3 15 4.19 14.6Z" fill-rule="evenodd" stroke="currentColor" stroke-width="4" stroke-linejoin="round"></path></g></mask><g style="opacity:var(--icon-duo, 0.62)" mask="url(#m-send)"><path d="M5 11A8 8 0 1 0 21 11A8 8 0 1 0 5 11Z" fill-rule="evenodd" stroke-linejoin="round"></path></g><path d="M10.81 12.4Q12 12 11.6 13.19L9.4 19.81Q9 21 8.44 19.88L7.45 17.89Q7 17 6.11 16.55L4.12 15.56Q3 15 4.19 14.6Z" fill-rule="evenodd" stroke-linejoin="round"></path></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><g style="opacity:var(--icon-duo, 0.62)"><path d="M4.75 13H5.75A1.75 1.75 0 0 1 7.5 14.75V18.75A1.75 1.75 0 0 1 5.75 20.5H4.75A1.75 1.75 0 0 1 3 18.75V14.75A1.75 1.75 0 0 1 4.75 13ZM11.5 9H12.5A1.75 1.75 0 0 1 14.25 10.75V18.75A1.75 1.75 0 0 1 12.5 20.5H11.5A1.75 1.75 0 0 1 9.75 18.75V10.75A1.75 1.75 0 0 1 11.5 9Z" fill-rule="evenodd" stroke-linejoin="round"></path></g><path d="M18.25 4H19.25A1.75 1.75 0 0 1 21 5.75V18.75A1.75 1.75 0 0 1 19.25 20.5H18.25A1.75 1.75 0 0 1 16.5 18.75V5.75A1.75 1.75 0 0 1 18.25 4Z" fill-rule="evenodd" stroke-linejoin="round"></path></symbol>
+</svg>
+
+<main class="gallery">
+
+<section class="panel hero dark" data-name="hero">
+  <div class="app"><img src="../app/icon.svg" alt=""></div>
+  <h1>Your wallet.<br>Truly yours.</h1>
+  <p class="sub">Self-custody, with a Swiss bank beside you.</p>
+  <div class="phone" aria-hidden="true"><div class="screen"><img src="screens/home.png" alt=""><div class="status"><b>9:41</b><i></i><svg><use href="#status-icons"/></svg></div></div></div>
+</section>
+
+<section class="panel" data-name="home">
+  <span class="eyebrow"><svg class="i"><use href="#i-chart"/></svg>Home</span>
+  <h1>All your money.<br>One glance.</h1>
+  <p class="sub">Cash, investments, earnings and your card, side by side.</p>
+  <div class="phone" aria-hidden="true"><div class="screen"><img src="screens/home.png" alt=""><div class="status"><b>9:41</b><i></i><svg><use href="#status-icons"/></svg></div></div></div>
+</section>
+
+<section class="panel pay" data-name="pay">
+  <span class="eyebrow"><svg class="i"><use href="#i-face-id"/></svg>Face ID</span>
+  <h1>Know what<br>you pay.</h1>
+  <p class="sub">Swissquote checks every payment before your face signs it.</p>
+  <div class="phone" aria-hidden="true"><div class="screen"><img src="screens/send-summary.png" alt=""><div class="status"><b>9:41</b><i></i><svg><use href="#status-icons"/></svg></div></div></div>
+  <div class="lift" style="--src: url(screens/send-summary.png); --x: 24; --y: 484.5; --cw: 345; --ch: 140;" aria-hidden="true"></div>
+</section>
+
+<section class="panel split dark" data-name="split">
+  <span class="eyebrow"><svg class="i"><use href="#i-key"/></svg>Wallet Key</span>
+  <h1>One key,<br>split in three.</h1>
+  <p class="sub">Your phone, Swissquote and an independent service. No one holds it whole.</p>
+  <div class="phone" aria-hidden="true"><div class="screen"><img src="screens/onboarding-split.png" alt=""><div class="status light"><b>9:41</b><i></i><svg><use href="#status-icons"/></svg></div></div></div>
+</section>
+
+<section class="panel" data-name="sent">
+  <span class="eyebrow"><svg class="i"><use href="#i-send"/></svg>Payments</span>
+  <h1>Sent.<br>Settled.</h1>
+  <p class="sub">Watch each payment land, with every detail one tap away.</p>
+  <div class="phone" aria-hidden="true"><div class="screen"><img src="screens/transaction-tracking.png" alt=""><div class="status"><b>9:41</b><i></i><svg><use href="#status-icons"/></svg></div></div></div>
+  <div class="lift" style="--src: url(screens/transaction-tracking.png); --x: 16; --y: 374; --cw: 361; --ch: 437; --m: 1.06; --r: 34;" aria-hidden="true"></div>
+</section>
+
+<section class="panel recover dark" data-name="recover">
+  <span class="eyebrow"><svg class="i"><use href="#i-restore"/></svg>Recovery</span>
+  <h1>Lose the phone.<br>Not the wallet.</h1>
+  <p class="sub">Your Recovery Key file brings it back on a new phone.</p>
+  <div class="phone" aria-hidden="true"><div class="screen"><img src="screens/recover-hold.png" alt=""><div class="status"><b>9:41</b><i></i><svg><use href="#status-icons"/></svg></div></div></div>
+</section>
+
+<section class="panel alert" data-name="alert">
+  <span class="eyebrow"><svg class="i"><use href="#i-bell"/></svg>Alerts</span>
+  <h1>Nothing moves<br>behind your back.</h1>
+  <p class="sub">Someone starts a recovery? You get 48 hours to cancel it.</p>
+  <div class="phone" aria-hidden="true"><div class="screen"><img src="screens/home-recovery-alert.png" alt=""><div class="status"><b>9:41</b><i></i><svg><use href="#status-icons"/></svg></div></div></div>
+  <div class="lift" style="--src: url(screens/home-recovery-alert.png); --x: 24; --y: 438.5; --cw: 345; --ch: 168;" aria-hidden="true"></div>
+</section>
+
+<section class="panel link dark" data-name="link">
+  <span class="eyebrow"><svg class="i"><use href="#i-bank"/></svg>Swissquote</span>
+  <h1>Linked, never<br>locked in.</h1>
+  <p class="sub">No network fees, no extra checks on transfers. The wallet stays yours.</p>
+  <div class="phone" aria-hidden="true"><div class="screen"><img src="screens/settings-link.png" alt=""><div class="status"><b>9:41</b><i></i><svg><use href="#status-icons"/></svg></div></div></div>
+</section>
+
+</main>
+</body>
+</html>
