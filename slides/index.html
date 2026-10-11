@@ -603,27 +603,7 @@
   <aside class="notes">Step one, create. Anyone can create the wallet: it needs no Swissquote account and no sign-in. Face ID creates the passkey, then the phone makes the wallet key and splits it: A stays sealed on the phone, B goes to Swissquote, C goes straight to the independent service. Each holder checks its share against public commitments before storing it. Swissquote holds Share B whether or not the client has an account. The Recovery Key is saved as a file for home, and only its address leaves the phone.</aside>
 </section>
 
-<!-- 6. Link -->
-<section class="slide content with-phone" aria-label="Link">
-  <div class="tags"><span class="tag">Step 1 of 4: Create</span><span class="tag">Optional</span></div>
-  <h1>Link your Swissquote account, if you want.</h1>
-  <p class="sub">Any time, from Settings. Face ID proves it’s yours.</p>
-  <div class="rows visual stagger" style="position: absolute; left: 128px; top: 420px; width: 1080px;">
-    <div class="row" style="--c: var(--positive);"><span class="icon"><svg class="i"><use href="#i-verified"/></svg></span><div><b>Transfers with your account, no extra checks</b><span>The signed statement is Swissquote’s Travel Rule proof.</span></div></div>
-    <div class="row" style="--c: var(--swissquote);"><span class="icon"><svg class="i"><use href="#i-id-card"/></svg></span><div><b>An ID check before any recovery</b><span>Swissquote matches your ID to its KYC record.</span></div></div>
-    <div class="row" style="--c: var(--ink);"><span class="icon"><svg class="i"><use href="#i-shield"/></svg></span><div><b>A lock for a lost phone</b><span>After your ID check, Swissquote stops helping that phone.</span></div></div>
-    <div class="row" style="--c: #aeaeb2;"><span class="icon"><svg class="i"><use href="#i-wallet"/></svg></span><div><b>Not linked? It works the same.</b><span>Transfers take Swissquote’s usual check for outside wallets.</span></div></div>
-  </div>
-  <div class="phone visual" aria-hidden="true">
-    <div class="screen">
-      <img src="screens/settings-link.png" alt="">
-      <div class="status"><b>9:41</b><i></i><svg><use href="#status-icons"/></svg></div>
-    </div>
-  </div>
-  <aside class="notes">Linking is optional and comes later, from Settings. The client signs in to Swissquote and, with Face ID, signs that this wallet belongs to their Swissquote client number. It is the passkey every payment needs, so no key leaves the phone and nothing goes on chain; Swissquote keeps the signed statement. That adds three things. Money moves between the Swissquote account and the wallet without extra checks, because the signed statement is Swissquote's Travel Rule ownership proof. Before anyone recovers the wallet, Swissquote also checks the ID against the client's KYC record. And Swissquote can lock a lost or stolen phone after that ID check. Without a link the wallet works the same, and transfers from the Swissquote account take its usual procedure for external wallets.</aside>
-</section>
-
-<!-- 7. Pay -->
+<!-- 6. Pay -->
 <section class="slide content with-phone" aria-label="Pay">
   <div class="tags"><span class="tag">Step 2 of 4: Pay</span></div>
   <h1>Pay: Face ID, verified on chain.</h1>
@@ -643,7 +623,7 @@
   <aside class="notes">Step two, pay. The phone builds the call, Swissquote screens and sponsors it, and the phone checks Swissquote returned exactly that call before asking for Face ID. Face ID signs with the passkey, and the wallet key signs too, from memory or rebuilt from A and B. The smart account verifies both signatures on chain, so a payment without the client's face is rejected by the chain itself, not by our server.</aside>
 </section>
 
-<!-- 8. Large payments -->
+<!-- 7. Large payments -->
 <section class="slide content with-phone" aria-label="Large payments">
   <div class="tags"><span class="tag">Step 2 of 4: Pay</span></div>
   <h1>Bigger payments wait a day.</h1>
@@ -677,7 +657,7 @@
   <aside class="notes">Still paying. Up to 1,000 USDC goes with one Face ID. Above that the client still approves once, and the payment leaves 24 hours later. Half of that hold is on chain: Swissquote's paymaster, the contract that pays the fee, signs the payment as valid only from 24 hours on, so the chain itself refuses it sooner. The other half is Swissquote's: it keeps the signed payment and screens it again before release, and a cancel means Swissquote drops its copy. Over 5,000 USDC in a day, or 10,000 at once, is refused. The limits are Swissquote's assistance rules; the account itself enforces the signatures.</aside>
 </section>
 
-<!-- 9. Know what you sign -->
+<!-- 8. Know what you sign -->
 <section class="slide content with-phone" aria-label="Know what you sign">
   <div class="tags"><span class="tag">Step 2 of 4: Pay</span><span class="tag">Bonus: Compliant dApps</span></div>
   <h1>Know what you sign.</h1>
@@ -701,7 +681,7 @@
   <aside class="notes">Before Swissquote sponsors a payment, its compliance engine decodes the call, checks the allowlist and limits, screens every address and simulates the balance changes. It signs a decision with a plain-language reading into a hash-chained audit log, and the phone shows that reading before Face ID, as here. A payment to a sanctioned address gets a refusal with the reason instead; that stops Swissquote's help, never the wallet. The engine is real. In the demo the sanctions list and the simulation are fixtures; live mode calls TRM Labs and simulates on the chain.</aside>
 </section>
 
-<!-- 10. Gasless -->
+<!-- 9. Gasless -->
 <section class="slide content" aria-label="Gasless">
   <div class="tags"><span class="tag">Step 2 of 4: Pay</span><span class="tag">Bonus: Gasless</span></div>
   <h1>No gas token. Swissquote pays.</h1>
@@ -718,6 +698,26 @@
     <div class="row" style="--c: var(--negative);"><span class="icon"><svg class="i"><use href="#i-coins"/></svg></span><div><b>No zero-value transfers</b><span>A payment must move money to be sponsored.</span></div></div>
   </div>
   <aside class="notes">Outside exit mode the client never needs ETH: Swissquote's paymaster, a contract holding its gas deposit, pays every fee, and the client sees zero. Abuse is bounded by what Swissquote agrees to sign: only operations its policy allows, only for wallets registered with Swissquote, one exact operation per sponsorship, valid for ten minutes and with fixed gas limits. Each wallet has a sponsorship rate limit, and zero-value transfers are refused, so nobody can burn the deposit with empty payments.</aside>
+</section>
+
+<!-- 10. Link -->
+<section class="slide content with-phone" aria-label="Link">
+  <div class="tags"><span class="tag">Optional</span></div>
+  <h1>Link your Swissquote account, if you want.</h1>
+  <p class="sub">Later, any time, from Settings. Face ID proves it’s yours.</p>
+  <div class="rows visual stagger" style="position: absolute; left: 128px; top: 420px; width: 1080px;">
+    <div class="row" style="--c: var(--positive);"><span class="icon"><svg class="i"><use href="#i-verified"/></svg></span><div><b>Transfers with your account, no extra checks</b><span>The signed statement is Swissquote’s Travel Rule proof.</span></div></div>
+    <div class="row" style="--c: var(--swissquote);"><span class="icon"><svg class="i"><use href="#i-id-card"/></svg></span><div><b>An ID check before any recovery</b><span>Swissquote matches your ID to its KYC record.</span></div></div>
+    <div class="row" style="--c: var(--ink);"><span class="icon"><svg class="i"><use href="#i-shield"/></svg></span><div><b>A lock for a lost phone</b><span>After your ID check, Swissquote stops helping that phone.</span></div></div>
+    <div class="row" style="--c: #aeaeb2;"><span class="icon"><svg class="i"><use href="#i-wallet"/></svg></span><div><b>Not linked? It works the same.</b><span>Transfers take Swissquote’s usual check for outside wallets.</span></div></div>
+  </div>
+  <div class="phone visual" aria-hidden="true">
+    <div class="screen">
+      <img src="screens/settings-link.png" alt="">
+      <div class="status"><b>9:41</b><i></i><svg><use href="#status-icons"/></svg></div>
+    </div>
+  </div>
+  <aside class="notes">Linking is optional and comes later, from Settings. The client signs in to Swissquote and, with Face ID, signs that this wallet belongs to their Swissquote client number. It is the passkey every payment needs, so no key leaves the phone and nothing goes on chain; Swissquote keeps the signed statement. That adds three things. Money moves between the Swissquote account and the wallet without extra checks, because the signed statement is Swissquote's Travel Rule ownership proof. Before anyone recovers the wallet, Swissquote also checks the ID against the client's KYC record. And Swissquote can lock a lost or stolen phone after that ID check. Without a link the wallet works the same, and transfers from the Swissquote account take its usual procedure for external wallets.</aside>
 </section>
 
 <!-- 11. Lose -->
