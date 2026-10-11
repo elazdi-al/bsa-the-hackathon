@@ -238,7 +238,7 @@ More: [Gasless payments](docs/REFERENCE.md#gasless-payments) has each rule and i
 
 Every payment goes through Swissquote's compliance engine first, sponsored or not. The engine checks the call against an allowlist, screens every address it touches for sanctions, simulates it and signs its decision into a hash-chained audit log. The client reads Swissquote's plain-language summary on the **Checked by Swissquote** card before Face ID. A refusal shows its reasons and never freezes the wallet. In demo mode, fixtures do the screening and the simulation, and the card carries a **Demo** tag.
 
-**Home → Reviewed dApps** (`/dapps`) runs the same checks on a reviewed ERC-4626 vault: deposit, withdraw, an exact-amount approval and its revoke, each with Face ID, and with Swissquote paying the fee if the wallet is linked.
+**Apps → Reviewed dApps** (`/dapps`) runs the same checks on a reviewed ERC-4626 vault: deposit, withdraw, an exact-amount approval and its revoke, each with Face ID, and with Swissquote paying the fee if the wallet is linked.
 
 More: the [compliance engine](docs/REFERENCE.md#compliance-engine) has each check, its HTTP API and its own limits, and [dApp integration](docs/DAPP_INTEGRATION.md) has the vault flow and its tests.
 

@@ -28,7 +28,7 @@ function walletBlocker(wallet: WalletSnapshot): string | undefined {
 }
 
 export function DappsScreen() {
-  const back = useBack("/home");
+  const back = useBack("/apps");
   const wallet = useWallet();
   const [catalog, setCatalog] = useState<DappCatalog>();
   const [selected, setSelected] = useState<string>();

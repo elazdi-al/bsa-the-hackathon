@@ -28,7 +28,7 @@ try {
     hasUserVerification: true, isUserVerified: true, hasPrf: true, automaticPresenceSimulation: true,
   } });
   const slow = { timeout: 30_000 };
-  console.log("1. Create an unlinked wallet, give it USDC and ETH for its own network fees, and open Reviewed dApps from Home");
+  console.log("1. Create an unlinked wallet, give it USDC and ETH for its own network fees, and open Reviewed dApps from the Apps tab");
   await page.goto(`${APP}/onboarding-secure`);
   await page.getByRole("button", { name: "Create Passkey" }).click(slow);
   await page.getByRole("button", { name: "Split Wallet Key" }).click(slow);
@@ -38,6 +38,7 @@ try {
   const wallet = await page.evaluate(() => JSON.parse(localStorage.getItem("swissquote.wallet.device")!).address as Address);
   await mintUsdc(wallet, "3000");
   await sendEth(wallet, "0.02");
+  await page.getByRole("link", { name: "Apps" }).click();
   await page.getByRole("link", { name: /Reviewed dApps/ }).click();
   const panel = page.getByRole("region", { name: "Vault interaction" });
   await panel.getByText("3000 USDC", { exact: true }).waitFor(slow);

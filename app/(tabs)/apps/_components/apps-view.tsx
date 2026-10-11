@@ -1,11 +1,13 @@
 "use client";
 
 import { motion } from "motion/react";
-import { useState } from "react";
+import Link from "next/link";
+import { useState, type ReactNode } from "react";
 import { TrendUpIcon } from "@/components/icons";
 import { BackButton } from "@/components/ui/back-button";
 import { buttonVariants } from "@/components/ui/button";
 import { Drawer, DrawerClose, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
+import { SwissquoteMark } from "@/components/swissquote-mark";
 import { cn } from "@/lib/utils";
 import { rowPress, sectionLabel } from "../../_components/list";
 import { blurred, leave, reveal, sharp } from "../../_components/transitions";
@@ -15,8 +17,25 @@ import { dapps, type DApp } from "../data";
 const row = "flex w-full items-center gap-4 rounded-[22px] p-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
 const disc = cn(buttonVariants({ variant: "ghost", size: "icon" }), "relative size-10 bg-secondary text-muted-foreground after:absolute after:-inset-0.5 hover:bg-black/[0.07]");
 
+const outlined = "shrink-0 outline -outline-offset-1 outline-black/10";
+
 function AppIcon({ app, className }: { app: DApp; className: string }) {
-  return <img src={app.icon.src} alt="" className={cn("shrink-0 outline -outline-offset-1 outline-black/10", className)} />;
+  return <img src={app.icon.src} alt="" className={cn(outlined, className)} />;
+}
+
+function RowBody({ icon, name, about }: { icon: ReactNode; name: string; about: string }) {
+  return (
+    <>
+      {icon}
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-label">{name}</span>
+        <span className="block truncate text-body text-muted-foreground">{about}</span>
+      </span>
+      <span aria-hidden className="shrink-0 rounded-full bg-secondary px-4 py-1.5 text-body font-semibold text-brand">
+        Open
+      </span>
+    </>
+  );
 }
 
 export function AppsView() {
@@ -26,7 +45,27 @@ export function AppsView() {
 
   return (
     <>
-      <section aria-labelledby="featured" className="mt-6">
+      {/* Swissquote's own: it signs with this wallet and checks every call, so it opens as a screen, not in the frame. */}
+      <section aria-labelledby="reviewed" className="mt-6">
+        <h2 id="reviewed" className={sectionLabel}>
+          Reviewed by Swissquote
+        </h2>
+        <div className="-mx-2.5 grid grid-cols-1 md:grid-cols-2 md:gap-x-6">
+          <Link href="/dapps" transitionTypes={["push"]} className={`${row} ${rowPress}`}>
+            <RowBody
+              icon={
+                <span className={cn(outlined, "grid size-12 place-items-center rounded-xl bg-white")}>
+                  <SwissquoteMark size={30} />
+                </span>
+              }
+              name="Reviewed dApps"
+              about="Vaults that use your wallet"
+            />
+          </Link>
+        </div>
+      </section>
+
+      <section aria-labelledby="featured" className="mt-8">
         <h2 id="featured" className={sectionLabel}>
           Featured
         </h2>
@@ -42,14 +81,7 @@ export function AppsView() {
                 }}
                 className={`${row} ${rowPress}`}
               >
-                <AppIcon app={d} className="size-12 rounded-xl" />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-label">{d.name}</span>
-                  <span className="block truncate text-body text-muted-foreground">{d.about}</span>
-                </span>
-                <span aria-hidden className="shrink-0 rounded-full bg-secondary px-4 py-1.5 text-body font-semibold text-brand">
-                  Open
-                </span>
+                <RowBody icon={<AppIcon app={d} className="size-12 rounded-xl" />} name={d.name} about={d.about} />
               </button>
             </li>
           ))}

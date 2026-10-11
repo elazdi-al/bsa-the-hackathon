@@ -2,7 +2,7 @@
 
 ## What is implemented
 
-Open **Home → Reviewed dApps** (`/dapps`). The catalogue comes from the active compliance policy on the wallet's configured chain, not a frontend hard-coded list. The first adapter supports ERC-4626 deposits, withdrawals and permission revocation. This is a curated in-app interaction, not a generic dApp browser or WalletConnect session.
+Open **Apps → Reviewed dApps** (`/dapps`). The catalogue comes from the active compliance policy on the wallet's configured chain, not a frontend hard-coded list. The first adapter supports ERC-4626 deposits, withdrawals and permission revocation. This is a curated in-app interaction, not a generic dApp browser or WalletConnect session.
 
 Fresh local deployments include `TestVault`, built on the project's pinned OpenZeppelin ERC-4626 implementation. It holds test USDC, has no yield strategy and promises no return. The original compliance demo's `0x444…` vault remains a fixture; the screen never presents an undeployed entry as executable.
 
@@ -38,7 +38,7 @@ Approval alone moves no assets, but it grants permission. If the user stops or t
 
 ## Run the demo
 
-Install locked Node dependencies and Foundry. A **fresh** `npm run local` deploys the test vault and writes `local-dapps-1`, including finite USDC approvals and the vault's deposit/withdraw/redeem functions. Create a wallet, save its Recovery Key and fund it with `npm run fund`. Open `/dapps` from Home.
+Install locked Node dependencies and Foundry. A **fresh** `npm run local` deploys the test vault and writes `local-dapps-1`, including finite USDC approvals and the vault's deposit/withdraw/redeem functions. Create a wallet, save its Recovery Key and fund it with `npm run fund`. Open `/dapps` from the Apps tab.
 
 **Warning:** the existing default `npm run local` resets local `data/`. Use `npm run local -- --prod` to preserve an existing chain. This change does not silently expand a resumed policy or replace existing accounts.
 
