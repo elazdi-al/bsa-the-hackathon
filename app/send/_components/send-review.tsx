@@ -29,7 +29,7 @@ const UNAVAILABLE: Record<Exclude<WalletSnapshot["status"], "ready">, string> = 
 };
 
 /** What stops Continue and Send, as a calm line; "" holds them without a word while the wallet loads, undefined lets them run. */
-function blocker(snapshot: WalletSnapshot, amount: number): string | undefined {
+export function blocker(snapshot: WalletSnapshot, amount: number): string | undefined {
   if (snapshot.status !== "ready") return UNAVAILABLE[snapshot.status];
   const { controls, locked, recovery, restoring, usdc } = snapshot.wallet;
   if (!controls) {
@@ -73,7 +73,7 @@ function Checked({ summary, demo }: { summary: string[]; demo?: boolean }) {
 }
 
 /** Swissquote's refusal and its reasons, a known failure in plain words, or the error as is. */
-function failure(e: unknown): string[] {
+export function failure(e: unknown): string[] {
   // fetch rejects with a TypeError when no response came back: "Failed to fetch", "Load failed", "NetworkError...".
   if (e instanceof TypeError && /fetch|load failed|network/i.test(e.message)) return ["Can't reach Swissquote. Check your connection and try again."];
   // ox wraps the browser's NotAllowedError: Face ID cancelled or timed out.

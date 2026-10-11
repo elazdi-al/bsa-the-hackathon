@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { shortAddress } from "@/app/choose-recipient/data";
-import { BankIcon, ChevronRightIcon, FaceIdIcon, IdCardIcon, ShieldIcon, SignOutIcon, VerifiedIcon, type Icon } from "@/components/icons";
+import { BankIcon, ChevronRightIcon, FaceIdIcon, IdCardIcon, PlusIcon, ShieldIcon, SignOutIcon, VerifiedIcon, type Icon } from "@/components/icons";
 import { SwissquoteMark } from "@/components/swissquote-mark";
 import { Button } from "@/components/ui/button";
 import { DemoTag } from "@/components/ui/demo-tag";
@@ -85,22 +85,37 @@ function useLinked() {
 // Fine grain over the card, so the orange reads as a material rather than a flat fill.
 const GRAIN = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E")`;
 
-/** The member's card: their plan and wallet address on a quiet orange, like the card in a wallet. It opens Swissquote Plus. */
+/**
+ * The client's card: their plan and wallet address, like the card in a wallet. A member's is a quiet orange; anyone
+ * else's is a plain wallet card offering Plus. It opens Swissquote Plus either way.
+ */
 function MemberCard() {
-  const address = shownAddress(useWallet());
+  const snapshot = useWallet();
+  const address = shownAddress(snapshot);
+  const member = snapshot.status === "ready" && snapshot.wallet.plus !== null;
   return (
     <Link
       href="/plus"
       transitionTypes={["push"]}
-      className={`relative isolate flex aspect-video flex-col justify-between rounded-[28px] bg-linear-225/oklch from-[oklch(0.71_0.165_50)] to-[oklch(0.63_0.18_41)] p-5 text-white transition-transform duration-150 ease-out active:scale-[0.96] ${focusRing} focus-visible:ring-offset-2`}
+      className={cn(
+        "relative isolate flex aspect-video flex-col justify-between rounded-[28px] p-5 transition-transform duration-150 ease-out active:scale-[0.96] focus-visible:ring-offset-2",
+        focusRing,
+        member ? "bg-linear-225/oklch from-[oklch(0.71_0.165_50)] to-[oklch(0.63_0.18_41)] text-white" : "bg-secondary",
+      )}
     >
-      <span aria-hidden className="absolute inset-0 -z-10 rounded-[inherit] bg-size-[200px] opacity-40 mix-blend-overlay" style={{ backgroundImage: GRAIN }} />
+      {member && <span aria-hidden className="absolute inset-0 -z-10 rounded-[inherit] bg-size-[200px] opacity-40 mix-blend-overlay" style={{ backgroundImage: GRAIN }} />}
       <span className="flex items-center justify-between gap-2">
-        <span className="text-label">Swissquote Plus</span>
-        <DemoTag className="bg-white/20 text-white" />
+        <span className="text-label">{member ? "Swissquote Plus" : "Swissquote Wallet"}</span>
+        {/* Only once the wallet reads, so a member's card doesn't offer Plus for a moment. */}
+        {!member && (
+          <span className={cn("flex h-8 items-center gap-1 rounded-full bg-white px-3 text-body font-semibold text-brand", reveal(snapshot.status === "ready"))}>
+            <PlusIcon size={16} />
+            Get Plus
+          </span>
+        )}
       </span>
       <span className="min-w-0">
-        <span className={cn("block text-body text-white/80", reveal(address))}>
+        <span className={cn("block text-body", member ? "text-white/80" : "text-muted-foreground", reveal(address))}>
           {address ? shortAddress(address) : "0x0000...0000"}
         </span>
       </span>

@@ -8,6 +8,7 @@ import { DemoTag } from "@/components/ui/demo-tag";
 import { promoInterval, promos, type Promo, type TileId } from "../data";
 import { EarnAppIcon, PlusAppIcon } from "./icons";
 import { blurred, leave, reveal, sharp, smooth } from "../../_components/transitions";
+import { useWallet } from "../../_components/wallet";
 
 type Action = "advance" | "dismiss" | "restore";
 type State = { cards: Promo[]; index: number; last: Action };
@@ -47,7 +48,10 @@ const layer = {
 
 export function PromoStack({ className, onOpenAccount }: { className: string; onOpenAccount: (id: TileId) => void }) {
   const [{ cards, index, last }, dispatch] = useReducer(reducer, { cards: promos, index: 0, last: "restore" });
-  const current = cards.at(index);
+  const snapshot = useWallet();
+  const member = snapshot.status === "ready" && snapshot.wallet.plus !== null;
+  const promo = cards.at(index);
+  const current = member && promo?.member ? { ...promo, title: promo.member } : promo;
 
   useEffect(() => {
     if (cards.length < 2) return;
@@ -82,7 +86,7 @@ export function PromoStack({ className, onOpenAccount }: { className: string; on
                     <span className="text-body text-muted-foreground">{current.title[0]}</span>
                     <span className="flex items-center gap-2 text-label">
                       <span className="truncate">{current.title[1]}</span>
-                      <DemoTag />
+                      {current.demo && <DemoTag />}
                     </span>
                   </motion.span>
                 </PromoCard>
@@ -129,7 +133,7 @@ export function PromoStack({ className, onOpenAccount }: { className: string; on
 }
 
 function PromoCard({ promo, onOpenAccount, children }: { promo: Promo; onOpenAccount: (id: TileId) => void; children: ReactNode }) {
-  const label = `${promo.title.join(" ")}, demo`;
+  const label = `${promo.title.join(" ")}${promo.demo ? ", demo" : ""}`;
   const className = "absolute inset-0 flex items-center gap-3 rounded-[22px] pr-20 pl-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
   return "href" in promo ? (
     <Link data-card href={promo.href} transitionTypes={["push"]} aria-label={label} className={className}>

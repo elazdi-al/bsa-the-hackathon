@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { motion } from "motion/react";
 import { BankIcon, CardIcon, GridIcon, LightningIcon } from "@/components/icons";
+import { DemoTag } from "@/components/ui/demo-tag";
 import { benefits, type Benefit } from "../data";
 import { rise, surface } from "./motion";
 
@@ -12,7 +13,10 @@ export function Benefits() {
           <motion.li key={benefit.title} variants={rise} className="flex items-center gap-4">
             {icons[benefit.icon]}
             <div>
-              <h2 className="text-label text-white">{benefit.title}</h2>
+              <h2 className="flex items-center gap-2 text-label text-white">
+                {benefit.title}
+                {benefit.demo && <DemoTag className="text-white/60" />}
+              </h2>
               <p className="mt-0.5 text-body text-pretty text-white/55">{benefit.body}</p>
             </div>
           </motion.li>

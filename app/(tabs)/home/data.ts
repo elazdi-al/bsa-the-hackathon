@@ -55,11 +55,12 @@ export const tiles: Tile[] = [
 export const totalOf = (tiles: Tile[]) =>
   tiles.reduce<number | undefined>((sum, t) => (sum === undefined || t.value === undefined ? undefined : sum + t.value), 0);
 
-export type Promo = { id: "plus" | "earn"; title: [string, string] } & ({ href: string } | { account: TileId });
+/** `member`: the title instead, once the client has Swissquote Plus. */
+export type Promo = { id: "plus" | "earn"; title: [string, string]; member?: [string, string]; demo?: true } & ({ href: string } | { account: TileId });
 
 export const promos: Promo[] = [
-  { id: "plus", title: ["Welcome to", "Swissquote Plus"], href: "/plus" },
-  { id: "earn", title: ["Earn interest on", "your USDC"], account: "earn" },
+  { id: "plus", title: ["Get more with", "Swissquote Plus"], member: ["Welcome to", "Swissquote Plus"], href: "/plus" },
+  { id: "earn", title: ["Earn interest on", "your USDC"], account: "earn", demo: true },
 ];
 
 export const promoInterval = 3200;

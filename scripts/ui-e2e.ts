@@ -5,7 +5,9 @@
 // from then on; lose the phone and recover with the Recovery Key file and the number on the client's ID card, once a
 // key no wallet uses and someone else's ID are refused; Swissquote cancels once, the old phone cancels once from Home,
 // the new phone locks the old one from its countdown, then the 48-hour delay passes and the new phone sends.
-// Last, an unlinked wallet with no ETH is recovered on Swissquote's gas, with no ID asked and no lock offered.
+// Then an unlinked wallet with no ETH is recovered on Swissquote's gas, with no ID asked and no lock offered. Last,
+// Swissquote Plus is bought, not given: Home offers it, an unlinked wallet's /plus sends the client to link first,
+// and a linked one buys it with Face ID.
 //
 //   npm run e2e:ui            (against `npm run local`; HEADED=1 to watch)
 import assert from "node:assert/strict";
@@ -252,6 +254,27 @@ assert.equal(await clientOf(phone4), undefined, "the recovery signs the new phon
 assert.equal(await publicClient.getBalance({ address: wallet3 }), 0n, "Swissquote paid for the recovery");
 await phone4.getByRole("button", { name: "Cancel recovery" }).click();
 await phone4.getByText("Recover your wallet").waitFor(SLOW);
+
+console.log("14. Swissquote Plus is bought, not given: Home and Settings offer it, an unlinked wallet's /plus sends the client to link first, and the linked wallet buys it with Face ID");
+await phone3.goto(`${APP}/plus`);
+await phone3.getByRole("button", { name: "Link your Swissquote account" }).click(SLOW);
+await phone3.waitForURL("**/settings", SLOW);
+await phone3.getByRole("button", { name: "Link your Swissquote account" }).waitFor(SLOW);
+await phone2.goto(`${APP}/home`);
+await phone2.getByRole("link", { name: "Get more with Swissquote Plus" }).waitFor(SLOW);
+await phone2.goto(`${APP}/settings`);
+await phone2.getByText("Get Plus").waitFor(SLOW);
+const swissquoteBefore = await usdcOf(addresses.swissquote);
+await phone2.goto(`${APP}/plus`);
+await phone2.getByRole("button", { name: "Subscribe with Face ID" }).click(SLOW);
+await phone2.getByText("Welcome to Swissquote Plus").waitFor(SLOW);
+await phone2.getByText("Plus runs until").waitFor(SLOW);
+assert.equal(await usdcOf(addresses.swissquote), swissquoteBefore + parseUnits("10", 6), "the wallet paid Swissquote 10 USDC");
+await phone2.goto(`${APP}/settings`);
+await phone2.getByText("Swissquote Plus", { exact: true }).waitFor(SLOW);
+assert.equal(await phone2.getByText("Get Plus").count(), 0, "a member isn't offered Plus again");
+await phone2.goto(`${APP}/home`);
+await phone2.getByRole("link", { name: "Welcome to Swissquote Plus" }).waitFor(SLOW);
 
 await browser.close();
 console.log("All good.");
