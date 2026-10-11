@@ -1,4 +1,7 @@
-import { decodeFunctionData, encodeFunctionData, formatUnits, maxUint256, parseAbi, toFunctionSelector, zeroAddress, type Address } from "viem";
+import { decodeFunctionData, encodeFunctionData, formatUnits as viemFormatUnits, maxUint256, parseAbi, toFunctionSelector, zeroAddress, type Address } from "viem";
+
+/** A token amount for the client to read: exact, with thousands separators. */
+const formatUnits = (value: bigint, decimals: number) => viemFormatUnits(value, decimals).replace(/^\d+/, (whole) => whole.replace(/\B(?=(\d{3})+$)/g, ","));
 import type { CompliancePolicy, ComplianceRequest, DecodedAction, Finding } from "./types";
 
 export const erc20Abi = parseAbi([
