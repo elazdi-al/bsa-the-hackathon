@@ -10,7 +10,7 @@ assert.equal(chain.id, 31337, "Run this mutation test only against the isolated 
 const phone = newPhone();
 await phone.splitKey(await phone.createPasskey());
 const recovery = phone.createRecoveryKey();
-const wallet = await phone.register(recovery.address, await phone.signIn());
+const wallet = await phone.register(recovery.address);
 await mintUsdc(wallet, "3000");
 const catalog = await phone.dapps();
 const vault = catalog.vaults.find((item) => item.available)!;
