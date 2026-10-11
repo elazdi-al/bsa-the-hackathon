@@ -49,6 +49,7 @@
     "@capacitor/ios": "~8.5.3",
     "@noble/curves": "^2.4.0",
     "class-variance-authority": "^0.7.1",
+    "cloudflared": "^0.7.3",
     "cn": "^0.4.0",
     "glimm": "^0.3.1",
     "motion": "^14.1.0",
@@ -66,6 +67,8 @@
   },
   "devDependencies": {
     "@capacitor/cli": "~8.5.3",
+    "@foundry-rs/anvil": "1.7.1",
+    "@foundry-rs/forge": "1.7.1",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^24.19.2",
     "@types/react": "^19",

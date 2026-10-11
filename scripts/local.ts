@@ -40,7 +40,10 @@ if (existsSync(".env.local") && !readFileSync(".env.local", "utf8").startsWith(M
   fail(".env.local was not written by npm run local. Move it aside first.");
 }
 for (const tool of ["anvil", "forge"]) {
-  if (spawnSync(tool, ["--version"]).error) fail(`${tool} is not on your PATH. Install Foundry: https://getfoundry.sh`);
+  const version = spawnSync(tool, ["--version"], { encoding: "utf8" });
+  if (version.error || version.status !== 0 || !version.stdout.startsWith(`${tool} Version:`)) {
+    fail(`Expected Foundry's ${tool}. Run npm install, then npm run local. Unrelated packages named anvil or @forge/cli cannot run this stack.`);
+  }
 }
 if (!existsSync("contracts/dependencies")) {
   console.log("Installing the contract dependencies (forge soldeer install)...");
