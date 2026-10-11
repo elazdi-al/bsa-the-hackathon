@@ -1,6 +1,6 @@
 # Swissquote Wallet
 
-Swissquote Wallet is a self-custody crypto wallet that Swissquote could offer its clients. The client holds the keys. Swissquote screens each payment, pays the network fee and helps recover a lost phone. Swissquote cannot move the client's funds, alone or together with the independent service that holds the third key share.
+Swissquote Wallet is a self-custody crypto wallet that Swissquote could offer its clients. The client holds the keys. Swissquote screens each payment and helps recover a lost phone. Once the client links the wallet to their Swissquote account, Swissquote also pays its network fees. Swissquote cannot move the client's funds, alone or together with the independent service that holds the third key share.
 
 Self-custody asks clients to become security experts, and a signing prompt tells them little about what they approve. Today a client who wants their own keys must whitelist an external address and pay USD 10 (native coin) or USD 15 (ERC-20 token) per withdrawal ([pricing](https://www.swissquote.com/en-ch/private/trade/pricing/cryptocurrencies), [external wallets](https://www.swissquote.com/en-ch/private/help/trade/products/crypto-asset-products)). After that, Swissquote no longer sees those assets. Swissquote Wallet keeps self-custody one tap from the Swissquote account.
 
@@ -24,16 +24,16 @@ Each section links to its depth in [`docs/`](docs/). The [pitch summary](PITCH_S
 
 One story, end to end: create a wallet, pay with Face ID, link it to a Swissquote account, lose the phone, recover the wallet. Run `npm run local`, then open http://localhost:3000/onboarding-welcome in two browsers, or two browser profiles, as the old phone and the new phone.
 
-1. **Create a wallet.** No Swissquote account and no sign-in. Tap **Create new wallet**, then **Create Passkey**, **Split Wallet Key**, **Save Recovery Key** and **I saved it off this phone**. Run `npm run fund` for 100 USDC.
-2. **Pay.** On Home, tap the action button, then **Send**. Enter an address, or tap the scan button next to **Paste** to scan the recipient's QR code. Enter an amount, read the **Checked by Swissquote** card, tap **Send** and approve with Face ID. The payment leaves at once, whatever the amount.
-3. **Link Swissquote.** In Settings, tap **Link your Swissquote account**, then **Link with Face ID**. Settings now shows the account as **Linked**, with the ID card number on file. Note the number.
+1. **Create a wallet.** No Swissquote account and no sign-in. Tap **Create new wallet**, then **Create Passkey**, **Split Wallet Key**, **Save Recovery Key** and **I saved it off this phone**. Run `npm run fund` for 100 USDC and 0.01 ETH.
+2. **Pay.** On Home, tap the action button, then **Send**. Enter an address, or tap the scan button next to **Paste** to scan the recipient's QR code. Enter an amount, read the **Checked by Swissquote** card, tap **Send** and approve with Face ID. The payment leaves at once, whatever the amount. The wallet is not linked yet, so it pays the network fee from its ETH. The review shows the most that fee can cost, under 0.003 ETH on the local chain.
+3. **Link Swissquote.** In Settings, tap **Link your Swissquote account**, then **Link with Face ID**. Settings now shows the account as **Linked**, with the ID card number on file. Note the number. Swissquote now pays the wallet's network fees.
 4. **Lose the phone and recover.** In the second browser, tap **Recover existing wallet** and load the Recovery Key file. The wallet is linked, so Swissquote checks the ID. Type the ID card number, tap **Scan ID**, then **Restore with Face ID**. Run `npm run warp` to pass the 48-hour hold, then tap **Finish recovery**. The new phone now controls the same address with the same funds.
 
 The same story runs without a browser, on software phones. Run these in order against a fresh `npm run local`:
 
 ```bash
-npm run account phone                                               # a wallet with 100 USDC, not linked
-npm run send phone 0x000000000000000000000000000000000000dEaD 20    # leaves at once
+npm run account phone                                               # a wallet with 100 USDC and 0.01 ETH, not linked
+npm run send phone 0x000000000000000000000000000000000000dEaD 20    # leaves at once, its fee paid from the wallet's ETH
 npm run link phone                                                  # links it to a mock Swissquote client
 npm run attack phone                                                # A1 to A7, each refused
 npm run recover phone                                               # lost phone: recovery onto phone-new
@@ -117,7 +117,7 @@ flowchart LR
 
   pk -- "Face ID assertion" --> sdk
   rk -. "recovery only" .-> sdk
-  sdk -- "calls to sponsor, Share B requests,<br/>signed operations, recovery" --> api
+  sdk -- "calls to screen, Share B requests,<br/>signed operations, recovery" --> api
   sdk -- "Share C at creation,<br/>Share C requests" --> partner
   api --> comp
   api --> vb
@@ -145,11 +145,12 @@ Every key is generated on the client's phone. The passkey lives in the phone's s
 
 Creating a wallet needs no Swissquote account and no sign-in. Swissquote still stores Share B, and the independent service Share C.
 
-Later, the client can link the wallet to their Swissquote account from Settings. The app signs in to Swissquote, which is mocked, and the client signs "Wallet 0x… belongs to Swissquote client *number*." with Face ID, using the passkey the account requires for every payment. Swissquote checks the signature against the wallet's passkey and keeps both. Linking adds three things:
+Later, the client can link the wallet to their Swissquote account from Settings. The app signs in to Swissquote, which is mocked, and the client signs "Wallet 0x… belongs to Swissquote client *number*." with Face ID, using the passkey the account requires for every payment. Swissquote checks the signature against the wallet's passkey and keeps both. Linking adds four things:
 
 1. Money moves between the Swissquote account and the wallet with no extra checks, because the statement is Swissquote's Travel Rule ownership proof.
 2. Before anyone recovers the wallet, Swissquote also checks the ID against the client's KYC record.
-3. Swissquote can lock a lost or stolen phone.
+3. Swissquote pays the network fees, so the wallet needs no ETH.
+4. Swissquote can lock a lost or stolen phone.
 
 More: [Wallet creation](docs/SECURITY.md#wallet-creation) has each step and when each key leaves its holder, and [Linking a Swissquote account](docs/SECURITY.md#linking-a-swissquote-account) has the link.
 
@@ -201,7 +202,7 @@ This is engineering research checked on 10 October 2026, not legal advice.
 
 **Travel Rule.** FINMA requires ownership of a client's own wallet to be proven by suitable technical means. Swissquote Wallet makes the proof automatic for a linked wallet. When the client links it in the signed-in app, they sign with Face ID a statement that the wallet belongs to that client number. The passkey that signs it is the one the account requires for every payment. Transfers between the Swissquote account and a linked wallet then need no whitelisting form and no test transfer. An unlinked wallet goes through Swissquote's usual procedure for any self-hosted wallet. A production proof should also verify the account through ERC-1271, which is not built.
 
-**Sending institution.** When the client pays a third party, the client signs and the client's account sends. Swissquote screens, pays gas and relays, and cannot change the recipient or the amount. Our position is that Swissquote is not the ordering institution, but it is a financial intermediary for the assistance, so KYC, monitoring and sanctions duties apply. Until FINMA or counsel confirms that reading, we would treat each sponsored payment as if Swissquote were the ordering institution.
+**Sending institution.** When the client pays a third party, the client signs and the client's account sends. Swissquote screens and relays, and cannot change the recipient or the amount. It pays the gas only for a wallet linked to an identified client. Our position is that Swissquote is not the ordering institution, but it is a financial intermediary for the assistance, so KYC, monitoring and sanctions duties apply. Until FINMA or counsel confirms that reading, we would treat each sponsored payment as if Swissquote were the ordering institution.
 
 More: the [legal position](docs/LEGAL.md) has every citation, shared control with the independent service, the other rules that apply and the questions for counsel.
 
@@ -224,20 +225,20 @@ Our model is 10,000 wallets × (10% kept + 10% new) × CHF 600 = CHF 1.2 million
 | Swaps in the app | Assumption, CHF 5,000 per wallet a year at the 1% fee | 10,000 × CHF 50 = CHF 500,000 a year |
 | Swissquote Plus | Assumption, 1 wallet client in 10 at CHF 10 a month. The app's Plus screen is a demo, and the price is our guess. | 1,000 × CHF 120 = CHF 120,000 a year |
 | Free transfers into the wallet | Assumption, 4 a year per wallet, each waiving the USD 15 fee | 10,000 × USD 60 = USD 600,000 a year forgone |
-| Sponsored gas | Assumption, 24 payments per wallet a year at USD 0.05 on a layer-2 chain | 10,000 × USD 1.20 = USD 12,000 a year |
+| Sponsored gas | Assumption, 24 payments per linked wallet a year at USD 0.05 on a layer-2 chain. We count every wallet as linked, which overstates the cost. | 10,000 × USD 1.20 = USD 12,000 a year |
 | Net | Sum of the lines above, counting USD 1 as CHF 1. The 2025 closing rate was CHF 0.79 (Annual Report 2025, p. 64), so this overstates the costs. | About CHF 1.2 million a year |
 
 ## Bonus: gasless payments
 
-Swissquote pays every fee. Its `VerifyingPaymaster` holds an ETH deposit at the EntryPoint, and Swissquote's own key submits operations, so the client never holds ETH. Swissquote sponsors only payments compliance allows and the recovery calls. It refuses a payment of 0, sponsors at most 20 of a wallet's operations per hour, fixes the gas limits and simulates `handleOps` before it submits.
+Swissquote pays every network fee of a wallet linked to a Swissquote account. Its `VerifyingPaymaster` holds an ETH deposit at the EntryPoint, and Swissquote's own key submits operations, so a linked wallet never holds ETH. An unlinked wallet pays its own gas from its ETH, under 0.003 ETH an operation on the local chain. Every wallet's recovery stays sponsored, linked or not, so a lost phone never needs ETH. Swissquote sponsors only payments compliance allows and the recovery calls. It refuses a payment of 0, sponsors at most 20 of a wallet's operations per hour, fixes the gas limits and simulates `handleOps` before it submits.
 
 More: [Gasless payments](docs/REFERENCE.md#gasless-payments) has each rule and its error message.
 
 ## Bonus: compliant dApp interaction
 
-Every payment Swissquote sponsors goes through the compliance engine first. The engine checks the call against an allowlist, screens every address it touches for sanctions, simulates it and signs its decision into a hash-chained audit log. The client reads Swissquote's plain-language summary on the **Checked by Swissquote** card before Face ID. A refusal shows its reasons and never freezes the wallet. In demo mode, fixtures do the screening and the simulation, and the card carries a **Demo** tag.
+Every payment goes through Swissquote's compliance engine first, sponsored or not. The engine checks the call against an allowlist, screens every address it touches for sanctions, simulates it and signs its decision into a hash-chained audit log. The client reads Swissquote's plain-language summary on the **Checked by Swissquote** card before Face ID. A refusal shows its reasons and never freezes the wallet. In demo mode, fixtures do the screening and the simulation, and the card carries a **Demo** tag.
 
-**Home → Reviewed dApps** (`/dapps`) runs the same checks on a reviewed ERC-4626 vault: deposit, withdraw, an exact-amount approval and its revoke, each with Face ID and with Swissquote paying the fee.
+**Home → Reviewed dApps** (`/dapps`) runs the same checks on a reviewed ERC-4626 vault: deposit, withdraw, an exact-amount approval and its revoke, each with Face ID, and with Swissquote paying the fee if the wallet is linked.
 
 More: the [compliance engine](docs/REFERENCE.md#compliance-engine) has each check, its HTTP API and its own limits, and [dApp integration](docs/DAPP_INTEGRATION.md) has the vault flow and its tests.
 

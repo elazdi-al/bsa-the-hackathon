@@ -126,25 +126,25 @@ sequenceDiagram
     participant S as Swissquote API
     participant E as EntryPoint
     participant W as Smart account
-    U->>S: Request sponsorship for locally built call
+    U->>S: Request operation for locally built call
     S-->>U: Prepared UserOperation and hash
-    U->>U: Verify call, sender, sponsorship, and hash
+    U->>U: Verify call, sender, any sponsorship, and hash
     U->>U: Passkey signs the operation challenge
     U->>S: Request B with passkey assertion on cache miss
     S-->>U: Share B after assertion validation
     U->>U: Reconstruct key from A+B and sign
     U->>S: Submit Wallet Key signature and passkey assertion
-    S->>E: Submit sponsored operation
+    S->>E: Submit operation, sponsored if linked
     E->>W: Validate both signatures and execute call
 ```
 
-Swissquote runs its compliance policy and prepares a sponsored ERC-4337 UserOperation, with a plain-language summary of the call. The phone checks that the operation contains the call it built, belongs to its account, has sponsorship and hashes to the supplied `userOpHash`. It shows the summary under **Checked by Swissquote** before Face ID.
+Swissquote runs its compliance policy and prepares an ERC-4337 UserOperation, sponsored if the wallet is linked, with a plain-language summary of the call. The phone checks that the operation contains the call it built, belongs to its account, carries sponsorship if it names a paymaster, and hashes to the supplied `userOpHash`. Without a paymaster, the wallet pays the gas, and the phone works out the most that can cost. It shows the summary under **Checked by Swissquote** before Face ID.
 
 The passkey then approves that exact hash. If the Wallet Key is absent from the cache, the phone sends the assertion to Swissquote. Swissquote validates it against the wallet's live passkey and the prepared normal operation before releasing B. The phone combines A and B, checks the rebuilt signer, and signs the same hash with the Wallet Key.
 
 The account accepts `MODE_NORMAL` only when both the Wallet Key signature and WebAuthn assertion validate. Normal mode cannot directly start recovery. The contract sees signatures and registered public keys, not Shamir shares or which two holders supplied them.
 
-Swissquote submits through EntryPoint v0.7 and sponsors gas using its paymaster. The backend submits the operation itself, so this path needs no external bundler.
+Swissquote submits through EntryPoint v0.7. For a linked wallet it sponsors the gas using its paymaster, and an unlinked wallet pays its own gas from its ETH. The backend submits the operation itself, so this path needs no external bundler.
 
 ### The key cache
 
@@ -174,7 +174,7 @@ The new phone calls `POST /api/recovery`. Swissquote finds the registered wallet
 initiateRecovery(newSigner, newPasskey)
 ```
 
-The phone checks the returned operation and hash against that exact call. The Recovery Key then signs the operation hash. This signature authorizes the proposed replacement credentials, rather than approving an unspecified recovery request.
+Swissquote sponsors it for every wallet, linked or not, so a wallet with no ETH can still be recovered. The phone checks the returned operation and hash against that exact call. The Recovery Key then signs the operation hash. This signature authorizes the proposed replacement credentials, rather than approving an unspecified recovery request.
 
 ### 3. Release the old shares B and C
 
@@ -226,7 +226,7 @@ On successful initiation, the account records the proposed signer, passkey, and 
 
 The 48-hour delay is enforced by the contract's constant `RECOVERY_DELAY`, using blockchain time. A browser countdown does not determine whether finalization is allowed, and changing the browser clock cannot bypass the contract check.
 
-While the recovery remains pending, the old signer and passkey still control normal operations. The old phone can cancel through a normal signed operation calling `execute(account, 0, cancelRecovery())`. That cancel needs Swissquote's sponsorship. If the user locked the old phone of a linked wallet, Swissquote refuses it, and the user cancels with the Recovery Key instead.
+While the recovery remains pending, the old signer and passkey still control normal operations. The old phone can cancel through a normal signed operation calling `execute(account, 0, cancelRecovery())`. That cancel needs Swissquote's sponsorship, which every wallet gets, linked or not. If the user locked the old phone of a linked wallet, Swissquote refuses it, and the user cancels with the Recovery Key instead.
 
 Swissquote can also call `cancelRecovery` directly as guardian. The app's guardian-cancellation endpoint requires a Recovery Key signature bound to the wallet and the pending deadline. That API authorization is separate from the guardian permission enforced on-chain.
 

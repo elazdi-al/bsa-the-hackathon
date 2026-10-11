@@ -14,7 +14,7 @@ Creating a wallet needs no Swissquote account and no sign-in.
 2. On `/onboarding-secure`, tap **Create Passkey**. Face ID creates the passkey.
 3. Tap **Split Wallet Key**. Face ID runs again and gives the key that seals Share A. The phone splits the wallet key, keeps Share A, sends Share B to Swissquote and sends Share C straight to the independent service.
 4. Tap **Save Recovery Key**. The share sheet, or a download, saves `Swissquote Wallet Recovery Key.txt`. Tap **I saved it off this phone**. The app registers the wallet and opens Home.
-5. In a terminal, run `npm run fund`. Home shows 100 USDC.
+5. In a terminal, run `npm run fund`. Home shows 100 USDC. The wallet also gets 0.01 ETH to pay its network fees until it is linked.
 
 ### 2. Pay
 
@@ -22,14 +22,16 @@ Face ID is the sign-in. Each payment gets its own Face ID approval over that exa
 
 1. On Home, tap the action button, then **Send**.
 2. In the recipient sheet, paste an address and continue. Or tap the scan button next to **Paste** and point the camera at the recipient's QR code: the code the Receive sheet shows, a plain 0x address, or an EIP-681 `ethereum:` link. A link that asks for a USDC `transfer` also brings its amount to `/send`. The browser's `BarcodeDetector` reads the code where it reads QR codes (Chrome), and the `qr` package's decoder where it doesn't (Safari, iOS). A refused or missing camera says so and offers Paste.
-3. On `/send`, which shows "Network fee: Paid by Swissquote", enter an amount and tap **Continue**. Swissquote runs its compliance check and sponsors the payment. The **Checked by Swissquote** card shows Swissquote's reading, such as "Send 20 USDC to 0x1bA5...Cf4c.", with "Recipient not on a sanctions list" and "Simulated: it moves only this amount".
-4. Tap **Send**. Face ID approves the operation, the phone signs it and Swissquote submits it to the chain at once, whatever the amount. `/transaction-tracking` shows the payment.
+3. On `/send`, which shows "Network fee: Paid from your wallet", enter an amount and tap **Continue**. Swissquote runs its compliance check. The wallet is not linked, so Swissquote does not sponsor the payment, and **Network fee** now reads "Up to *amount* ETH, paid from your wallet". The phone worked out that maximum itself. The **Checked by Swissquote** card shows Swissquote's reading, such as "Send 20 USDC to 0x1bA5...Cf4c.", with "Recipient not on a sanctions list" and "Simulated: it moves only this amount".
+4. Tap **Send**. Face ID approves the operation, the phone signs it and Swissquote submits it to the chain at once, whatever the amount. `/transaction-tracking` shows the payment, with "Up to *amount* ETH, paid from your wallet" as its fee.
 
 ### 3. Link Swissquote
 
-1. In Settings, tap **Link your Swissquote account**. The tray says in three short lines what linking adds: transfers to and from the Swissquote account with no extra checks, an ID check before a recovery, and the lock on a lost phone.
+1. In Settings, tap **Link your Swissquote account**. The tray says in four short lines what linking adds: transfers to and from the Swissquote account with no extra checks, network fees paid by Swissquote, an ID check before a recovery, and the lock on a lost phone.
 2. Tap **Link with Face ID**. The app signs in to Swissquote, which is mocked, as a made-up client with a KYC record. With Face ID, the passkey the account requires for every payment signs that the wallet belongs to that client number. Nothing goes on chain.
 3. Settings shows the Swissquote account, marked **Linked**, with the client number and the ID card number on file. Note the ID card number for the recovery.
+
+Swissquote now pays the wallet's network fees, and **Network fee** on `/send` reads "Paid by Swissquote".
 
 ### 4. Lose the phone and recover
 
@@ -49,8 +51,8 @@ An unlinked wallet has no ID step and no lock. `/recover` goes from the Recovery
 `npm run account` creates a wallet on a software phone, so the whole story runs without a browser. Every command below runs as written, in this order, against a fresh `npm run local`:
 
 ```bash
-npm run account phone                                               # a wallet with 100 USDC, not linked
-npm run send phone 0x000000000000000000000000000000000000dEaD 20    # leaves at once
+npm run account phone                                               # a wallet with 100 USDC and 0.01 ETH, not linked
+npm run send phone 0x000000000000000000000000000000000000dEaD 20    # leaves at once, its fee paid from the wallet's ETH
 npm run link phone                                                  # links it to a mock Swissquote client
 npm run attack phone                                                # A1 to A7, each refused
 npm run recover phone                                               # lost phone: recovery onto phone-new
@@ -61,7 +63,7 @@ npm run exit phone-new 0x000000000000000000000000000000000000dEaD all
 npm run sunset off
 ```
 
-Without `npm run link phone`, the wallet stays unlinked. `npm run attack phone` then runs its unlinked version, and `npm run recover phone` needs no ID.
+Without `npm run link phone`, the wallet stays unlinked. It pays its own network fees from its ETH. `npm run attack phone` then runs its unlinked version, and `npm run recover phone` needs no ID.
 
 `npm run lock phone` and `npm run unlock phone` report the phone of a linked wallet lost and found. `npm run cancel phone` cancels a pending recovery with the Recovery Key.
 
@@ -99,8 +101,8 @@ Drive the protocol from a second terminal. The commands read `.env.local`, so th
 | Command | What it does |
 | --- | --- |
 | `npm run status` | Shows chain time, the contracts, Swissquote's gas funds, every wallet with its USDC, owner and pending recovery, and the CLI accounts. A linked wallet shows "owner: Swissquote client *number* (mock), ownership signed with Face ID by the wallet's passkey", after checking the record against the passkey the wallet was created with or the one it has now. A wallet with no owner record shows "not linked to a Swissquote client". |
-| `npm run fund [wallet] [amount]` | Mints test USDC, 100 by default. `wallet` is an address or an account. Without it, the newest wallet gets the USDC. |
-| `npm run account <account>` | Creates an unlinked wallet with a software passkey and funds it with 100 USDC. Saves it in `data/accounts/<account>.json`, with its Recovery Key file next to it. |
+| `npm run fund [wallet] [amount]` | Mints test USDC, 100 by default, and on anvil also sends the wallet 0.01 ETH for network fees. `wallet` is an address or an account. Without it, the newest wallet gets them. |
+| `npm run account <account>` | Creates an unlinked wallet with a software passkey and funds it with 100 USDC and 0.01 ETH, as `npm run fund` does. Saves it in `data/accounts/<account>.json`, with its Recovery Key file next to it. |
 | `npm run link <account>` | Links the account's wallet to a mock Swissquote client, as **Link with Face ID** does in Settings: it signs in, and the software passkey signs the statement. Prints the wallet, the client number and the ID card number. |
 | `npm run send <from-account> <to> <amount>` | Sends USDC from an account to an address or another account. A refusal prints Swissquote's reasons. |
 | `npm run recover <account \| Recovery Key file> [new-account] [ID number]` | Starts a recovery onto a new software phone. Only a linked wallet asks for the ID. A linked account brings its owner's ID, and a file needs the ID number, which Settings shows. `new-account` defaults to `<account>-new`, or `recovered` for a file. |
@@ -146,7 +148,7 @@ Copy `.env.example` to `.env.local` and fill it in (`CHAIN=base-sepolia`). Deplo
 cd contracts && forge script script/Deploy.s.sol --rpc-url $RPC_URL --private-key $SWISSQUOTE_KEY --broadcast
 ```
 
-Run `npm run partner` and `npm run dev` in two terminals. This setup keeps every key in one `.env.local`. The CLI commands work there too, with three exceptions. `npm run fund` and `npm run account` print a faucet link instead of minting. `npm run warp` needs anvil. `npm run exit` uses anvil's second account as its bundler, which needs Base Sepolia ETH there.
+Run `npm run partner` and `npm run dev` in two terminals. This setup keeps every key in one `.env.local`. The CLI commands work there too, with three exceptions. `npm run fund` and `npm run account` print where to get Base Sepolia USDC and ETH instead of funding the wallet. `npm run warp` needs anvil. `npm run exit` uses anvil's second account as its bundler, which needs Base Sepolia ETH there.
 
 ### Live compliance
 
@@ -176,7 +178,7 @@ The [architecture diagram](../README.md#architecture) shows how these parts conn
 
 **Smart account** (`contracts/`, Foundry). `SwissquoteAccount` runs on EntryPoint v0.7 and checks the two modes in the [custody table](SECURITY.md#we-chose-a-smart-account-that-needs-two-independent-keys), each over the userOpHash. Its config holds the wallet key's address, the passkey's P-256 public key, the Recovery Key's address and Swissquote as guardian. `RECOVERY_DELAY` is a constant 48 hours. `cancelRecovery` accepts the guardian or the account itself, and `finalizeRecovery` is open to anyone after the delay. `SwissquoteAccountFactory` deploys CREATE2 clones, so the address is known before deployment. `script/Deploy.s.sol` deploys the factory and Swissquote's funded `VerifyingPaymaster`, and on a local chain (31337) an EntryPoint and a mintable test USDC.
 
-**Phone SDK** (`lib/wallet/phone.ts`, with the split in `lib/wallet/shamir.ts`). Keeps Share A sealed with AES-GCM under the passkey's WebAuthn PRF output, so only Face ID opens it, where the authenticator supports PRF. Builds every call itself and checks Swissquote's operation before Face ID. At onboarding it sends Share C straight to the independent service at a URL pinned in the app build (`NEXT_PUBLIC_PARTNER_URL`), so Swissquote never sees C.
+**Phone SDK** (`lib/wallet/phone.ts`, with the split in `lib/wallet/shamir.ts`). Keeps Share A sealed with AES-GCM under the passkey's WebAuthn PRF output, so only Face ID opens it, where the authenticator supports PRF. Builds every call itself and checks Swissquote's operation before Face ID. For an operation with no paymaster, it works out the most its gas can cost and returns it on `Prepared` as `fee`, in wei. At onboarding it sends Share C straight to the independent service at a URL pinned in the app build (`NEXT_PUBLIC_PARTNER_URL`), so Swissquote never sees C.
 
 **Swissquote Wallet API** (`app/api`, Next.js route handlers). Holds Share B, the client records and locks in SQLite (`data/swissquote.db`), with Share B sealed by AES-GCM. It runs the compliance check, signs sponsorship and submits operations to the EntryPoint itself, with no external bundler.
 
@@ -196,13 +198,13 @@ The [architecture diagram](../README.md#architecture) shows how these parts conn
 | `POST /api/wallets` | Registers a wallet. Takes `{ signer, recoveryKey, signature }`, the signature being the wallet key's Recovery Key binding. Needs no Swissquote account. Answers 409 if another wallet already uses that Recovery Key, which would hide it from its owner's recovery. |
 | `GET /api/wallets/:address` | Keys, lock, the USDC and ETH balances in their smallest units (`usdc`, `eth`), pending recovery and chain time. Returns the owner record, `{ client, createdAt, statement, assertion }`, only to the owner's own session (header `x-swissquote-session`). |
 | `POST /api/wallets/:address/link` | Links the wallet to a Swissquote client. Takes `{ session, assertion }`, the wallet passkey's Face ID assertion over keccak256 of "Wallet 0x… belongs to Swissquote client *number*.", checked against the wallet's live passkey, or the one in its config before deployment. Keeps the statement and the assertion as the owner record. Answers 401 without a known session, 403 if the wallet's passkey did not sign and 409 if another client already linked the wallet. Linking again as the same client is fine. There is no unlink. |
-| `GET /api/wallets/:address/activity` | The wallet's USDC transfers. |
-| `POST /api/wallets/:address/operations` | Runs compliance and Swissquote's sponsorship rules, and sponsors the call. Returns the operation, its hash, Swissquote's `summary` and a `demo` flag. |
+| `GET /api/wallets/:address/activity` | The wallet's USDC transfers. Each has `sponsored`, true when Swissquote's paymaster paid its gas. |
+| `POST /api/wallets/:address/operations` | Runs compliance and Swissquote's sponsorship rules, and prepares the call. Swissquote sponsors it for a linked wallet, and sponsors the old phone's recovery cancel for any wallet. An unlinked wallet's other calls carry no paymaster, and the wallet pays their gas from its ETH. Returns the operation, its hash, Swissquote's `summary` and a `demo` flag. For an unlinked wallet it answers 403 with `refused: "gas"` when the wallet's ETH and its EntryPoint deposit cannot cover the operation's maximum fee. |
 | `POST /api/wallets/:address/share` | Releases Share B for an operation the passkey approved. |
 | `POST /api/wallets/:address/operations/:hash` | Submits the signed operation. |
 | `POST`, `DELETE /api/wallets/:address/lock` | Locks or unlocks the phone's credentials, after the ID check. A linked wallet only. An unlinked one gets 403. |
 | `GET /api/recovery?signature=&at=` | Finds the wallet a Recovery Key signature restores. Returns `{ address, pendingRecovery, chainTime, linked }` and no KYC data. |
-| `POST /api/recovery` | Prepares `initiateRecovery`. Takes `{ recoveryKey, signer, signature, identity? }`. Only a linked wallet needs `identity`. It answers 403 with `refused: "identity"` without it or when it is wrong, and 429 with `refused: "attempts"` after five misses. Only a linked wallet gets `signedIn`, a session for the owner. |
+| `POST /api/recovery` | Prepares `initiateRecovery`, sponsored for every wallet, linked or not. Takes `{ recoveryKey, signer, signature, identity? }`. Only a linked wallet needs `identity`. It answers 403 with `refused: "identity"` without it or when it is wrong, and 429 with `refused: "attempts"` after five misses. Only a linked wallet gets `signedIn`, a session for the owner. |
 | `POST /api/wallets/:address/recovery` | Releases Share B and a signed approval for a recovery the Recovery Key signed. |
 | `DELETE /api/wallets/:address/recovery` | Cancels the pending recovery as guardian, when the Recovery Key asks. |
 | `PATCH /api/wallets/:address/recovery` | Finalizes a recovery after the delay. |
@@ -238,11 +240,15 @@ Real in this build: the Shamir split with verified shares, passkeys verified on 
 
 ## Gasless payments
 
-Swissquote pays every fee. Its `VerifyingPaymaster`, the eth-infinitism v0.7 sample, holds an ETH deposit at the EntryPoint (10 ETH on the local chain) and pays for each operation Swissquote signed. Swissquote's own key submits operations to `EntryPoint.handleOps`, so there is no bundler and the client never holds ETH. A guardian cancel and a finalize are plain transactions from the same key.
+Swissquote pays every network fee of a wallet linked to a Swissquote account, and of every wallet's recovery. Its `VerifyingPaymaster`, the eth-infinitism v0.7 sample, holds an ETH deposit at the EntryPoint (10 ETH on the local chain) and pays for each operation Swissquote signed. Swissquote's own key submits operations to `EntryPoint.handleOps`, so there is no bundler and a linked wallet never holds ETH. A guardian cancel and a finalize are plain transactions from the same key.
+
+An unlinked wallet's payments and dApp calls carry no paymaster. The account pays its own gas from its ETH through the EntryPoint's prefund. That is at most (300,000 + 1,000,000 + 50,000) × `maxFeePerGas`, under 0.003 ETH on the local chain. What the operation doesn't use stays as the account's deposit at the EntryPoint and pays toward its next fee. Before Swissquote prepares such an operation, it checks that the wallet's ETH and that deposit cover the maximum. If they don't, it answers 403 with `refused: "gas"` and "Your wallet needs up to *amount* ETH for the network fee. Add ETH to your wallet, or link your Swissquote account in Settings and Swissquote pays it." The amount is worked out for each operation. The phone accepts an operation with no paymaster, works out its maximum fee itself and shows it before Face ID.
+
+Every wallet's recovery stays sponsored, linked or not. That covers starting one, the old phone's cancel, Swissquote's cancel as guardian and the finalize, so a lost phone never needs ETH to be recovered. The rules below apply to an unlinked wallet too. The 20-an-hour cap counts only what the paymaster paid, so it binds sponsored operations.
 
 Swissquote limits what it signs:
 
-- **Only calls compliance allows.** `ALLOW` is sponsored at once. `REVIEW` and `DENY_ASSISTANCE` are refused.
+- **Only calls compliance allows.** `ALLOW` goes ahead at once, sponsored on a linked wallet. `REVIEW` and `DENY_ASSISTANCE` are refused.
 - **Only `execute`, plus recovery.** The operations endpoint sponsors only calls through the account's `execute`, and no call to the account itself except `cancelRecovery`. The one other operation Swissquote sponsors is the `initiateRecovery` it prepares for a recovery, after the ID check on a linked wallet. Neither recovery call goes through compliance.
 - **No payment of 0.** It answers 403 "Swissquote doesn't pay for a payment of 0 USDC."
 - **20 an hour.** Swissquote sponsors at most 20 of a wallet's operations per hour of chain time, dApp calls included. It counts what its paymaster paid in the EntryPoint's events over the last 5,000 blocks. The next one gets 429 "Swissquote pays the network fee for up to 20 payments an hour. Try again in N minutes." A recovery cancel is never refused, but it counts.
@@ -250,11 +256,11 @@ Swissquote limits what it signs:
 - **Fixed gas limits.** 300,000 for the call, 1,000,000 for verification, 50,000 before verification and 100,000 for the paymaster.
 - **Simulated first.** The API simulates `handleOps` before it submits, which catches a bad signature, sponsorship or nonce before Swissquote pays.
 
-A call that reverts inside the account still costs Swissquote its gas. The Send screen refuses an amount above what is available, and live mode's simulation refuses a transfer the balance cannot cover. Demo mode's simulation does not, so a client who calls the API directly can make Swissquote pay for reverted transfers, up to 20 an hour. Not built: a gas price cap and monitoring of the paymaster deposit.
+A sponsored call that reverts inside the account still costs Swissquote its gas. The Send screen refuses an amount above what is available, and live mode's simulation refuses a transfer the balance cannot cover. Demo mode's simulation does not, so the client of a linked wallet who calls the API directly can make Swissquote pay for reverted transfers, up to 20 an hour. Not built: a gas price cap and monitoring of the paymaster deposit.
 
 ## Compliance engine
 
-Every payment Swissquote sponsors goes through the compliance engine first. `ALLOW` is sponsored at once, whatever the amount. `REVIEW` and `DENY_ASSISTANCE` are refused. A refusal shows its reasons to the client in plain words, stops Swissquote's assistance and never freezes the wallet.
+Every payment goes through the compliance engine first, sponsored or not. `ALLOW` goes ahead at once, whatever the amount, sponsored on a linked wallet. `REVIEW` and `DENY_ASSISTANCE` are refused. A refusal shows its reasons to the client in plain words, stops Swissquote's assistance and never freezes the wallet.
 
 The engine runs these checks:
 
@@ -265,11 +271,11 @@ The engine runs these checks:
 
 Outages and missing evidence never fall back to `ALLOW`.
 
-The engine writes a plain-language summary of each call, such as "Send 1,500 USDC to 0x…". The client reads it before Face ID, on the **Checked by Swissquote** card, with "Recipient not on a sanctions list" and "Simulated: it moves only this amount". Those two lines are fixed app text. They are true because Swissquote refuses to sponsor what fails screening or simulation. In demo mode the card carries a **Demo** tag, because fixtures did the screening and the simulation. `npm run demo:compliance` prints the engine's summary for five cases.
+The engine writes a plain-language summary of each call, such as "Send 1,500 USDC to 0x…". The client reads it before Face ID, on the **Checked by Swissquote** card, with "Recipient not on a sanctions list" and "Simulated: it moves only this amount". Those two lines are fixed app text. They are true because Swissquote refuses to prepare what fails screening or simulation. In demo mode the card carries a **Demo** tag, because fixtures did the screening and the simulation. `npm run demo:compliance` prints the engine's summary for five cases.
 
 The engine also has a standalone HTTP API for other backends: `POST /api/compliance/evaluate`, `GET /api/compliance/keys` and `GET /api/compliance/registry`. Each call needs `Authorization: Bearer <COMPLIANCE_API_KEY>` and an `X-Compliance-Subject` header set by the trusted bank backend. `npm run local` does not set `COMPLIANCE_API_KEY`, so these routes answer 503 `COMPLIANCE_API_KEY_NOT_CONFIGURED`. To try them, start the stack with `COMPLIANCE_API_KEY=<secret> npm run local`. The wallet does not use this API. It calls the engine inside Swissquote's server. Never ship the key to a browser.
 
-**Reviewed dApps frontend:** Home links to `/dapps`, a policy-derived ERC-4626 catalogue with deposit, withdrawal, exact-amount approval and revoke-permission flows. Each call uses the existing phone signing API, compliance gate and paymaster. Decisions, demo evidence, expiry, remaining allowance and confirmed transaction hashes are visible. Fresh local deployments include a real test vault with no yield; deposits use two separately reviewed transactions where approval is needed. See [dApp integration and verification](docs/DAPP_INTEGRATION.md) for the backend boundary, safe handling of existing chains and test commands.
+**Reviewed dApps frontend:** Home links to `/dapps`, a policy-derived ERC-4626 catalogue with deposit, withdrawal, exact-amount approval and revoke-permission flows. Each call uses the existing phone signing API, compliance gate and, for a linked wallet, paymaster. Decisions, demo evidence, expiry, remaining allowance and confirmed transaction hashes are visible. Fresh local deployments include a real test vault with no yield; deposits use two separately reviewed transactions where approval is needed. See [dApp integration and verification](docs/DAPP_INTEGRATION.md) for the backend boundary, safe handling of existing chains and test commands.
 
 The engine's own limits:
 

@@ -2,7 +2,7 @@
 
 ## The pitch
 
-Swissquote Wallet is a self-custody wallet that Swissquote could offer its clients. Payments are approved with Face ID, Swissquote pays the network fees, and a lost phone can be recovered. The client keeps the authority to move funds. Swissquote checks each payment and helps with recovery.
+Swissquote Wallet is a self-custody wallet that Swissquote could offer its clients. Payments are approved with Face ID, Swissquote pays the network fees once the wallet is linked to a Swissquote account, and a lost phone can be recovered. The client keeps the authority to move funds. Swissquote checks each payment and helps with recovery.
 
 The promise is a wallet as easy as a banking app, with a way back after a lost phone, and no power for the bank to spend your funds.
 
@@ -14,7 +14,7 @@ A Swissquote client who wants their own keys today withdraws to an external wall
 
 ## How Swissquote Wallet works
 
-The client creates the wallet in the app, with no Swissquote account needed. The phone creates a passkey behind Face ID and a separate Recovery Key, which the client saves as a file and keeps at home. Each payment needs the passkey. Before Face ID, the client reads Swissquote's check of the payment in plain words, such as "Send 20 USDC to 0x1bA5...Cf4c." Swissquote screens the payment and pays its fee through its paymaster, so the client never needs a separate gas token.
+The client creates the wallet in the app, with no Swissquote account needed. The phone creates a passkey behind Face ID and a separate Recovery Key, which the client saves as a file and keeps at home. Each payment needs the passkey. Before Face ID, the client reads Swissquote's check of the payment in plain words, such as "Send 20 USDC to 0x1bA5...Cf4c." Swissquote screens the payment. Once the wallet is linked to a Swissquote account, Swissquote also pays its fee through its paymaster, so the client never needs a separate gas token. Until then the wallet pays its fees in ETH, and the client sees the most a payment can cost before Face ID.
 
 Behind the interface, Swissquote Wallet uses an ERC-4337 smart account and 2-of-3 Shamir secret sharing. The phone splits the wallet key into three shares:
 
@@ -34,11 +34,12 @@ The prototype rebuilds the complete key on the phone and then signs. It uses Sha
 
 ## Linking a Swissquote account
 
-Later, the client can link the wallet to their Swissquote account from Settings, with one Face ID. The passkey, which the account requires for every payment, signs that the wallet belongs to their client number, and Swissquote keeps that signed statement. Linking adds three things:
+Later, the client can link the wallet to their Swissquote account from Settings, with one Face ID. The passkey, which the account requires for every payment, signs that the wallet belongs to their client number, and Swissquote keeps that signed statement. Linking adds four things:
 
 1. Money moves between the Swissquote account and the wallet with no extra checks. The signed statement is the ownership proof the Travel Rule asks for. An unlinked wallet goes through Swissquote's usual procedure for an external wallet.
 2. Before anyone recovers the wallet, Swissquote also checks the client's ID.
-3. Swissquote can lock a lost or stolen phone.
+3. Swissquote pays the network fees, so the wallet needs no ETH.
+4. Swissquote can lock a lost or stolen phone.
 
 ## Payments
 
@@ -80,7 +81,7 @@ The independent service splits recovery help between two companies. The passkey 
 
 ## What the prototype shows
 
-The build includes verified Shamir shares, passkeys checked by the smart account, gas sponsorship with abuse limits, the compliance checks, the optional link to a Swissquote account, the lock on a lost phone, the 48-hour recovery and cancel rules, and the exit without Swissquote. Swissquote and the independent service run separate share vaults, in separate processes. The code runs on a local chain and supports Base Sepolia.
+The build includes verified Shamir shares, passkeys checked by the smart account, gas sponsorship for linked wallets and its abuse limits, the compliance checks, the optional link to a Swissquote account, the lock on a lost phone, the 48-hour recovery and cancel rules, and the exit without Swissquote. Swissquote and the independent service run separate share vaults, in separate processes. The code runs on a local chain and supports Base Sepolia.
 
 The Swissquote sign-in that links a wallet, the KYC record and the ID check are mocked. The share vaults use software encryption, not production HSMs. The key split is our own short code on an established library and needs an audit. Production work includes real identity checks, recovery alerts, stronger storage on the phone and a security review. Recovery needs both share holders to be available. Swissquote can withhold its share, lock a phone and cancel a pending recovery. Those are availability powers. They do not give Swissquote the power to spend.
 

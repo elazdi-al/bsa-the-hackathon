@@ -7,7 +7,7 @@ Research checked on 10 October 2026, against Swiss law including the 1 October 2
 Crypto custody under the Banking Act turns on an undertaking to keep assets available for the client and allocated to them ([BankA Art. 16 no. 1bis and Art. 37d](https://www.fedlex.admin.ch/eli/cc/51/117_121_129/de), [FINMA Guidance 01/2026](https://www.finma.ch/en/~/media/finma/dokumente/dokumentencenter/myfinma/4dokumentation/finma-aufsichtsmitteilungen/20260112-finma-aufsichtsmitteilung-01-2026.pdf)). The practical test is who can move the funds. We argue Swissquote cannot:
 
 - The power of disposal sits with the client. The account accepts a transfer only with the passkey, which lives in the client's phone. No Swissquote key meets that rule, alone or combined with the independent service's. Anyone can read the rule in the deployed contract.
-- The assets sit in the client's own account contract, not in Swissquote's name or on its books. Swissquote offers screening, gas and recovery help. It does not undertake to keep the assets available.
+- The assets sit in the client's own account contract, not in Swissquote's name or on its books. Swissquote offers screening, recovery help and, for a linked wallet, gas. It does not undertake to keep the assets available.
 - Swissquote's remaining powers are availability powers. Withholding Share B, refusing sponsorship, locking the reported phone of a linked wallet and cancelling a recovery as guardian decide whether Swissquote helps. None of them moves an asset or changes who controls it.
 
 The weak point is practical. While Swissquote runs, withholding Share B stops the client from paying once the key cache expires. A regulator could read that as control. Exit mode answers this for a Swissquote that is gone. For a Swissquote that refuses one client, we propose two answers. The client contract allows refusal only on a legal ground. In production, the independent service would also open exit mode for that client after a notice period. That second answer is a design, not built. Counsel must weigh these powers. The licensing reform consulted on from October 2025 is not a launch permission ([SIF consultation](https://www.sif.admin.ch/en/newnsb/x4TMWQ1SWofNoFx7XyHhY)).
@@ -28,7 +28,7 @@ A link made inside the signed-in Swissquote app is useful evidence, not automati
 
 ## Is Swissquote the sending institution?
 
-When the client pays a third party from the wallet, the client signs and the client's account sends. Swissquote screens the call, pays the gas and relays the signed operation. It cannot change the recipient or the amount, because the phone checks the operation before Face ID and the account checks the signatures.
+When the client pays a third party from the wallet, the client signs and the client's account sends. Swissquote screens the call, relays the signed operation and, for a linked wallet, pays the gas. It cannot change the recipient or the amount, because the phone checks the operation before Face ID and the account checks the signatures.
 
 Our position is that Swissquote is not the ordering institution for that transfer. It never holds the assets and never decides to send them. It is still a financial intermediary for the assistance itself. AMLO Art. 4(1)(b) covers helping transfer virtual currencies to third parties in a continuing relationship, even without power of disposal ([AMLO](https://www.fedlex.admin.ch/eli/cc/2015/791/de), [2021 explanatory report, section 5.7](https://www.newsd.admin.ch/newsd/message/attachments/67150.pdf)). So KYC, monitoring and sanctions duties apply to every sponsored payment.
 
@@ -39,6 +39,8 @@ Until FINMA or counsel confirms that reading, we would launch conservatively and
 - Swissquote records originator data for every sponsored payment.
 
 This posture is a design. This build exchanges no Travel Rule messages.
+
+Because KYC duties apply to every sponsored payment, Swissquote sponsors payments only for wallets it can tie to an identified client. A wallet linked to a Swissquote account gets its payments and dApp calls sponsored, and Swissquote knows the client behind them from its KYC record. An unlinked wallet pays its own gas in ETH. Swissquote still screens its payments, relays them and applies every limit. Swissquote still pays for any wallet's recovery, which moves no funds, so a lost phone is never unrecoverable for lack of ETH.
 
 ## Other rules that apply
 
@@ -57,5 +59,5 @@ Staking, loans, cards and wealth services are out of scope and need their own as
 - What permissions, supervision and contracts does the independent service need, including for exit mode?
 - Is the ownership proof acceptable before deployment and after a recovery replaces the passkey? Is the usual external-wallet procedure the right one for an unlinked wallet?
 - Is Swissquote the ordering institution for a sponsored transfer, and which third-party-wallet flows are allowed?
-- The owner of an unlinked wallet is not identified to Swissquote, yet Swissquote screens and sponsors their payments. Is that allowed, or must a wallet be linked before Swissquote assists it?
+- Swissquote screens and relays an unlinked wallet's payments, and pays for its recovery, without knowing its owner. Does that assistance alone make Swissquote a financial intermediary for those payments, so that the owner must be identified first?
 - Which sanctions lists, service restrictions and reporting procedures apply?

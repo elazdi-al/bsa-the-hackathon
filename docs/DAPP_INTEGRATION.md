@@ -12,7 +12,7 @@ Fresh local deployments include `TestVault`, built on the project's pinned OpenZ
 2. `GET /api/wallets/:address/dapps/:vault` reads balance, shares, asset value, allowance and vault limits at a common block.
 3. `POST` to the same wallet/vault route with `{ action, amount }` returns a read-only preview. `amount` is an integer token-base-unit string. This is **not** compliance authorization.
 4. The browser adapter independently constructs its requested call and invokes `phone.prepare(call, { origin, name })`. The existing `POST /api/wallets/:address/operations` decodes the actual account calldata and evaluates that exact call through the compliance engine. The server resolves chain and subject from the wallet, not from user-supplied dApp fields.
-5. Only `ALLOW` gets a paymaster-sponsored operation. The response includes the review and expiry; refusals include the full review plus the existing plain-text refusal format. Sponsorship is capped by both the decision's remaining time and the policy's `decisionTtlSeconds` (600 seconds in the local policy), using chain time for the paymaster and wall time for the review.
+5. Only `ALLOW` gets an operation. It is paymaster-sponsored for a linked wallet, and an unlinked wallet pays its gas from its own ETH. The response includes the review and expiry; refusals include the full review plus the existing plain-text refusal format. Sponsorship is capped by both the decision's remaining time and the policy's `decisionTtlSeconds` (600 seconds in the local policy), using chain time for the paymaster and wall time for the review.
 6. `phone.prepare` checks the returned operation and recomputes its signing hash, as before. After the user reviews it, `phone.approve` requests the passkey and signs through the existing wallet-key flow. The backend simulates the EntryPoint call, submits it and checks the UserOperation success event.
 
 No `COMPLIANCE_API_KEY`, provider key or wallet key is sent to the dApp frontend. The authenticated `/api/compliance/*` endpoints remain backend-only. The compliance engine and browser-safe adapter contain no Shamir/MPC assumptions; only the phone adapter connects to the current wallet implementation.
@@ -24,7 +24,7 @@ The current account exposes one `execute` call, not a batch. A deposit with insu
 - Exact-amount `approve(vault, amount)`, with its own policy review and passkey approval.
 - A fresh allowance/preview read, then a separately evaluated `deposit(amount, wallet)` and second passkey approval.
 
-The deposit is never automatically signed after the approval. Both calls use fresh nonces and sponsorship. An existing sufficient allowance skips the approval. Withdrawals fix both receiver and owner to the current wallet; the screen does not accept arbitrary recipient or delegatecall payloads.
+The deposit is never automatically signed after the approval. Both calls use fresh nonces, and both are sponsored for a linked wallet. An existing sufficient allowance skips the approval. Withdrawals fix both receiver and owner to the current wallet; the screen does not accept arbitrary recipient or delegatecall payloads.
 
 Approval alone moves no assets, but it grants permission. If the user stops or the deposit fails, the screen shows the remaining on-chain allowance and offers `approve(vault, 0)` through **Revoke permission**. Revocation is itself checked and signed; it is not promised to bypass Swissquote refusal or provider outages. Plain ERC-4626 previews are indicative and provide no minimum-output protection.
 
@@ -67,7 +67,7 @@ npm run test:dapps:stack -- --ui
 
 The isolated runner requires a production build and `forge`/`anvil` on PATH. For UI tests, install the Playwright headless browser (`npx playwright install chromium --only-shell`) or set `BROWSER_CHANNEL=msedge` for an installed Edge. The UI harness uses a virtual passkey, never an OS authentication dialog. Its test-only route redirect connects the build-pinned default partner URL to the isolated partner; if the build used another URL, supply `BUILD_PARTNER_URL` with that exact value.
 
-Tests cover real local-chain sponsored calls, policy refusal, exact approval, withdrawals, partial-deposit revocation and zero native wallet balance. Browser checks also cover editing intent, an injected expired-review response, runtime errors and mobile overflow. Screenshots are written to ignored `shots/`.
+Tests cover real local-chain calls, policy refusal, exact approval, withdrawals and partial-deposit revocation. `npm run e2e:dapps` links its wallet first, so its calls are sponsored and the wallet never holds ETH. `npm run e2e:dapps:ui` uses an unlinked wallet with ETH, which pays for its own calls. Browser checks also cover editing intent, an injected expired-review response, runtime errors and mobile overflow. Screenshots are written to ignored `shots/`.
 
 ## Production limitations
 
