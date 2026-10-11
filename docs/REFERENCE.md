@@ -27,24 +27,24 @@ Face ID is the sign-in. Each payment gets its own Face ID approval over that exa
 
 ### 3. Link Swissquote
 
-1. In Settings, tap **Link your Swissquote account**. The tray says in four short lines what linking adds: transfers to and from the Swissquote account with no extra checks, network fees paid by Swissquote, an ID check before a recovery, and the lock on a lost phone.
-2. Tap **Link with Face ID**. The app signs in to Swissquote, which is mocked, as a made-up client with a KYC record. With Face ID, the passkey the account requires for every payment signs that the wallet belongs to that client number. Nothing goes on chain.
-3. Settings shows the Swissquote account, marked **Linked**, with the client number and the ID card number on file. Note the ID card number for the recovery.
+1. In Settings, tap **Link your Swissquote account**. The tray says what linking adds, such as transfers to and from the Swissquote account with no extra checks, network fees paid by Swissquote and the lock on a lost phone.
+2. Tap **Link with Face ID**. The app sends the client to their Swissquote account to sign in. This is mocked, and Swissquote accepts at once, as a made-up client. With Face ID, the passkey the account requires for every payment signs that the wallet belongs to that client number. Nothing goes on chain, and no ID is involved.
+3. Settings shows the Swissquote account, marked **Linked**, with the client number.
 
 Swissquote now pays the wallet's network fees, and **Network fee** on `/send` reads "Paid by Swissquote".
 
 ### 4. Lose the phone and recover
 
-The first browser now plays the lost phone. Losing it loses Share A and the passkey. The Recovery Key file and the client's ID card are what is left.
+The first browser now plays the lost phone. Losing it loses Share A and the passkey. The Recovery Key file is what is left.
 
 1. In the second browser, open http://localhost:3000/onboarding-welcome and tap **Recover existing wallet**.
 2. On `/recover`, choose the Recovery Key file, or paste the key, and tap **Continue**.
-3. The wallet is linked, so `/recover` shows **Confirm it's you**. Type the ID card number from Settings into **ID card number** and tap **Scan ID**. The screen says "Mock scan: the camera would read your ID card and check your face."
-4. On **Secure this phone**, tap **Restore with Face ID**. Swissquote matches the number to the owner's KYC record and signs the new phone in as the owner. The new phone creates a new passkey and a new wallet key. Swissquote releases the old Share B, and the independent service releases the old Share C. The phone rebuilds the old key for one signature and starts the recovery on chain.
-5. The new phone counts down the 48-hour hold in chain time and offers **Lock your old phone**. The old phone's Home shows "Someone started recovering your wallet" with **Cancel recovery**.
-6. Run `npm run warp` to move chain time 48 hours ahead. Tap **Finish recovery**. The new phone now controls the same address with the same funds.
+3. On **Secure this phone**, tap **Restore with Face ID**. The new phone creates a new passkey and a new wallet key. Swissquote releases the old Share B, and the independent service releases the old Share C. The phone rebuilds the old key for one signature and starts the recovery on chain.
+4. The new phone counts down the 48-hour hold in chain time and offers **Lock your old phone**, which the Recovery Key signs. The old phone's Home shows "Someone started recovering your wallet" with **Cancel recovery**.
+5. Run `npm run warp` to move chain time 48 hours ahead. Tap **Finish recovery**. The new phone now controls the same address with the same funds.
+6. The recovery does not sign the new phone in to Swissquote. In Settings, link again to use the Swissquote account there.
 
-An unlinked wallet has no ID step and no lock. `/recover` goes from the Recovery Key to **Secure this phone**, then to the 48-hour countdown.
+An unlinked wallet recovers the same way, but its countdown offers no lock.
 
 ### The same story in the terminal
 
@@ -54,7 +54,7 @@ An unlinked wallet has no ID step and no lock. `/recover` goes from the Recovery
 npm run account phone                                               # a wallet with 100 USDC and 0.01 ETH, not linked
 npm run send phone 0x000000000000000000000000000000000000dEaD 20    # leaves at once, its fee paid from the wallet's ETH
 npm run link phone                                                  # links it to a mock Swissquote client
-npm run attack phone                                                # A1 to A7, each refused
+npm run attack phone                                                # A1 to A6, each refused
 npm run recover phone                                               # lost phone: recovery onto phone-new
 npm run warp
 npm run finish phone-new                                            # phone-new controls the same address
@@ -63,11 +63,11 @@ npm run exit phone-new 0x000000000000000000000000000000000000dEaD all
 npm run sunset off
 ```
 
-Without `npm run link phone`, the wallet stays unlinked. It pays its own network fees from its ETH. `npm run attack phone` then runs its unlinked version, and `npm run recover phone` needs no ID.
+Without `npm run link phone`, the wallet stays unlinked. It pays its own network fees from its ETH. `npm run attack phone` then runs its unlinked version, without the lock step.
 
-`npm run lock phone` and `npm run unlock phone` report the phone of a linked wallet lost and found. `npm run cancel phone` cancels a pending recovery with the Recovery Key.
+`npm run lock phone` and `npm run unlock phone` report the phone of a linked wallet lost and found, signed with its Recovery Key. `npm run cancel phone` cancels a pending recovery with the Recovery Key.
 
-To recover a browser wallet from the terminal, run `npm run recover ~/Downloads/"Swissquote Wallet Recovery Key.txt" recovered`, and add the ID number from Settings if the wallet is linked. The browser plays the old phone and can cancel the recovery from Home. `npm run e2e` runs the whole protocol as a test.
+To recover a browser wallet from the terminal, run `npm run recover ~/Downloads/"Swissquote Wallet Recovery Key.txt" recovered`. The browser plays the old phone and can cancel the recovery from Home. `npm run e2e` runs the whole protocol as a test.
 
 ## Run it locally
 
@@ -103,18 +103,18 @@ Drive the protocol from a second terminal. The commands read `.env.local`, so th
 | `npm run status` | Shows chain time, the contracts, Swissquote's gas funds, every wallet with its USDC, owner and pending recovery, and the CLI accounts. A linked wallet shows "owner: Swissquote client *number* (mock), ownership signed with Face ID by the wallet's passkey", after checking the record against the passkey the wallet was created with or the one it has now. A wallet with no owner record shows "not linked to a Swissquote client". A linked wallet also shows "Swissquote Plus until *date*", "Swissquote Plus ended *date*" or "no Swissquote Plus". |
 | `npm run fund [wallet] [amount]` | Mints test USDC, 100 by default, and on anvil also sends the wallet 0.01 ETH for network fees. `wallet` is an address or an account. Without it, the newest wallet gets them. |
 | `npm run account <account>` | Creates an unlinked wallet with a software passkey and funds it with 100 USDC and 0.01 ETH, as `npm run fund` does. Saves it in `data/accounts/<account>.json`, with its Recovery Key file next to it. |
-| `npm run link <account>` | Links the account's wallet to a mock Swissquote client, as **Link with Face ID** does in Settings: it signs in, and the software passkey signs the statement. Prints the wallet, the client number and the ID card number. |
+| `npm run link <account>` | Links the account's wallet to a mock Swissquote client, as **Link with Face ID** does in Settings: it signs in, and the software passkey signs the statement. Prints the wallet and the client number. |
 | `npm run plus <account>` | Buys 30 days of Swissquote Plus for the client of a linked account. The wallet pays Swissquote 10 USDC, as `npm run send` does, and Swissquote extends the client's Plus. Buying while Plus runs adds 30 days to its end. Plus runs in chain time, so `npm run warp` ages it. Prints the client, the date Plus runs until and the balance. An unlinked account must run `npm run link <account>` first. |
 | `npm run send <from-account> <to> <amount>` | Sends USDC from an account to an address or another account. A refusal prints Swissquote's reasons. |
-| `npm run recover <account \| Recovery Key file> [new-account] [ID number]` | Starts a recovery onto a new software phone. Only a linked wallet asks for the ID. A linked account brings its owner's ID, and a file needs the ID number, which Settings shows. `new-account` defaults to `<account>-new`, or `recovered` for a file. |
+| `npm run recover <account \| Recovery Key file> [new-account]` | Starts a recovery onto a new software phone, the same way for a linked or an unlinked wallet. `new-account` defaults to `<account>-new`, or `recovered` for a file. |
 | `npm run finish <account>` | Finishes a recovery after the 48-hour delay. |
 | `npm run cancel <account>` | Cancels a pending recovery through Swissquote, signed with the Recovery Key. |
-| `npm run lock <account>` | Reports the phone lost. Swissquote locks its credentials, after a mocked ID check. Refuses on an unlinked wallet, which has no ID to check. |
-| `npm run unlock <account>` | Swissquote unlocks the phone, after a mocked ID check. Refuses on an unlinked wallet. |
+| `npm run lock <account>` | Reports the phone lost, signed with the account's Recovery Key. Swissquote checks the signature and locks the phone's credentials. Refuses on an unlinked wallet, which has no lock. |
+| `npm run unlock <account>` | Swissquote unlocks the phone, when the account's Recovery Key signs the request. Refuses on an unlinked wallet. |
 | `npm run warp [hours]` | Moves chain time ahead, 48 hours by default. |
 | `npm run sunset [on\|off]` | Closes Swissquote's services, as if gone for good, or runs them again. On by default. |
 | `npm run exit <account> <to> [amount]` | Sends USDC without Swissquote, once the independent service has opened exit mode. All of it by default. |
-| `npm run attack <account>` | Plays a thief with the account's phone and email inbox and prints each refusal. A1 to A7 on a linked wallet. On an unlinked one, A1 to A3 and what stops the thief without an ID check. |
+| `npm run attack <account>` | Plays a thief with the account's phone and email inbox and prints each refusal. A1 to A6 on a linked wallet. A1 to A5 on an unlinked one, which has no lock. |
 
 ### Checks
 
@@ -193,20 +193,20 @@ The [architecture diagram](../README.md#architecture) shows how these parts conn
 
 | Method and path | What it does |
 | --- | --- |
-| `POST /api/session` | Mocked. Signs the phone in to Swissquote to link a wallet. A session Swissquote knows stays its client, and a phone without one becomes a new made-up client with a KYC record. |
+| `POST /api/session` | Mocked. Stands in for the client's Swissquote sign-in when they link a wallet, and accepts at once. A session Swissquote knows stays its client, and a phone without one becomes a new made-up client. |
 | `GET /api/config` | The chain ID, the EntryPoint and USDC addresses, and what Swissquote Plus costs, `plus: { to, price, period }`. `to` is the Swissquote address that takes the payment, `price` is in USDC base units as a string, and `period` is in seconds. The app reads Plus's price and address only here. |
 | `POST /api/shares` | Stores Share B after checking it against the commitments, and returns a signed ticket for the independent service. |
 | `POST /api/wallets` | Registers a wallet. Takes `{ signer, recoveryKey, signature }`, the signature being the wallet key's Recovery Key binding. Needs no Swissquote account. Answers 409 if another wallet already uses that Recovery Key, which would hide it from its owner's recovery. |
 | `GET /api/wallets/:address` | Keys, lock, the USDC and ETH balances in their smallest units (`usdc`, `eth`), pending recovery and chain time. Returns the owner record, `{ client, createdAt, statement, assertion }`, only to the owner's own session (header `x-swissquote-session`). While the client's Swissquote Plus runs, it also returns `plus: { until }`, in chain seconds, to that session only. |
-| `POST /api/wallets/:address/link` | Links the wallet to a Swissquote client. Takes `{ session, assertion }`, the wallet passkey's Face ID assertion over keccak256 of "Wallet 0x… belongs to Swissquote client *number*.", checked against the wallet's live passkey, or the one in its config before deployment. Keeps the statement and the assertion as the owner record. Answers 401 without a known session, 403 if the wallet's passkey did not sign and 409 if another client already linked the wallet. Linking again as the same client is fine. There is no unlink. |
+| `POST /api/wallets/:address/link` | Links the wallet to a Swissquote client. Takes `{ session, assertion }`, the wallet passkey's Face ID assertion over keccak256 of "Wallet 0x… belongs to Swissquote client *number*.", checked against the wallet's live passkey, or the one in its config before deployment. Keeps the statement and the assertion as the owner record. Answers 401 without a known session and 403 if the wallet's passkey did not sign. A wallet stays with the client who first linked it, and there is no unlink. Linking it again, as from a new phone after a recovery, keeps that client. The mock then signs the phone in as them and returns their session as `signedIn`, because the passkey just proved the phone holds the wallet. |
 | `POST /api/wallets/:address/plus` | Claims a payment for Swissquote Plus. Takes `{ session, transactionHash }`. Swissquote checks that the session's client owns the wallet, that the transaction succeeded on chain with a USDC transfer of at least the price from the wallet to Swissquote's address, and that no one claimed the transaction before. Plus then runs 30 days more, from its current end if it still runs, or else from now. Returns `{ until }` in chain seconds. Plus belongs to the client, not the wallet. Nothing renews it, so each period is a new payment. Answers 401 without a known session, 403 with `refused: "unlinked"` if the session's client does not own the wallet, 402 with `refused: "payment"` if the transaction failed, is unknown or carries no such transfer, 409 with `refused: "claimed"` if someone claimed it already, and 404 for an unknown wallet. |
 | `GET /api/wallets/:address/activity` | The wallet's USDC transfers. Each has `sponsored`, true when Swissquote's paymaster paid its gas. |
 | `POST /api/wallets/:address/operations` | Runs compliance and Swissquote's sponsorship rules, and prepares the call. Swissquote sponsors it for a linked wallet, and sponsors the old phone's recovery cancel for any wallet. An unlinked wallet's other calls carry no paymaster, and the wallet pays their gas from its ETH. Returns the operation, its hash, Swissquote's `summary` and a `demo` flag. For an unlinked wallet it answers 403 with `refused: "gas"` when the wallet's ETH and its EntryPoint deposit cannot cover the operation's maximum fee. |
 | `POST /api/wallets/:address/share` | Releases Share B for an operation the passkey approved. |
 | `POST /api/wallets/:address/operations/:hash` | Submits the signed operation. |
-| `POST`, `DELETE /api/wallets/:address/lock` | Locks or unlocks the phone's credentials, after the ID check. A linked wallet only. An unlinked one gets 403. |
-| `GET /api/recovery?signature=&at=` | Finds the wallet a Recovery Key signature restores. Returns `{ address, pendingRecovery, chainTime, linked }` and no KYC data. |
-| `POST /api/recovery` | Prepares `initiateRecovery`, sponsored for every wallet, linked or not. Takes `{ recoveryKey, signer, signature, identity? }`. Only a linked wallet needs `identity`. It answers 403 with `refused: "identity"` without it or when it is wrong, and 429 with `refused: "attempts"` after five misses. Only a linked wallet gets `signedIn`, a session for the owner. |
+| `POST`, `DELETE /api/wallets/:address/lock` | Locks or unlocks the phone's credentials, when the Recovery Key signed the request. A linked wallet only. An unlinked one gets 403. |
+| `GET /api/recovery?signature=&at=` | Finds the wallet a Recovery Key signature restores. Returns `{ address, pendingRecovery, chainTime, linked }` and nothing about the client. |
+| `POST /api/recovery` | Prepares `initiateRecovery`, sponsored for every wallet, linked or not. Takes `{ recoveryKey, signer, signature }`. A linked wallet needs nothing more, and the new phone is not signed in to Swissquote. |
 | `POST /api/wallets/:address/recovery` | Releases Share B and a signed approval for a recovery the Recovery Key signed. |
 | `DELETE /api/wallets/:address/recovery` | Cancels the pending recovery as guardian, when the Recovery Key asks. |
 | `PATCH /api/wallets/:address/recovery` | Finalizes a recovery after the delay. |
@@ -227,12 +227,11 @@ The [architecture diagram](../README.md#architecture) shows how these parts conn
 
 ## What is real and what is mocked
 
-Real in this build: the Shamir split with verified shares, passkeys verified on chain, the ERC-4337 account and factory, Swissquote's paymaster and its limits, the compliance engine with signed decisions and its audit chain, the link to a client signed with Face ID, buying Swissquote Plus with a USDC payment from a linked wallet, the lock, the 48-hour on-chain delay and cancel, the matching of the ID number to the owner's record with its lockout, the independent service as a separate process with its own storage and secrets, and exit mode.
+Real in this build: the Shamir split with verified shares, passkeys verified on chain, the ERC-4337 account and factory, Swissquote's paymaster and its limits, the compliance engine with signed decisions and its audit chain, the link to a client signed with Face ID, buying Swissquote Plus with a USDC payment from a linked wallet, the lock signed with the Recovery Key, the 48-hour on-chain delay and cancel, the independent service as a separate process with its own storage and secrets, and exit mode.
 
 | Mocked here | Production |
 | --- | --- |
-| The Swissquote sign-in and session that link a wallet, and the client's KYC record. A phone with no known session signs in as a made-up client. The link tray says "Mock sign-in", and the ID on file carries a **Demo** tag. Creating a wallet uses neither. | The authenticated Swissquote app and the bank's KYC system |
-| The ID document and liveness check of a linked wallet, during recovery and before a lock. The client types the ID card number, and **Scan ID** scans nothing. | A real identity provider with liveness, matched to the KYC record |
+| The Swissquote sign-in and session that link a wallet. Swissquote accepts at once, and a phone with no known session signs in as a made-up client. The link tray says "Mock sign-in". Creating a wallet uses neither. | A redirect to the client's real Swissquote sign-in. Swissquote identified the client when they opened the account. |
 | HSMs. Shares B and C are AES-GCM sealed in SQLite. | HSMs at Swissquote and at the independent service |
 | Share A and the key cache live in a web app. Without PRF, Share A sits unsealed in web storage. | The Swissquote iOS and Android apps, with Secure Enclave or Keystore |
 | Fixture sanctions and simulation in demo mode | Live mode with contracted list coverage |
@@ -251,7 +250,7 @@ Every wallet's recovery stays sponsored, linked or not. That covers starting one
 Swissquote limits what it signs:
 
 - **Only calls compliance allows.** `ALLOW` goes ahead at once, sponsored on a linked wallet. `REVIEW` and `DENY_ASSISTANCE` are refused.
-- **Only `execute`, plus recovery.** The operations endpoint sponsors only calls through the account's `execute`, and no call to the account itself except `cancelRecovery`. The one other operation Swissquote sponsors is the `initiateRecovery` it prepares for a recovery, after the ID check on a linked wallet. Neither recovery call goes through compliance.
+- **Only `execute`, plus recovery.** The operations endpoint sponsors only calls through the account's `execute`, and no call to the account itself except `cancelRecovery`. The one other operation Swissquote sponsors is the `initiateRecovery` it prepares for a recovery. Neither recovery call goes through compliance.
 - **No payment of 0.** It answers 403 "Swissquote doesn't pay for a payment of 0 USDC."
 - **20 an hour.** Swissquote sponsors at most 20 of a wallet's operations per hour of chain time, dApp calls included. It counts what its paymaster paid in the EntryPoint's events over the last 5,000 blocks. The next one gets 429 "Swissquote pays the network fee for up to 20 payments an hour. Try again in N minutes." A recovery cancel is never refused, but it counts.
 - **10 minutes.** The sponsorship of a payment lasts the policy's `decisionTtlSeconds`, 600 seconds in the local policy, so it never outlives the compliance decision behind it. After that the API answers 410 "This approval expired. Start again." Each prepared operation can be submitted once, and expired ones are deleted at the next prepare.

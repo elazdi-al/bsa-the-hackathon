@@ -4,7 +4,7 @@ Swissquote Wallet is a self-custody crypto wallet that Swissquote could offer it
 
 Self-custody asks clients to become security experts, and a signing prompt tells them little about what they approve. Today a client who wants their own keys must whitelist an external address and pay USD 10 (native coin) or USD 15 (ERC-20 token) per withdrawal ([pricing](https://www.swissquote.com/en-ch/private/trade/pricing/cryptocurrencies), [external wallets](https://www.swissquote.com/en-ch/private/help/trade/products/crypto-asset-products)). After that, Swissquote no longer sees those assets. Swissquote Wallet keeps self-custody one tap from the Swissquote account.
 
-This is a hackathon build. The whole protocol runs for real on a local chain. The parts that need a real bank, such as the Swissquote sign-in that links a wallet to a client, the KYC record, the ID check and the HSMs, are mocked. [Known limits](#known-limits) lists what a judge should not take on trust. [protocol.md](protocol.md) is the spec, and it wins where the code or these docs disagree.
+This is a hackathon build. The whole protocol runs for real on a local chain. The parts that need a real bank, such as the Swissquote sign-in that links a wallet to a client and the HSMs, are mocked. [Known limits](#known-limits) lists what a judge should not take on trust. [protocol.md](protocol.md) is the spec, and it wins where the code or these docs disagree.
 
 | Submission item | Where |
 | --- | --- |
@@ -26,8 +26,8 @@ One story, end to end: create a wallet, pay with Face ID, link it to a Swissquot
 
 1. **Create a wallet.** No Swissquote account and no sign-in. Tap **Create new wallet**, then **Create Passkey**, **Split Wallet Key**, **Save Recovery Key** and **I saved it off this phone**. Run `npm run fund` for 100 USDC and 0.01 ETH.
 2. **Pay.** On Home, tap the action button, then **Send**. Enter an address, or tap the scan button next to **Paste** to scan the recipient's QR code. Enter an amount, read the **Checked by Swissquote** card, tap **Send** and approve with Face ID. The payment leaves at once, whatever the amount. The wallet is not linked yet, so it pays the network fee from its ETH. The review shows the most that fee can cost, under 0.003 ETH on the local chain.
-3. **Link Swissquote.** In Settings, tap **Link your Swissquote account**, then **Link with Face ID**. Settings now shows the account as **Linked**, with the ID card number on file. Note the number. Swissquote now pays the wallet's network fees.
-4. **Lose the phone and recover.** In the second browser, tap **Recover existing wallet** and load the Recovery Key file. The wallet is linked, so Swissquote checks the ID. Type the ID card number, tap **Scan ID**, then **Restore with Face ID**. Run `npm run warp` to pass the 48-hour hold, then tap **Finish recovery**. The new phone now controls the same address with the same funds.
+3. **Link Swissquote.** In Settings, tap **Link your Swissquote account**, then **Link with Face ID**. The mock Swissquote sign-in accepts at once. Settings now shows the account as **Linked**, with the client number. Swissquote now pays the wallet's network fees.
+4. **Lose the phone and recover.** In the second browser, tap **Recover existing wallet**, load the Recovery Key file and tap **Restore with Face ID**. A linked wallet recovers like any other. Run `npm run warp` to pass the 48-hour hold, then tap **Finish recovery**. The new phone now controls the same address with the same funds. It is not signed in to Swissquote, so link again from Settings.
 
 The same story runs without a browser, on software phones. Run these in order against a fresh `npm run local`:
 
@@ -35,7 +35,7 @@ The same story runs without a browser, on software phones. Run these in order ag
 npm run account phone                                               # a wallet with 100 USDC and 0.01 ETH, not linked
 npm run send phone 0x000000000000000000000000000000000000dEaD 20    # leaves at once, its fee paid from the wallet's ETH
 npm run link phone                                                  # links it to a mock Swissquote client
-npm run attack phone                                                # A1 to A7, each refused
+npm run attack phone                                                # A1 to A6, each refused
 npm run recover phone                                               # lost phone: recovery onto phone-new
 npm run warp
 npm run finish phone-new                                            # phone-new controls the same address
@@ -74,7 +74,7 @@ More: [Custody model](docs/SECURITY.md#custody-model) has each model's pros and 
 | Thief with a locked phone | No | No |
 | Thief who can unlock the phone | Yes. They can send the whole balance at once, in one payment, and nothing delays or cancels it. On a linked wallet, until the client reports the phone and Swissquote [locks](docs/SECURITY.md#the-lock) it, though a cached key can still pay through a public bundler for up to 3 hours. An unlinked wallet has no lock. | On a linked wallet, until the report. On an unlinked wallet, while they hold the phone. |
 | Thief with the phone and the email inbox | No. No email reset exists, and the Recovery Key is not on the phone. | No |
-| Thief with the Recovery Key file | Only if the client does not cancel within 48 hours. A linked wallet also needs the owner's ID number. | No |
+| Thief with the Recovery Key file | Only if the client does not cancel within 48 hours. | Yes, by cancelling the client's recoveries, and on a linked wallet by locking the phone until the client unlocks it with the same key. |
 | Swissquote alone | No | Yes, while it runs |
 | Independent service alone | No | Yes, by refusing Share C |
 | Swissquote and the independent service together | No | Yes, by both refusing |
@@ -100,7 +100,7 @@ flowchart LR
     api["Wallet API<br/>locks"]
     comp["Compliance engine<br/>sanctions and simulation are<br/>fixtures in demo mode"]
     vb[("Share B vault<br/>SQLite, AES-GCM, no HSM")]
-    kyc["MOCKED: optional link to a client,<br/>Swissquote sign-in, KYC record, ID check"]:::mock
+    signin["MOCKED: optional link to a client,<br/>Swissquote sign-in"]:::mock
   end
 
   subgraph ind["Independent service: own process, own database"]
@@ -121,7 +121,7 @@ flowchart LR
   sdk -- "Share C at creation,<br/>Share C requests" --> partner
   api --> comp
   api --> vb
-  api -- "linked wallets only" --> kyc
+  api -- "linked wallets only" --> signin
   api -- "checks the Recovery Key binding" --> partner
   partner -. "checks Swissquote is up" .-> api
   partner --> vc
@@ -145,12 +145,12 @@ Every key is generated on the client's phone. The passkey lives in the phone's s
 
 Creating a wallet needs no Swissquote account and no sign-in. Swissquote still stores Share B, and the independent service Share C.
 
-Later, the client can link the wallet to their Swissquote account from Settings. The app signs in to Swissquote, which is mocked, and the client signs "Wallet 0x… belongs to Swissquote client *number*." with Face ID, using the passkey the account requires for every payment. Swissquote checks the signature against the wallet's passkey and keeps both. Linking adds four things:
+Later, the client can link the wallet to their Swissquote account from Settings. The app sends them to their Swissquote account to sign in, which is mocked and accepts at once. The client then signs "Wallet 0x… belongs to Swissquote client *number*." with Face ID, using the passkey the account requires for every payment. Swissquote checks the signature against the wallet's passkey and keeps both. No ID is involved. Linking adds four things:
 
 1. Money moves between the Swissquote account and the wallet with no extra checks, because the statement is Swissquote's Travel Rule ownership proof.
-2. Before anyone recovers the wallet, Swissquote also checks the ID against the client's KYC record.
-3. Swissquote pays the network fees, so the wallet needs no ETH.
-4. Swissquote can lock a lost or stolen phone.
+2. Swissquote pays the network fees, so the wallet needs no ETH.
+3. Swissquote can lock a lost or stolen phone, when the Recovery Key asks.
+4. The client can use Swissquote's financial services, such as Swissquote Plus, which Swiss law lets Swissquote offer only to a client it has identified.
 
 More: [Wallet creation](docs/SECURITY.md#wallet-creation) has each step and when each key leaves its holder, and [Linking a Swissquote account](docs/SECURITY.md#linking-a-swissquote-account) has the link.
 
@@ -166,13 +166,13 @@ More: [Authentication](docs/SECURITY.md#authentication).
 
 | What happened | Who is involved | How long |
 | --- | --- | --- |
-| Phone lost, destroyed or stolen | The client with a new phone and the Recovery Key file, and their ID if the wallet is linked. Swissquote and the independent service. | Minutes, then 48 hours |
+| Phone lost, destroyed or stolen | The client with a new phone and the Recovery Key file. Swissquote and the independent service. | Minutes, then 48 hours |
 | Recovery Key lost, phone fine | The client moves the funds to a new wallet. | Minutes |
 | Phone and Recovery Key both lost | Nobody can help. | Never |
 | Independent service gone | The client and Swissquote. Payments keep working. | Recovery waits until C is available. |
 | Swissquote gone | The client and the independent service | 30 days, then minutes |
 
-The Recovery Key must sign the exact recovery. The recovery then waits 48 hours on chain, and the old phone, or the client with the Recovery Key through Swissquote, can cancel it. That is all an unlinked wallet has. A linked wallet adds two protections. The ID number must match the owner's KYC record, which is mocked, and five wrong numbers stop ID checks for an hour. If a thief can unlock the old phone, the client locks it with **Lock your old phone** or `npm run lock`.
+The Recovery Key must sign the exact recovery. The recovery then waits 48 hours on chain, and the old phone, or the client with the Recovery Key through Swissquote, can cancel it. A linked wallet recovers the same way, and no step checks the client's ID. Linking adds the lock. If a thief can unlock the old phone, the client locks it with the Recovery Key, from **Lock your old phone** or `npm run lock`. A recovery does not sign the new phone in to Swissquote, so the client links again from Settings.
 
 ### Exit without Swissquote
 
@@ -180,17 +180,16 @@ If Swissquote's services are gone for `EXIT_AFTER`, 30 days by default, the inde
 
 ### The attacker with the phone and the email
 
-`npm run attack <account>` plays a thief with the client's phone and email inbox, and asserts each refusal. `npm run e2e` runs it. On a linked wallet it runs A1 to A7:
+`npm run attack <account>` plays a thief with the client's phone and email inbox, and asserts each refusal. `npm run e2e` runs it. On a linked wallet it runs A1 to A6:
 
 1. **A1.** Pay without Face ID. Share A stays sealed.
 2. **A2.** Reset by email. No email reset exists.
 3. **A3.** Use a Recovery Key the thief made. Both share holders refuse to bind it.
-4. **A4.** Show the thief's own ID. The ID check refuses it.
-5. **A5.** Use the real Recovery Key without the owner's ID. The ID check refuses it.
+4. **A4.** Recover without the Recovery Key. Swissquote and the independent service refuse to authorize it.
+5. **A5.** Use the real Recovery Key. The account holds the recovery 48 hours, and the owner cancels it.
 6. **A6.** Unlock the phone and pay. Swissquote's lock refuses it once the owner reports the phone.
-7. **A7.** Forge an ID with the owner's number. The mock check passes it, and the owner cancels within the 48 hours.
 
-On an unlinked wallet, A1 to A3 run the same and the ID steps do not apply. The script shows what stops the thief instead. Without the Recovery Key, Swissquote and the independent service refuse to authorize a recovery. With a stolen Recovery Key, the account holds the recovery 48 hours and the owner cancels it. The lock step does not run, because only a linked wallet can be locked. Either way it ends "Every attempt on *account*'s wallet failed."
+On an unlinked wallet, A1 to A5 run the same. A6 does not run, because only a linked wallet can be locked. Either way it ends "Every attempt on *account*'s wallet failed."
 
 More: [recovery](docs/SECURITY.md#recovery), [the lock](docs/SECURITY.md#the-lock), [the exit](docs/SECURITY.md#exit-without-swissquote), [the attack](docs/SECURITY.md#the-attacker-with-the-phone-and-the-email) and [every recovery step](docs/SHAMIR_AND_RECOVERY.md).
 
@@ -246,8 +245,7 @@ More: the [compliance engine](docs/REFERENCE.md#compliance-engine) has each chec
 
 Everything not listed here runs for real, including the independent service as its own process and exit mode. These parts are mocked:
 
-- The Swissquote sign-in and client session that link a wallet, and the client's KYC record. The link tray says "Mock sign-in", and the ID on file carries a **Demo** tag.
-- The ID document and liveness check of a linked wallet. **Scan ID** scans nothing.
+- The Swissquote sign-in and client session that link a wallet. Swissquote accepts every client at once, and the link tray says "Mock sign-in".
 - HSMs. Shares B and C are AES-GCM sealed in SQLite.
 - The native app. Share A and the key cache live in a web app.
 - Sanctions and simulation, which use fixtures in demo mode.
@@ -264,10 +262,10 @@ More: [What is real and what is mocked](docs/REFERENCE.md#what-is-real-and-what-
 - It is EVM-only.
 - Nothing delays or cancels a payment once Face ID approved it.
 - The lock is Swissquote's, not the chain's.
-- An unlinked wallet has no ID check and no lock.
+- An unlinked wallet has no lock.
+- The Recovery Key alone starts a recovery, which only the client's cancel within 48 hours stops.
 - A link cannot be undone, and a thief who can unlock the phone can link an unlinked wallet.
 - A phone lost while Swissquote is gone is not covered.
-- The mock ID check passes a forged number.
 - Swissquote keeps availability powers.
 - Recovery needs both share holders.
 - The Recovery Key cannot be replaced.
