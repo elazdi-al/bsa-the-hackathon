@@ -9,6 +9,7 @@ import { addresses, chainNow, isDeployed, pendingRecovery, publicClient } from "
 export const GET = route(async (request: Request, ctx: RouteContext<"/api/wallets/[address]">) => {
   const wallet = requireWallet((await ctx.params).address as Address);
   const deployed = isDeployed(wallet.address);
+  const owned = owner(wallet.address, request.headers.get("x-swissquote-session"));
   const [credentials, pending, usdc, eth, chainTime] = await Promise.all([
     liveCredentials(wallet, deployed),
     pendingRecovery(wallet.address, deployed),
@@ -24,7 +25,8 @@ export const GET = route(async (request: Request, ctx: RouteContext<"/api/wallet
     eth: eth.toString(),
     pendingRecovery: pending && { signer: pending.signer, executeAfter: pending.executeAfter },
     chainTime,
-    owner: owner(wallet.address, request.headers.get("x-swissquote-session")),
+    owner: owned,
+    plus: owned && plusOf(owned.client, chainTime),
   });
 });
 
@@ -38,4 +40,10 @@ function owner(address: Address, session: string | null) {
   const client = session ? store().clientBySession(session) : undefined;
   if (!record || !client || record.client !== client.number) return undefined;
   return { client: record.client, createdAt: record.createdAt, statement: ownershipMessage(record.client, address), assertion: record.assertion };
+}
+
+/** The client's Swissquote Plus while it runs. Plus is the client's, so it is told only where the owner is. */
+function plusOf(client: string, now: number) {
+  const until = store().plusUntil(client);
+  return until !== undefined && until > now ? { until } : undefined;
 }

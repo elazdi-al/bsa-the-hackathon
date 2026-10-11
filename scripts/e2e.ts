@@ -4,13 +4,13 @@
 // email, on the linked wallet and on one never linked, which pays its own gas, can't have its phone locked and is
 // recovered by the Recovery Key alone, on Swissquote's gas even with no ETH, lose the phone, cancel recoveries both
 // ways, have Swissquote lock the stolen phone, recover after the 48-hour delay, send from the new phones, refuse to farm
-// Swissquote's free gas, and leave without Swissquote.
+// Swissquote's free gas, sell Swissquote Plus to a linked wallet's client, and leave without Swissquote.
 //
 //   npm run e2e
 import assert from "node:assert/strict";
 import { setTimeout as sleep } from "node:timers/promises";
 import { P256 } from "ox";
-import { encodeFunctionData, erc20Abi, formatEther, formatUnits, keccak256, numberToHex, parseUnits, toHex, type Address } from "viem";
+import { encodeFunctionData, erc20Abi, formatEther, formatUnits, keccak256, numberToHex, parseUnits, toHex, type Address, type Hex } from "viem";
 import { entryPoint07Abi, formatUserOperation, getUserOperationHash } from "viem/account-abstraction";
 import { generatePrivateKey, privateKeyToAccount, privateKeyToAddress } from "viem/accounts";
 import { bindRecoveryKeyMessage, ownershipChallenge, ownershipMessage } from "../lib/wallet/account.ts";
@@ -64,6 +64,7 @@ const transfer = (to: Address, amount: string) => ({
   to: addresses.usdc,
   data: encodeFunctionData({ abi: erc20Abi, functionName: "transfer", args: [to, parseUnits(amount, 6)] }),
 });
+const chainTime = async () => Number((await publicClient.getBlock({ blockTag: "pending" })).timestamp);
 async function warp(hours: number) {
   await publicClient.request({ method: "evm_increaseTime", params: [numberToHex(hours * 3600)] } as never);
   await publicClient.request({ method: "evm_mine", params: [] } as never);
@@ -283,7 +284,44 @@ await warp(1);
 await farmer.sendUsdc(BOB, "0.01");
 assert.equal(await usdcOf(BOB), parseUnits("0.21", 6), "the hour passed, so Swissquote pays again");
 
-console.log("17. Swissquote's services are closed for good. The client leaves with the money: Face ID, Share A and Share C, gas from the wallet's own ETH");
+console.log("17. Swissquote Plus is bought, not given: 10 USDC from a linked wallet to Swissquote buys its client 30 days, told only to their session, once per payment");
+let memberSession: string | undefined;
+const member = newPhone({ session: () => memberSession });
+await member.splitKey(await member.createPasskey());
+const memberWallet = await member.register(member.createRecoveryKey().address);
+const memberClient = await member.signIn();
+await member.link(memberClient);
+memberSession = memberClient.session;
+await mintUsdc(memberWallet, "100");
+assert.equal((await member.state()).plus, undefined, "a new linked wallet has no Plus");
+const { plus } = await member.config();
+const swissquoteBefore = await usdcOf(plus.to);
+const until = await member.buyPlus();
+assert.equal(await usdcOf(plus.to), swissquoteBefore + BigInt(plus.price), "the wallet paid Swissquote the price");
+assert.ok(Math.abs(until - (await chainTime()) - plus.period) < 60, "Plus runs 30 days from now");
+assert.deepEqual((await member.state()).plus, { until });
+assert.equal("plus" in (await (await realFetch(`${APP}/api/wallets/${memberWallet}`)).json()), false, "without the owner's session, Swissquote says nothing of Plus: bank secrecy");
+/** Swissquote's answer to a claim: the new end of the client's Plus, or the status and code of its refusal. */
+async function claim(at: Address, session: string, transactionHash: Hex) {
+  const res = await post(`${APP}/api/wallets/${at}/plus`, { session, transactionHash });
+  const { refused, until } = (await res.json()) as { refused?: string; until?: number };
+  return refused ? `${res.status} ${refused}` : until;
+}
+async function pay(to: Address, amount: string) {
+  return (await member.sendUsdc(to, amount)).transactionHash;
+}
+const plusPaid = await pay(plus.to, "10");
+assert.equal(await claim(wallet, signedIn.session, plusPaid), "402 payment", "another client can't claim this wallet's payment for a wallet of theirs");
+assert.equal(await claim(plainWallet, (await plainNew.signIn()).session, plusPaid), "403 unlinked", "an unlinked wallet can't claim Plus");
+assert.equal(await claim(memberWallet, memberSession, plusPaid), until + plus.period, "buying again extends Plus by 30 days");
+assert.equal(await claim(memberWallet, memberSession, plusPaid), "409 claimed", "a payment pays for Plus once");
+assert.equal(await claim(memberWallet, memberSession, `0x${plusPaid.slice(2).toUpperCase()}`), "409 claimed", "however its hash is written");
+assert.equal(await claim(memberWallet, memberSession, await pay(plus.to, "9.99")), "402 payment", "less than the price buys nothing");
+assert.equal(await claim(memberWallet, memberSession, await pay(BOB, "10")), "402 payment", "a payment to someone else buys nothing");
+assert.deepEqual((await member.state()).plus, { until: until + plus.period });
+console.log(`   client ${memberClient.client.number} has Plus until ${new Date((until + plus.period) * 1000).toISOString()}`);
+
+console.log("18. Swissquote's services are closed for good. The client leaves with the money: Face ID, Share A and Share C, gas from the wallet's own ETH");
 assert.match(await exitRefusal({}), /running/, "no exit while Swissquote's services run");
 const fresh = newPhone();
 await fresh.splitKey(await fresh.createPasskey());

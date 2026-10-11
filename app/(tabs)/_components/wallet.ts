@@ -26,6 +26,8 @@ export type Wallet = {
   restoring: boolean;
   /** The Swissquote client number the passkey signed the wallet belongs to, kept by Swissquote; null if none. */
   owner: string | null;
+  /** When the client's Swissquote Plus runs out, in chain seconds; null when it isn't running, or this phone isn't signed in as the owner. */
+  plus: number | null;
   /** USDC in and out, newest first, once a screen asked for it with `useActivity`. */
   activity?: Transfer[];
 };
@@ -79,6 +81,7 @@ async function load() {
         activity: activity ?? last?.activity,
         restoring: !controls && !!device.restoring,
         owner: state.owner?.client ?? null,
+        plus: state.plus?.until ?? null,
       },
     });
   } catch (error) {

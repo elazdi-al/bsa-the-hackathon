@@ -91,6 +91,8 @@ export type WalletState = {
   chainTime: number;
   /** Swissquote's record that the wallet is its client's. Only for that client, signed in on this phone: who owns a wallet is bank secrecy. */
   owner?: Owner;
+  /** The owner's Swissquote Plus while it runs, until a chain time in seconds. Only for the owner's session, as `owner` is. */
+  plus?: { until: number };
 };
 
 /**
@@ -109,7 +111,8 @@ export type Transfer = { hash: Hex; from: Address; to: Address; value: string; t
 export type Identity = { document: string };
 
 type Storage = Pick<globalThis.Storage, "getItem" | "setItem" | "removeItem">;
-type Config = { chainId: number; entryPoint: Address; usdc: Address };
+/** `plus`: what Swissquote Plus costs, in USDC base units paid to Swissquote's address `to`, for `period` chain seconds. */
+type Config = { chainId: number; entryPoint: Address; usdc: Address; plus: { to: Address; price: string; period: number } };
 /**
  * `summary`: Swissquote's plain reading of a payment it checked; `demo` when test providers did the checks.
  * `fee`: for an operation Swissquote doesn't sponsor, the most its gas can cost the wallet, in wei, worked out by this phone.
@@ -341,6 +344,24 @@ export function createPhone({
       const wallet = requireWallet();
       const { assertion } = await authenticator.sign(wallet.credentialId, ownershipChallenge(client.number, wallet.address));
       await call(`/api/wallets/${wallet.address}/link`, { session, assertion: wire(assertion) });
+    },
+
+    /**
+     * Buys Swissquote Plus for the client this phone is signed in as. Face ID pays its price to Swissquote like any
+     * payment, then Swissquote finds the payment on-chain and extends the client's Plus by a period. Nothing renews it
+     * after: a self-custody wallet can't be debited. Resolves to when it runs out, in chain seconds.
+     */
+    async buyPlus(): Promise<number> {
+      const wallet = requireWallet();
+      const token = session?.();
+      // Only a payment from the owner's wallet buys Plus, so nothing is paid until Swissquote names this phone's client as the owner.
+      if (!token || !(await call<WalletState>(`/api/wallets/${wallet.address}`)).owner) throw new Error("Link your Swissquote account first.");
+      const { usdc, plus } = await getConfig();
+      const prepared = await prepare({ to: usdc, data: encodeFunctionData({ abi: erc20Abi, functionName: "transfer", args: [plus.to, BigInt(plus.price)] }) });
+      const { transactionHash } = await approve(prepared);
+      // ponytail: a claim lost after the payment landed leaves it unclaimed; Swissquote finding a wallet's unclaimed payments to it would recover them.
+      const { until } = await call<{ until: number }>(`/api/wallets/${wallet.address}/plus`, { session: token, transactionHash });
+      return until;
     },
 
     async sendUsdc(to: Address, amount: string): Promise<Sent> {

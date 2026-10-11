@@ -1,5 +1,5 @@
 // Swissquote's storage: its vault of B shares, the wallets it serves, the operations it prepared, and its
-// clients: their KYC records, their app sessions and the wallets they own.
+// clients: their KYC records, their app sessions, the wallets they own and the Plus they paid for.
 import { randomBytes } from "node:crypto";
 import type { Address, Hex } from "viem";
 import type { RpcUserOperation } from "viem/account-abstraction";
@@ -38,6 +38,7 @@ function open() {
     create table if not exists links (
       wallet text primary key collate nocase, client text not null, assertion text not null, created_at integer not null);
     create table if not exists id_checks (wallet text primary key collate nocase, misses integer not null, until integer not null);
+    create table if not exists plus (transaction_hash text primary key collate nocase, client text not null, until integer not null);
   `);
   const wallet = (row: { address: Address; config: string } | undefined): Wallet | undefined =>
     row && { address: row.address, config: JSON.parse(row.config) };
@@ -82,6 +83,21 @@ function open() {
     },
     setIdMisses(wallet: Address, misses: number, until: number) {
       db.prepare("insert or replace into id_checks values (?, ?, ?)").run(wallet, misses, until);
+    },
+    /**
+     * Records a payment for Swissquote Plus, once per transaction: it runs `period` more from when the client's Plus
+     * ends, or from `now` if it isn't running. Resolves to the new end, or undefined if the transaction was claimed
+     * before. Chain seconds. One statement, so two claims can't both read the same end.
+     */
+    addPlus(transactionHash: Hex, client: string, now: number, period: number): number | undefined {
+      const added = db
+        .prepare("insert or ignore into plus select ?, ?, max(coalesce(max(until), 0), ?) + ? from plus where client = ?")
+        .run(transactionHash, client, now, period, client).changes;
+      return added ? this.plusUntil(client) : undefined;
+    },
+    /** When the client's Plus ends, in chain seconds; undefined if they never bought it. */
+    plusUntil(client: string): number | undefined {
+      return (db.prepare("select max(until) as until from plus where client = ?").get(client) as { until: number | null }).until ?? undefined;
     },
     wallet: (address: Address) => wallet(db.prepare("select * from wallets where address = ?").get(address) as never),
     walletByRecoveryKey: (recoveryKey: Address) =>

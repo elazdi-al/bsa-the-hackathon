@@ -22,7 +22,7 @@ import { generatePrivateKey, privateKeyToAddress } from "viem/accounts";
 import { foundry } from "viem/chains";
 import { ownershipChallenge, type Config as AccountConfig, type Passkey } from "../lib/wallet/account.ts";
 import { verifyAssertion } from "../lib/wallet/api/http.ts";
-import { addresses, chain, credentials, partnerUrl, pendingRecovery, publicClient } from "../lib/wallet/env.ts";
+import { addresses, chain, credentials, partnerUrl, pendingRecovery, plus, publicClient } from "../lib/wallet/env.ts";
 import { ApiError, readRecoveryKey, RECOVERY_FILE, type Device, type Identity, type SignedIn } from "../lib/wallet/phone.ts";
 import { setSunset } from "../lib/wallet/sunset.ts";
 import { attack } from "./attack.ts";
@@ -110,11 +110,11 @@ function query<T>(sql: string): T[] {
   }
 }
 
-// Swissquote's own view: each wallet's owner, which only the bank sees.
+// Swissquote's own view: each wallet's owner and when the owner's Plus ends, which only the bank sees.
 const walletRows = () =>
-  query<{ address: Address; config: string; client: string | null; assertion: string | null }>(
-    `select address, config, links.client, links.assertion from wallets
-     left join links on links.wallet = wallets.address order by wallets.created_at`,
+  query<{ address: Address; config: string; client: string | null; assertion: string | null; plusUntil: number | null }>(
+    `select address, config, links.client, links.assertion, (select max(until) from plus where plus.client = links.client) as plusUntil
+     from wallets left join links on links.wallet = wallets.address order by wallets.created_at`,
   );
 
 /**
@@ -187,7 +187,7 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
         publicClient.getBalance({ address: addresses.swissquote }),
         publicClient.readContract({ address: addresses.entryPoint, abi: entryPoint07Abi, functionName: "balanceOf", args: [addresses.paymaster] }),
         Promise.all(
-          rows.map(async ({ address, config, client, assertion }) => {
+          rows.map(async ({ address, config, client, assertion, plusUntil }) => {
             const created = JSON.parse(config) as AccountConfig;
             const [balance, code, live, pending] = await Promise.all([
               usdcOf(address),
@@ -196,7 +196,7 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
               pendingRecovery(address),
             ]);
             const owner = client && assertion && ownerLine(address, [created.passkey, live.passkey], client, assertion);
-            return { address, balance, deployed: !!code, signer: live.signer, pendingRecovery: pending, owner };
+            return { address, balance, deployed: !!code, signer: live.signer, pendingRecovery: pending, owner, plusUntil };
           }),
         ),
       ]);
@@ -238,6 +238,7 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
       wallets.forEach((wallet, i) => {
         console.log(walletLines[i]);
         console.log(`    ${wallet.owner ?? "not linked to a Swissquote client"}`);
+        if (wallet.owner) console.log(`    ${wallet.plusUntil ? `Swissquote Plus ${wallet.plusUntil > clock.time ? "until" : "ended"} ${when(wallet.plusUntil)}` : "no Swissquote Plus"}`);
         if (!wallet.pendingRecovery) return;
         const left = wallet.pendingRecovery.executeAfter - clock.time;
         console.log(`    recovery pending, ${left > 0 ? `can finish in ${duration(left)}` : "can finish now"}`);
@@ -323,6 +324,28 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
             ["Wallet", phone.device()!.address!],
             ["Client", `Swissquote client ${client.number} (mock)`],
             ["ID card", client.document],
+          ],
+          "",
+        ),
+      );
+    },
+  },
+
+  plus: {
+    usage: "plus <account>",
+    about: `Buy ${plus.period / 86_400} days of Swissquote Plus for a linked account's client: the wallet pays Swissquote ${formatUnits(plus.price, 6)} USDC, with Face ID. Buying again extends it.`,
+    async run([name]) {
+      const { phone, signedIn } = loadAccount(name);
+      const wallet = phone.device()?.address;
+      if (!wallet) throw new Error(`${name} has no wallet.`);
+      if (!signedIn) throw new Error(`Swissquote Plus is for Swissquote clients. Link ${name}'s wallet first: npm run link ${name}`);
+      const until = await phone.buyPlus();
+      console.log(
+        table(
+          [
+            ["Client", `Swissquote client ${signedIn.client.number} (mock)`],
+            ["Plus until", when(until)],
+            ["Balance", usdc(await usdcOf(wallet))],
           ],
           "",
         ),

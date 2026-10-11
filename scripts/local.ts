@@ -188,7 +188,7 @@ const routes = [
   "/onboarding-welcome", "/onboarding-secure", "/home", "/apps", "/history", "/settings", "/choose-recipient", `/send?to=${ZERO}`,
   "/transaction-tracking", "/recover", "/coin-breakdown", "/plus", "/dapps", "/api/dapps", "/api/shares", "/api/wallets", "/api/recovery", "/api/session",
   `/api/wallets/${ZERO}`, `/api/wallets/${ZERO}/activity`, `/api/wallets/${ZERO}/operations`, `/api/wallets/${ZERO}/operations/${ZERO}`,
-  `/api/wallets/${ZERO}/share`, `/api/wallets/${ZERO}/recovery`,
+  `/api/wallets/${ZERO}/share`, `/api/wallets/${ZERO}/recovery`, `/api/wallets/${ZERO}/plus`,
 ];
 console.log("Warming up the app's screens and API");
 await Promise.all(routes.map((route) => fetch(APP_URL + route).catch(() => undefined)));
@@ -200,6 +200,7 @@ Swissquote Wallet is running. Open ${APP_URL}/onboarding-welcome
   npm run fund [wallet] [amount]     mint test USDC (default: the newest wallet, 100)
   npm run account <account>          create a wallet with a software passkey, not linked to Swissquote
   npm run link <account>             link the wallet to a Swissquote client (mock): ID check, phone lock
+  npm run plus <account>             buy 30 days of Swissquote Plus for a linked account: 10 USDC to Swissquote
   npm run send <from> <to> <amount>  send USDC from an account
   npm run recover <account|file>     start a recovery onto a new phone; a linked wallet also needs the ID
   npm run finish <account>           finish a recovery after the 48 hours
