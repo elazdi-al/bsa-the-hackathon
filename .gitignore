@@ -50,3 +50,5 @@ next-env.d.ts
 
 # wallet backend databases
 /data/
+# chains npm run live fresh set aside
+/data-*/

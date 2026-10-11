@@ -49,6 +49,8 @@ if (!existsSync("contracts/dependencies")) {
   }
 }
 
+// A dev run starts by wiping data/, so it must not run where a --prod chain is saved: that is the live demo's.
+if (!prod && existsSync(STATE)) fail("data/ holds the live demo's chain. Restart it with npm run live, or run a dev stack in another worktree.");
 // --prod picks up the chain it saved last time, with the contracts, keys and policy that go with it.
 const resume = prod && existsSync(STATE) && existsSync(".env.local");
 const previous = resume ? parseEnv(readFileSync(".env.local", "utf8")) : {};

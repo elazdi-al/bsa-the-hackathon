@@ -1,18 +1,19 @@
 #!/usr/bin/env bash
-# The public demo at wallet.elazdi.com, partner.elazdi.com and slides.elazdi.com, also served on localhost.
-# It runs main from the bsa-live worktree in tmux session sq-live: npm run local -- --prod, the Cloudflare tunnel
-# and the slides. The chain and every wallet stay in that worktree's data/ across restarts.
+# The public demo at wallet.elazdi.com, partner.elazdi.com and slides.elazdi.com, also served on localhost:3000.
+# It runs in the repository's main checkout (bsa-the-hackathon), whichever worktree calls it: npm run local -- --prod,
+# the Cloudflare tunnel and the slides, in tmux session sq-live. That checkout's data/ and .env.local are the live
+# chain, so npm run status, fund, e2e and the rest run there act on the live demo.
 #
-#   npm run live         ship main to the live worktree, restart everything, then check every URL
+#   npm run live         rebuild what the checkout holds, restart everything, then check every URL
 #   npm run live fresh   the same on a new chain; the old data/ and .env.local move to data-<time>/
 #   npm run live check   check every URL
 #   npm run live stop    stop everything
 set -euo pipefail
 
-LIVE=${LIVE_DIR:-$HOME/Desktop/bsa-live}
+LIVE=${LIVE_DIR:-$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")}
 SESSION=sq-live
 TUNNEL=$HOME/.cloudflared/swissquote-wallet.yml
-APP=3900 PARTNER=4090 RPC=8590 SLIDES=4091
+APP=3000 PARTNER=4002 RPC=8545 SLIDES=4091
 PORTS=tcp:$APP,$PARTNER,$RPC,$SLIDES
 LOG=/tmp/sq-live
 SERVICES="app https://wallet.elazdi.com http://localhost:$APP /api/config
@@ -47,12 +48,9 @@ esac
 
 for tool in tmux cloudflared; do command -v $tool >/dev/null || { echo "$tool is not installed."; exit 1; }; done
 [ -f "$TUNNEL" ] || { echo "No tunnel config at $TUNNEL."; exit 1; }
-[ -d "$LIVE" ] || { echo "No live worktree at $LIVE. Make one: git worktree add $LIVE live && cp -Rc node_modules $LIVE/"; exit 1; }
+[ "$(git -C "$LIVE" branch --show-current)" = main ] || { echo "$LIVE is not on main. Check out main there first."; exit 1; }
 [ -z "$(git -C "$LIVE" status --porcelain --untracked-files=no)" ] || { echo "$LIVE has uncommitted changes. Commit or stash them first."; exit 1; }
-
-before=$(git -C "$LIVE" rev-parse HEAD)
-git -C "$LIVE" merge --ff-only --quiet main
-git -C "$LIVE" diff --quiet "$before" HEAD -- package-lock.json || (cd "$LIVE" && npm install)
+[ "$LIVE/node_modules/.package-lock.json" -nt "$LIVE/package-lock.json" ] || (cd "$LIVE" && npm install)
 
 stop
 if [ "${1:-}" = fresh ] && [ -d "$LIVE/data" ]; then
