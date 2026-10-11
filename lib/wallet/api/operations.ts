@@ -53,8 +53,8 @@ export const swissquote = () => privateKeyToAccount(process.env.SWISSQUOTE_KEY a
 const operator = () => createWalletClient({ account: swissquote(), chain, transport: http(rpcUrl) });
 
 const GAS = { ...ACCOUNT_GAS, paymasterVerificationGasLimit: 100_000n, paymasterPostOpGasLimit: 0n };
-// As long as a compliance decision lives, so a sponsored operation never outlives the decision behind it.
-const SPONSORSHIP_TTL = 120n;
+/** Seconds a sponsorship lasts: as long as a compliance decision lives, so it never outlives the decision behind it. */
+const sponsorshipTtl = () => getComplianceRuntime().engine.policy.decisionTtlSeconds;
 /** How long Swissquote holds a payment that needs step-up before it leaves. */
 const HOLD = 24 * 60 * 60;
 // Swissquote's sponsorship of a held payment lasts a week past its release, so a late release still goes through.
@@ -178,9 +178,9 @@ export async function prepare(wallet: Wallet, kind: Kind, callData: Hex, hold = 
     signature: "0x",
   };
   // The policy can use a shorter TTL than the paymaster. Never sponsor past its decision.
-  const remaining = decisionExpiresAt ? Math.floor((Date.parse(decisionExpiresAt) - Date.now()) / 1000) : Number(SPONSORSHIP_TTL);
+  const remaining = decisionExpiresAt ? Math.floor((Date.parse(decisionExpiresAt) - Date.now()) / 1000) : sponsorshipTtl();
   if (!Number.isFinite(remaining) || remaining <= 0) throw new HttpError(410, "This compliance decision expired. Check it again.");
-  const ttl = Math.min(remaining, Number(SPONSORSHIP_TTL));
+  const ttl = Math.min(remaining, sponsorshipTtl());
   const validAfter = hold ? Number(block.timestamp) + HOLD : 0;
   const validUntil = hold ? validAfter + HOLD_SPONSORSHIP : Number(block.timestamp) + ttl;
   const sponsored = await publicClient.readContract({
@@ -192,7 +192,7 @@ export async function prepare(wallet: Wallet, kind: Kind, callData: Hex, hold = 
   userOp.paymasterData = encodeSponsorship(validUntil, validAfter, await swissquote().signMessage({ message: { raw: sponsored } }));
   const hash = getUserOperationHash({ chainId: chain.id, entryPointAddress: addresses.entryPoint, entryPointVersion: "0.7", userOperation: userOp });
   const rpc = formatUserOperationRequest(userOp);
-  store().pruneOperations(Date.now() - Number(SPONSORSHIP_TTL) * 1000);
+  store().pruneOperations(Date.now() - sponsorshipTtl() * 1000);
   store().addOperation(hash, wallet.address, kind, rpc);
   return { hash, userOp: rpc, expiresAt: new Date(Date.now() + ttl * 1000).toISOString() };
 }
@@ -201,7 +201,7 @@ export async function prepare(wallet: Wallet, kind: Kind, callData: Hex, hold = 
 export function loadOperation(wallet: Wallet, hash: Hex, kind?: Kind) {
   const row = store().operation(hash, wallet.address);
   if (!row || (kind && row.kind !== kind)) throw new HttpError(404, "No such operation.");
-  if (Date.now() - row.createdAt > Number(SPONSORSHIP_TTL) * 1000) throw new HttpError(410, "This approval expired. Start again.");
+  if (Date.now() - row.createdAt > sponsorshipTtl() * 1000) throw new HttpError(410, "This approval expired. Start again.");
   return formatUserOperation(row.userOp) as UserOperation<"0.7">;
 }
 
