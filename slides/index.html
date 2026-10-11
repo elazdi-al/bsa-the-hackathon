@@ -287,13 +287,16 @@
   .node > span:last-child { margin-top: 10px; max-width: 340px; font-size: 30px; line-height: 1.25; font-weight: 500; letter-spacing: -0.02em; color: var(--secondary); text-wrap: balance; }
   .arrow { width: 72px; height: 24px; margin-top: 72px; color: #c7c7cc; overflow: visible; }
 
-  /* Amount bands for payment size. */
-  .bands { display: grid; gap: 20px; }
-  .band { display: grid; grid-template-columns: 390px 1fr; align-items: center; column-gap: 32px; padding: 26px 36px; border-radius: 40px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
-  .band strong { font-size: 40px; line-height: 1.1; font-weight: 600; letter-spacing: -0.035em; font-variant-numeric: tabular-nums; }
-  .band strong small { display: block; margin-top: 6px; font-size: 24px; letter-spacing: -0.01em; color: var(--secondary); }
-  .band p { display: flex; align-items: center; gap: 18px; font-size: 30px; line-height: 1.25; font-weight: 500; letter-spacing: -0.015em; text-wrap: balance; }
-  .band p .i { font-size: 44px; }
+  /* Legal: three readings, each tinted with its party's colour, over the Swiss rules they answer to. */
+  .law { position: absolute; left: 128px; right: 128px; top: 424px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+  .rule { padding: 40px; border-radius: 48px; background: color-mix(in oklab, var(--c) 7%, #fff); box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--c) 12%, transparent); }
+  .rule header { display: flex; align-items: center; gap: 20px; font-size: 30px; font-weight: 600; letter-spacing: -0.02em; color: color-mix(in oklab, var(--c) 70%, #000); }
+  .rule .icon { width: 72px; height: 72px; border-radius: 22px; font-size: 40px; }
+  .rule b { display: block; margin-top: 32px; font-size: 42px; line-height: 1.1; font-weight: 600; letter-spacing: -0.035em; text-wrap: balance; }
+  .rule p { margin-top: 16px; font-size: 28px; line-height: 1.3; font-weight: 500; letter-spacing: -0.015em; color: var(--secondary); text-wrap: pretty; }
+  .regulators { position: absolute; left: 128px; bottom: 96px; display: flex; align-items: center; gap: 48px; font-size: 26px; font-weight: 600; letter-spacing: -0.01em; color: var(--secondary); }
+  .regulators img { display: block; height: 48px; }
+  .regulators img + img { height: 72px; padding-left: 48px; border-left: 2px solid var(--line); }
 
   /* Pay: your face plus one more share. */
   .sum { display: flex; align-items: stretch; gap: 20px; }
@@ -327,12 +330,18 @@
   .perks .row b { font-size: 34px; }
   .perks .row > div > span { margin-top: 2px; font-size: 27px; }
 
-  /* Swissquote's cut: five columns, the share first. */
-  .cut { position: absolute; left: 128px; right: 128px; top: 440px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 24px; }
-  .cut > div { min-height: 400px; padding: 40px 36px; display: flex; flex-direction: column; border-radius: 44px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
-  .cut strong { font-size: 96px; line-height: 1; font-weight: 600; letter-spacing: -0.055em; font-variant-numeric: tabular-nums; }
-  .cut b { margin-top: auto; padding-top: 32px; font-size: 44px; font-weight: 600; letter-spacing: -0.035em; }
-  .cut span { margin-top: 10px; font-size: 28px; line-height: 1.25; font-weight: 500; letter-spacing: -0.02em; color: var(--secondary); text-wrap: balance; }
+  /* Swissquote's cut: three kinds of income, each a .row header over two rates. */
+  .earn { position: absolute; left: 128px; right: 128px; top: 376px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+  .stream { padding: 40px 40px 12px; border-radius: 48px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+  .stream > .row { padding-bottom: 32px; }
+  .rate { display: grid; grid-template-columns: 1fr auto; column-gap: 24px; align-items: center; padding: 30px 0; border-top: 2px solid var(--line); }
+  .rate strong { font-size: 72px; line-height: 1; font-weight: 600; letter-spacing: -0.05em; font-variant-numeric: tabular-nums; }
+  .rate b { display: block; font-size: 32px; line-height: 1.15; font-weight: 600; letter-spacing: -0.03em; }
+  .rate span { display: block; margin-top: 4px; font-size: 26px; line-height: 1.25; font-weight: 500; letter-spacing: -0.015em; color: var(--secondary); text-wrap: balance; }
+  /* Who keeps the yield, in party colours: Swissquote's share, then the client's. */
+  .rate .split { display: flex; gap: 4px; height: 10px; margin-top: 14px; }
+  .split i { border-radius: 99px; background: var(--phone); }
+  .split i:first-child { background: var(--swissquote); }
 
   /* Business case arithmetic, one line. */
   .math { position: absolute; left: 128px; right: 128px; bottom: 136px; display: flex; align-items: center; gap: 22px; padding: 36px 48px; border-radius: 48px; background: #000; color: #fff; font-size: 40px; white-space: nowrap; font-weight: 600; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
@@ -821,19 +830,27 @@
 <section class="slide content" aria-label="Legal">
   <h1>Assistance, not custody. Ownership signed when you link.</h1>
   <p class="sub">Our reading of Swiss law, for counsel to confirm.</p>
-  <div class="bands visual stagger" style="position: absolute; left: 128px; right: 128px; top: 400px;">
-    <div class="band">
-      <strong>Custody</strong>
-      <p>Swissquote can’t move funds, even with the independent service. It can withhold help or cancel a recovery, which we argue is assistance.</p>
+  <div class="law visual stagger">
+    <div class="rule" style="--c: var(--swissquote);">
+      <header><span class="icon"><svg class="i"><use href="#i-shield"/></svg></span>Custody</header>
+      <b>Swissquote can’t move funds.</b>
+      <p>Not even with the independent service. Withholding help or cancelling a recovery is assistance.</p>
     </div>
-    <div class="band">
-      <strong>Travel Rule</strong>
-      <p>When linking, the client signs with Face ID, the passkey every payment needs, that the wallet belongs to their client number: ownership proof for FINMA and counsel to accept. An unlinked wallet takes the usual check.</p>
+    <div class="rule" style="--c: var(--phone);">
+      <header><span class="icon"><svg class="i"><use href="#i-face-id"/></svg></span>Travel Rule</header>
+      <b>Ownership signed with Face ID.</b>
+      <p>Linking signs the wallet to the client number: proof for FINMA. Unlinked wallets take the usual check.</p>
     </div>
-    <div class="band">
-      <strong>Sending institution</strong>
-      <p>The client signs and the account sends. Swissquote screens and submits, but never holds or orders funds. We argue it isn’t the sender.</p>
+    <div class="rule" style="--c: var(--positive);">
+      <header><span class="icon"><svg class="i"><use href="#i-send"/></svg></span>Sending institution</header>
+      <b>The client sends, not Swissquote.</b>
+      <p>The client signs, the account sends. Swissquote screens and submits, never holds or orders funds.</p>
     </div>
+  </div>
+  <div class="regulators visual">
+    Rules from
+    <img src="logos/finma.svg" alt="FINMA">
+    <img src="logos/confederation.svg" alt="Swiss Confederation">
   </div>
   <aside class="notes">Custody turns on who can move the funds: Swissquote can't, alone or with the independent service; it can only withhold help or cancel a recovery, which we argue is assistance, still under AML rules, hence the screening. For the Travel Rule, linking is optional. When the client links their Swissquote account, they sign with Face ID, the passkey every payment needs, that the wallet belongs to their client number, and Swissquote keeps that statement, so ownership evidence exists without a test transfer and money moves between the account and the wallet without extra checks. An unlinked wallet takes Swissquote's usual procedure for external wallets. When the client pays a third party, the client signs and the account sends, so we argue Swissquote is not the sending institution, an open question for counsel. Swissquote pays the gas only for wallets it can tie to an identified client, so an unlinked wallet pays its own.</aside>
 </section>
@@ -872,12 +889,22 @@
   <div class="tags"><span class="tag">Proposal</span></div>
   <h1>How Swissquote earns.</h1>
   <p class="sub">A cut of everything the wallet does, never custody of the funds.</p>
-  <div class="cut visual stagger">
-    <div><strong>100%</strong><b>Plus</b><span>10 USDC a month, or 100 a year.</span></div>
-    <div><strong>1%</strong><b>Swaps</b><span>0.5% for Plus members.</span></div>
-    <div><strong>20%</strong><b>Lending</b><span>Of the interest. Clients keep 80%.</span></div>
-    <div><strong>10%</strong><b>Rewards</b><span>Commission on staking rewards.</span></div>
-    <div><strong>0.4%</strong><b>Card</b><span>Interchange on every payment.</span></div>
+  <div class="earn visual stagger">
+    <div class="stream">
+      <div class="row" style="--c: var(--swissquote);"><span class="icon"><svg class="i"><use href="#i-verified"/></svg></span><div><b>Subscription</b><span>Swissquote keeps all of Plus.</span></div></div>
+      <div class="rate"><div><b>Plus monthly</b><span>USDC a month.</span></div><strong>10</strong></div>
+      <div class="rate"><div><b>Plus yearly</b><span>USDC a year, two months free.</span></div><strong>100</strong></div>
+    </div>
+    <div class="stream">
+      <div class="row" style="--c: var(--phone);"><span class="icon"><svg class="i"><use href="#i-swap"/></svg></span><div><b>Fees</b><span>On what clients move.</span></div></div>
+      <div class="rate"><div><b>Swaps</b><span>0.5% for Plus members.</span></div><strong>1%</strong></div>
+      <div class="rate"><div><b>Card payments</b><span>Interchange on every payment.</span></div><strong>0.4%</strong></div>
+    </div>
+    <div class="stream">
+      <div class="row" style="--c: var(--positive);"><span class="icon"><svg class="i"><use href="#i-percent"/></svg></span><div><b>Share of yield</b><span>On what clients earn.</span></div></div>
+      <div class="rate"><div><b>Lending interest</b><span>Clients keep 80%.</span><span class="split"><i style="flex: 20;"></i><i style="flex: 80;"></i></span></div><strong>20%</strong></div>
+      <div class="rate"><div><b>Staking rewards</b><span>Clients keep 90%.</span><span class="split"><i style="flex: 10;"></i><i style="flex: 90;"></i></span></div><strong>10%</strong></div>
+    </div>
   </div>
   <aside class="notes">How Swissquote makes money. It keeps all of the Plus subscription. It earns the published 1 percent on swaps, half that for Plus members, who swap more. On lending, it keeps a fifth of the interest and passes the rest to the client. On on-chain rewards, it takes a 10 percent commission, as staking providers do. And a Swissquote card earns interchange on every payment, which also funds the cashback. None of this needs custody: the client keeps the keys, and Swissquote earns on the services around them. The rates are our proposal, to tune against Swissquote's current pricing.</aside>
 </section>
