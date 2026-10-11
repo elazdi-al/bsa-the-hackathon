@@ -21,7 +21,7 @@ Creating a wallet needs no Swissquote account and no sign-in.
 Face ID is the sign-in. Each payment gets its own Face ID approval over that exact payment.
 
 1. On Home, tap the action button, then **Send**.
-2. In the recipient sheet, paste an address and continue.
+2. In the recipient sheet, paste an address and continue. Or tap the scan button next to **Paste** and point the camera at the recipient's QR code: the code the Receive sheet shows, a plain 0x address, or an EIP-681 `ethereum:` link. A link that asks for a USDC `transfer` also brings its amount to `/send`. The browser's `BarcodeDetector` reads the code where it reads QR codes (Chrome), and the `qr` package's decoder where it doesn't (Safari, iOS). A refused or missing camera says so and offers Paste.
 3. On `/send`, which shows "Network fee: Paid by Swissquote", enter an amount and tap **Continue**. Swissquote runs its compliance check and sponsors the payment. The **Checked by Swissquote** card shows Swissquote's reading, such as "Send 20 USDC to 0x1bA5...Cf4c.", with "Recipient not on a sanctions list" and "Simulated: it moves only this amount".
 4. Tap **Send**. Face ID approves the operation, the phone signs it and Swissquote submits it to the chain. `/transaction-tracking` shows the payment.
 
@@ -200,7 +200,7 @@ The [architecture diagram](../README.md#architecture) shows how these parts conn
 | `GET /api/config` | The chain ID and the EntryPoint and USDC addresses. |
 | `POST /api/shares` | Stores Share B after checking it against the commitments, and returns a signed ticket for the independent service. |
 | `POST /api/wallets` | Registers a wallet. Takes `{ signer, recoveryKey, signature }`, the signature being the wallet key's Recovery Key binding. Needs no Swissquote account. Answers 409 if another wallet already uses that Recovery Key, which would hide it from its owner's recovery. |
-| `GET /api/wallets/:address` | Keys, lock, USDC balance, pending recovery, chain time and held payments. Releases held payments that are due. Returns the owner record, `{ client, createdAt, statement, assertion }`, only to the owner's own session (header `x-swissquote-session`). |
+| `GET /api/wallets/:address` | Keys, lock, the USDC and ETH balances in their smallest units (`usdc`, `eth`), pending recovery, chain time and held payments. Releases held payments that are due. Returns the owner record, `{ client, createdAt, statement, assertion }`, only to the owner's own session (header `x-swissquote-session`). |
 | `POST /api/wallets/:address/link` | Links the wallet to a Swissquote client. Takes `{ session, assertion }`, the wallet passkey's Face ID assertion over keccak256 of "Wallet 0x… belongs to Swissquote client *number*.", checked against the wallet's live passkey, or the one in its config before deployment. Keeps the statement and the assertion as the owner record. Answers 401 without a known session, 403 if the wallet's passkey did not sign and 409 if another client already linked the wallet. Linking again as the same client is fine. There is no unlink. |
 | `GET /api/wallets/:address/activity` | The wallet's USDC transfers. |
 | `POST /api/wallets/:address/operations` | Runs compliance and Swissquote's limits, and sponsors the call. Returns the operation, its hash, Swissquote's `summary` and a `demo` flag. |
@@ -230,7 +230,7 @@ The [architecture diagram](../README.md#architecture) shows how these parts conn
 
 ## What is real and what is mocked
 
-Real in this build: the Shamir split with verified shares, passkeys verified on chain, the ERC-4337 account and factory, Swissquote's paymaster and its limits, the compliance engine with signed decisions and its audit chain, the 24-hour hold, the wallet key's signed link to a client, the lock, the 48-hour on-chain delay and cancel, the matching of the ID number to the owner's record with its lockout, the independent service as a separate process with its own storage and secrets, and exit mode.
+Real in this build: the Shamir split with verified shares, passkeys verified on chain, the ERC-4337 account and factory, Swissquote's paymaster and its limits, the compliance engine with signed decisions and its audit chain, the 24-hour hold, the link to a client signed with Face ID, the lock, the 48-hour on-chain delay and cancel, the matching of the ID number to the owner's record with its lockout, the independent service as a separate process with its own storage and secrets, and exit mode.
 
 | Mocked here | Production |
 | --- | --- |
@@ -241,7 +241,7 @@ Real in this build: the Shamir split with verified shares, passkeys verified on 
 | Fixture sanctions and simulation in demo mode | Live mode with contracted list coverage and a bank usage ledger |
 | The independent service is a process, not a company. | A separate, supervised company under contract |
 | A local anvil chain | Base Sepolia, then Base mainnet |
-| The Investments, Earn and Card tiles, the promo cards, Swap and Swissquote Plus carry a **Demo** tag. Only `anna.eth` resolves as a recipient name, from a fixed list. | Swissquote's products, and real name resolution |
+| The Investments, Earn and Card tiles, the promo cards, Swap and Swissquote Plus carry a **Demo** tag. Swap reads the wallet's real USDC, less what held payments will take, and its real ETH, and refuses more than that, but its prices are made up and it swaps nothing. Only `anna.eth` resolves as a recipient name, from a fixed list. | Swissquote's products, and real name resolution |
 
 ## Gasless payments
 

@@ -25,7 +25,7 @@ Each section links to its depth in [`docs/`](docs/). The [pitch summary](PITCH_S
 One story, end to end: create a wallet, pay with Face ID, link it to a Swissquote account, lose the phone, recover the wallet. Run `npm run local`, then open http://localhost:3000/onboarding-welcome in two browsers, or two browser profiles, as the old phone and the new phone.
 
 1. **Create a wallet.** No Swissquote account and no sign-in. Tap **Create new wallet**, then **Create Passkey**, **Split Wallet Key**, **Save Recovery Key** and **I saved it off this phone**. Run `npm run fund` for 100 USDC.
-2. **Pay.** On Home, tap the action button, then **Send**. Enter an address and an amount, read the **Checked by Swissquote** card, tap **Send** and approve with Face ID. Above 1,000 USDC the payment waits 24 hours.
+2. **Pay.** On Home, tap the action button, then **Send**. Enter an address, or tap the scan button next to **Paste** to scan the recipient's QR code. Enter an amount, read the **Checked by Swissquote** card, tap **Send** and approve with Face ID. Above 1,000 USDC the payment waits 24 hours.
 3. **Link Swissquote.** In Settings, tap **Link your Swissquote account**, then **Link with Face ID**. Settings now shows the account as **Linked**, with the ID card number on file. Note the number.
 4. **Lose the phone and recover.** In the second browser, tap **Recover existing wallet** and load the Recovery Key file. The wallet is linked, so Swissquote checks the ID. Type the ID card number, tap **Scan ID**, then **Restore with Face ID**. Run `npm run warp` to pass the 48-hour hold, then tap **Finish recovery**. The new phone now controls the same address with the same funds.
 
@@ -263,7 +263,7 @@ Everything not listed here runs for real, including the independent service as i
 - Sanctions and simulation, which use fixtures in demo mode.
 - The independent service's company. It runs as a process.
 - The chain. The demo runs on a local anvil chain.
-- The Investments, Earn and Card tiles, the promo cards, Swap and Swissquote Plus, each with a **Demo** tag.
+- The Investments, Earn and Card tiles, the promo cards, Swap and Swissquote Plus, each with a **Demo** tag. Swap reads the wallet's real USDC and ETH and refuses more than the wallet holds, but its prices are made up and it swaps nothing.
 
 More: [What is real and what is mocked](docs/REFERENCE.md#what-is-real-and-what-is-mocked) names the production answer for each.
 
