@@ -607,7 +607,7 @@
 <section class="slide content with-phone" aria-label="Link">
   <div class="tags"><span class="tag">Step 1 of 4: Create</span><span class="tag">Optional</span></div>
   <h1>Link your Swissquote account, if you want.</h1>
-  <p class="sub">Any time, from Settings. Your wallet key proves it’s yours.</p>
+  <p class="sub">Any time, from Settings. Face ID proves it’s yours.</p>
   <div class="rows visual stagger" style="position: absolute; left: 128px; top: 420px; width: 1080px;">
     <div class="row" style="--c: var(--positive);"><span class="icon"><svg class="i"><use href="#i-verified"/></svg></span><div><b>Transfers with your account, no extra checks</b><span>The signed statement is Swissquote’s Travel Rule proof.</span></div></div>
     <div class="row" style="--c: var(--swissquote);"><span class="icon"><svg class="i"><use href="#i-id-card"/></svg></span><div><b>An ID check before any recovery</b><span>Swissquote matches your ID to its KYC record.</span></div></div>
@@ -620,7 +620,7 @@
       <div class="status"><b>9:41</b><i></i><svg><use href="#status-icons"/></svg></div>
     </div>
   </div>
-  <aside class="notes">Linking is optional and comes later, from Settings. The client signs in to Swissquote, and the wallet key signs a statement that this wallet belongs to their Swissquote client number; Swissquote keeps it. That adds three things. Money moves between the Swissquote account and the wallet without extra checks, because the signed statement is Swissquote's Travel Rule ownership proof. Before anyone recovers the wallet, Swissquote also checks the ID against the client's KYC record. And Swissquote can lock a lost or stolen phone after that ID check. Without a link the wallet works the same, and transfers from the Swissquote account take its usual procedure for external wallets.</aside>
+  <aside class="notes">Linking is optional and comes later, from Settings. The client signs in to Swissquote and, with Face ID, signs that this wallet belongs to their Swissquote client number. It is the passkey every payment needs, so no key leaves the phone and nothing goes on chain; Swissquote keeps the signed statement. That adds three things. Money moves between the Swissquote account and the wallet without extra checks, because the signed statement is Swissquote's Travel Rule ownership proof. Before anyone recovers the wallet, Swissquote also checks the ID against the client's KYC record. And Swissquote can lock a lost or stolen phone after that ID check. Without a link the wallet works the same, and transfers from the Swissquote account take its usual procedure for external wallets.</aside>
 </section>
 
 <!-- 7. Pay -->
@@ -780,7 +780,7 @@
     <span class="n">6</span><b>Unlock the phone itself</b><span class="why">Linked wallet: you report it, Swissquote locks it.</span><span class="stop"><svg class="i"><use href="#i-no"/></svg>Locked</span>
     <span class="n">7</span><b>Pass with a forged ID</b><span class="why">The recovery waits 48 hours in public. You cancel it.</span><span class="stop"><svg class="i"><use href="#i-no"/></svg>Cancelled</span>
   </div>
-  <aside class="notes">The same recovery must not work for a thief. npm run attack plays someone who stole the phone and the email inbox, and tries seven ways in. Linked or not, they are refused: without Face ID, Share A stays sealed and Swissquote refuses Share B, there is no email reset, and the Recovery Key lives at home, off the phone. A forged Recovery Key is bound to no wallet. A linked wallet adds the ID check: their own ID doesn't match the KYC record, and the real Recovery Key without the client's ID fails the same check. If they can unlock the phone, it pays within the limits until the client reports it, passes the ID check and Swissquote locks it. And a forged ID that fools the check still meets the 48-hour delay, in public, which the client cancels through Swissquote.</aside>
+  <aside class="notes">The same recovery must not work for a thief. npm run attack plays someone who stole the phone and the email inbox, and tries seven ways into a linked wallet, five into an unlinked one. Linked or not, they are refused: without Face ID, Share A stays sealed and Swissquote refuses Share B, there is no email reset, and the Recovery Key lives at home, off the phone. A forged Recovery Key is bound to no wallet. A linked wallet adds the ID check: their own ID doesn't match the KYC record, and the real Recovery Key without the client's ID fails the same check. If they can unlock the phone, it pays within the limits until the client reports it, passes the ID check and Swissquote locks it. And a forged ID that fools the check still meets the 48-hour delay, in public, which the client cancels through Swissquote. On an unlinked wallet there is no ID to check: without the Recovery Key both share holders refuse, the real one only starts the 48-hour recovery the client cancels, and there is no lock to try.</aside>
 </section>
 
 <!-- 14. Exit without Swissquote -->
@@ -1002,14 +1002,14 @@
     </div>
     <div class="band">
       <strong>Travel Rule</strong>
-      <p>A linked wallet’s key signs a statement naming the client: automatic ownership proof, for FINMA and counsel to accept. An unlinked wallet takes the usual check.</p>
+      <p>When linking, the client signs with Face ID, the passkey every payment needs, that the wallet belongs to their client number: ownership proof for FINMA and counsel to accept. An unlinked wallet takes the usual check.</p>
     </div>
     <div class="band">
       <strong>Sending institution</strong>
       <p>The client signs and the account sends. Swissquote screens, sponsors and submits, but never holds or orders funds. We argue it isn’t the sender.</p>
     </div>
   </div>
-  <aside class="notes">Custody turns on who can move the funds: Swissquote can't, alone or with the independent service; it can only withhold help or cancel a recovery, which we argue is assistance, still under AML rules, hence the screening. For the Travel Rule, linking is optional. When the client links their Swissquote account, the wallet key signs a statement naming them, which Swissquote keeps, so ownership evidence exists without a test transfer and money moves between the account and the wallet without extra checks. An unlinked wallet takes Swissquote's usual procedure for external wallets. When the client pays a third party, the client signs and the account sends, so we argue Swissquote is not the sending institution, an open question for counsel.</aside>
+  <aside class="notes">Custody turns on who can move the funds: Swissquote can't, alone or with the independent service; it can only withhold help or cancel a recovery, which we argue is assistance, still under AML rules, hence the screening. For the Travel Rule, linking is optional. When the client links their Swissquote account, they sign with Face ID, the passkey every payment needs, that the wallet belongs to their client number, and Swissquote keeps that statement, so ownership evidence exists without a test transfer and money moves between the account and the wallet without extra checks. An unlinked wallet takes Swissquote's usual procedure for external wallets. When the client pays a third party, the client signs and the account sends, so we argue Swissquote is not the sending institution, an open question for counsel.</aside>
 </section>
 
 <!-- 19. Business case -->
