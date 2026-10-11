@@ -3,10 +3,10 @@
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { encodeFunctionData, erc20Abi, formatUnits, getAddress, parseUnits, type Address } from "viem";
+import { encodeFunctionData, erc20Abi, getAddress, parseUnits, type Address } from "viem";
 import { grouped, retyped } from "@/app/(tabs)/_components/amount";
 import { usd } from "@/app/(tabs)/_components/money";
-import { phoneDate, refreshWallet, useWallet, type Wallet, type WalletSnapshot } from "@/app/(tabs)/_components/wallet";
+import { available, phoneDate, refreshWallet, useWallet, type WalletSnapshot } from "@/app/(tabs)/_components/wallet";
 import { recipientFor, sendDraft, shortAddress } from "@/app/choose-recipient/data";
 import { CheckIcon, ClockIcon, ShieldIcon, WalletIcon } from "@/components/icons";
 import { useBack } from "@/components/navigation";
@@ -26,9 +26,6 @@ const UNAVAILABLE: Record<Exclude<WalletSnapshot["status"], "ready">, string> = 
   missing: "Swissquote can't find this wallet.",
   offline: "Can't reach Swissquote. Check your connection.",
 };
-
-/** What a new payment may spend: the balance less what held payments take when they leave. */
-const available = ({ usdc, held }: Wallet) => usdc - held.filter((p) => !p.stopped).reduce((sum, p) => sum + Number(formatUnits(BigInt(p.value), 6)), 0);
 
 /** What stops Continue and Send, as a calm line; "" holds them without a word while the wallet loads, undefined lets them run. */
 function blocker(snapshot: WalletSnapshot, amount: number): string | undefined {

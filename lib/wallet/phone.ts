@@ -86,6 +86,8 @@ export type WalletState = {
   /** Swissquote locked the wallet's live credentials: the phone holding them was reported lost. */
   locked: boolean;
   usdc: string;
+  /** In wei. */
+  eth: string;
   pendingRecovery: { signer: Address; executeAfter: number } | null;
   /** The chain's time when read, in seconds. A local chain can run ahead of this phone's clock. */
   chainTime: number;

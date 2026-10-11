@@ -11,10 +11,11 @@ export const GET = route(async (request: Request, ctx: RouteContext<"/api/wallet
   // Swissquote reads the wallet every few seconds while the app is open: payments due leave first, so the balance shows them gone.
   await releaseDue(wallet);
   const deployed = isDeployed(wallet.address);
-  const [credentials, pending, usdc, chainTime] = await Promise.all([
+  const [credentials, pending, usdc, eth, chainTime] = await Promise.all([
     liveCredentials(wallet, deployed),
     pendingRecovery(wallet.address, deployed),
     publicClient.readContract({ address: addresses.usdc, abi: erc20Abi, functionName: "balanceOf", args: [wallet.address] }),
+    publicClient.getBalance({ address: wallet.address }),
     chainNow(),
   ]);
   return Response.json({
@@ -22,6 +23,7 @@ export const GET = route(async (request: Request, ctx: RouteContext<"/api/wallet
     ...credentials,
     locked: !!(await lockOn(wallet, credentials)),
     usdc: usdc.toString(),
+    eth: eth.toString(),
     pendingRecovery: pending && { signer: pending.signer, executeAfter: pending.executeAfter },
     chainTime,
     owner: owner(wallet.address, request.headers.get("x-swissquote-session")),

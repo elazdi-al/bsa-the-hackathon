@@ -9,6 +9,8 @@ export type Wallet = {
   address: Address;
   /** USDC, in dollars. */
   usdc: number;
+  /** ETH. Swissquote pays the gas, so only an exit without Swissquote needs any. */
+  eth: number;
   /** This phone's key is the wallet key. False on a new phone mid-recovery, and on an old phone once a recovery finished elsewhere. */
   controls: boolean;
   /** Swissquote locked this phone after it was reported lost. Only ever true on the phone that controls the wallet. */
@@ -66,6 +68,7 @@ async function load() {
       wallet: {
         address: state.address,
         usdc: Number(formatUnits(BigInt(state.usdc), 6)),
+        eth: Number(formatUnits(BigInt(state.eth), 18)),
         controls,
         locked: controls && state.locked,
         recovery: state.pendingRecovery && {
@@ -158,6 +161,9 @@ export const onPhoneClock = (wallet: Pick<Wallet, "skew">, chainSeconds: number)
 /** A chain timestamp as a day and time on this phone, as in "12 October at 14:03". */
 export const phoneDate = (wallet: Pick<Wallet, "skew">, chainSeconds: number) =>
   onPhoneClock(wallet, chainSeconds).toLocaleString("en-GB", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+
+/** What a new payment may spend: the balance less what held payments take when they leave. */
+export const available = ({ usdc, held }: Wallet) => usdc - held.filter((p) => !p.stopped).reduce((sum, p) => sum + Number(formatUnits(BigInt(p.value), 6)), 0);
 
 /** The wallet's address once read. */
 export const shownAddress = (snapshot: WalletSnapshot) => (snapshot.status === "ready" ? snapshot.wallet.address : undefined);

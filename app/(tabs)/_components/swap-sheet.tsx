@@ -3,7 +3,7 @@
 import { AnimatePresence, motion, useAnimate, useReducedMotion, type Variants } from "motion/react";
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { CoinLogo } from "@/app/coin-breakdown/_components/coin-logos";
-import { coins, stakedTotal } from "@/app/coin-breakdown/data";
+import { coins } from "@/app/coin-breakdown/data";
 import { ApproxIcon, CheckIcon, ChevronDownIcon, FlipIcon, LightningIcon } from "@/components/icons";
 import { BackButton } from "@/components/ui/back-button";
 import { Button } from "@/components/ui/button";
@@ -15,14 +15,15 @@ import { grouped, press, quote, typed, type Key, type Unit } from "./amount";
 import { usd } from "./money";
 import { Numpad } from "./numpad";
 import { blurred, easeOut, leave, sharp, snappy } from "./transitions";
+import { available, useWallet } from "./wallet";
 
 type Side = "eth" | "usdc";
 type Step = { name: "amount" | "review"; dir: 1 | -1 };
 
-// Staked ETH and USDC in Earn are locked, so only the available part can be swapped.
+// Prices are the demo portfolio's; balances are the wallet's own.
 function token(id: Side, decimals: number) {
   const coin = coins.find((c) => c.id === id)!;
-  return { name: coin.name, symbol: coin.symbol, balance: coin.amount - stakedTotal(coin), price: coin.value / coin.amount, decimals };
+  return { name: coin.name, symbol: coin.symbol, price: coin.value / coin.amount, decimals };
 }
 const tokens = { eth: token("eth", 4), usdc: token("usdc", 2) };
 
@@ -79,7 +80,8 @@ function Detail({ label, className, children }: { label: string; className?: str
 }
 
 export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onOpenChange: (o: boolean) => void; onClosed: () => void }) {
-  const [from, setFrom] = useState<Side>("eth");
+  // The wallet holds USDC, so it pays with USDC to start.
+  const [from, setFrom] = useState<Side>("usdc");
   const [unit, setUnit] = useState<Unit>("token");
   const [text, setText] = useState("");
   const [step, setStep] = useState<Step>({ name: "amount", dir: 1 });
@@ -90,9 +92,13 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
   const summary = useRef<HTMLHeadingElement>(null);
   const [amount, animate] = useAnimate<HTMLOutputElement>();
   const still = useReducedMotion();
+  const snapshot = useWallet();
+  const wallet = snapshot.status === "ready" ? snapshot.wallet : undefined;
+  // USDC that held payments will take isn't the client's to swap.
+  const balances = { eth: wallet?.eth ?? 0, usdc: wallet ? available(wallet) : 0 };
 
   const to: Side = from === "eth" ? "usdc" : "eth";
-  const pay = tokens[from];
+  const pay = { ...tokens[from], balance: balances[from] };
   const get = tokens[to];
   const q = quote(text, unit, pay.price, get.price);
   const over = Number(q.tokens.toFixed(pay.decimals)) > pay.balance;
@@ -108,7 +114,7 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
     if (open) return;
     const t = setTimeout(() => {
       setText("");
-      setFrom("eth");
+      setFrom("usdc");
       setUnit("token");
       setStep({ name: "amount", dir: 1 });
       setPhase("idle");
@@ -169,7 +175,7 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
     );
   }
 
-  const continueLabel = over ? `Insufficient ${pay.symbol}` : "Continue";
+  const short = !over ? "" : pay.balance > 0 ? `You have only ${fmt(pay.balance, pay.decimals)} ${pay.symbol} to swap.` : `You have no ${pay.symbol} to swap.`;
 
   return (
     <Drawer open={open} onOpenChange={(o) => phase !== "busy" && onOpenChange(o)} dismissible={phase !== "busy"}>
@@ -285,12 +291,11 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
 
                   <div className="mt-auto pt-4">
                     <Numpad onKey={tap} />
-                    <Button ref={proceed} size="lg" onClick={review} disabled={!ready} className="mt-3 h-14 w-full">
-                      <AnimatePresence initial={false} mode="popLayout">
-                        <motion.span key={continueLabel} {...labelSwap}>
-                          {continueLabel}
-                        </motion.span>
-                      </AnimatePresence>
+                    <p aria-live="polite" className="mt-2 h-lh text-center text-caption text-negative">
+                      {short}
+                    </p>
+                    <Button ref={proceed} size="lg" onClick={review} disabled={!ready} className="mt-2 h-14 w-full">
+                      Continue
                     </Button>
                   </div>
                 </>
