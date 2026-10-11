@@ -11,6 +11,7 @@ import {
   encodeFunctionData,
   erc20Abi,
   formatUnits,
+  getAbiItem,
   http,
   isAddressEqual,
   parseEventLogs,
@@ -58,6 +59,10 @@ const SPONSORSHIP_TTL = 120n;
 const HOLD = 24 * 60 * 60;
 // Swissquote's sponsorship of a held payment lasts a week past its release, so a late release still goes through.
 const HOLD_SPONSORSHIP = 7 * 24 * 60 * 60;
+/** So its free gas can't be farmed, Swissquote refuses a payment once it paid for this many of the wallet's operations in an hour of chain time. */
+const SPONSORED_PER_HOUR = 20;
+// ponytail: counts what the paymaster paid in the last 5,000 blocks, hours on Base; an indexer replaces the scan at scale.
+const SPONSORED_LOOKBACK = 5_000n;
 
 export function walletConfig(signer: Address, passkey: Passkey, recoveryKey: Address): Config {
   return { signer, passkey, recoveryKey, guardian: swissquote().address };
@@ -187,6 +192,7 @@ export async function prepare(wallet: Wallet, kind: Kind, callData: Hex, hold = 
   userOp.paymasterData = encodeSponsorship(validUntil, validAfter, await swissquote().signMessage({ message: { raw: sponsored } }));
   const hash = getUserOperationHash({ chainId: chain.id, entryPointAddress: addresses.entryPoint, entryPointVersion: "0.7", userOperation: userOp });
   const rpc = formatUserOperationRequest(userOp);
+  store().pruneOperations(Date.now() - Number(SPONSORSHIP_TTL) * 1000);
   store().addOperation(hash, wallet.address, kind, rpc);
   return { hash, userOp: rpc, expiresAt: new Date(Date.now() + ttl * 1000).toISOString() };
 }
@@ -288,6 +294,33 @@ export function heldPayments(wallet: Wallet) {
 }
 
 const usdcAmount = (units: bigint) => new Intl.NumberFormat("en-US").format(Number(formatUnits(units, 6)));
+
+/**
+ * Swissquote refuses to pay for a payment of 0, or for any payment once its paymaster paid for SPONSORED_PER_HOUR of the
+ * wallet's operations in the last hour, counted on-chain. Cancelling a recovery and releasing a held payment are never refused.
+ */
+export async function requireSponsorable(wallet: Wallet, callData: Hex) {
+  const transfer = transferOf(callData);
+  if (!transfer) return;
+  if (transfer.value === 0n) throw new HttpError(403, "Swissquote doesn't pay for a payment of 0 USDC.");
+  const latest = await publicClient.getBlockNumber();
+  const paid = await publicClient.getLogs({
+    address: addresses.entryPoint,
+    event: getAbiItem({ abi: entryPoint07Abi, name: "UserOperationEvent" }),
+    args: { sender: wallet.address, paymaster: addresses.paymaster },
+    fromBlock: latest > SPONSORED_LOOKBACK ? latest - SPONSORED_LOOKBACK : 0n,
+  });
+  // The hour frees up once the oldest of the last SPONSORED_PER_HOUR is an hour old.
+  const oldest = paid.at(-SPONSORED_PER_HOUR);
+  if (!oldest) return;
+  const wait = Number((await publicClient.getBlock({ blockHash: oldest.blockHash })).timestamp) + 3600 - (await chainNow());
+  if (wait <= 0) return;
+  const minutes = Math.ceil(wait / 60);
+  throw new HttpError(
+    429,
+    `Swissquote pays the network fee for up to ${SPONSORED_PER_HOUR} payments an hour. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`,
+  );
+}
 
 /** Money a held payment will take when it leaves is not available to a new one. */
 export async function requireAvailable(wallet: Wallet, callData: Hex) {

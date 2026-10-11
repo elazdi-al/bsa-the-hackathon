@@ -2,7 +2,8 @@
 // app's own phone module: create a wallet signed in to Swissquote, send, get refused, have large payments
 // held, cancelled both ways and released after 24 hours, refuse an attacker with the stolen phone and email,
 // lose the phone, cancel recoveries both ways, have Swissquote lock the stolen phone and stop what it held,
-// recover after the 48-hour delay, send from the new phone, and leave without Swissquote.
+// recover after the 48-hour delay, send from the new phone, refuse to farm Swissquote's free gas, and leave
+// without Swissquote.
 //
 //   npm run e2e
 import assert from "node:assert/strict";
@@ -19,6 +20,7 @@ import { attack } from "./attack.ts";
 import { APP, mintUsdc, newPhone, sendEth } from "./software-phone.ts";
 
 const ANNA = privateKeyToAddress(generatePrivateKey());
+const BOB = privateKeyToAddress(generatePrivateKey());
 const SANCTIONED: Address = "0x098B716B8Aaf21512996dC57EB0615e2383E2f96"; // flagged by the compliance demo screening
 
 process.on("exit", () => setSunset(false));
@@ -239,7 +241,22 @@ assert.equal((await newOne.state()).locked, false);
 console.log(`   Anna has ${formatUnits(await usdcOf(ANNA), 6)} USDC, the wallet ${formatUnits(await usdcOf(wallet), 6)} USDC`);
 assert.equal(await usdcOf(ANNA), parseUnits("2029", 6));
 
-console.log("18. Swissquote's services are closed for good. The client leaves with the money: Face ID, Share A and Share C, gas from the wallet's own ETH");
+console.log("18. Swissquote's free gas can't be farmed: it refuses a payment of 0, and a wallet's 21st operation within an hour of chain time");
+const farmer = newPhone();
+await farmer.splitKey(await farmer.createPasskey());
+const farm = await farmer.register(farmer.createRecoveryKey().address, await farmer.signIn());
+await mintUsdc(farm, "1");
+const zero = (await refused(farmer.sendUsdc(BOB, "0"), 403)) as { error: string };
+assert.equal(zero.error, "Swissquote doesn't pay for a payment of 0 USDC.");
+for (let i = 0; i < 20; i++) await farmer.sendUsdc(BOB, "0.01");
+const farmed = (await refused(farmer.sendUsdc(BOB, "0.01"), 429)) as { error: string };
+assert.match(farmed.error, /^Swissquote pays the network fee for up to 20 payments an hour\. Try again in \d+ minutes?\.$/);
+console.log(`   ${zero.error} After 20 payments: ${farmed.error}`);
+await warp(1);
+await farmer.sendUsdc(BOB, "0.01");
+assert.equal(await usdcOf(BOB), parseUnits("0.21", 6), "the hour passed, so Swissquote pays again");
+
+console.log("19. Swissquote's services are closed for good. The client leaves with the money: Face ID, Share A and Share C, gas from the wallet's own ETH");
 assert.match(await exitRefusal({}), /running/, "no exit while Swissquote's services run");
 const fresh = newPhone();
 await fresh.splitKey(await fresh.createPasskey());
