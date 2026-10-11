@@ -1,6 +1,6 @@
 # Shamir key sharing and wallet recovery
 
-This guide explains Swissquote Wallet's 2-of-3 key sharing, payment authorization and lost-device recovery. It follows the implementation in this repository. [protocol.md](../protocol.md) is the protocol specification and takes precedence if the implementation differs. The [README](../README.md) covers the threat model, the lock and the exit without Swissquote.
+This guide explains Swissquote Wallet's 2-of-3 key sharing, payment authorization and lost-device recovery. It follows the implementation in this repository. [protocol.md](../protocol.md) is the protocol specification and takes precedence if the implementation differs. The [security model](SECURITY.md) covers the threat model, the lock and the exit without Swissquote.
 
 The central rule is that rebuilding the wallet key does not, by itself, authorize a payment. The smart account requires a second signature. That is the user's passkey for a payment, or the user's separate Recovery Key for starting recovery.
 

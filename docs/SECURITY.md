@@ -1,6 +1,6 @@
 # Security model
 
-This document is the depth behind the custody, threat model, wallet creation, authentication and recovery answers in the [README](../README.md). [Shamir key sharing and wallet recovery](SHAMIR_AND_RECOVERY.md) walks through the cryptography and every recovery step. [protocol.md](../protocol.md) is the spec. Where this document disagrees with it, protocol.md wins.
+This document covers the custody model, threat model, wallet creation, authentication and recovery. [Shamir key sharing and wallet recovery](SHAMIR_AND_RECOVERY.md) walks through the cryptography and every recovery step. [protocol.md](../protocol.md) is the spec. Where this document disagrees with it, protocol.md wins.
 
 ## Custody model
 

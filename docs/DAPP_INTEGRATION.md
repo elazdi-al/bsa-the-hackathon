@@ -71,6 +71,6 @@ Tests cover real local-chain calls, policy refusal, exact approval, withdrawals 
 
 ## Production limitations
 
-Demo sanctions/simulation evidence is explicitly labelled. Actual EntryPoint execution is simulated before submission, but that does not turn fixture evidence into live compliance coverage. Live mode still lacks the additional-verification workflow, Travel Rule exchange and institution-level authentication described in the README. A registry entry and an on-chain metadata check are not a contract audit, regulatory approval or authenticated website identity. The fixed wallet gas limits are tested for this fixture, not arbitrary vault strategies.
+Demo sanctions/simulation evidence is explicitly labelled. Actual EntryPoint execution is simulated before submission, but that does not turn fixture evidence into live compliance coverage. Live mode still lacks the additional-verification workflow, Travel Rule exchange and institution-level authentication listed in [Known limits](SECURITY.md#known-limits). A registry entry and an on-chain metadata check are not a contract audit, regulatory approval or authenticated website identity. The fixed wallet gas limits are tested for this fixture, not arbitrary vault strategies.
 
 This implementation does not change the custody model, recovery protocol or bank-independent-exit limitation. It implements the compliant-assistance UX on the current backend, not a claim that the wallet is production-ready or legally certified.

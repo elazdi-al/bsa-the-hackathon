@@ -71,7 +71,7 @@ To recover a browser wallet from the terminal, run `npm run recover ~/Downloads/
 
 ## Run it locally
 
-You need Node.js 22.18 or later and [Foundry](https://getfoundry.sh), with `anvil` and `forge` on your PATH.
+You need Node.js 22.18 or later. `npm install` brings Foundry's `anvil` and `forge`.
 
 ```bash
 npm install
@@ -177,7 +177,54 @@ In Xcode, pick an iPhone simulator and press Run. With `PORT=3200 npm run local`
 
 ## Components
 
-The [architecture diagram](../README.md#architecture) shows how these parts connect.
+```mermaid
+flowchart LR
+  subgraph phone["Client's phone: the Swissquote Wallet app"]
+    sdk["Phone SDK, lib/wallet/phone.ts<br/>Share A sealed by the passkey<br/>wallet key cached up to 3 h"]
+    pk["Passkey, P-256<br/>in the phone's secure hardware"]
+  end
+  rk["Recovery Key file<br/>kept at home"]
+
+  subgraph sq["Swissquote API: Next.js route handlers, app/api"]
+    api["Wallet API<br/>locks"]
+    comp["Compliance engine<br/>sanctions and simulation are<br/>fixtures in demo mode"]
+    vb[("Share B vault<br/>SQLite, AES-GCM, no HSM")]
+    signin["MOCKED: optional link to a client,<br/>Swissquote sign-in"]:::mock
+  end
+
+  subgraph ind["Independent service: own process, own database"]
+    partner["services/partner/server.ts"]
+    vc[("Share C vault<br/>SQLite, AES-GCM, no HSM")]
+  end
+
+  subgraph chain["Chain: local anvil, or Base Sepolia"]
+    ep["EntryPoint v0.7"]
+    pay["VerifyingPaymaster<br/>Swissquote's gas deposit"]
+    acc["SwissquoteAccount<br/>wallet key + passkey, or<br/>wallet key + Recovery Key"]
+    usdc["USDC"]
+  end
+
+  pk -- "Face ID assertion" --> sdk
+  rk -. "recovery only" .-> sdk
+  sdk -- "calls to screen, Share B requests,<br/>signed operations, recovery" --> api
+  sdk -- "Share C at creation,<br/>Share C requests" --> partner
+  api --> comp
+  api --> vb
+  api -- "linked wallets only" --> signin
+  api -- "checks the Recovery Key binding" --> partner
+  partner -. "checks Swissquote is up" .-> api
+  partner --> vc
+  api -- "handleOps, from Swissquote's key" --> ep
+  ep --> pay
+  ep --> acc
+  acc --> usdc
+  partner -. "reads the signer" .-> acc
+  sdk -. "exit mode only: handleOps, own gas" .-> ep
+
+  classDef mock stroke-dasharray: 5 5
+```
+
+The dashed box is mocked, and only a wallet the client linked to a Swissquote account uses it. Everything else runs for real in this build. The independent service is a real separate process with its own database, but the company behind it is a stand-in. The dotted line to the EntryPoint is exit mode, used only when Swissquote is gone.
 
 **Smart account** (`contracts/`, Foundry). `SwissquoteAccount` runs on EntryPoint v0.7 and checks the two modes in the [custody table](SECURITY.md#we-chose-a-smart-account-that-needs-two-independent-keys), each over the userOpHash. Its config holds the wallet key's address, the passkey's P-256 public key, the Recovery Key's address and Swissquote as guardian. `RECOVERY_DELAY` is a constant 48 hours. `cancelRecovery` accepts the guardian or the account itself, and `finalizeRecovery` is open to anyone after the delay. `SwissquoteAccountFactory` deploys CREATE2 clones, so the address is known before deployment. `script/Deploy.s.sol` deploys the factory and Swissquote's funded `VerifyingPaymaster`, and on a local chain (31337) an EntryPoint and a mintable test USDC.
 
