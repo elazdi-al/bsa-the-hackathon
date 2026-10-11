@@ -35,7 +35,7 @@ export const KEYS: readonly WalletKey[] = [
   {
     id: "recovery",
     title: "Recovery Key",
-    body: "Restores your wallet on a new phone, after an ID check and a 48-hour hold you can cancel. Once saved, keep it at home, off this phone.",
+    body: "Restores your wallet on a new phone, after a 48-hour hold you can cancel. Once saved, keep it at home, off this phone.",
     Icon: RestoreIcon,
     accent: "var(--color-purple)",
     cta: { idle: "Save Recovery Key", busy: "Saving Recovery Key" },

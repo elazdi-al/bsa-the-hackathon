@@ -94,9 +94,8 @@ export type WalletState = {
 };
 
 /**
- * The Swissquote client this phone is signed in as, in the Swissquote app the wallet runs inside, with the number
- * of the ID card on file, which the app shows them and a recovery asks for. MOCKED: each phone signs in as its own
- * made-up client.
+ * The Swissquote client this phone signed in as to link the wallet, with the number of the ID card on file, which the
+ * app shows them and a recovery asks for. MOCKED: each phone signs in as its own made-up client.
  */
 export type SignedIn = { session: string; client: { number: string; name: string; document: string } };
 
@@ -147,13 +146,13 @@ export class ApiError extends Error {
 }
 
 const DEVICE = "swissquote.wallet.device";
-/** Where the app keeps the Swissquote session it is signed in with. */
+/** Where the app keeps the Swissquote session it linked the wallet with. */
 export const SESSION = "swissquote.session";
 
 /**
  * `partner` is pinned in the app build, never taken from Swissquote, so Swissquote cannot redirect
- * Share C to itself during the split. `session` is the Swissquote app's session this phone is signed in with
- * (MOCKED), which Swissquote's API gets on every call, so it answers as to its own client.
+ * Share C to itself during the split. `session` is the Swissquote session this phone linked the wallet with
+ * (MOCKED), if any, which Swissquote's API gets on every call, so it answers as to its own client.
  */
 export function createPhone({
   api = "",
@@ -258,11 +257,8 @@ export function createPhone({
     return { ...prepared, releaseAt: await verify(prepared, wallet.address, callData) };
   }
 
-  /**
-   * Face ID approves the exact operation; the cached key, or one rebuilt from A and B, signs it. Resolves once it
-   * is on-chain, or, for a payment Swissquote holds, once it is held.
-   */
-  async function approve(prepared: Prepared): Promise<Sent> {
+  /** Face ID approves the exact operation, which brings the cached key, or one rebuilt from A and B. */
+  async function unlock(prepared: Prepared) {
     const wallet = requireWallet();
     if (prepared.expiresAt && (!Number.isFinite(Date.parse(prepared.expiresAt)) || Date.parse(prepared.expiresAt) <= Date.now())) throw new Error("This approval expired. Check the transaction again.");
     // Swissquote meets a step-up review by holding the payment: this phone read its release time from the sponsorship.
@@ -275,8 +271,14 @@ export function createPhone({
       key = rebuild(await unseal(wallet.share, secret, wallet.signer), share, wallet.signer);
       remember(key);
     }
+    return { key, assertion };
+  }
+
+  /** The key signs the operation Face ID approved. Resolves once it is on-chain, or, for a payment Swissquote holds, once it is held. */
+  async function approve(prepared: Prepared): Promise<Sent> {
+    const { key, assertion } = await unlock(prepared);
     const signature = encodeNormalSignature(await privateKeyToAccount(key).sign({ hash: prepared.hash }), assertion);
-    return call<Sent>(`/api/wallets/${wallet.address}/operations/${prepared.hash}`, { signature });
+    return call<Sent>(`/api/wallets/${requireWallet().address}/operations/${prepared.hash}`, { signature });
   }
 
   return {
@@ -332,19 +334,37 @@ export function createPhone({
       return { secret, address: privateKeyToAddress(secret) };
     },
 
-    /** MOCKED: the Swissquote app's sign-in. Without a session Swissquote knows, the phone signs in as a new client. */
-    signIn: (session?: string) => call<SignedIn>("/api/session", { session }),
-
-    /** Registers the wallet for the signed-in client. The wallet key signs that the wallet is theirs, naming its address. */
-    async register(recoveryKey: Address, { session, client }: SignedIn): Promise<Address> {
+    /** Registers the wallet with Swissquote, which needs no Swissquote account. */
+    async register(recoveryKey: Address): Promise<Address> {
       const d = device();
       if (!d) throw new Error("Split the wallet key first.");
       const signature = await bind(d.signer, recoveryKey);
-      const { address } = await call<{ address: Address }>(`/api/wallets?${new URLSearchParams({ signer: d.signer, recoveryKey })}`);
-      const ownership = await signWithKey(ownershipMessage(client.number, address));
-      const wallet = await call<{ address: Address; config: AccountConfig }>("/api/wallets", { signer: d.signer, recoveryKey, signature, session, ownership });
+      const wallet = await call<{ address: Address; config: AccountConfig }>("/api/wallets", { signer: d.signer, recoveryKey, signature });
       save({ ...d, address: wallet.address, config: wallet.config });
       return wallet.address;
+    },
+
+    /**
+     * What Face ID approves to link the wallet. Swissquote lends Share B only for an operation the passkey approved,
+     * so it prepares one that changes nothing, the wallet allowing itself 0 USDC, and the phone never sends it.
+     */
+    async prepareLink(): Promise<Prepared> {
+      const { usdc } = await getConfig();
+      return prepare({ to: usdc, data: encodeFunctionData({ abi: erc20Abi, functionName: "approve", args: [requireWallet().address, 0n] }) });
+    },
+
+    /**
+     * Links the wallet to the client's Swissquote account: Face ID unlocks the wallet key as for a payment, the phone
+     * signs in (MOCKED: as a new, made-up client without a `session` Swissquote knows), and the key signs that the wallet
+     * is theirs. Resolves to the client it signed in as.
+     */
+    async link(prepared: Prepared, session?: string): Promise<SignedIn> {
+      const { key } = await unlock(prepared);
+      const signedIn = await call<SignedIn>("/api/session", { session });
+      const { address } = requireWallet();
+      const signature = await privateKeyToAccount(key).signMessage({ message: ownershipMessage(signedIn.client.number, address) });
+      await call(`/api/wallets/${address}/link`, { session: signedIn.session, signature });
+      return signedIn;
     },
 
     async sendUsdc(to: Address, amount: string): Promise<Sent> {
@@ -404,14 +424,15 @@ export function createPhone({
     /**
      * Lost phone, after splitKey on the new phone. The recovery key signs the recovery; Swissquote
      * (B) and the partner (C) each check that and release their share to this phone, which rebuilds
-     * the old key for this one signature. No one else ever holds B and C together. Swissquote's ID check, the number
-     * on the owner's ID card matched to their KYC record, signs this phone in to Swissquote as the owner.
+     * the old key for this one signature. No one else ever holds B and C together. A wallet linked to a Swissquote
+     * client also needs `identity`: Swissquote's ID check, the number on the owner's ID card matched to their KYC
+     * record, which signs this phone in to Swissquote as the owner.
      */
-    async startRecovery(secret: Hex, identity: Identity): Promise<{ address: Address; executeAfter: number; signedIn: SignedIn }> {
+    async startRecovery(secret: Hex, identity?: Identity): Promise<{ address: Address; executeAfter: number; signedIn?: SignedIn }> {
       const d = device();
       if (!d) throw new Error("Split the new wallet key first.");
       const recovery = privateKeyToAccount(secret);
-      const prepared = await call<Prepared & { address: Address; signedIn: SignedIn }>("/api/recovery", {
+      const prepared = await call<Prepared & { address: Address; signedIn?: SignedIn }>("/api/recovery", {
         recoveryKey: recovery.address,
         signer: d.signer,
         signature: await bind(d.signer, recovery.address),
@@ -432,7 +453,7 @@ export function createPhone({
 
     /**
      * The wallet a recovery key restores, the recovery already pending for it if someone started one, and whether
-     * a Swissquote client owns it (`linked`), so its ID check can run. Nothing about that client.
+     * it is linked to a Swissquote client (`linked`), so its ID check runs. Nothing about that client.
      */
     async findRecovery(secret: Hex) {
       const at = Math.floor(Date.now() / 1000);
@@ -469,7 +490,10 @@ export function createPhone({
       await call(`/api/wallets/${address}/operations/${hash}`, { signature }, "DELETE");
     },
 
-    /** Reports the phone that holds the wallet now as lost or stolen. After the owner's ID check Swissquote locks it; nothing changes on-chain. */
+    /**
+     * Reports the phone that holds a linked wallet now as lost or stolen. After the owner's ID check Swissquote locks it;
+     * nothing changes on-chain. An unlinked wallet has no ID to check, so Swissquote can't lock its phone.
+     */
     async reportLost(identity: Identity): Promise<void> {
       await call(`/api/wallets/${requireWallet().address}/lock`, { identity });
     },
@@ -509,7 +533,7 @@ function rebuild(first: Share, second: Share, signer: Address): Hex {
 export const RECOVERY_FILE = {
   name: "Swissquote Wallet Recovery Key.txt",
   text: (secret: Hex) =>
-    `Swissquote Wallet Recovery Key\n\n${secret}\n\nIf you lose your phone, this key restores your wallet on a new one, after Swissquote checks your ID and a 48-hour hold you can cancel. Keep it safe at home, not on your phone. Swissquote will never ask you to send it.`,
+    `Swissquote Wallet Recovery Key\n\n${secret}\n\nIf you lose your phone, this key restores your wallet on a new one, after a 48-hour hold you can cancel. If you linked your Swissquote account, Swissquote also checks your ID. Keep it safe at home, not on your phone. Swissquote will never ask you to send it.`,
 };
 
 /** The recovery key inside a saved Recovery Key file, or undefined if it holds none. */

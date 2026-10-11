@@ -1,9 +1,9 @@
-// Swissquote's clients: the app session the wallet runs in, the KYC record behind it, and the recovery
-// ID check matched against that record.
+// Swissquote's clients: the session a wallet links with, the KYC record behind it, and the ID check matched against
+// that record before a linked wallet's recovery or lock.
 //
-// MOCKED: the bank side. In the product the wallet opens inside the Swissquote app, where the client is
-// already signed in and KYC'd. Here a phone without a session signs in as a new, made-up client, and the
-// ID check compares the typed document number where a real provider scans a document and a face.
+// MOCKED: the bank side. In the product the client signs in to their Swissquote account, already KYC'd, to link
+// the wallet. Here a phone without a session signs in as a new, made-up client, and the ID check compares the typed
+// document number where a real provider scans a document and a face.
 import { randomInt } from "node:crypto";
 import type { Address } from "viem";
 import type * as z from "zod";
@@ -40,7 +40,7 @@ export function signIn(session?: string) {
   return sessionFor(client);
 }
 
-/** Signs a new phone in as `client`, who just passed their wallet's ID check. */
+/** Signs a new phone in as `client`, who just passed their linked wallet's ID check. */
 export const sessionFor = (client: Client) => ({ session: store().addSession(client.number), client: seen(client) });
 
 const ownerOf = (wallet: Address) => {

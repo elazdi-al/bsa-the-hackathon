@@ -11,7 +11,7 @@ const body = z.object({ identity });
 
 /**
  * The client reported the phone lost or stolen through the hotline or web banking, after the ID check (mocked).
- * Swissquote locks the credentials on that phone, not the wallet.
+ * Swissquote locks the credentials on that phone, not the wallet. Only a linked wallet has an ID to check, so only its phone can be locked.
  */
 export const POST = route(async (request: Request, ctx: Context) => {
   const wallet = requireWallet((await ctx.params).address as Address);

@@ -12,7 +12,7 @@ export type Kind = "normal" | "recovery";
 export type Held = { hash: Hex; userOp: RpcUserOperation<"0.7">; releaseAt: number; stopped: string | null };
 /** A client's KYC record. `document` is the number of the ID card they opened the account with. */
 export type Client = { number: string; name: string; birthDate: string; document: string };
-/** The client a wallet was created for, and the wallet key's signature on the statement naming both. */
+/** The client who linked a wallet, and the wallet key's signature on the statement naming both. */
 export type Owner = { client: string; signature: Hex; createdAt: number };
 
 let handle: ReturnType<typeof open> | undefined;
@@ -49,10 +49,13 @@ function open() {
 
   return {
     shares: vault,
-    /** Converges on a retry: a wallet registered without its owner, as after a crash, gets it. */
-    addWallet({ address, config }: Wallet, owner: Pick<Owner, "client" | "signature">) {
+    addWallet({ address, config }: Wallet) {
       db.prepare("insert or ignore into wallets values (?, ?, ?, ?)").run(address, config.recoveryKey, JSON.stringify(config), Date.now());
-      db.prepare("insert or ignore into owners values (?, ?, ?, ?)").run(address, owner.client, owner.signature, Date.now());
+    },
+    /** Links the wallet to the client once; there is no unlinking. Resolves to the owner it has now, which may be another client. */
+    link(wallet: Address, owner: Pick<Owner, "client" | "signature">): Owner {
+      db.prepare("insert or ignore into owners values (?, ?, ?, ?)").run(wallet, owner.client, owner.signature, Date.now());
+      return this.owner(wallet)!;
     },
     owner(wallet: Address): Owner | undefined {
       const row = db.prepare("select * from owners where wallet = ?").get(wallet) as { client: string; signature: Hex; created_at: number } | undefined;

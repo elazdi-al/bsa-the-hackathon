@@ -30,8 +30,8 @@ export const GET = route(async (request: Request, ctx: RouteContext<"/api/wallet
 });
 
 /**
- * Swissquote's ownership record: the client the wallet was created for, and the wallet key's signed statement saying
- * so. Only for that client, signed in on the phone asking: the wallet is public, who owns it is bank secrecy.
+ * Swissquote's ownership record: the client who linked the wallet, and the wallet key's signed statement saying so.
+ * Only for that client, signed in on the phone asking: the wallet is public, who owns it is bank secrecy.
  */
 function owner(address: Address, session: string | null) {
   const record = store().owner(address);

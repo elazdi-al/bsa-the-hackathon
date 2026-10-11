@@ -192,7 +192,8 @@ export function RecoveryFlow() {
       // Before the await: the recovery can start on-chain even if the read after it fails.
       recoveryKey.current = secret;
       identity.current = id;
-      keepSession((await phone.startRecovery(secret, id)).signedIn);
+      const { signedIn } = await phone.startRecovery(secret, id);
+      if (signedIn) keepSession(signedIn);
       await refreshWallet();
     } catch (e) {
       const refused = e instanceof ApiError ? e.body.refused : undefined;
