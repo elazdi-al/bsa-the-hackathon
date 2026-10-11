@@ -13,6 +13,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "prelocal": "node -e \"process.versions.node.localeCompare('22.18',undefined,{numeric:true})<0&&(console.error('Node 22.18 or later is needed, found '+process.version+'. Get it at https://nodejs.org'),process.exit(1))\"",
     "local": "node scripts/local.ts",
+    "live": "bash scripts/live.sh",
     "status": "node --env-file-if-exists=.env.local --disable-warning=ExperimentalWarning scripts/cli.ts status",
     "fund": "node --env-file-if-exists=.env.local --disable-warning=ExperimentalWarning scripts/cli.ts fund",
     "account": "node --env-file-if-exists=.env.local --disable-warning=ExperimentalWarning scripts/cli.ts account",
