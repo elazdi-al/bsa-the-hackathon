@@ -86,10 +86,11 @@ export async function attack({ phone: stolen, homeKey, unlocked, ownersId }: { p
   const wallet = stolen.address!;
   const live = (await send(`${APP}/api/wallets/${wallet}`)).body as unknown as WalletState;
   assert.equal(live.pendingRecovery, null, "the wallet has no recovery pending");
+  assert.equal("owner" in live, false, "Swissquote names the owner only to the owner's own session");
   const thief = privateKeyToAccount(generatePrivateKey());
   const thiefPasskey = P256.randomPrivateKey();
   const theirs: Identity = { document: "C7364215" };
-  console.log(`   Owner's wallet ${wallet}; the attacker has the phone and the email inbox.`);
+  console.log(`   Owner's wallet ${wallet}; the attacker has the phone and the email inbox. Swissquote's public record of it names no owner.`);
 
   console.log("A1. Pay from the stolen phone without the owner's Face ID");
   const phone = newPhone({ passkey: thiefPasskey, storage: { getItem: () => JSON.stringify(stolen), setItem() {}, removeItem() {} } });

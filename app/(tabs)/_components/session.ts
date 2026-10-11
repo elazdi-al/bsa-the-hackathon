@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { phone, type SignedIn } from "@/lib/wallet/phone";
+import { phone, SESSION as KEY, type SignedIn } from "@/lib/wallet/phone";
 
 // The Swissquote app's session, which the wallet runs inside. It outlives the wallet: removing the wallet
 // from this phone doesn't sign the client out. MOCKED: each phone signs in as its own made-up client.
-const KEY = "swissquote.session";
 let signing: Promise<SignedIn> | undefined;
 
 /** Keeps a session on this phone, as the one a recovery's ID check signed it in with. */

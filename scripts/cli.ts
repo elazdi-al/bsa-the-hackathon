@@ -45,6 +45,7 @@ function accountFile(name: string) {
 function accountPhone(file: string, account: AccountFile) {
   return newPhone({
     passkey: account.passkey,
+    session: () => account.signedIn?.session,
     storage: {
       getItem: () => (account.device ? JSON.stringify(account.device) : null),
       setItem(_key, value) {

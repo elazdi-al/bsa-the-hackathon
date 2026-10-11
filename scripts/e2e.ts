@@ -67,8 +67,10 @@ function held(sent: Sent) {
 }
 
 console.log("1. Create, signed in to Swissquote (mock): passkey, 2-of-3 Shamir split (A phone, B Swissquote, C partner), recovery key");
-const phone = newPhone();
+let session: string | undefined;
+const phone = newPhone({ session: () => session });
 const signedIn = await phone.signIn();
+session = signedIn.session;
 assert.deepEqual(await phone.signIn(signedIn.session), signedIn, "a known session stays signed in as its client");
 await phone.splitKey(await phone.createPasskey());
 assert.ok("sealed" in phone.device()!.share, "Share A is sealed under the passkey's PRF output");
@@ -76,9 +78,12 @@ const recoveryKey = phone.createRecoveryKey();
 const wallet = await phone.register(recoveryKey.address, signedIn);
 console.log(`   wallet ${wallet}, owned by ${signedIn.client.name}, Swissquote client ${signedIn.client.number}`);
 const { owner } = await phone.state();
-assert.equal(owner?.client, signedIn.client.number, "Swissquote recorded the client number against the wallet");
+assert.ok(owner, "Swissquote tells the signed-in owner the wallet is theirs");
+assert.equal(owner.client, signedIn.client.number, "Swissquote recorded the client number against the wallet");
 assert.equal(owner.statement, ownershipMessage(signedIn.client.number, wallet));
 assert.equal(await recoverMessageAddress({ message: owner.statement, signature: owner.signature }), phone.device()!.signer, "the wallet key signed it");
+const anyone = (await (await realFetch(`${APP}/api/wallets/${wallet}`)).json()) as Record<string, unknown>;
+assert.equal("owner" in anyone, false, "without the owner's session, Swissquote names no owner: bank secrecy");
 const attacker = privateKeyToAccount(generatePrivateKey());
 const hijack = await realFetch(`${APP}/api/wallets`, {
   method: "POST",

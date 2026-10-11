@@ -87,8 +87,8 @@ export type WalletState = {
   pendingRecovery: { signer: Address; executeAfter: number } | null;
   /** The chain's time when read, in seconds. A local chain can run ahead of this phone's clock. */
   chainTime: number;
-  /** Swissquote's record that the wallet is its client's; null for a wallet made before Swissquote linked them. */
-  owner: Owner | null;
+  /** Swissquote's record that the wallet is its client's. Only for that client, signed in on this phone: who owns a wallet is bank secrecy. */
+  owner?: Owner;
   /** Large payments Swissquote holds, soonest first. */
   held: HeldPayment[];
 };
@@ -144,10 +144,13 @@ export class ApiError extends Error {
 }
 
 const DEVICE = "swissquote.wallet.device";
+/** Where the app keeps the Swissquote session it is signed in with. */
+export const SESSION = "swissquote.session";
 
 /**
  * `partner` is pinned in the app build, never taken from Swissquote, so Swissquote cannot redirect
- * Share C to itself during the split.
+ * Share C to itself during the split. `session` is the Swissquote app's session this phone is signed in with
+ * (MOCKED), which Swissquote's API gets on every call, so it answers as to its own client.
  */
 export function createPhone({
   api = "",
@@ -155,20 +158,24 @@ export function createPhone({
   authenticator,
   storage,
   exit,
+  session,
 }: {
   api?: string;
   partner: string;
   authenticator: Authenticator;
   storage: Storage;
   exit?: ExitRoute;
+  session?: () => string | undefined;
 }) {
   let cached: { key: Hex; expiresAt: number; timer: ReturnType<typeof setTimeout> } | undefined;
   let config: Promise<Config> | undefined;
 
   async function call<T>(url: string, body?: unknown, method = body === undefined ? "GET" : "POST"): Promise<T> {
+    // Full URLs are the partner's: the bank session never goes there.
+    const token = url.startsWith("http") ? undefined : session?.();
     const res = await fetch(url.startsWith("http") ? url : api + url, {
       method,
-      headers: body === undefined ? undefined : { "content-type": "application/json" },
+      headers: { ...(body === undefined ? {} : { "content-type": "application/json" }), ...(token ? { "x-swissquote-session": token } : {}) },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     // A proxy or a crashed server can answer with HTML; that's a failed request, not a parse error.
@@ -560,4 +567,5 @@ export const phone = createPhone({
     setItem: (key, value) => localStorage.setItem(key, value),
     removeItem: (key) => localStorage.removeItem(key),
   },
+  session: () => (JSON.parse(localStorage.getItem(SESSION) ?? "null") as SignedIn | null)?.session,
 });
