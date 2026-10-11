@@ -1,6 +1,7 @@
 // Drives the real app through the demo story and writes the deck's phone screens to slides/screens/: an iPhone 15 Pro
 // (393 × 852 at 3x) with its safe areas, so content sits below the status bar the deck draws on top. Each phone is a
-// fresh browser profile with a virtual passkey authenticator. Run against a fresh `npm run local`:
+// fresh browser profile with a virtual passkey authenticator. The app's demo labels (`data-demo`) are hidden, and a
+// screen that still shows "demo", "mock" or a middle dot fails the run. Run against a fresh `npm run local`:
 //
 //   node --env-file-if-exists=.env.local slides/capture.ts      (APP_URL, else http://localhost:$PORT)
 import { chromium, type Locator, type Page } from "playwright";
@@ -22,6 +23,14 @@ async function mint(to: Address, amount: string) {
 
 async function newPhone() {
   const context = await browser.newContext({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true, reducedMotion: "reduce" });
+  // Hidden from the first paint, so nothing reflows just before a shot. Client navigation keeps the document, and the style.
+  await context.addInitScript(() =>
+    document.addEventListener("DOMContentLoaded", () => {
+      const style = document.createElement("style");
+      style.textContent = "[data-demo] { display: none !important; }";
+      document.head.append(style);
+    }),
+  );
   const page = await context.newPage();
   const cdp = await context.newCDPSession(page);
   await cdp.send("Emulation.setSafeAreaInsetsOverride", { insets: { top: 59, bottom: 34, left: 0, right: 0 } });
@@ -42,10 +51,12 @@ async function newPhone() {
   return page;
 }
 
-/** Waits for `ready`, lets the animations settle, then writes slides/screens/<name>.png. */
+/** Waits for `ready`, lets the animations settle, checks the screen shows no demo label, then writes slides/screens/<name>.png. */
 async function shot(page: Page, name: string, ready: Locator, settle = 1000) {
   await ready.waitFor(SLOW);
   await page.waitForTimeout(settle);
+  const label = (await page.evaluate(() => document.body.innerText)).match(/\b(demo|mock)\b|·/i);
+  if (label) throw new Error(`${name}.png would show "${label[0]}". Mark the label data-demo, or reword it.`);
   await page.screenshot({ path: new URL(`screens/${name}.png`, import.meta.url).pathname });
   console.log(`   ${name}.png`);
 }
@@ -92,13 +103,20 @@ await shot(phone1, "send-refused-sanctioned", phone1.getByRole("alert"));
 // The refused review keeps its recipient as a draft, which would reopen the chooser over Home.
 await phone1.evaluate(() => sessionStorage.removeItem("swissquote:send-to"));
 
+console.log("Old phone: link the wallet to a Swissquote account in Settings");
+await phone1.goto(`${APP}/settings`);
+await phone1.getByRole("button", { name: "Link your Swissquote account" }).click(SLOW);
+await shot(phone1, "settings-link", phone1.getByRole("button", { name: "Link with Face ID" }));
+await phone1.getByRole("button", { name: "Link with Face ID" }).click();
+await phone1.getByText("Swissquote account", { exact: true }).waitFor(SLOW);
+
 console.log("New phone: recover with the Recovery Key file");
 const phone2 = await newPhone();
 await phone2.goto(`${APP}/recover`);
 await shot(phone2, "recover", phone2.getByText("Recover your wallet"));
 await phone2.locator("input[type=file]").setInputFiles(kit);
 await phone2.getByRole("button", { name: "Continue" }).click();
-// The number on the owner's ID card, which the old phone's Swissquote session shows them.
+// The wallet is linked, so the recovery checks the ID: the number on the owner's ID card, which Settings shows them.
 const idNumber = await phone1.evaluate(() => JSON.parse(localStorage.getItem("swissquote.session")!).client.document as string);
 await phone2.getByLabel("ID card number").fill(idNumber);
 await shot(phone2, "recover-id", phone2.getByRole("button", { name: "Scan ID" }));
