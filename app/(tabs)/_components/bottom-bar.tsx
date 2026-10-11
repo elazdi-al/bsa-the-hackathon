@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { RecipientSheet } from "@/app/choose-recipient/_components/recipient-sheet";
 import { sendDraft } from "@/app/choose-recipient/data";
-import { ClockIcon, GearIcon, HomeIcon, PlusIcon } from "@/components/icons";
+import { ClockIcon, GearIcon, GridIcon, HomeIcon, PlusIcon } from "@/components/icons";
 import { transitionFor } from "@/components/navigation";
 import { kinds } from "../history/_components/tx-row";
 import { column } from "./column";
@@ -25,6 +25,7 @@ const actions: { label: string; sheet: Sheet }[] = [
 
 const tabs = [
   { href: "/home", label: "Home", Icon: HomeIcon },
+  { href: "/apps", label: "Apps", Icon: GridIcon },
   { href: "/history", label: "History", Icon: ClockIcon },
   { href: "/settings", label: "Settings", Icon: GearIcon },
 ] as const;

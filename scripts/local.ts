@@ -185,7 +185,7 @@ await waitFor(`the app on ${APP_URL}`, () => answers(`${APP_URL}/api/config`));
 // route once now means the first tap in a demo answers at full speed.
 const ZERO = "0x0000000000000000000000000000000000000000";
 const routes = [
-  "/onboarding-welcome", "/onboarding-secure", "/home", "/history", "/settings", "/choose-recipient", `/send?to=${ZERO}`,
+  "/onboarding-welcome", "/onboarding-secure", "/home", "/apps", "/history", "/settings", "/choose-recipient", `/send?to=${ZERO}`,
   "/transaction-tracking", "/recover", "/coin-breakdown", "/plus", "/dapps", "/api/dapps", "/api/shares", "/api/wallets", "/api/recovery", "/api/session",
   `/api/wallets/${ZERO}`, `/api/wallets/${ZERO}/activity`, `/api/wallets/${ZERO}/operations`, `/api/wallets/${ZERO}/operations/${ZERO}`,
   `/api/wallets/${ZERO}/share`, `/api/wallets/${ZERO}/recovery`,
