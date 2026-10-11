@@ -1,6 +1,8 @@
 # Shamir transactions and recovery presentation
 
-Open [index.html](index.html) directly in a browser. The deck has 14 slides and uses a plain white layout, Fuse typography, and a 16:9 format. It does not require the wallet services to run.
+This folder holds two decks. [index.html](index.html) is the pitch deck. [protocol.html](protocol.html) is the protocol walkthrough this README describes.
+
+Open [protocol.html](protocol.html) directly in a browser. The deck has 14 slides and uses a plain white layout, Fuse typography, and a 16:9 format. It does not require the wallet services to run.
 
 The presentation follows the decisions in order:
 
@@ -18,7 +20,7 @@ Each slide contains one short statement, at most one small visual, and one optio
 - Click on the right to advance or on the left third to go back. Horizontal swipes work on touch screens.
 - N toggles speaker notes. F toggles fullscreen.
 - Hover at the bottom right or press Tab to reveal navigation, notes, and fullscreen controls.
-- Append a slide number to the URL, such as `index.html#4`, to open that slide.
+- Append a slide number to the URL, such as `protocol.html#4`, to open that slide.
 - Print or save as PDF for one 16:9 page per slide. Controls and speaker notes are omitted from the exported pages.
 
 Speaker notes explain the implementation details and security limits behind each slide, including the need to detect and cancel a fraudulent recovery in time. Production recovery alerts are not implemented. The deck distinguishes Share C from the separate Recovery Key and states that this build reconstructs the full Wallet Key on the phone before signing.
