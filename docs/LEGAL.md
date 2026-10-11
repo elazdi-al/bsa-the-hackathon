@@ -40,7 +40,7 @@ Until FINMA or counsel confirms that reading, we would launch conservatively and
 
 This posture is a design. This build exchanges no Travel Rule messages.
 
-Because KYC duties apply to every sponsored payment, Swissquote sponsors payments only for wallets it can tie to an identified client. A wallet linked to a Swissquote account gets its payments and dApp calls sponsored, and Swissquote knows the client behind them from its KYC record. An unlinked wallet pays its own gas in ETH. Swissquote still screens its payments, relays them and applies every limit. Swissquote still pays for any wallet's recovery, which moves no funds, so a lost phone is never unrecoverable for lack of ETH.
+Because KYC duties apply to every sponsored payment, Swissquote sponsors payments only for wallets it can tie to an identified client. A wallet linked to a Swissquote account gets its payments and dApp calls sponsored, and Swissquote knows the client behind them from its KYC record. An unlinked wallet pays its own gas in ETH. Swissquote still screens its payments and relays them. Swissquote still pays for any wallet's recovery, which moves no funds, so a lost phone is never unrecoverable for lack of ETH.
 
 ## Other rules that apply
 
