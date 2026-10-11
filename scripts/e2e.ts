@@ -123,15 +123,17 @@ assert.ok(big.releaseAt && Math.abs(big.releaseAt - (await chainTime()) - 24 * 3
 const first = held(await phone.approve(big));
 assert.deepEqual(first, { hash: big.hash, releaseAt: big.releaseAt });
 assert.deepEqual((await phone.state()).held.map((p) => [p.hash, p.to, p.value]), [[big.hash, ANNA, parseUnits("2000", 6).toString()]]);
-const early = publicClient.simulateContract({
-  address: addresses.entryPoint,
-  abi: entryPoint07Abi,
-  functionName: "handleOps",
-  args: [[toPackedUserOperation({ ...formatUserOperation(big.userOp), signature: signatures.get(big.hash)! })], ANNA],
-  account: ANNA,
-  blockTag: "pending",
-});
-await assert.rejects(early, /AA32 paymaster expired or not due/, "the signed payment can't go on-chain before its release, whoever submits it");
+/** Anyone who holds the signed held payment submits it through the EntryPoint, simulated at the pending block. */
+const submitByAnyone = () =>
+  publicClient.simulateContract({
+    address: addresses.entryPoint,
+    abi: entryPoint07Abi,
+    functionName: "handleOps",
+    args: [[toPackedUserOperation({ ...formatUserOperation(big.userOp), signature: signatures.get(big.hash)! })], ANNA],
+    account: ANNA,
+    blockTag: "pending",
+  });
+await assert.rejects(submitByAnyone(), /AA32 paymaster expired or not due/, "the signed payment can't go on-chain before its release, whoever submits it");
 console.log("   the 2,000 USDC held isn't available: of the wallet's 3,078 USDC, a payment of 1,100 is refused");
 assert.equal(
   ((await refused(phone.sendUsdc(ANNA, "1100"), 403)) as { error: string }).error,
@@ -216,6 +218,7 @@ assert.deepEqual(
   [[stolen.hash, "Swissquote locked this phone after it was reported lost."]],
   "the lock stops the held payment when its time comes",
 );
+await assert.rejects(submitByAnyone(), /AA32 paymaster expired or not due/, "the payment cancelled at step 7 is dead for good: its sponsorship ended an hour after its release");
 assert.equal(await usdcOf(ANNA), annaBefore);
 await phone.cancelPayment(stolen.hash);
 assert.deepEqual((await phone.state()).held, [], "the locked phone can still call it off");

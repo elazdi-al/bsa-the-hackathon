@@ -1,7 +1,7 @@
 // Builds, sponsors and submits UserOperations. Swissquote submits them to the EntryPoint
 // itself and pays the gas through its paymaster, so the client never needs ETH. A payment its
-// policy marks for step-up is held: sponsored only from 24 hours on, so the EntryPoint refuses it
-// sooner, and kept by Swissquote, which the client can ask to cancel it until then.
+// policy marks for step-up is held: sponsored only from 24 hours on, and for an hour after, so the
+// EntryPoint refuses it sooner and later, and kept by Swissquote, which the client can ask to cancel it until then.
 import { randomBytes, randomUUID } from "node:crypto";
 import {
   BaseError,
@@ -56,8 +56,13 @@ const GAS = { ...ACCOUNT_GAS, paymasterVerificationGasLimit: 100_000n, paymaster
 const SPONSORSHIP_TTL = 120n;
 /** How long Swissquote holds a payment that needs step-up before it leaves. */
 const HOLD = 24 * 60 * 60;
-// Swissquote's sponsorship of a held payment lasts a week past its release, so a late release still goes through.
-const HOLD_SPONSORSHIP = 7 * 24 * 60 * 60;
+// How long Swissquote's sponsorship of a held payment outlives its release. A cancel only discards Swissquote's copy:
+// the signed operation stays submittable, by anyone holding it, until this runs out, so it is as short as the lazy
+// release below allows. The release itself needs seconds: the phone reads the wallet every 4 s while the app is open,
+// and npm run warp reads it right after the jump. The hour is for a client who opens the app, or a demo that warps,
+// within the hour of the release time; later, the payment is stopped as expired and must be sent again. A scheduler
+// in production releases on time, and could cut this to the chain's inclusion time.
+const HOLD_SPONSORSHIP = 60 * 60;
 
 export function walletConfig(signer: Address, passkey: Passkey, recoveryKey: Address): Config {
   return { signer, passkey, recoveryKey, guardian: swissquote().address };
