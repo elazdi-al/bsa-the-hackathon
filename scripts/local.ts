@@ -204,7 +204,6 @@ Swissquote Wallet is running. Open ${APP_URL}/onboarding-welcome
   npm run recover <account|file>     start a recovery onto a new phone
   npm run finish <account>           finish a recovery after the 48 hours
   npm run cancel <account>           cancel a recovery with the Recovery Key
-  npm run cancel-payment <account>   cancel an account's held payments with the Recovery Key
   npm run lock <account>             report the phone lost: Swissquote locks it
   npm run unlock <account>           Swissquote unlocks the phone
   npm run warp [hours]               move chain time ahead (default 48); held payments that are due leave
