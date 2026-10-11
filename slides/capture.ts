@@ -78,7 +78,7 @@ await mint(wallet, "100");
 console.log("Old phone: pay anna.eth 20 USDC, then a sanctioned address");
 await review(phone1, "anna.eth", "20");
 await phone1.getByRole("button", { name: "Continue" }).click();
-await shot(phone1, "send", phone1.getByRole("button", { name: "Send", exact: true }));
+await shot(phone1, "send-summary", phone1.getByText("Checked by Swissquote"));
 await phone1.getByRole("button", { name: "Send", exact: true }).click();
 await phone1.waitForURL("**/transaction-tracking?**", SLOW);
 await shot(phone1, "transaction-tracking", phone1.getByText("Completed").first());
@@ -104,7 +104,7 @@ await phone2.getByLabel("ID card number").fill(idNumber);
 await shot(phone2, "recover-id", phone2.getByRole("button", { name: "Scan ID" }));
 await phone2.getByRole("button", { name: "Scan ID" }).click();
 await phone2.getByRole("button", { name: "Restore with Face ID" }).click(SLOW);
-await shot(phone2, "recover-hold", phone2.getByText("Your wallet will be restored on"));
+await shot(phone2, "recover-hold", phone2.getByRole("button", { name: "Lock your old phone" }));
 await phone1.goto(`${APP}/home`);
 await shot(phone1, "home-recovery-alert", phone1.getByText("Someone started recovering your wallet"), 2000);
 await publicClient.request({ method: "evm_increaseTime", params: [numberToHex(48 * 3600 + 10)] } as never);
@@ -115,6 +115,7 @@ await shot(phone2, "recover-ready", phone2.getByText("Your wallet is ready to re
 console.log("Old phone: a large payment, with enough USDC to cover it");
 await mint(wallet, "5000");
 await review(phone1, "anna.eth", "2500");
-await shot(phone1, "send-large", phone1.getByText("$5,080.00 available"));
+await phone1.getByRole("button", { name: "Continue" }).click();
+await shot(phone1, "send-large", phone1.getByText(/^Large payment\./));
 
 await browser.close();
