@@ -203,8 +203,9 @@ export function RecoveryFlow() {
       await refreshWallet();
     });
 
-  const cancel = (controls: boolean) => {
-    if (controls)
+  // A locked phone holds the wallet but can't cancel with Face ID, so it asks for the Recovery Key like any other.
+  const cancel = (faceId: boolean) => {
+    if (faceId)
       return run("Cancelling", FAILED.cancel, async () => {
         await phone.cancelRecovery();
         await refreshWallet();
@@ -252,6 +253,7 @@ export function RecoveryFlow() {
 
   if (holding) {
     const controls = at.name === "answer";
+    const faceId = controls && !at.oldPhoneLocked;
     const left = Math.max(0, Math.ceil(at.executeAfter - chainNow(at)));
     // The moment the countdown ends, on this phone's clock: a warped local chain runs ahead of it.
     const copy = holdCopy(restoreDate(at.executeAfter - at.skew))[at.name][left ? "running" : "over"];
@@ -274,8 +276,8 @@ export function RecoveryFlow() {
           </Button>
         )}
         {askKey && <KeyField value={text} onChange={setText} />}
-        <Button size="lg" variant="secondary" onClick={() => cancel(controls)} disabled={!!busy} aria-busy={busy === "Cancelling"} className="text-negative">
-          {busy === "Cancelling" ? <Spinner aria-hidden className="size-5" /> : controls && <FaceIdIcon size={20} />}
+        <Button size="lg" variant="secondary" onClick={() => cancel(faceId)} disabled={!!busy} aria-busy={busy === "Cancelling"} className="text-negative">
+          {busy === "Cancelling" ? <Spinner aria-hidden className="size-5" /> : faceId && <FaceIdIcon size={20} />}
           {askKey ? "Cancel with Recovery Key" : "Cancel recovery"}
         </Button>
         {/* Opt-in: once locked, the old phone can no longer cancel a stranger's recovery with Face ID. */}

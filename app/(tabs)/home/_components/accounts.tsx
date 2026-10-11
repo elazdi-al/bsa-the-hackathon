@@ -94,7 +94,15 @@ export function Accounts() {
   );
 }
 
-type Alert = { kind: "locked" | "recovering" | "restoring" | "cancelled" | "moved" | "missing"; Icon: Icon; tone: string; title: string; line: string };
+/** `note`: a second line the card adds, as when a locked phone's wallet is being recovered. */
+type Alert = {
+  kind: "locked" | "recovering" | "restoring" | "cancelled" | "moved" | "missing";
+  Icon: Icon;
+  tone: string;
+  title: string;
+  line: string;
+  note?: string;
+};
 
 /** What Home has to say about the wallet itself, if anything. */
 function alertFor(wallet: WalletSnapshot): Alert | undefined {
@@ -108,7 +116,7 @@ function alertFor(wallet: WalletSnapshot): Alert | undefined {
     };
   if (wallet.status !== "ready") return undefined;
   const { controls, locked, recovery, restoring } = wallet.wallet;
-  // Ahead of a recovery someone started: a locked phone can't cancel it, so the client cancels through Swissquote.
+  // Ahead of a recovery someone started: a locked phone can't cancel it with Face ID, so its card says how else to.
   if (locked)
     return {
       kind: "locked",
@@ -116,6 +124,7 @@ function alertFor(wallet: WalletSnapshot): Alert | undefined {
       tone: "text-muted-foreground",
       title: "Swissquote locked this phone",
       line: "It was reported lost, so it can’t send from your wallet. If you found it, call Swissquote to unlock it.",
+      note: recovery ? "Someone started recovering your wallet. If it wasn’t you, call Swissquote or cancel it with your Recovery Key." : undefined,
     };
   if (controls)
     return recovery && !recovery.mine
@@ -152,7 +161,7 @@ function alertFor(wallet: WalletSnapshot): Alert | undefined {
         };
 }
 
-function WalletAlert({ alert: { kind, Icon, tone, title, line } }: { alert: Alert }) {
+function WalletAlert({ alert: { kind, Icon, tone, title, line, note } }: { alert: Alert }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -177,15 +186,16 @@ function WalletAlert({ alert: { kind, Icon, tone, title, line } }: { alert: Aler
       <div className="min-w-0 flex-1">
         <h2 className="text-label">{title}</h2>
         <p className="mt-1 text-body text-pretty text-muted-foreground">{line}</p>
+        {note && <p className="mt-2 text-body text-pretty">{note}</p>}
         {failed && <p className="mt-2 text-caption text-negative">The recovery wasn&apos;t cancelled. Try again.</p>}
         {kind === "recovering" ? (
           <Button size="sm" onClick={cancel} disabled={busy} aria-busy={busy} className="mt-3">
             {busy ? <Spinner aria-hidden /> : <FaceIdIcon size={16} />}
             Cancel recovery
           </Button>
-        ) : kind === "restoring" || kind === "cancelled" ? (
+        ) : kind === "restoring" || kind === "cancelled" || note ? (
           <Link href="/recover" transitionTypes={["push"]} className={buttonVariants({ size: "sm", className: "mt-3" })}>
-            {kind === "restoring" ? "View progress" : "Recover again"}
+            {kind === "restoring" ? "View progress" : kind === "cancelled" ? "Recover again" : "Cancel with Recovery Key"}
           </Link>
         ) : (
           kind !== "locked" && (

@@ -173,12 +173,14 @@ await phone1.getByText("Someone started recovering your wallet").waitFor(SLOW);
 await phone1.getByRole("button", { name: "Cancel recovery" }).click(SLOW);
 await phone1.getByText("Someone started recovering your wallet").waitFor({ state: "detached", ...SLOW });
 
-console.log("7. Again; on the countdown the client locks the old phone: its Home says so and Send refuses");
+console.log("7. Again; on the countdown the client locks the old phone: its Home says so, and how to stop the recovery if it isn't theirs; Send refuses");
 await recover(phone2, kit);
 await phone2.getByRole("button", { name: "Lock your old phone" }).click();
 await phone2.getByText("Your old phone is locked").waitFor(SLOW);
 await phone1.goto(`${APP}/home`);
 await phone1.getByText("Swissquote locked this phone").waitFor(SLOW);
+await phone1.getByText("call Swissquote or cancel it with your Recovery Key").waitFor(SLOW);
+await phone1.getByRole("link", { name: "Cancel with Recovery Key" }).waitFor(SLOW);
 await phone1.goto(`${APP}/send?to=${FRIEND}`);
 await phone1.getByText("Swissquote locked this phone after it was reported lost.").waitFor(SLOW);
 await phone1.getByLabel("Amount in USDC").fill("5");
