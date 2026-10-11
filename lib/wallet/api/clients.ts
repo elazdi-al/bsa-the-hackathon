@@ -48,6 +48,11 @@ const ownerOf = (wallet: Address) => {
   return owner && store().client(owner.client);
 };
 
+// The number is seven digits, so whoever holds a wallet's Recovery Key, or just its address, must not get to guess
+// it: five misses stop the wallet's ID checks for an hour. A hit clears them.
+const MAX_MISSES = 5;
+const LOCKOUT = 60 * 60 * 1000;
+
 /**
  * The owner of `wallet` when the ID document matches their KYC record. MOCKED: the liveness check passes with the
  * document, where a real provider also matches the face in front of the phone to the one on the card.
@@ -55,8 +60,13 @@ const ownerOf = (wallet: Address) => {
 export function checkIdentity(wallet: Address, { document }: z.infer<typeof identity>): Client {
   const client = ownerOf(wallet);
   if (!client) throw new HttpError(403, "This wallet isn't linked to a Swissquote client, so there is no ID to check against.", { refused: "unlinked" });
+  const missed = store().idMisses(wallet);
+  const misses = missed && Date.now() < missed.until ? missed.misses : 0;
+  if (misses >= MAX_MISSES) throw new HttpError(429, "Too many ID checks failed for this wallet. Try again in an hour.", { refused: "attempts" });
   if (document.trim().toUpperCase() !== client.document) {
+    store().setIdMisses(wallet, misses + 1, Date.now() + LOCKOUT);
     throw new HttpError(403, "This ID doesn't match the one on file for the wallet's owner.", { refused: "identity" });
   }
+  if (misses) store().setIdMisses(wallet, 0, 0);
   return client;
 }

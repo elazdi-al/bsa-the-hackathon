@@ -68,7 +68,7 @@ function loadAccount(name: string) {
 
 /** The owner's ID card. The software phone plays the owner, who holds the card, so the account file keeps its mock number. */
 function identityOf({ name, signedIn }: ReturnType<typeof loadAccount>): Identity {
-  if (!signedIn) throw new Error(`${name} has no ID on file: it was made before Swissquote linked wallets to clients.`);
+  if (!signedIn?.client.document) throw new Error(`${name} has no ID on file: it was made before Swissquote showed clients their ID card.`);
   return { document: signedIn.client.document };
 }
 

@@ -53,6 +53,11 @@ const REFUSED = {
     body: "Swissquote compared it with the ID on file for this wallet's owner. Your wallet is unchanged.",
     retry: "Try again",
   },
+  attempts: {
+    title: "Too many tries",
+    body: "Swissquote has stopped checking IDs for this wallet for an hour. Try again later, or call Swissquote. Your wallet is unchanged.",
+    retry: "Back",
+  },
   unlinked: {
     title: "Swissquote can't check your ID",
     body: "This wallet was set up before Swissquote linked wallets to its clients, so there is no ID on file to compare with. Your wallet is unchanged.",
@@ -191,7 +196,7 @@ export function RecoveryFlow() {
       await refreshWallet();
     } catch (e) {
       const refused = e instanceof ApiError ? e.body.refused : undefined;
-      if (refused === "identity") setStep({ name: "refused", reason: refused, retry: { name: "identity", secret } });
+      if (refused === "identity" || refused === "attempts") setStep({ name: "refused", reason: refused, retry: { name: "identity", secret } });
       else if (refused === "unlinked") setStep({ name: "refused", reason: refused, retry: { name: "key" } });
       else setError(failed);
     }
@@ -408,7 +413,10 @@ export function RecoveryFlow() {
           <Button
             size="lg"
             onClick={() => {
-              if (step.retry.name === "key") setText("");
+              if (step.retry.name === "key") {
+                setText("");
+                setIdNumber("");
+              }
               setStep(step.retry);
             }}
           >

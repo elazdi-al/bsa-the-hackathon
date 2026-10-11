@@ -185,7 +185,7 @@ export async function attack({ phone: stolen, homeKey, unlocked, ownersId }: { p
   assert.equal(after.locked, false, "the phone is unlocked");
   say("Demo reset", "the owner cancelled that recovery through Swissquote with the Recovery Key, and Swissquote unlocked the phone");
 
-  console.log("A7. The Recovery Key and a forged ID card that passes the mock check, as a good forgery might pass a real one");
+  console.log("A7. The Recovery Key and a forged ID card carrying the owner's number, which the mock accepts as a good forgery might pass a real check");
   const started = await withKey.startRecovery(homeKey, ownersId);
   const { timestamp } = await publicClient.getBlock({ blockTag: "pending" });
   const hours = (started.executeAfter - Number(timestamp)) / 3600;

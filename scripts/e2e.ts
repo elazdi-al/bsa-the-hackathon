@@ -244,8 +244,15 @@ console.log("18. Swissquote's services are closed for good. The client leaves wi
 assert.match(await exitRefusal({}), /running/, "no exit while Swissquote's services run");
 const fresh = newPhone();
 await fresh.splitKey(await fresh.createPasskey());
-const freshWallet = await fresh.register(fresh.createRecoveryKey().address, await fresh.signIn());
+const freshClient = await fresh.signIn();
+const freshWallet = await fresh.register(fresh.createRecoveryKey().address, freshClient);
 await mintUsdc(freshWallet, "10");
+console.log("   first, on this wallet: five wrong ID numbers, and Swissquote stops checking IDs for it for an hour, the right one included");
+const guess = async (document: string) =>
+  (await realFetch(`${APP}/api/wallets/${freshWallet}/lock`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ identity: { document } }) })).status;
+for (let i = 0; i < 5; i++) assert.equal(await guess(`C000000${i}`), 403);
+assert.equal(await guess("C0000005"), 429, "the sixth guess isn't checked");
+assert.equal(await guess(freshClient.client.document), 429, "nor is the right number, for an hour");
 setSunset(true);
 assert.equal((await realFetch(`${APP}/api/config`)).status, 503, "Swissquote's API is closed");
 const deadline = Date.now() + 30_000;

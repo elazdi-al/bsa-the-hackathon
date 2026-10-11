@@ -40,6 +40,7 @@ function open() {
     create table if not exists sessions (token text primary key, client text not null, created_at integer not null);
     create table if not exists owners (
       wallet text primary key collate nocase, client text not null, signature text not null, created_at integer not null);
+    create table if not exists id_checks (wallet text primary key collate nocase, misses integer not null, until integer not null);
   `);
   const wallet = (row: { address: Address; config: string } | undefined): Wallet | undefined =>
     row && { address: row.address, config: JSON.parse(row.config) };
@@ -76,6 +77,13 @@ function open() {
         | { kyc: string }
         | undefined;
       return row && JSON.parse(row.kyc);
+    },
+    /** Failed ID checks on the wallet, counted `until` a moment in ms. */
+    idMisses(wallet: Address) {
+      return db.prepare("select misses, until from id_checks where wallet = ?").get(wallet) as { misses: number; until: number } | undefined;
+    },
+    setIdMisses(wallet: Address, misses: number, until: number) {
+      db.prepare("insert or replace into id_checks values (?, ?, ?)").run(wallet, misses, until);
     },
     wallet: (address: Address) => wallet(db.prepare("select * from wallets where address = ?").get(address) as never),
     walletByRecoveryKey: (recoveryKey: Address) =>
