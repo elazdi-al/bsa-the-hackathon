@@ -9,7 +9,7 @@ The presentation follows the decisions in order:
 3. Collusion during recovery and impersonated requests motivate a separate secret Recovery Key.
 4. Theft of the Recovery Key motivates a 48-hour on-chain delay with a chance to cancel.
 
-Each slide contains one short statement, at most one small visual, and one optional caption. Share holders, signing, recovery authorization, the waiting period, and finalization are spread across separate steps. Full protocol details remain in speaker notes.
+Each slide contains one short statement, at most one small visual, and one optional caption. Phone and server icons identify the share holders, with A, B, and C badges. The recovery visual shows both servers releasing shares to the new phone. Signing, recovery authorization, the waiting period, and finalization are spread across separate steps. Full protocol details remain in speaker notes.
 
 ## Present
 
