@@ -24,7 +24,7 @@
     "partner": "node --env-file-if-exists=.env.local services/partner/server.ts",
     "e2e": "node --env-file-if-exists=.env.local scripts/e2e.ts",
     "e2e:ui": "node --env-file-if-exists=.env.local scripts/ui-e2e.ts",
-    "check": "node lib/wallet/shamir.check.ts && node app/onboarding-secure/flow.check.mjs && node 'app/(tabs)/_components/amount.check.mjs'",
+    "check": "node lib/wallet/shamir.check.ts && node --test tests/wallet/*.test.ts && node app/onboarding-secure/flow.check.mjs && node 'app/(tabs)/_components/amount.check.mjs'",
     "check:onboarding": "node --env-file-if-exists=.env.local scripts/onboarding.check.mjs",
     "contracts:test": "cd contracts && forge test",
     "test:compliance": "node --import tsx --test tests/compliance/*.test.ts",

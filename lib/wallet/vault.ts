@@ -16,9 +16,9 @@ export function openVault(file: string, keyHex: string | undefined) {
   const key = Buffer.from(keyHex, "hex");
   mkdirSync("data", { recursive: true });
   const db = new DatabaseSync(file, { timeout: 5000 });
-  db.exec(`create table if not exists shares (
+  const createShares = `create table if not exists shares (
     signer text primary key collate nocase, passkey_x text not null, passkey_y text not null,
-    x integer not null, sealed text not null, created_at integer not null, recovery_key text collate nocase)`);
+    x integer not null, sealed text not null, created_at integer not null, recovery_key text collate nocase)`;
 
   const seal = (y: Hex, signer: Address) => {
     const iv = randomBytes(12);
@@ -33,10 +33,45 @@ export function openVault(file: string, keyHex: string | undefined) {
     return `0x${Buffer.concat([decipher.update(raw.subarray(28)), decipher.final()]).toString("hex")}`;
   };
 
+  // Existing demos used either a packed share with client_id, or this schema without
+  // recovery_key. Migrate in one transaction and keep the packed originals for reference.
+  try {
+    db.exec("begin immediate");
+    db.exec(createShares);
+    const columns = new Set((db.prepare("pragma table_info(shares)").all() as { name: string }[]).map((column) => column.name));
+    if (columns.has("share") && columns.has("client_id")) {
+      const rows = db.prepare("select signer, passkey_x, passkey_y, share, created_at from shares").all() as {
+        signer: Address; passkey_x: Hex; passkey_y: Hex; share: string; created_at: number;
+      }[];
+      db.exec("alter table shares rename to shares_legacy");
+      db.exec(createShares);
+      const insert = db.prepare("insert into shares (signer, passkey_x, passkey_y, x, sealed, created_at) values (?, ?, ?, ?, ?, ?)");
+      for (const row of rows) {
+        const raw = Buffer.from(row.share, "base64");
+        // The old service encrypted the packed hex string using the original address case.
+        const decipher = createDecipheriv("aes-256-gcm", key, raw.subarray(0, 12)).setAAD(Buffer.from(row.signer));
+        decipher.setAuthTag(raw.subarray(12, 28));
+        const packed = Buffer.concat([decipher.update(raw.subarray(28)), decipher.final()]).toString();
+        if (!/^0x0[123][0-9a-f]{64}$/i.test(packed)) throw new Error("The legacy vault contains an invalid share.");
+        const x = Number.parseInt(packed.slice(2, 4), 16);
+        insert.run(row.signer, row.passkey_x, row.passkey_y, x, seal(`0x${packed.slice(4)}`, row.signer), row.created_at);
+      }
+    } else if (!columns.has("recovery_key")) {
+      db.exec("alter table shares add column recovery_key text collate nocase");
+    }
+    db.exec("commit");
+  } catch (error) {
+    try { db.exec("rollback"); } catch {}
+    db.close();
+    throw error;
+  }
+
   return {
     db,
     put({ signer, passkey, share }: Stored) {
-      db.prepare("insert into shares values (?, ?, ?, ?, ?, ?, null)").run(signer, passkey.x, passkey.y, share.x, seal(share.y, signer), Date.now());
+      db.prepare("insert into shares (signer, passkey_x, passkey_y, x, sealed, created_at) values (?, ?, ?, ?, ?, ?)").run(
+        signer, passkey.x, passkey.y, share.x, seal(share.y, signer), Date.now(),
+      );
     },
     /** False if the share is unknown or already bound to another recovery key. */
     bind(signer: Address, recoveryKey: Address): boolean {
