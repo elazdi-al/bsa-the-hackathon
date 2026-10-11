@@ -5,7 +5,7 @@
 //
 //   node --env-file-if-exists=.env.local slides/capture.ts      (APP_URL, else http://localhost:$PORT)
 import { chromium, type Locator, type Page } from "playwright";
-import { createWalletClient, http, numberToHex, parseAbi, parseUnits, type Address, type Hex } from "viem";
+import { createWalletClient, http, numberToHex, parseAbi, parseEther, parseUnits, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { addresses, chain, publicClient, rpcUrl } from "../lib/wallet/env.ts";
 
@@ -85,6 +85,8 @@ await phone1.getByRole("button", { name: "I saved it off this phone" }).click(SL
 await phone1.waitForURL("**/home", SLOW);
 const wallet = await phone1.evaluate(() => JSON.parse(localStorage.getItem("swissquote.wallet.device")!).address as Address);
 await mint(wallet, "100");
+// Not linked yet, so the wallet pays its own network fees in ETH.
+await publicClient.waitForTransactionReceipt({ hash: await swissquote.sendTransaction({ to: wallet, value: parseEther("0.01") }) });
 
 console.log("Old phone: pay anna.eth 20 USDC, then a sanctioned address");
 await review(phone1, "anna.eth", "20");
