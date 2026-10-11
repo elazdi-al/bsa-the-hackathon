@@ -22,7 +22,7 @@ export type Wallet = {
   skew: number;
   /** This phone started a recovery that hasn't handed it the wallet: one still running, or one called off. */
   restoring: boolean;
-  /** The Swissquote client number the wallet key signed the wallet belongs to, kept by Swissquote; null if none. */
+  /** The Swissquote client number the passkey signed the wallet belongs to, kept by Swissquote; null if none. */
   owner: string | null;
   /** Large payments Swissquote holds before they leave, soonest first. */
   held: HeldPayment[];

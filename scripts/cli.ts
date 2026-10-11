@@ -15,14 +15,14 @@ import {
   numberToHex,
   parseEther,
   parseUnits,
-  recoverMessageAddress,
   type Address,
   type Hex,
 } from "viem";
 import { entryPoint07Abi } from "viem/account-abstraction";
 import { generatePrivateKey, privateKeyToAddress } from "viem/accounts";
 import { foundry } from "viem/chains";
-import { ownershipMessage } from "../lib/wallet/account.ts";
+import { ownershipChallenge, type Config as AccountConfig, type Passkey } from "../lib/wallet/account.ts";
+import { verifyAssertion } from "../lib/wallet/api/http.ts";
 import { addresses, chain, credentials, partnerUrl, pendingRecovery, publicClient } from "../lib/wallet/env.ts";
 import { ApiError, readRecoveryKey, RECOVERY_FILE, type Device, type Identity, type SignedIn, type WalletState } from "../lib/wallet/phone.ts";
 import { setSunset } from "../lib/wallet/sunset.ts";
@@ -113,16 +113,19 @@ function query<T>(sql: string): T[] {
 
 // Swissquote's own view: each wallet's owner, which only the bank sees.
 const walletRows = () =>
-  query<{ address: Address; config: string; client: string | null; signature: Hex | null }>(
-    `select address, config, owners.client, owners.signature from wallets
-     left join owners on owners.wallet = wallets.address order by wallets.created_at`,
+  query<{ address: Address; config: string; client: string | null; assertion: string | null }>(
+    `select address, config, links.client, links.assertion from wallets
+     left join links on links.wallet = wallets.address order by wallets.created_at`,
   );
 
-/** Who owns the wallet, and whether the key the wallet was created with signed the ownership statement Swissquote keeps. */
-async function ownerLine(wallet: Address, signer: Address, client: string, signature: Hex) {
-  const by = await recoverMessageAddress({ message: ownershipMessage(client, wallet), signature });
-  const proof = isAddressEqual(by, signer) ? "ownership signed by the wallet key" : "OWNERSHIP SIGNATURE DOES NOT MATCH THE WALLET KEY";
-  return `owner: Swissquote client ${client} (mock), ${proof}`;
+/**
+ * Who owns the wallet, and whether the wallet's passkey signed, with Face ID, the ownership statement Swissquote keeps:
+ * the passkey it was created with, or the one it has now.
+ */
+function ownerLine(wallet: Address, passkeys: Passkey[], client: string, assertion: string) {
+  // ponytail: a link made between two recoveries was signed by a passkey that is neither; the recovery events on-chain name it.
+  const signed = passkeys.some((passkey) => verifyAssertion(JSON.parse(assertion), ownershipChallenge(client, wallet), passkey));
+  return `owner: Swissquote client ${client} (mock), ${signed ? "ownership signed with Face ID by the wallet's passkey" : "OWNERSHIP PROOF DOES NOT MATCH THE WALLET'S PASSKEY"}`;
 }
 
 /** Swissquote reads the wallet as the app does, which sends its held payments that are due. */
@@ -180,14 +183,15 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
         publicClient.getBalance({ address: addresses.swissquote }),
         publicClient.readContract({ address: addresses.entryPoint, abi: entryPoint07Abi, functionName: "balanceOf", args: [addresses.paymaster] }),
         Promise.all(
-          rows.map(async ({ address, config, client, signature }) => {
-            const [balance, code, live, pending, owner] = await Promise.all([
+          rows.map(async ({ address, config, client, assertion }) => {
+            const created = JSON.parse(config) as AccountConfig;
+            const [balance, code, live, pending] = await Promise.all([
               usdcOf(address),
               publicClient.getCode({ address }),
-              credentials(address, () => JSON.parse(config)),
+              credentials(address, () => created),
               pendingRecovery(address),
-              client && signature && ownerLine(address, JSON.parse(config).signer, client, signature),
             ]);
+            const owner = client && assertion && ownerLine(address, [created.passkey, live.passkey], client, assertion);
             return { address, balance, deployed: !!code, signer: live.signer, pendingRecovery: pending, owner };
           }),
         ),
@@ -301,11 +305,13 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
 
   link: {
     usage: "link <account>",
-    about: "Link an account's wallet to a Swissquote client (mocked): Face ID unlocks the wallet key, which signs that the wallet is theirs.",
+    about: "Link an account's wallet to a Swissquote client (mocked): the wallet's passkey signs, with Face ID, that the wallet is theirs.",
     async run([name]) {
       const { file, saved: account, phone } = loadAccount(name);
       if (!phone.hasWallet()) throw new Error(`${name} has no wallet.`);
-      account.signedIn = await phone.link(await phone.prepareLink(), account.signedIn?.session);
+      const signedIn = await phone.signIn(account.signedIn?.session);
+      await phone.link(signedIn);
+      account.signedIn = signedIn;
       writeFileSync(file, JSON.stringify(account, null, 2));
       const { client } = account.signedIn;
       console.log(

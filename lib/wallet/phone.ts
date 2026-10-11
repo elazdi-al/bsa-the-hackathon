@@ -42,10 +42,12 @@ import {
   factoryAbi,
   type Config as AccountConfig,
   findWalletMessage,
-  ownershipMessage,
+  ownershipChallenge,
   type Passkey,
   type PasskeyAssertion,
 } from "./account.ts";
+import type * as z from "zod";
+import type { assertion } from "./schema.ts";
 import { combine, split, type Share } from "./shamir.ts";
 import type { ComplianceDecision } from "../compliance/types";
 import { decisionAllowsSigning, type DappCatalog, type DappMetadata, type VaultAction, type VaultQuote, type VaultSnapshot } from "../dapps/model.ts";
@@ -99,8 +101,8 @@ export type WalletState = {
  */
 export type SignedIn = { session: string; client: { number: string; document: string } };
 
-/** The wallet key's signed statement that the wallet belongs to `client`, which Swissquote keeps as its ownership proof. */
-export type Owner = { client: string; createdAt: number; statement: string; signature: Hex };
+/** The statement that the wallet belongs to `client`, and the passkey's assertion over it: Swissquote's ownership proof. */
+export type Owner = { client: string; createdAt: number; statement: string; assertion: z.infer<typeof assertion> };
 
 /**
  * A payment Swissquote holds until `releaseAt`, in chain seconds, which the client can cancel until it leaves.
@@ -257,8 +259,11 @@ export function createPhone({
     return { ...prepared, releaseAt: await verify(prepared, wallet.address, callData) };
   }
 
-  /** Face ID approves the exact operation, which brings the cached key, or one rebuilt from A and B. */
-  async function unlock(prepared: Prepared) {
+  /**
+   * Face ID approves the exact operation; the cached key, or one rebuilt from A and B, signs it. Resolves once it
+   * is on-chain, or, for a payment Swissquote holds, once it is held.
+   */
+  async function approve(prepared: Prepared): Promise<Sent> {
     const wallet = requireWallet();
     if (prepared.expiresAt && (!Number.isFinite(Date.parse(prepared.expiresAt)) || Date.parse(prepared.expiresAt) <= Date.now())) throw new Error("This approval expired. Check the transaction again.");
     // Swissquote meets a step-up review by holding the payment: this phone read its release time from the sponsorship.
@@ -271,14 +276,8 @@ export function createPhone({
       key = rebuild(await unseal(wallet.share, secret, wallet.signer), share, wallet.signer);
       remember(key);
     }
-    return { key, assertion };
-  }
-
-  /** The key signs the operation Face ID approved. Resolves once it is on-chain, or, for a payment Swissquote holds, once it is held. */
-  async function approve(prepared: Prepared): Promise<Sent> {
-    const { key, assertion } = await unlock(prepared);
     const signature = encodeNormalSignature(await privateKeyToAccount(key).sign({ hash: prepared.hash }), assertion);
-    return call<Sent>(`/api/wallets/${requireWallet().address}/operations/${prepared.hash}`, { signature });
+    return call<Sent>(`/api/wallets/${wallet.address}/operations/${prepared.hash}`, { signature });
   }
 
   return {
@@ -344,27 +343,17 @@ export function createPhone({
       return wallet.address;
     },
 
-    /**
-     * What Face ID approves to link the wallet. Swissquote lends Share B only for an operation the passkey approved,
-     * so it prepares one that changes nothing, the wallet allowing itself 0 USDC, and the phone never sends it.
-     */
-    async prepareLink(): Promise<Prepared> {
-      const { usdc } = await getConfig();
-      return prepare({ to: usdc, data: encodeFunctionData({ abi: erc20Abi, functionName: "approve", args: [requireWallet().address, 0n] }) });
-    },
+    /** MOCKED: signing in to Swissquote, to link the wallet. Without a `session` Swissquote knows, the phone signs in as a new, made-up client. */
+    signIn: (session?: string) => call<SignedIn>("/api/session", { session }),
 
     /**
-     * Links the wallet to the client's Swissquote account: Face ID unlocks the wallet key as for a payment, the phone
-     * signs in (MOCKED: as a new, made-up client without a `session` Swissquote knows), and the key signs that the wallet
-     * is theirs. Resolves to the client it signed in as.
+     * Links the wallet to the Swissquote client the phone signed in as: the passkey signs, with Face ID, that the wallet
+     * is theirs, as it approves every payment. Nothing is sent on-chain and no key is rebuilt.
      */
-    async link(prepared: Prepared, session?: string): Promise<SignedIn> {
-      const { key } = await unlock(prepared);
-      const signedIn = await call<SignedIn>("/api/session", { session });
-      const { address } = requireWallet();
-      const signature = await privateKeyToAccount(key).signMessage({ message: ownershipMessage(signedIn.client.number, address) });
-      await call(`/api/wallets/${address}/link`, { session: signedIn.session, signature });
-      return signedIn;
+    async link({ session, client }: SignedIn): Promise<void> {
+      const wallet = requireWallet();
+      const { assertion } = await authenticator.sign(wallet.credentialId, ownershipChallenge(client.number, wallet.address));
+      await call(`/api/wallets/${wallet.address}/link`, { session, assertion: wire(assertion) });
     },
 
     async sendUsdc(to: Address, amount: string): Promise<Sent> {

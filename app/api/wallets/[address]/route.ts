@@ -30,12 +30,13 @@ export const GET = route(async (request: Request, ctx: RouteContext<"/api/wallet
 });
 
 /**
- * Swissquote's ownership record: the client who linked the wallet, and the wallet key's signed statement saying so.
+ * Swissquote's ownership record: the client who linked the wallet, the statement saying so, and the wallet passkey's
+ * assertion over it.
  * Only for that client, signed in on the phone asking: the wallet is public, who owns it is bank secrecy.
  */
 function owner(address: Address, session: string | null) {
   const record = store().owner(address);
   const client = session ? store().clientBySession(session) : undefined;
   if (!record || !client || record.client !== client.number) return undefined;
-  return { client: record.client, createdAt: record.createdAt, statement: ownershipMessage(record.client, address), signature: record.signature };
+  return { client: record.client, createdAt: record.createdAt, statement: ownershipMessage(record.client, address), assertion: record.assertion };
 }

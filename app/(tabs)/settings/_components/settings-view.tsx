@@ -12,7 +12,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Tray, TrayActions, TrayHeader } from "@/components/ui/tray";
 import { cn } from "@/lib/utils";
-import { ApiError, phone, type Prepared } from "@/lib/wallet/phone";
+import { ApiError, phone, type SignedIn } from "@/lib/wallet/phone";
 import { rowPress } from "../../_components/list";
 import { keepSession, storedSession, useSignedIn } from "../../_components/session";
 import { forgetWallet, refreshWallet, shownAddress, useWallet } from "../../_components/wallet";
@@ -113,34 +113,36 @@ function Hero({ Icon, color }: { Icon: Icon; color: string }) {
 }
 
 /**
- * Links the wallet to the client's Swissquote account. Face ID approves an operation Swissquote prepared, as for a
- * payment, which unlocks the wallet key; the phone then signs in (MOCKED) and the key signs that the wallet is theirs.
+ * Links the wallet to the client's Swissquote account: the phone signs in (MOCKED), then the passkey signs, with Face ID,
+ * that the wallet is theirs.
  */
 function LinkView({ done }: { done: () => void }) {
-  const preparing = useRef<Promise<Prepared>>(undefined);
+  const signing = useRef<Promise<SignedIn>>(undefined);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
 
-  // Prepared while the client reads, so the tap goes straight to Face ID, which needs the tap's user activation.
-  const prepare = () => {
-    preparing.current = phone.prepareLink();
-    preparing.current.catch(() => {});
+  // Signed in while the client reads, so the tap goes straight to Face ID, which needs the tap's user activation.
+  const signIn = () => {
+    signing.current = phone.signIn(storedSession()?.session);
+    signing.current.catch(() => {});
   };
   useEffect(() => {
-    if (!preparing.current) prepare();
+    if (!signing.current) signIn();
   }, []);
 
   async function link() {
     setBusy(true);
     setError(undefined);
     try {
-      keepSession(await phone.link(await preparing.current!, storedSession()?.session));
+      const signedIn = await signing.current!;
+      await phone.link(signedIn);
+      keepSession(signedIn);
       await refreshWallet();
       done();
     } catch (e) {
       const taken = e instanceof ApiError && e.status === 409;
       setError(taken ? "This wallet is already linked to another Swissquote account." : "Your wallet wasn't linked. Try again.");
-      prepare();
+      signIn();
     }
     setBusy(false);
   }

@@ -3,7 +3,9 @@
 import { randomBytes } from "node:crypto";
 import type { Address, Hex } from "viem";
 import type { RpcUserOperation } from "viem/account-abstraction";
+import type * as z from "zod";
 import type { Config } from "../account.ts";
+import type { assertion } from "../schema.ts";
 import { openVault } from "../vault.ts";
 
 export type Wallet = { address: Address; config: Config };
@@ -12,8 +14,8 @@ export type Kind = "normal" | "recovery";
 export type Held = { hash: Hex; userOp: RpcUserOperation<"0.7">; releaseAt: number; stopped: string | null };
 /** A client's KYC record, as far as the wallet needs it: `document` is the number of the ID card they opened the account with. */
 export type Client = { number: string; document: string };
-/** The client who linked a wallet, and the wallet key's signature on the statement naming both. */
-export type Owner = { client: string; signature: Hex; createdAt: number };
+/** The client who linked a wallet, and the wallet passkey's assertion, with Face ID, over the statement naming both. */
+export type Owner = { client: string; assertion: z.infer<typeof assertion>; createdAt: number };
 
 let handle: ReturnType<typeof open> | undefined;
 
@@ -38,8 +40,8 @@ function open() {
       release_at integer not null, stopped text);
     create table if not exists clients (number text primary key, kyc text not null, created_at integer not null);
     create table if not exists sessions (token text primary key, client text not null, created_at integer not null);
-    create table if not exists owners (
-      wallet text primary key collate nocase, client text not null, signature text not null, created_at integer not null);
+    create table if not exists links (
+      wallet text primary key collate nocase, client text not null, assertion text not null, created_at integer not null);
     create table if not exists id_checks (wallet text primary key collate nocase, misses integer not null, until integer not null);
   `);
   const wallet = (row: { address: Address; config: string } | undefined): Wallet | undefined =>
@@ -53,13 +55,13 @@ function open() {
       db.prepare("insert or ignore into wallets values (?, ?, ?, ?)").run(address, config.recoveryKey, JSON.stringify(config), Date.now());
     },
     /** Links the wallet to the client once; there is no unlinking. Resolves to the owner it has now, which may be another client. */
-    link(wallet: Address, owner: Pick<Owner, "client" | "signature">): Owner {
-      db.prepare("insert or ignore into owners values (?, ?, ?, ?)").run(wallet, owner.client, owner.signature, Date.now());
+    link(wallet: Address, owner: Pick<Owner, "client" | "assertion">): Owner {
+      db.prepare("insert or ignore into links values (?, ?, ?, ?)").run(wallet, owner.client, JSON.stringify(owner.assertion), Date.now());
       return this.owner(wallet)!;
     },
     owner(wallet: Address): Owner | undefined {
-      const row = db.prepare("select * from owners where wallet = ?").get(wallet) as { client: string; signature: Hex; created_at: number } | undefined;
-      return row && { client: row.client, signature: row.signature, createdAt: row.created_at };
+      const row = db.prepare("select * from links where wallet = ?").get(wallet) as { client: string; assertion: string; created_at: number } | undefined;
+      return row && { client: row.client, assertion: JSON.parse(row.assertion), createdAt: row.created_at };
     },
     /** False if the client number is taken. */
     addClient(client: Client): boolean {
