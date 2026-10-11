@@ -176,7 +176,8 @@ export function createPhone({ api = "", partner, authenticator, storage }: { api
     approve,
     config: getConfig,
     dapps: () => call<DappCatalog>("/api/dapps"),
-    vaultSnapshot: (vault: Address) => call<VaultSnapshot>(`/api/wallets/${requireWallet().address}/dapps/${vault}`),
+    vaultSnapshot: (vault: Address, afterTx?: Hex) =>
+      call<VaultSnapshot>(`/api/wallets/${requireWallet().address}/dapps/${vault}${afterTx ? `?afterTx=${afterTx}` : ""}`),
     quoteVault: (vault: Address, action: VaultAction, amount: bigint) =>
       call<VaultQuote>(`/api/wallets/${requireWallet().address}/dapps/${vault}`, { action, amount: amount.toString() }),
     hasWallet: () => !!device()?.address,

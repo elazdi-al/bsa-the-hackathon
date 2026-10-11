@@ -103,9 +103,9 @@ function VaultPanel({ vault, wallet, onBusyChange }: { vault: VaultDapp; wallet:
   const busy = phase === "checking" || phase === "signing";
   useEffect(() => { onBusyChange(busy); return () => onBusyChange(false); }, [busy, onBusyChange]);
 
-  async function refresh() {
+  async function refresh(afterTx?: Hex) {
     if (wallet.status !== "ready" || !vault.available) return;
-    try { setSnapshot(await phone.vaultSnapshot(vault.address)); }
+    try { setSnapshot(await phone.vaultSnapshot(vault.address, afterTx)); }
     catch (e) { setSnapshot(undefined); setError(message(e)); }
   }
   useEffect(() => { void refresh(); }, [vault.address, vault.available, wallet.status]);
@@ -145,6 +145,7 @@ function VaultPanel({ vault, wallet, onBusyChange }: { vault: VaultDapp; wallet:
       const hash = await phone.approve(prepared);
       setReceipts((previous) => [...previous, { step, hash }]);
       setPrepared(undefined); setReview(undefined); setQuote(undefined);
+      await Promise.all([refresh(hash), refreshWallet()]);
       if (step === "approve") {
         setNotice("Permission granted, but no deposit has been sent. Check the deposit again for a fresh review and passkey approval. If you stop here, revoke the remaining permission.");
         setPhase("edit");
@@ -152,7 +153,6 @@ function VaultPanel({ vault, wallet, onBusyChange }: { vault: VaultDapp; wallet:
         setNotice(`${labels[step]} confirmed on-chain. Swissquote paid the network fee.`);
         setPhase("done");
       }
-      await Promise.all([refresh(), refreshWallet()]);
     } catch (e) { failed(e); await refresh(); }
   }
 

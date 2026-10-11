@@ -29,6 +29,7 @@ async function execute(step: "approve" | "deposit" | "withdraw" | "revoke", amou
   const hash = await phone.approve(prepared);
   assert.equal((await publicClient.getTransactionReceipt({ hash })).status, "success");
   console.log(`   ${step}: ${hash}`);
+  return hash;
 }
 
 console.log("1. Policy refusals never authorize dApp signing");
@@ -50,8 +51,9 @@ assert.equal(injectedNetwork.status, 400, "browser cannot inject the chain or ba
 
 console.log("2. Exact approval is separate from deposit, both sponsored with the wallet's passkey");
 assert.equal(needsApproval(await phone.quoteVault(vault.address, "deposit", 25_000_000n)), true);
-await execute("approve", 25_000_000n);
-let state = await phone.vaultSnapshot(vault.address);
+const firstApproval = await execute("approve", 25_000_000n);
+let state = await phone.vaultSnapshot(vault.address, firstApproval);
+assert.ok(BigInt(state.blockNumber) >= (await publicClient.getTransactionReceipt({ hash: firstApproval })).blockNumber);
 assert.equal(state.allowance, "25000000");
 assert.equal(state.assetBalance, "3000000000", "approval alone moves no funds");
 assert.equal(state.shareBalance, "0");
@@ -70,8 +72,8 @@ assert.equal(state.assetBalance, "2985000000");
 assert.equal(state.shareBalance, "15000000");
 
 console.log("4. An interrupted deposit leaves a visible allowance which the client can revoke");
-await execute("approve", 7_000_000n);
-assert.equal((await phone.vaultSnapshot(vault.address)).allowance, "7000000");
+const secondApproval = await execute("approve", 7_000_000n);
+assert.equal((await phone.vaultSnapshot(vault.address, secondApproval)).allowance, "7000000");
 await execute("revoke", 0n);
 assert.equal((await phone.vaultSnapshot(vault.address)).allowance, "0");
 assert.equal(await publicClient.getBalance({ address: wallet }), 0n, "wallet never acquired native gas tokens");
