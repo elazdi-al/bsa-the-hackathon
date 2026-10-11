@@ -100,10 +100,11 @@ Drive the protocol from a second terminal. The commands read `.env.local`, so th
 
 | Command | What it does |
 | --- | --- |
-| `npm run status` | Shows chain time, the contracts, Swissquote's gas funds, every wallet with its USDC, owner and pending recovery, and the CLI accounts. A linked wallet shows "owner: Swissquote client *number* (mock), ownership signed with Face ID by the wallet's passkey", after checking the record against the passkey the wallet was created with or the one it has now. A wallet with no owner record shows "not linked to a Swissquote client". |
+| `npm run status` | Shows chain time, the contracts, Swissquote's gas funds, every wallet with its USDC, owner and pending recovery, and the CLI accounts. A linked wallet shows "owner: Swissquote client *number* (mock), ownership signed with Face ID by the wallet's passkey", after checking the record against the passkey the wallet was created with or the one it has now. A wallet with no owner record shows "not linked to a Swissquote client". A linked wallet also shows "Swissquote Plus until *date*", "Swissquote Plus ended *date*" or "no Swissquote Plus". |
 | `npm run fund [wallet] [amount]` | Mints test USDC, 100 by default, and on anvil also sends the wallet 0.01 ETH for network fees. `wallet` is an address or an account. Without it, the newest wallet gets them. |
 | `npm run account <account>` | Creates an unlinked wallet with a software passkey and funds it with 100 USDC and 0.01 ETH, as `npm run fund` does. Saves it in `data/accounts/<account>.json`, with its Recovery Key file next to it. |
 | `npm run link <account>` | Links the account's wallet to a mock Swissquote client, as **Link with Face ID** does in Settings: it signs in, and the software passkey signs the statement. Prints the wallet, the client number and the ID card number. |
+| `npm run plus <account>` | Buys 30 days of Swissquote Plus for the client of a linked account. The wallet pays Swissquote 10 USDC, as `npm run send` does, and Swissquote extends the client's Plus. Buying while Plus runs adds 30 days to its end. Plus runs in chain time, so `npm run warp` ages it. Prints the client, the date Plus runs until and the balance. An unlinked account must run `npm run link <account>` first. |
 | `npm run send <from-account> <to> <amount>` | Sends USDC from an account to an address or another account. A refusal prints Swissquote's reasons. |
 | `npm run recover <account \| Recovery Key file> [new-account] [ID number]` | Starts a recovery onto a new software phone. Only a linked wallet asks for the ID. A linked account brings its owner's ID, and a file needs the ID number, which Settings shows. `new-account` defaults to `<account>-new`, or `recovered` for a file. |
 | `npm run finish <account>` | Finishes a recovery after the 48-hour delay. |
@@ -120,8 +121,8 @@ Drive the protocol from a second terminal. The commands read `.env.local`, so th
 Checks, against the running stack where noted:
 
 ```bash
-npm run e2e                # the protocol end to end, a linked and an unlinked wallet, against the running stack
-npm run e2e:ui             # create, send, link, recover, lock and finish in Chromium, against the running app
+npm run e2e                # the protocol end to end, a linked and an unlinked wallet, and buying Swissquote Plus, against the running stack
+npm run e2e:ui             # create, send, link, recover, lock, finish and buy Plus in Chromium, against the running app
 npm run check:onboarding   # onboarding in Chromium, against the running app
 npm run check              # Shamir, onboarding flow and amount unit checks
 npm run contracts:test     # Foundry tests for the account
@@ -193,11 +194,12 @@ The [architecture diagram](../README.md#architecture) shows how these parts conn
 | Method and path | What it does |
 | --- | --- |
 | `POST /api/session` | Mocked. Signs the phone in to Swissquote to link a wallet. A session Swissquote knows stays its client, and a phone without one becomes a new made-up client with a KYC record. |
-| `GET /api/config` | The chain ID and the EntryPoint and USDC addresses. |
+| `GET /api/config` | The chain ID, the EntryPoint and USDC addresses, and what Swissquote Plus costs, `plus: { to, price, period }`. `to` is the Swissquote address that takes the payment, `price` is in USDC base units as a string, and `period` is in seconds. The app reads Plus's price and address only here. |
 | `POST /api/shares` | Stores Share B after checking it against the commitments, and returns a signed ticket for the independent service. |
 | `POST /api/wallets` | Registers a wallet. Takes `{ signer, recoveryKey, signature }`, the signature being the wallet key's Recovery Key binding. Needs no Swissquote account. Answers 409 if another wallet already uses that Recovery Key, which would hide it from its owner's recovery. |
-| `GET /api/wallets/:address` | Keys, lock, the USDC and ETH balances in their smallest units (`usdc`, `eth`), pending recovery and chain time. Returns the owner record, `{ client, createdAt, statement, assertion }`, only to the owner's own session (header `x-swissquote-session`). |
+| `GET /api/wallets/:address` | Keys, lock, the USDC and ETH balances in their smallest units (`usdc`, `eth`), pending recovery and chain time. Returns the owner record, `{ client, createdAt, statement, assertion }`, only to the owner's own session (header `x-swissquote-session`). While the client's Swissquote Plus runs, it also returns `plus: { until }`, in chain seconds, to that session only. |
 | `POST /api/wallets/:address/link` | Links the wallet to a Swissquote client. Takes `{ session, assertion }`, the wallet passkey's Face ID assertion over keccak256 of "Wallet 0x… belongs to Swissquote client *number*.", checked against the wallet's live passkey, or the one in its config before deployment. Keeps the statement and the assertion as the owner record. Answers 401 without a known session, 403 if the wallet's passkey did not sign and 409 if another client already linked the wallet. Linking again as the same client is fine. There is no unlink. |
+| `POST /api/wallets/:address/plus` | Claims a payment for Swissquote Plus. Takes `{ session, transactionHash }`. Swissquote checks that the session's client owns the wallet, that the transaction succeeded on chain with a USDC transfer of at least the price from the wallet to Swissquote's address, and that no one claimed the transaction before. Plus then runs 30 days more, from its current end if it still runs, or else from now. Returns `{ until }` in chain seconds. Plus belongs to the client, not the wallet. Nothing renews it, so each period is a new payment. Answers 401 without a known session, 403 with `refused: "unlinked"` if the session's client does not own the wallet, 402 with `refused: "payment"` if the transaction failed, is unknown or carries no such transfer, 409 with `refused: "claimed"` if someone claimed it already, and 404 for an unknown wallet. |
 | `GET /api/wallets/:address/activity` | The wallet's USDC transfers. Each has `sponsored`, true when Swissquote's paymaster paid its gas. |
 | `POST /api/wallets/:address/operations` | Runs compliance and Swissquote's sponsorship rules, and prepares the call. Swissquote sponsors it for a linked wallet, and sponsors the old phone's recovery cancel for any wallet. An unlinked wallet's other calls carry no paymaster, and the wallet pays their gas from its ETH. Returns the operation, its hash, Swissquote's `summary` and a `demo` flag. For an unlinked wallet it answers 403 with `refused: "gas"` when the wallet's ETH and its EntryPoint deposit cannot cover the operation's maximum fee. |
 | `POST /api/wallets/:address/share` | Releases Share B for an operation the passkey approved. |
@@ -225,7 +227,7 @@ The [architecture diagram](../README.md#architecture) shows how these parts conn
 
 ## What is real and what is mocked
 
-Real in this build: the Shamir split with verified shares, passkeys verified on chain, the ERC-4337 account and factory, Swissquote's paymaster and its limits, the compliance engine with signed decisions and its audit chain, the link to a client signed with Face ID, the lock, the 48-hour on-chain delay and cancel, the matching of the ID number to the owner's record with its lockout, the independent service as a separate process with its own storage and secrets, and exit mode.
+Real in this build: the Shamir split with verified shares, passkeys verified on chain, the ERC-4337 account and factory, Swissquote's paymaster and its limits, the compliance engine with signed decisions and its audit chain, the link to a client signed with Face ID, buying Swissquote Plus with a USDC payment from a linked wallet, the lock, the 48-hour on-chain delay and cancel, the matching of the ID number to the owner's record with its lockout, the independent service as a separate process with its own storage and secrets, and exit mode.
 
 | Mocked here | Production |
 | --- | --- |
@@ -236,7 +238,7 @@ Real in this build: the Shamir split with verified shares, passkeys verified on 
 | Fixture sanctions and simulation in demo mode | Live mode with contracted list coverage |
 | The independent service is a process, not a company. | A separate, supervised company under contract |
 | A local anvil chain | Base Sepolia, then Base mainnet |
-| The Investments, Earn and Card tiles, the promo cards, Swap and Swissquote Plus carry a **Demo** tag. Swap reads the wallet's real USDC and ETH, and refuses more than that, but its prices are made up and it swaps nothing. Only `anna.eth` resolves as a recipient name, from a fixed list. | Swissquote's products, and real name resolution |
+| The Investments, Earn and Card tiles, the Earn promo card, Swap, and the bank account and Swissquote Card that come with Swissquote Plus carry a **Demo** tag. Swap reads the wallet's real USDC and ETH, and refuses more than that, but its prices are made up and it swaps nothing. Only `anna.eth` resolves as a recipient name, from a fixed list. | Swissquote's products, and real name resolution |
 
 ## Gasless payments
 

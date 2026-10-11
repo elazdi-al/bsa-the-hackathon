@@ -223,10 +223,10 @@ Our model is 10,000 wallets × (10% kept + 10% new) × CHF 600 = CHF 1.2 million
 | Clients kept | Assumption, 1 wallet client in 10 would otherwise have left Swissquote | 1,000 × CHF 600 = CHF 600,000 a year, and 1,000 × CHF 79,000 = CHF 79 million of assets |
 | New clients | Assumption, 1 wallet client in 10 is new to Swissquote. We count no assets for them. | 1,000 × CHF 600 = CHF 600,000 a year |
 | Swaps in the app | Assumption, CHF 5,000 per wallet a year at the 1% fee | 10,000 × CHF 50 = CHF 500,000 a year |
-| Swissquote Plus | Assumption, 1 wallet client in 10 at CHF 10 a month. The app's Plus screen is a demo, and the price is our guess. | 1,000 × CHF 120 = CHF 120,000 a year |
+| Swissquote Plus | Assumption, 1 wallet client in 10 links the wallet and pays for Plus all year. The app sells it for 10 USDC per 30 days, which we count as CHF 10 a month. The price is our guess. | 1,000 × CHF 120 = CHF 120,000 a year |
 | Free transfers into the wallet | Assumption, 4 a year per wallet, each waiving the USD 15 fee | 10,000 × USD 60 = USD 600,000 a year forgone |
 | Sponsored gas | Assumption, 24 payments per linked wallet a year at USD 0.05 on a layer-2 chain. We count every wallet as linked, which overstates the cost. | 10,000 × USD 1.20 = USD 12,000 a year |
-| Net | Sum of the lines above, counting USD 1 as CHF 1. The 2025 closing rate was CHF 0.79 (Annual Report 2025, p. 64), so this overstates the costs. | About CHF 1.2 million a year |
+| Net | Sum of the lines above, counting USD 1 as CHF 1. The 2025 closing rate was CHF 0.79 (Annual Report 2025, p. 64), so this overstates the costs, and Plus. | About CHF 1.2 million a year |
 
 ## Bonus: gasless payments
 
@@ -253,7 +253,7 @@ Everything not listed here runs for real, including the independent service as i
 - Sanctions and simulation, which use fixtures in demo mode.
 - The independent service's company. It runs as a process.
 - The chain. The demo runs on a local anvil chain.
-- The Investments, Earn and Card tiles, the promo cards, Swap and Swissquote Plus, each with a **Demo** tag. Swap reads the wallet's real USDC and ETH and refuses more than the wallet holds, but its prices are made up and it swaps nothing.
+- The Investments, Earn and Card tiles, the Earn promo card, Swap, and the bank account and Swissquote Card that come with Swissquote Plus, each with a **Demo** tag. Swap reads the wallet's real USDC and ETH and refuses more than the wallet holds, but its prices are made up and it swaps nothing. Buying Plus is real. A linked wallet pays Swissquote 10 USDC for 30 days, with Face ID and the same compliance check as any payment.
 
 More: [What is real and what is mocked](docs/REFERENCE.md#what-is-real-and-what-is-mocked) names the production answer for each.
 
