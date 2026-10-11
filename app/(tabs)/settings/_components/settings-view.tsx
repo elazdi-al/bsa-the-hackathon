@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { shortAddress } from "@/app/choose-recipient/data";
-import { ChevronRightIcon, ShieldIcon, SignOutIcon, VerifiedIcon, type Icon } from "@/components/icons";
+import { ChevronRightIcon, IdCardIcon, ShieldIcon, SignOutIcon, VerifiedIcon, type Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { DemoTag } from "@/components/ui/demo-tag";
 import { Switch } from "@/components/ui/switch";
@@ -187,10 +187,20 @@ function TrayBody({ view, push, close, remove }: { view: View; push: (next: View
 
 export function SettingsView() {
   const router = useRouter();
+  const client = useSignedIn()?.client;
   const [open, setOpen] = useState(false);
   // Outlives `open` until the close animation ends, so the tray doesn't empty mid-exit.
   const [stack, setStack] = useState<View[]>([]);
   const view = stack.at(-1);
+
+  // The ID card Swissquote has on file, shown where the Swissquote app would: a recovery asks for its number.
+  const idOnFile: Row = {
+    kind: "info",
+    label: "ID on file · Mock",
+    detail: <span className={reveal(client)}>{client?.name ?? " "}</span>,
+    value: <span className={cn("tabular-nums", reveal(client))}>{client?.document}</span>,
+    Icon: IdCardIcon,
+  };
 
   function show(root: TrayRoot) {
     setStack([{ name: root }]);
@@ -210,7 +220,7 @@ export function SettingsView() {
       </div>
 
       <div>
-        {sections.map((rows, i) => (
+        {[[idOnFile, ...sections[0]], ...sections.slice(1)].map((rows, i) => (
           <div key={i} className={`-mx-3 ${i ? "mt-6" : "mt-6 lg:mt-0"}`}>
             {rows.map((item) => (
               <SettingsRow key={item.label} item={item} onOpen={show} />

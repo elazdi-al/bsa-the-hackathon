@@ -6,7 +6,7 @@ import { useEffect, useReducer, useRef } from "react";
 import type { Hex } from "viem";
 import { signedIn, useSignedIn } from "@/app/(tabs)/_components/session";
 import { blurred, sharp, smooth } from "@/app/(tabs)/_components/transitions";
-import { CheckIcon } from "@/components/icons";
+import { CheckIcon, IdCardIcon } from "@/components/icons";
 import { SwissquoteMark } from "@/components/swissquote-mark";
 import { Button } from "@/components/ui/button";
 import { phone, RECOVERY_FILE } from "@/lib/wallet/phone";
@@ -148,6 +148,18 @@ export function SecureFlow() {
               {KEYS.map((item) => (
                 <KeyItem key={item.id} item={item} state={keyState(step, item.id)}>
                   {item.id === "key" && <Holders status={step.name === "key" ? step.status : "idle"} />}
+                  {/* The ID card the recovery's ID check asks for, shown once, where the Swissquote app would show it. */}
+                  {item.id === "recovery" && client && (
+                    <p className="mt-4 flex items-start gap-2 text-caption text-muted-foreground">
+                      <IdCardIcon size={16} className="mt-px shrink-0" />
+                      <span>
+                        ID on file · Mock
+                        <span className="block text-foreground tabular-nums">
+                          {client.name}, {client.document}
+                        </span>
+                      </span>
+                    </p>
+                  )}
                 </KeyItem>
               ))}
               {step.name === "setup" && <SetupRow key="setup" step={step} />}

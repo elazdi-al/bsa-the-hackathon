@@ -1,7 +1,7 @@
 import { encodeFunctionData, recoverMessageAddress } from "viem";
 import * as z from "zod";
 import { accountAbi, findWalletMessage } from "@/lib/wallet/account.ts";
-import { checkIdentity, idOnFile, sessionFor } from "@/lib/wallet/api/clients.ts";
+import { checkIdentity, sessionFor } from "@/lib/wallet/api/clients.ts";
 import { store } from "@/lib/wallet/api/db.ts";
 import { HttpError, parse, route } from "@/lib/wallet/api/http.ts";
 import { bindShares, prepare } from "@/lib/wallet/api/operations.ts";
@@ -30,7 +30,8 @@ export const POST = route(async (request: Request) => {
 
 /**
  * The wallet the signing recovery key restores, any recovery it already has pending, so the key's holder can
- * cancel one they didn't start before going further, and the ID its owner has on file (mocked).
+ * cancel one they didn't start before going further, and whether a Swissquote client owns it, so the ID check can
+ * run. Nothing about that client: the key alone must not pass the ID check, nor learn whose ID to forge.
  */
 export const GET = route(async (request: Request) => {
   const params = new URL(request.url).searchParams;
@@ -46,6 +47,6 @@ export const GET = route(async (request: Request) => {
     address: wallet.address,
     pendingRecovery: pending && { executeAfter: pending.executeAfter },
     chainTime,
-    idOnFile: idOnFile(wallet.address),
+    linked: !!store().owner(wallet.address),
   });
 });

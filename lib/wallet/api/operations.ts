@@ -1,7 +1,7 @@
 // Builds, sponsors and submits UserOperations. Swissquote submits them to the EntryPoint
 // itself and pays the gas through its paymaster, so the client never needs ETH. A payment its
-// policy marks for step-up is held: sponsored only from 24 hours on, so the EntryPoint refuses it
-// sooner, and kept by Swissquote, which the client can ask to cancel it until then.
+// policy marks for step-up is held: sponsored only from 24 hours on, and for an hour after, so the
+// EntryPoint refuses it sooner and later, and kept by Swissquote, which the client can ask to cancel it until then.
 import { randomBytes, randomUUID } from "node:crypto";
 import {
   BaseError,
@@ -57,8 +57,12 @@ const GAS = { ...ACCOUNT_GAS, paymasterVerificationGasLimit: 100_000n, paymaster
 const sponsorshipTtl = () => getComplianceRuntime().engine.policy.decisionTtlSeconds;
 /** How long Swissquote holds a payment that needs step-up before it leaves. */
 const HOLD = 24 * 60 * 60;
-// Swissquote's sponsorship of a held payment lasts a week past its release, so a late release still goes through.
-const HOLD_SPONSORSHIP = 7 * 24 * 60 * 60;
+// How long Swissquote's sponsorship of a held payment outlives its release. A cancel only discards Swissquote's copy:
+// the signed operation stays submittable, by anyone holding it, until this runs out, so it is kept short. The release
+// itself needs seconds (the phone reads the wallet every 4 s while the app is open, npm run warp reads it after the
+// jump), but 48 hours lets a client who skips a day, or a demo that warps through a 48-hour recovery, still release
+// it. A scheduler in production releases on time, and could cut this to the chain's inclusion time.
+const HOLD_SPONSORSHIP = 48 * 60 * 60;
 /** So its free gas can't be farmed, Swissquote refuses a payment once it paid for this many of the wallet's operations in an hour of chain time. */
 const SPONSORED_PER_HOUR = 20;
 // ponytail: counts what the paymaster paid in the last 5,000 blocks, hours on Base; an indexer replaces the scan at scale.

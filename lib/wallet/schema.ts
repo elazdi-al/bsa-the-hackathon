@@ -15,8 +15,8 @@ export const passkey = z.object({ x: bytes32, y: bytes32 }) satisfies z.ZodType<
 export const share = (x: (typeof HOLDERS)[keyof typeof HOLDERS]) => z.object({ x: z.literal(x), y: bytes32 });
 export const commitments = z.tuple([hexOf(33), hexOf(33)]);
 export const userOp = z.record(z.string(), z.unknown());
-/** What an ID check reads: the ID document, and the face its liveness check saw. */
-export const identity = z.object({ document: z.string().min(1), selfie: z.string().min(1) });
+/** What an ID check reads: the number on the ID card. */
+export const identity = z.object({ document: z.string().min(1) });
 
 /** A passkey assertion with its signature as hex, the way the phone sends it. */
 export const assertion = z.object({

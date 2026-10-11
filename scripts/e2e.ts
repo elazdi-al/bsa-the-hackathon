@@ -69,8 +69,10 @@ function held(sent: Sent) {
 }
 
 console.log("1. Create, signed in to Swissquote (mock): passkey, 2-of-3 Shamir split (A phone, B Swissquote, C partner), recovery key");
-const phone = newPhone();
+let session: string | undefined;
+const phone = newPhone({ session: () => session });
 const signedIn = await phone.signIn();
+session = signedIn.session;
 assert.deepEqual(await phone.signIn(signedIn.session), signedIn, "a known session stays signed in as its client");
 await phone.splitKey(await phone.createPasskey());
 assert.ok("sealed" in phone.device()!.share, "Share A is sealed under the passkey's PRF output");
@@ -78,9 +80,12 @@ const recoveryKey = phone.createRecoveryKey();
 const wallet = await phone.register(recoveryKey.address, signedIn);
 console.log(`   wallet ${wallet}, owned by ${signedIn.client.name}, Swissquote client ${signedIn.client.number}`);
 const { owner } = await phone.state();
-assert.equal(owner?.client, signedIn.client.number, "Swissquote recorded the client number against the wallet");
+assert.ok(owner, "Swissquote tells the signed-in owner the wallet is theirs");
+assert.equal(owner.client, signedIn.client.number, "Swissquote recorded the client number against the wallet");
 assert.equal(owner.statement, ownershipMessage(signedIn.client.number, wallet));
 assert.equal(await recoverMessageAddress({ message: owner.statement, signature: owner.signature }), phone.device()!.signer, "the wallet key signed it");
+const anyone = (await (await realFetch(`${APP}/api/wallets/${wallet}`)).json()) as Record<string, unknown>;
+assert.equal("owner" in anyone, false, "without the owner's session, Swissquote names no owner: bank secrecy");
 const attacker = privateKeyToAccount(generatePrivateKey());
 const hijack = await realFetch(`${APP}/api/wallets`, {
   method: "POST",
@@ -120,15 +125,17 @@ assert.ok(big.releaseAt && Math.abs(big.releaseAt - (await chainTime()) - 24 * 3
 const first = held(await phone.approve(big));
 assert.deepEqual(first, { hash: big.hash, releaseAt: big.releaseAt });
 assert.deepEqual((await phone.state()).held.map((p) => [p.hash, p.to, p.value]), [[big.hash, ANNA, parseUnits("2000", 6).toString()]]);
-const early = publicClient.simulateContract({
-  address: addresses.entryPoint,
-  abi: entryPoint07Abi,
-  functionName: "handleOps",
-  args: [[toPackedUserOperation({ ...formatUserOperation(big.userOp), signature: signatures.get(big.hash)! })], ANNA],
-  account: ANNA,
-  blockTag: "pending",
-});
-await assert.rejects(early, /AA32 paymaster expired or not due/, "the signed payment can't go on-chain before its release, whoever submits it");
+/** Anyone who holds the signed held payment submits it through the EntryPoint, simulated at the pending block. */
+const submitByAnyone = () =>
+  publicClient.simulateContract({
+    address: addresses.entryPoint,
+    abi: entryPoint07Abi,
+    functionName: "handleOps",
+    args: [[toPackedUserOperation({ ...formatUserOperation(big.userOp), signature: signatures.get(big.hash)! })], ANNA],
+    account: ANNA,
+    blockTag: "pending",
+  });
+await assert.rejects(submitByAnyone(), /AA32 paymaster expired or not due/, "the signed payment can't go on-chain before its release, whoever submits it");
 console.log("   the 2,000 USDC held isn't available: of the wallet's 3,078 USDC, a payment of 1,100 is refused");
 assert.equal(
   ((await refused(phone.sendUsdc(ANNA, "1100"), 403)) as { error: string }).error,
@@ -167,16 +174,17 @@ for (const amount of ["3500", "10001"]) {
   console.log(`   ${amount} USDC: ${decision.status}, ${decision.reasons.join(" ")}`);
 }
 
-console.log("11. An attacker with the stolen phone and the email inbox is stopped at every step, with Face ID once the phone is reported stolen");
-await attack({ phone: structuredClone(phone.device()!), homeKey: recoveryKey.secret, unlocked: phone });
+console.log("11. An attacker with the stolen phone and the email inbox is stopped at every step, with Face ID once the phone is reported stolen, then with the Recovery Key and a forged ID");
+// MOCKED: the owner reads the number off their ID card; here the one the Swissquote app showed them.
+const identity = { document: signedIn.client.document };
+await attack({ phone: structuredClone(phone.device()!), homeKey: recoveryKey.secret, unlocked: phone, ownersId: identity });
 
-console.log("12. Lose the phone. New phone: ID check, new passkey and split; the recovery key signs, B and C rebuild the old key on the new phone");
+console.log("12. Lose the phone. New phone: ID card number, new passkey and split; the recovery key signs, B and C rebuild the old key on the new phone");
 const newOne = newPhone();
-// MOCKED: the owner's ID on file stands in for their own ID card and face.
-const { idOnFile } = await newOne.findRecovery(recoveryKey.secret);
-assert.equal(idOnFile?.name, signedIn.client.name);
-const identity = idOnFile;
+const found = await newOne.findRecovery(recoveryKey.secret);
+assert.deepEqual(found, { address: wallet, pendingRecovery: null, chainTime: found.chainTime, linked: true }, "the key finds the wallet and learns nothing about its owner");
 await newOne.splitKey(await newOne.createPasskey());
+await refused(newOne.startRecovery(recoveryKey.secret, { document: "C0000000" }), 403);
 const started = await newOne.startRecovery(recoveryKey.secret, identity);
 assert.equal(started.address, wallet);
 assert.equal(started.signedIn.client.number, signedIn.client.number, "the ID check signs the new phone in as the owner");
@@ -226,6 +234,7 @@ console.log("16. Started again: finalizing before 48 hours fails, after it succe
 await newOne.startRecovery(recoveryKey.secret, identity);
 await refused(newOne.finalizeRecovery(), 409);
 await warp(48);
+await assert.rejects(submitByAnyone(), /AA32 paymaster expired or not due/, "the payment cancelled at step 7 is dead for good: its sponsorship ended 48 hours after its release");
 await newOne.finalizeRecovery();
 const state = await newOne.state();
 assert.equal(state.signer, newOne.device()!.signer);
@@ -260,8 +269,15 @@ console.log("19. Swissquote's services are closed for good. The client leaves wi
 assert.match(await exitRefusal({}), /running/, "no exit while Swissquote's services run");
 const fresh = newPhone();
 await fresh.splitKey(await fresh.createPasskey());
-const freshWallet = await fresh.register(fresh.createRecoveryKey().address, await fresh.signIn());
+const freshClient = await fresh.signIn();
+const freshWallet = await fresh.register(fresh.createRecoveryKey().address, freshClient);
 await mintUsdc(freshWallet, "10");
+console.log("   first, on this wallet: five wrong ID numbers, and Swissquote stops checking IDs for it for an hour, the right one included");
+const guess = async (document: string) =>
+  (await realFetch(`${APP}/api/wallets/${freshWallet}/lock`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ identity: { document } }) })).status;
+for (let i = 0; i < 5; i++) assert.equal(await guess(`C000000${i}`), 403);
+assert.equal(await guess("C0000005"), 429, "the sixth guess isn't checked");
+assert.equal(await guess(freshClient.client.document), 429, "nor is the right number, for an hour");
 setSunset(true);
 assert.equal((await realFetch(`${APP}/api/config`)).status, 503, "Swissquote's API is closed");
 const deadline = Date.now() + 30_000;

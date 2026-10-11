@@ -87,17 +87,18 @@ export type WalletState = {
   pendingRecovery: { signer: Address; executeAfter: number } | null;
   /** The chain's time when read, in seconds. A local chain can run ahead of this phone's clock. */
   chainTime: number;
-  /** Swissquote's record that the wallet is its client's; null for a wallet made before Swissquote linked them. */
-  owner: Owner | null;
+  /** Swissquote's record that the wallet is its client's. Only for that client, signed in on this phone: who owns a wallet is bank secrecy. */
+  owner?: Owner;
   /** Large payments Swissquote holds, soonest first. */
   held: HeldPayment[];
 };
 
 /**
- * The Swissquote client this phone is signed in as, in the Swissquote app the wallet runs inside. MOCKED: each
- * phone signs in as its own made-up client.
+ * The Swissquote client this phone is signed in as, in the Swissquote app the wallet runs inside, with the number
+ * of the ID card on file, which the app shows them and a recovery asks for. MOCKED: each phone signs in as its own
+ * made-up client.
  */
-export type SignedIn = { session: string; client: { number: string; name: string } };
+export type SignedIn = { session: string; client: { number: string; name: string; document: string } };
 
 /** The wallet key's signed statement that the wallet belongs to `client`, which Swissquote keeps as its ownership proof. */
 export type Owner = { client: string; createdAt: number; statement: string; signature: Hex };
@@ -111,8 +112,8 @@ export type HeldPayment = { hash: Hex; to: Address; value: string; releaseAt: nu
 /** A USDC transfer in or out of the wallet. `value` is in base units. */
 export type Transfer = { hash: Hex; from: Address; to: Address; value: string; timestamp: number };
 
-/** What an ID check reads: the ID document, and the face its liveness check saw. */
-export type Identity = { document: string; selfie: string };
+/** What an ID check reads: the number on the ID card. MOCKED: typed, where a real check scans the card and the face. */
+export type Identity = { document: string };
 
 type Storage = Pick<globalThis.Storage, "getItem" | "setItem" | "removeItem">;
 type Config = { chainId: number; entryPoint: Address; usdc: Address };
@@ -146,10 +147,13 @@ export class ApiError extends Error {
 }
 
 const DEVICE = "swissquote.wallet.device";
+/** Where the app keeps the Swissquote session it is signed in with. */
+export const SESSION = "swissquote.session";
 
 /**
  * `partner` is pinned in the app build, never taken from Swissquote, so Swissquote cannot redirect
- * Share C to itself during the split.
+ * Share C to itself during the split. `session` is the Swissquote app's session this phone is signed in with
+ * (MOCKED), which Swissquote's API gets on every call, so it answers as to its own client.
  */
 export function createPhone({
   api = "",
@@ -157,20 +161,24 @@ export function createPhone({
   authenticator,
   storage,
   exit,
+  session,
 }: {
   api?: string;
   partner: string;
   authenticator: Authenticator;
   storage: Storage;
   exit?: ExitRoute;
+  session?: () => string | undefined;
 }) {
   let cached: { key: Hex; expiresAt: number; timer: ReturnType<typeof setTimeout> } | undefined;
   let config: Promise<Config> | undefined;
 
   async function call<T>(url: string, body?: unknown, method = body === undefined ? "GET" : "POST"): Promise<T> {
+    // Full URLs are the partner's: the bank session never goes there.
+    const token = url.startsWith("http") ? undefined : session?.();
     const res = await fetch(url.startsWith("http") ? url : api + url, {
       method,
-      headers: body === undefined ? undefined : { "content-type": "application/json" },
+      headers: { ...(body === undefined ? {} : { "content-type": "application/json" }), ...(token ? { "x-swissquote-session": token } : {}) },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     // A proxy or a crashed server can answer with HTML; that's a failed request, not a parse error.
@@ -396,8 +404,8 @@ export function createPhone({
     /**
      * Lost phone, after splitKey on the new phone. The recovery key signs the recovery; Swissquote
      * (B) and the partner (C) each check that and release their share to this phone, which rebuilds
-     * the old key for this one signature. No one else ever holds B and C together. Swissquote's ID check, matched
-     * to the wallet owner's KYC record, signs this phone in to Swissquote as the owner.
+     * the old key for this one signature. No one else ever holds B and C together. Swissquote's ID check, the number
+     * on the owner's ID card matched to their KYC record, signs this phone in to Swissquote as the owner.
      */
     async startRecovery(secret: Hex, identity: Identity): Promise<{ address: Address; executeAfter: number; signedIn: SignedIn }> {
       const d = device();
@@ -423,18 +431,15 @@ export function createPhone({
     },
 
     /**
-     * The wallet a recovery key restores, the recovery already pending for it if someone started one, and its
-     * owner's ID on file. MOCKED: that ID stands in for the owner's own ID card and face, which a real check scans.
+     * The wallet a recovery key restores, the recovery already pending for it if someone started one, and whether
+     * a Swissquote client owns it (`linked`), so its ID check can run. Nothing about that client.
      */
     async findRecovery(secret: Hex) {
       const at = Math.floor(Date.now() / 1000);
       const signature = await privateKeyToAccount(secret).signMessage({ message: findWalletMessage(at) });
-      return call<{
-        address: Address;
-        pendingRecovery: { executeAfter: number } | null;
-        chainTime: number;
-        idOnFile: (Identity & { name: string }) | null;
-      }>(`/api/recovery?${new URLSearchParams({ signature, at: String(at) })}`);
+      return call<{ address: Address; pendingRecovery: { executeAfter: number } | null; chainTime: number; linked: boolean }>(
+        `/api/recovery?${new URLSearchParams({ signature, at: String(at) })}`,
+      );
     },
 
     /**
@@ -464,7 +469,7 @@ export function createPhone({
       await call(`/api/wallets/${address}/operations/${hash}`, { signature }, "DELETE");
     },
 
-    /** Reports the phone that holds the wallet now as lost or stolen. After the ID check Swissquote locks it; nothing changes on-chain. */
+    /** Reports the phone that holds the wallet now as lost or stolen. After the owner's ID check Swissquote locks it; nothing changes on-chain. */
     async reportLost(identity: Identity): Promise<void> {
       await call(`/api/wallets/${requireWallet().address}/lock`, { identity });
     },
@@ -565,4 +570,5 @@ export const phone = createPhone({
     setItem: (key, value) => localStorage.setItem(key, value),
     removeItem: (key) => localStorage.removeItem(key),
   },
+  session: () => (JSON.parse(localStorage.getItem(SESSION) ?? "null") as SignedIn | null)?.session,
 });

@@ -6,7 +6,7 @@ import { lockOn } from "@/lib/wallet/api/locks.ts";
 import { heldPayments, liveCredentials, releaseDue, requireWallet } from "@/lib/wallet/api/operations.ts";
 import { addresses, chainNow, isDeployed, pendingRecovery, publicClient } from "@/lib/wallet/env.ts";
 
-export const GET = route(async (_request: Request, ctx: RouteContext<"/api/wallets/[address]">) => {
+export const GET = route(async (request: Request, ctx: RouteContext<"/api/wallets/[address]">) => {
   const wallet = requireWallet((await ctx.params).address as Address);
   // Swissquote reads the wallet every few seconds while the app is open: payments due leave first, so the balance shows them gone.
   await releaseDue(wallet);
@@ -24,13 +24,18 @@ export const GET = route(async (_request: Request, ctx: RouteContext<"/api/walle
     usdc: usdc.toString(),
     pendingRecovery: pending && { signer: pending.signer, executeAfter: pending.executeAfter },
     chainTime,
-    owner: owner(wallet.address),
+    owner: owner(wallet.address, request.headers.get("x-swissquote-session")),
     held: heldPayments(wallet),
   });
 });
 
-/** Swissquote's ownership record: the client the wallet was created for, and the wallet key's signed statement saying so. */
-function owner(address: Address) {
+/**
+ * Swissquote's ownership record: the client the wallet was created for, and the wallet key's signed statement saying
+ * so. Only for that client, signed in on the phone asking: the wallet is public, who owns it is bank secrecy.
+ */
+function owner(address: Address, session: string | null) {
   const record = store().owner(address);
-  return record ? { client: record.client, createdAt: record.createdAt, statement: ownershipMessage(record.client, address), signature: record.signature } : null;
+  const client = session ? store().clientBySession(session) : undefined;
+  if (!record || !client || record.client !== client.number) return undefined;
+  return { client: record.client, createdAt: record.createdAt, statement: ownershipMessage(record.client, address), signature: record.signature };
 }

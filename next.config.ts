@@ -30,7 +30,7 @@ const nextConfig: NextConfig = {
             headers: [
               { key: "access-control-allow-origin", value: "capacitor://localhost" },
               { key: "access-control-allow-methods", value: "GET, POST, PATCH, DELETE, OPTIONS" },
-              { key: "access-control-allow-headers", value: "content-type" },
+              { key: "access-control-allow-headers", value: "content-type, x-swissquote-session" },
             ],
           },
         ],

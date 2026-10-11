@@ -121,9 +121,11 @@ const secretOf = async (download) => (await readFile(await download.path(), "utf
   assert.equal(wallet.signer, signer, "the wallet is controlled by the key this phone split");
   assert.deepEqual(wallet.passkey, passkey, "the wallet checks this phone's passkey");
   assert.equal(wallet.recoveryKey, privateKeyToAddress(secret), "the wallet recovers with the saved key");
-  const { client } = await page.evaluate(() => JSON.parse(localStorage.getItem("swissquote.session")));
+  assert.equal("owner" in wallet, false, "Swissquote names no owner to a caller without the owner's session");
+  const { session, client } = await page.evaluate(() => JSON.parse(localStorage.getItem("swissquote.session")));
   await page.getByText(`Signed in to Swissquote as ${client.name} · Mock`).waitFor();
-  assert.equal(wallet.owner?.client, client.number, "Swissquote recorded the signed-in client against the wallet");
+  const own = await (await fetch(new URL(`/api/wallets/${address}`, base), { headers: { "x-swissquote-session": session } })).json();
+  assert.equal(own.owner?.client, client.number, "Swissquote recorded the signed-in client against the wallet, and tells them so");
   console.log(`registered ${address}: signer ${signer}, recovery key ${wallet.recoveryKey}`);
   await page.context().close();
 }

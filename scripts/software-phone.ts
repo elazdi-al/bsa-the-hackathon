@@ -16,7 +16,12 @@ const bystander = () => createWalletClient({ account: privateKeyToAccount(BYSTAN
 
 type Storage = Pick<globalThis.Storage, "getItem" | "setItem" | "removeItem">;
 
-export function newPhone({ passkey = P256.randomPrivateKey(), storage }: { passkey?: Hex; storage?: Storage } = {}) {
+/** `session`: the Swissquote session the phone is signed in with, once it has one. */
+export function newPhone({
+  passkey = P256.randomPrivateKey(),
+  storage,
+  session,
+}: { passkey?: Hex; storage?: Storage; session?: () => string | undefined } = {}) {
   const items = new Map<string, string>();
   return createPhone({
     api: APP,
@@ -24,6 +29,7 @@ export function newPhone({ passkey = P256.randomPrivateKey(), storage }: { passk
     authenticator: softwareAuthenticator(passkey, APP),
     storage: storage ?? { getItem: (k) => items.get(k) ?? null, setItem: (k, v) => void items.set(k, v), removeItem: (k) => void items.delete(k) },
     exit: { rpc: rpcUrl, entryPoint: addresses.entryPoint, factory: addresses.factory, usdc: addresses.usdc, submit: bundle },
+    session,
   });
 }
 

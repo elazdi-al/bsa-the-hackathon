@@ -11,7 +11,8 @@ import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { connect } from "node:net";
 import { parseEnv } from "node:util";
-import { privateKeyToAddress } from "viem/accounts";
+import type { Hex } from "viem";
+import { generatePrivateKey, privateKeyToAddress } from "viem/accounts";
 import { setSunset } from "../lib/wallet/sunset.ts";
 import { localDappPolicy } from "../services/dapps/local-policy.ts";
 
@@ -24,8 +25,6 @@ const RPC_URL = `http://127.0.0.1:${ports.anvil.port}`;
 const APP_URL = `http://localhost:${ports.app.port}`;
 const PARTNER_URL = `http://localhost:${ports.partner.port}`;
 const prod = process.argv.includes("--prod");
-// Anvil's first prefunded account plays Swissquote.
-const SWISSQUOTE_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
 const MARKER = "# Written by npm run local.";
 const POLICY_FILE = "data/compliance-policy.json";
 const STATE = "data/chain.json";
@@ -49,6 +48,14 @@ if (!existsSync("contracts/dependencies")) {
     fail("forge soldeer install failed. Run it in contracts/ to see why.");
   }
 }
+
+// --prod picks up the chain it saved last time, with the contracts, keys and policy that go with it.
+const resume = prod && existsSync(STATE) && existsSync(".env.local");
+const previous = resume ? parseEnv(readFileSync(".env.local", "utf8")) : {};
+// Anvil's first prefunded account plays Swissquote on a dev chain, where the tests know it. A public demo's chain
+// gets a Swissquote key no one else knows, since that key signs the sponsorships and the tickets the partner trusts.
+const ANVIL_ACCOUNT_0 = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+const SWISSQUOTE_KEY = (resume ? previous.SWISSQUOTE_KEY ?? fail(".env.local has no SWISSQUOTE_KEY. Delete data/ for a fresh chain.") : prod ? generatePrivateKey() : ANVIL_ACCOUNT_0) as Hex;
 
 const listening = (port: number) =>
   new Promise<boolean>((resolve) => {
@@ -96,8 +103,9 @@ function run(name: string, command: string, args: string[], env: Record<string, 
 }
 
 const answers = (url: string, init?: RequestInit) => fetch(url, init).then((res) => res.ok, () => false);
-const rpcUp = () =>
-  answers(RPC_URL, { method: "POST", headers: { "content-type": "application/json" }, body: '{"jsonrpc":"2.0","id":1,"method":"eth_chainId"}' });
+const rpc = (method: string, params: unknown[] = []) =>
+  answers(RPC_URL, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) });
+const rpcUp = () => rpc("eth_chainId");
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 async function waitFor(what: string, up: () => Promise<boolean>, seconds = prod ? 300 : 120) {
   for (const start = Date.now(); !(await up()); await sleep(250)) {
@@ -105,9 +113,6 @@ async function waitFor(what: string, up: () => Promise<boolean>, seconds = prod 
   }
 }
 
-// --prod picks up the chain it saved last time, with the contracts, vault keys and policy that go with it.
-const resume = prod && existsSync(STATE) && existsSync(".env.local");
-const previous = resume ? parseEnv(readFileSync(".env.local", "utf8")) : {};
 if (!resume) {
   // The chain is new, so the share vaults and CLI accounts from any previous run describe wallets that no longer exist.
   rmSync("data", { recursive: true, force: true });
@@ -119,6 +124,10 @@ setSunset(false);
 console.log(`Starting anvil on ${RPC_URL}`);
 run("anvil", "anvil", ["--silent", "--port", String(ports.anvil.port), ...(prod ? ["--state", STATE, "--state-interval", "5"] : [])]);
 await waitFor(`anvil on ${RPC_URL}`, rpcUp);
+// A fresh key holds nothing: 10,000 ETH, like anvil's own accounts, pays the deployment, the paymaster deposit and the gas.
+if (!resume && SWISSQUOTE_KEY !== ANVIL_ACCOUNT_0 && !(await rpc("anvil_setBalance", [privateKeyToAddress(SWISSQUOTE_KEY), "0x21e19e0c9bab2400000"]))) {
+  fail("anvil did not fund Swissquote's key.");
+}
 
 const deployed = resume ? (Object.fromEntries(Object.entries(previous).filter(([k]) => k.endsWith("_ADDRESS"))) as Record<string, string>) : deployContracts();
 if (resume) console.log(`Resumed the chain in ${STATE}`);
@@ -149,8 +158,8 @@ const env = {
   NEXT_PUBLIC_PARTNER_URL: process.env.PUBLIC_PARTNER_URL ?? PARTNER_URL,
   APP_URL,
   // Seconds Swissquote must stay closed before the partner opens the exit. Production waits 30 days; the
-  // public demo waits long enough that a redeploy never opens it.
-  EXIT_AFTER: prod ? "600" : "5",
+  // public demo waits long enough that a redeploy never opens it. EXIT_AFTER=5 lets npm run e2e prove a --prod stack.
+  EXIT_AFTER: process.env.EXIT_AFTER ?? (prod ? "600" : "5"),
   COMPLIANCE_MODE: "demo",
   COMPLIANCE_POLICY_FILE: POLICY_FILE,
 };
@@ -195,7 +204,6 @@ Swissquote Wallet is running. Open ${APP_URL}/onboarding-welcome
   npm run recover <account|file>     start a recovery onto a new phone
   npm run finish <account>           finish a recovery after the 48 hours
   npm run cancel <account>           cancel a recovery with the Recovery Key
-  npm run cancel-payment <account>   cancel an account's held payments with the Recovery Key
   npm run lock <account>             report the phone lost: Swissquote locks it
   npm run unlock <account>           Swissquote unlocks the phone
   npm run warp [hours]               move chain time ahead (default 48); held payments that are due leave
