@@ -10,23 +10,24 @@ import {TestUSDC} from "./TestUSDC.sol";
 import {TestVault} from "./TestVault.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-/// Deploys the factory and Swissquote's funded VerifyingPaymaster. A fresh local chain also gets
-/// its own EntryPoint v0.7 and a mintable USDC.
+/// Deploys the factory, Swissquote's funded VerifyingPaymaster, a mintable test USDC and a test vault for it.
+/// A fresh local chain also gets its own EntryPoint v0.7. RECOVERY_DELAY (seconds, default 48 hours) sets
+/// every account's recovery hold.
 ///   forge script script/Deploy.s.sol --rpc-url $RPC_URL --private-key $SWISSQUOTE_KEY --broadcast
 contract Deploy is Script {
     IEntryPoint constant CANONICAL_ENTRY_POINT = IEntryPoint(0x0000000071727De22E5E9d8BAf0edAc6f37da032);
-    address constant BASE_SEPOLIA_USDC = 0x036CbD53842c5426634e7929541eC2318f3dCF7e;
 
     function run() external {
         address swissquote = vm.envAddress("SWISSQUOTE_ADDRESS");
         uint256 deposit = vm.envOr("PAYMASTER_DEPOSIT", uint256(0.05 ether));
+        uint48 recoveryDelay = uint48(vm.envOr("RECOVERY_DELAY", uint256(48 hours)));
         bool local = block.chainid == 31337;
 
         vm.startBroadcast();
         IEntryPoint entryPoint = local ? IEntryPoint(address(new EntryPoint())) : CANONICAL_ENTRY_POINT;
-        address usdc = local ? address(new TestUSDC()) : BASE_SEPOLIA_USDC;
+        address usdc = address(new TestUSDC());
         TestVault vault = new TestVault(IERC20(usdc));
-        SwissquoteAccountFactory factory = new SwissquoteAccountFactory(entryPoint);
+        SwissquoteAccountFactory factory = new SwissquoteAccountFactory(entryPoint, recoveryDelay);
         VerifyingPaymaster paymaster = new VerifyingPaymaster(entryPoint, swissquote);
         paymaster.deposit{value: deposit}();
         vm.stopBroadcast();

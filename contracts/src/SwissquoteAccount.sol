@@ -42,7 +42,8 @@ contract SwissquoteAccount is BaseAccount, Initializable {
 
     uint8 public constant MODE_NORMAL = 0;
     uint8 public constant MODE_RECOVERY = 1;
-    uint48 public constant RECOVERY_DELAY = 48 hours;
+    /// 48 hours, as the protocol requires. Only a test chain's deployment picks a shorter one, so a demo can finish a recovery.
+    uint48 public immutable RECOVERY_DELAY;
 
     IEntryPoint private immutable ENTRY_POINT;
 
@@ -61,8 +62,9 @@ contract SwissquoteAccount is BaseAccount, Initializable {
     error NoRecoveryPending();
     error RecoveryNotReady(uint48 executeAfter);
 
-    constructor(IEntryPoint entryPoint_) {
+    constructor(IEntryPoint entryPoint_, uint48 recoveryDelay) {
         ENTRY_POINT = entryPoint_;
+        RECOVERY_DELAY = recoveryDelay;
         _disableInitializers();
     }
 

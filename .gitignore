@@ -52,3 +52,6 @@ next-env.d.ts
 /data/
 # chains npm run live fresh set aside
 /data-*/
+
+# Base Sepolia: Swissquote's key and its deployment's state
+/base-sepolia/

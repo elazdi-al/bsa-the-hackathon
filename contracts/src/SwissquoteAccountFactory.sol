@@ -7,11 +7,12 @@ import {SwissquoteAccount} from "./SwissquoteAccount.sol";
 
 /// Deploys accounts as minimal clones at a CREATE2 address bound to their initial config,
 /// so the address is known (and can receive funds) before the first UserOperation deploys it.
+/// The clones share the implementation's code, so every account a factory makes has its recovery delay.
 contract SwissquoteAccountFactory {
     SwissquoteAccount public immutable implementation;
 
-    constructor(IEntryPoint entryPoint) {
-        implementation = new SwissquoteAccount(entryPoint);
+    constructor(IEntryPoint entryPoint, uint48 recoveryDelay) {
+        implementation = new SwissquoteAccount(entryPoint, recoveryDelay);
     }
 
     function createAccount(SwissquoteAccount.Config calldata config, uint256 salt)

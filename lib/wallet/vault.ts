@@ -2,6 +2,7 @@
 // key and bound to its signer. Swissquote (B) and the partner (C) each run their own.
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import { mkdirSync } from "node:fs";
+import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type { Address, Hex } from "viem";
 import type { Passkey } from "./account.ts";
@@ -14,7 +15,7 @@ export type Stored = { signer: Address; passkey: Passkey; share: Share; recovery
 export function openVault(file: string, keyHex: string | undefined) {
   if (!keyHex || !/^[0-9a-f]{64}$/i.test(keyHex)) throw new Error("The share key must be 32 bytes of hex. Run npm run local.");
   const key = Buffer.from(keyHex, "hex");
-  mkdirSync("data", { recursive: true });
+  mkdirSync(dirname(file), { recursive: true });
   const db = new DatabaseSync(file, { timeout: 5000 });
   const createShares = `create table if not exists shares (
     signer text primary key collate nocase, passkey_x text not null, passkey_y text not null,

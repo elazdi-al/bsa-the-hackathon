@@ -41,7 +41,7 @@ export const DELETE = route(async (request: Request, ctx: Context) => {
   return Response.json({ transactionHash: await callAccount(wallet.address, "cancelRecovery") });
 });
 
-/** Finalizes once the 48 hours have passed. Anyone may; Swissquote pays the gas. */
+/** Finalizes once the hold has passed. Anyone may; Swissquote pays the gas. */
 export const PATCH = route(async (_request: Request, ctx: Context) => {
   const wallet = requireWallet((await ctx.params).address as Address);
   return Response.json({ transactionHash: await callAccount(wallet.address, "finalizeRecovery") });

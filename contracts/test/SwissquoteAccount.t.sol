@@ -35,7 +35,7 @@ contract SwissquoteAccountTest is Test {
 
     function setUp() public {
         entryPoint = new EntryPoint();
-        factory = new SwissquoteAccountFactory(entryPoint);
+        factory = new SwissquoteAccountFactory(entryPoint, 48 hours);
         paymaster = new VerifyingPaymaster(entryPoint, vm.addr(paymasterSigner));
         paymaster.deposit{value: 10 ether}();
         usdc = new TestUSDC();
@@ -137,6 +137,18 @@ contract SwissquoteAccountTest is Test {
         _signNormal(op, newKey, newPasskey);
         _handle(op);
         assertEq(usdc.balanceOf(anna), 25e6);
+    }
+
+    function test_factorySetsTheRecoveryDelay() public {
+        // A test chain's factory: its clones run the implementation's code, so they get its shorter hold.
+        factory = new SwissquoteAccountFactory(entryPoint, 10 minutes);
+        account = SwissquoteAccount(payable(factory.getAddress(_config(), 0)));
+        usdc.mint(address(account), 1_000e6);
+        _deploy();
+
+        _initiateRecovery(0xB0B, 0xBEEF, walletKey, recoveryKey);
+        (,, uint48 executeAfter) = account.pendingRecovery();
+        assertEq(executeAfter, block.timestamp + 10 minutes);
     }
 
     function test_recoveryNeedsRecoveryKey() public {
