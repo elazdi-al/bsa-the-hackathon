@@ -358,16 +358,6 @@
   .chip { padding: 8px 18px; border-radius: 99px; background: rgb(48 178 86 / 0.12); color: var(--positive-ink); font-size: 32px; }
   .number strong { display: block; margin-left: -0.04em; font-size: 340px; line-height: 1; font-weight: 600; letter-spacing: -0.06em; font-variant-numeric: tabular-nums; }
 
-  /* Ways in a thief tries, top to bottom, and what stops each. */
-  .attempts { position: absolute; left: 128px; right: 128px; top: 348px; display: grid; grid-template-columns: 64px 500px 1fr auto; }
-  .attempts > * { display: flex; align-items: center; min-height: 80px; padding: 8px 28px 8px 0; border-top: 1px solid #ececf0; font-size: 28px; line-height: 1.2; font-weight: 500; letter-spacing: -0.015em; text-wrap: balance; }
-  .attempts > :nth-child(-n+4) { border-top: 0; }
-  .attempts .n { font-weight: 600; color: var(--secondary); font-variant-numeric: tabular-nums; }
-  .attempts b { font-size: 34px; font-weight: 600; letter-spacing: -0.03em; }
-  .attempts .why { color: var(--secondary); }
-  .attempts .stop { gap: 10px; padding-right: 0; font-weight: 600; color: var(--negative-ink); }
-  .attempts .stop .i { font-size: 34px; color: var(--negative); }
-
   /* Exit without Swissquote: a left-to-right flow. */
   .flow { position: absolute; left: 128px; right: 128px; bottom: 120px; display: grid; grid-template-columns: 1fr 40px 1fr 40px 1fr 40px 1fr; align-items: stretch; gap: 8px; }
   .flow .tile { min-height: 0; padding: 40px 36px; }
@@ -739,22 +729,7 @@
   <aside class="notes">Step four, recover. On a new phone the client loads the Recovery Key from home. Swissquote and the independent service each verify the Recovery Key signed this exact recovery and release B and C to the new phone, which rebuilds the old key once to start the 48-hour recovery on chain. Linked or not, it works the same way; nobody checks an ID. During the hold anyone can see the recovery: the old phone can cancel it with Face ID, or Swissquote cancels it when the Recovery Key asks, and a linked client can have a stolen old phone locked. After 48 hours anyone can finish it, and the wallet keeps its address and its funds.</aside>
 </section>
 
-<!-- 12. Attacker -->
-<section class="slide content" aria-label="Attacker">
-  <div class="tags"><span class="tag">Step 4 of 4: Recover</span><span class="tag">Bonus: Attacker refused</span></div>
-  <h1>A thief with your phone and email gets nothing.</h1>
-  <p class="sub">No Face ID, no email reset, no Recovery Key.</p>
-  <div class="attempts visual">
-    <span class="n">1</span><b>Pay without your Face ID</b><span class="why">Share A stays sealed. Swissquote refuses Share B.</span><span class="stop"><svg class="i"><use href="#i-no"/></svg>Refused</span>
-    <span class="n">2</span><b>Reset it by email</b><span class="why">There is no email reset.</span><span class="stop"><svg class="i"><use href="#i-no"/></svg>Refused</span>
-    <span class="n">3</span><b>Forge a Recovery Key</b><span class="why">No wallet is bound to it. Both share holders refuse.</span><span class="stop"><svg class="i"><use href="#i-no"/></svg>Refused</span>
-    <span class="n">4</span><b>Use your real Recovery Key</b><span class="why">The recovery waits 48 hours in public. You cancel it.</span><span class="stop"><svg class="i"><use href="#i-no"/></svg>Cancelled</span>
-    <span class="n">5</span><b>Unlock the phone itself</b><span class="why">Linked wallet: it pays until you report it and it’s locked.</span><span class="stop"><svg class="i"><use href="#i-no"/></svg>Locked</span>
-  </div>
-  <aside class="notes">The same recovery must not work for a thief. Our attack script plays someone who stole the phone and the email inbox and tries every way in. Without Face ID, Share A stays sealed and Swissquote refuses Share B. There is no email reset, and the Recovery Key lives at home, off the phone. A forged Recovery Key is bound to no wallet, so both share holders refuse. Even the real Recovery Key only starts a 48-hour recovery in public, which the client cancels. If they can unlock the phone, they can send the whole balance at once, in one payment, until the client reports it and Swissquote locks it; that lock exists for linked wallets. Nothing delays or cancels a payment once Face ID approved it.</aside>
-</section>
-
-<!-- 13. Exit without Swissquote -->
+<!-- 12. Exit without Swissquote -->
 <section class="slide content" aria-label="Exit without Swissquote">
   <div class="tags"><span class="tag">Step 4 of 4: Recover</span></div>
   <h1>If Swissquote disappears, your funds don’t.</h1>
@@ -787,7 +762,7 @@
   <aside class="notes">Last, the brief asks what happens if Swissquote's services are gone for good. After 30 days without Swissquote, the independent service opens exit mode: when the client's passkey approves a payment, it releases Share C for that payment. The phone rebuilds the key from A and C, signs with Face ID and the key, and submits straight to the chain. With no Swissquote paymaster, the client pays the fee, a few cents of ETH.</aside>
 </section>
 
-<!-- 14. Scenario: Swissquote and its partner team up -->
+<!-- 13. Scenario: Swissquote and its partner team up -->
 <section class="slide content" aria-label="Scenario: collusion">
   <div class="tags"><span class="tag">Scenario 1 of 2</span></div>
   <h1>Swissquote and its partner team up.</h1>
@@ -820,7 +795,7 @@
   <aside class="notes">Two scenarios show why this model beats the alternatives. First, the worst case for a bank wallet: Swissquote and the independent service collude. Together they hold Shares B and C, enough to rebuild the wallet key. In a 2-of-3 MPC wallet, that would be enough to sign. Here it isn't: the smart account demands a passkey signature on every payment, and the passkey sits behind the client's Face ID on their phone. So the chain itself refuses. Neither the bank nor its partner, alone or together, can spend.</aside>
 </section>
 
-<!-- 15. Scenario: a stolen Recovery Key -->
+<!-- 14. Scenario: a stolen Recovery Key -->
 <section class="slide content" aria-label="Scenario: stolen Recovery Key">
   <div class="tags"><span class="tag">Scenario 2 of 2</span></div>
   <h1>A thief steals your Recovery Key.</h1>
@@ -853,7 +828,7 @@
   <aside class="notes">Second, the backup itself is stolen. With a seed phrase, a stolen backup is the wallet: the thief empties it at once. Here the Recovery Key only starts a recovery, and the smart account holds it for 48 hours in chain time, in public. The client's app shows that someone started recovering the wallet, and the client cancels with Face ID from their phone, or through Swissquote with their Recovery Key. The thief walks away with nothing. Production adds push and email alerts, which this build does not have yet.</aside>
 </section>
 
-<!-- 16. Threat model -->
+<!-- 15. Threat model -->
 <section class="slide content" aria-label="Threat model">
   <h1>No server can move your funds.</h1>
   <div class="threats visual">
@@ -902,7 +877,7 @@
   <aside class="notes">No server can move funds, alone or together: payments need the passkey, and recovery needs the Recovery Key plus 48 hours anyone can see. Lock-out is another matter. Swissquote alone can lock a client out by withholding Share B, refusing sponsorship or cancelling recoveries; exit mode helps only once it has been offline for 30 days. Swissquote holding a stolen Recovery Key could take the wallet after 48 hours if the client misses it, because both cancel paths in the app run through Swissquote. A thief with the Recovery Key must wait 48 hours in public, and the client cancels; they can also have a linked phone locked, which the client undoes with the same key. The main residual risk is a thief who can unlock the phone: they can send the whole balance at once, in one payment, and nothing delays or cancels a payment once Face ID approved it. On a linked wallet that lasts until the client reports the phone with their Recovery Key and Swissquote locks it. An unlinked wallet has no lock, so it lasts as long as the thief holds the phone, which is one reason to link. A malicious app build is out of the protocol's scope; production needs a native app, reproducible builds and audits.</aside>
 </section>
 
-<!-- 17. Legal -->
+<!-- 16. Legal -->
 <section class="slide content" aria-label="Legal">
   <h1>Assistance, not custody. Ownership signed when you link.</h1>
   <p class="sub">Our reading of Swiss law, for counsel to confirm.</p>
@@ -923,7 +898,7 @@
   <aside class="notes">Custody turns on who can move the funds: Swissquote can't, alone or with the independent service; it can only withhold help or cancel a recovery, which we argue is assistance, still under AML rules, hence the screening. For the Travel Rule, linking is optional. When the client links their Swissquote account, they sign with Face ID, the passkey every payment needs, that the wallet belongs to their client number, and Swissquote keeps that statement, so ownership evidence exists without a test transfer and money moves between the account and the wallet without extra checks. An unlinked wallet takes Swissquote's usual procedure for external wallets. When the client pays a third party, the client signs and the account sends, so we argue Swissquote is not the sending institution, an open question for counsel. Swissquote pays the gas only for wallets it can tie to an identified client, so an unlinked wallet pays its own.</aside>
 </section>
 
-<!-- 18. Plans -->
+<!-- 17. Plans -->
 <section class="slide content" aria-label="Plans">
   <div class="tags"><span class="tag">Proposal</span></div>
   <h1>Free to own. Plus to earn.</h1>
@@ -952,7 +927,7 @@
   <aside class="notes">A proposal for the business model. The wallet itself stays free: creating it, paying with Face ID and recovering it cost the client nothing. Swissquote Plus is the subscription, 10 USDC a month or 100 a year, two months free. The app already sells the monthly plan to linked wallets. Plus members swap at half the fee, earn interest by lending their USDC, receive on-chain staking rewards and get cashback on card payments. A Swissquote card that spends straight from the wallet is the natural next step. All of these are financial features, so they need a linked Swissquote account.</aside>
 </section>
 
-<!-- 19. Swissquote's cut -->
+<!-- 18. Swissquote's cut -->
 <section class="slide content" aria-label="Swissquote's cut">
   <div class="tags"><span class="tag">Proposal</span></div>
   <h1>How Swissquote earns.</h1>
@@ -967,7 +942,7 @@
   <aside class="notes">How Swissquote makes money. It keeps all of the Plus subscription. It earns the published 1 percent on swaps, half that for Plus members, who swap more. On lending, it keeps a fifth of the interest and passes the rest to the client. On on-chain rewards, it takes a 10 percent commission, as staking providers do. And a Swissquote card earns interchange on every payment, which also funds the cashback. None of this needs custody: the client keeps the keys, and Swissquote earns on the services around them. The rates are our proposal, to tune against Swissquote's current pricing.</aside>
 </section>
 
-<!-- 20. Business case -->
+<!-- 19. Business case -->
 <section class="slide content" aria-label="Business case">
   <h1>Keep the client. Keep the trading.</h1>
   <p class="sub">Today self-custody means leaving. The wallet keeps clients one tap from trading.</p>
@@ -996,7 +971,7 @@
   <aside class="notes">A client who wants their own keys today pays 15 dollars to move USDC out, and some take the whole account with them. Swissquote's half-year results give about 600 francs of revenue a year and 79,000 francs of assets per account, so each client who leaves takes both. We model 10,000 wallets, under 1 percent of accounts. If 1 in 10 of those clients would otherwise have left and 1 in 10 is new, that is 2,000 clients times 600 francs, 1.2 million francs a year, and 79 million francs of assets that stay. The fee lines about cancel out: swaps at the 1 percent fee and Plus earn about 620,000 francs a year, and free transfers into the wallet and sponsored gas cost about 612,000. Costs fall too, by amounts we can't price from public data. There's no seed phrase to support, and coins in the client's own wallet need no cold storage at Swissquote. Every assumption is in the README.</aside>
 </section>
 
-<!-- 21. Real and mocked -->
+<!-- 20. Real and mocked -->
 <section class="slide content" aria-label="Real and mocked">
   <h1>What’s real, what’s mocked.</h1>
   <div class="ledger visual" style="top: 264px;">
@@ -1026,7 +1001,7 @@
   <aside class="notes">Everything in the protocol runs for real: the key split, the passkey checked on chain, the smart account, the paymaster, the 48-hour delay, the phone lock, exit mode, and the independent service as its own process and database, with a stand-in for the company behind it. What needs a real bank or real hardware is mocked and labelled: the Swissquote sign-in behind the optional account link, the HSMs, and the sanctions and simulation data. The production path is the native Swissquote app with the secure chip, real HSMs, a contracted independent service and Base mainnet.</aside>
 </section>
 
-<!-- 22. Closing -->
+<!-- 21. Closing -->
 <section class="slide blue" aria-label="Closing">
   <h1 class="display">Your wallet.<br>A bank in your corner.</h1>
   <p class="sub">Thank you. Questions?</p>
