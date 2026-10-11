@@ -209,7 +209,7 @@ function Sheet({ tx }: { tx: Tx }) {
         {tx.fee && (
           <Detail label="Network fee">
             <LightningIcon size={16} className="mr-1 inline align-[-3px]" />
-            Free<span className="font-normal text-muted-foreground"> · paid by Swissquote</span>
+            Free<span className="font-normal text-muted-foreground">, paid by Swissquote</span>
           </Detail>
         )}
         {tx.hash && (

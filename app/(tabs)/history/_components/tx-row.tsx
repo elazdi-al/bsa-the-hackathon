@@ -60,7 +60,7 @@ export function RowBody({ tx, when }: { tx: Tx; when?: string }) {
         </span>
         <span className="mt-0.5 flex items-baseline gap-3 text-body text-muted-foreground">
           <span className="min-w-0 flex-1 truncate">
-            {lead && <>{lead} · </>}
+            {lead && <>{lead}, </>}
             {tx.detail}
           </span>
           {tx.crypto && <span className="shrink-0 tabular-nums">{tx.crypto}</span>}

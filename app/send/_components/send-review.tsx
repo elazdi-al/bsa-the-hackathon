@@ -112,7 +112,10 @@ export function SendReview({ children }: { children: ReactNode }) {
         </span>
         <p className="min-w-0 flex-1">
           <span className="block truncate text-label">{shown.name}</span>
-          <span className="block truncate text-body text-muted-foreground">{shown.detail}</span>
+          <span className="flex items-center gap-2 text-body text-muted-foreground">
+            <span className="truncate">{shown.detail}</span>
+            {shown.demo && <DemoTag />}
+          </span>
         </p>
       </section>
       {children}

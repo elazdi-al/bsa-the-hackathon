@@ -17,7 +17,7 @@ export function recentSends(transfers: Transfer[], wallet: Pick<Wallet, "address
   return [...latest.values()].map((t) => ({
     address: t.to,
     // en-GB abbreviates September as "Sept"; keep every month three letters.
-    note: `Sent ${sentUsd.format(Number(formatUnits(BigInt(t.value), 6)))} · ${sentOn.format(onPhoneClock(wallet, t.timestamp)).replace("Sept", "Sep")}`,
+    note: `Sent ${sentUsd.format(Number(formatUnits(BigInt(t.value), 6)))} on ${sentOn.format(onPhoneClock(wallet, t.timestamp)).replace("Sept", "Sep")}`,
   }));
 }
 
@@ -56,12 +56,12 @@ export function shortAddress(address: string) {
 /** The send review for `to`, an address or .eth handle. */
 export const reviewHref = (to: string) => `/send?${new URLSearchParams({ to })}`;
 
-/** How the review names `to`, and the address it pays, or null when it isn't a recipient. */
-export function recipientFor(to: string): { name: string; detail: string; address: string } | null {
+/** How the review names `to`, and the address it pays, or null when it isn't a recipient. `demo`: a name the mock ENS resolved. */
+export function recipientFor(to: string): { name: string; detail: string; address: string; demo?: true } | null {
   const resolution = looksLikeRecipient(to) ? lookupRecipient(to) : null;
   if (resolution?.kind !== "resolved") return null;
   if (resolution.address === to) return { name: shortAddress(to), detail: "Address on Base", address: to };
-  return { name: to, detail: `Demo name · ${shortAddress(resolution.address)}`, address: resolution.address };
+  return { name: to, detail: shortAddress(resolution.address), address: resolution.address, demo: true };
 }
 
 // The recipient under review, so leaving the review reopens the chooser with it filled in. The review

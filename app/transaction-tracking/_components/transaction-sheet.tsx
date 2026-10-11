@@ -169,8 +169,8 @@ export function Tracking({ tx, step, badge }: { tx: Tracked; step: number; badge
                 <Row label="Network fee">
                   <span className="flex items-center gap-1 text-positive">
                     <LightningIcon size={16} />
-                    {tx.networkFee}
-                    <span className="font-normal text-muted-foreground">· {tx.feePaidBy}</span>
+                    {tx.networkFee},
+                    <span className="font-normal text-muted-foreground">{tx.feePaidBy}</span>
                   </span>
                 </Row>
               </dl>

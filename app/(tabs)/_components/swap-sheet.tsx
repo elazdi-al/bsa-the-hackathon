@@ -328,7 +328,9 @@ export function SwapSheet({ open, onOpenChange, onClosed }: { open: boolean; onO
                     </dl>
                   </div>
 
-                  <p className="mb-3 text-center text-caption text-muted-foreground">Your balances don’t change in this demo.</p>
+                  <p data-demo="" className="mb-3 text-center text-caption text-muted-foreground">
+                    Your balances don’t change in this demo.
+                  </p>
                   <Button
                     size="lg"
                     onClick={swap}

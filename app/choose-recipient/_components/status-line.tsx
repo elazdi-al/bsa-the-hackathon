@@ -55,7 +55,12 @@ function describe(status: Status) {
     case "notFound":
       return {
         icon: <WarningIcon size={16} className="text-negative" />,
-        text: "Name not found in this demo",
+        text: (
+          <>
+            Name not found
+            <DemoTag />
+          </>
+        ),
       };
     case "mistyped":
       return {
