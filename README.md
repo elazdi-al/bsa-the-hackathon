@@ -24,7 +24,7 @@ Each section links to its depth in [`docs/`](docs/). The [pitch summary](PITCH_S
 
 One story, end to end: create a wallet, pay with Face ID, lose the phone, recover the wallet. Run `npm run local`, then open http://localhost:3000/onboarding-welcome in two browsers, or two browser profiles, as the old phone and the new phone.
 
-1. **Create a wallet.** Tap **Create new wallet**, then **Create Passkey**, **Split Wallet Key** and **Save Recovery Key**. Run `npm run fund` for 100 USDC. Note the ID card number in Settings.
+1. **Create a wallet.** Tap **Create new wallet**, then **Create Passkey**, **Split Wallet Key**, **Save Recovery Key** and **I saved it off this phone**. Run `npm run fund` for 100 USDC. Note the ID card number in Settings.
 2. **Sign in and pay.** On Home, tap the action button, then **Send**. Enter an address and an amount, read the **Checked by Swissquote** card, tap **Send** and approve with Face ID. Above 1,000 USDC the payment waits 24 hours.
 3. **Lose the phone and recover.** In the second browser, tap **Recover existing wallet** and load the Recovery Key file. Type the ID card number, tap **Scan ID**, then **Restore with Face ID**. Run `npm run warp` to pass the 48-hour hold, then tap **Finish recovery**. The new phone now controls the same address with the same funds.
 
