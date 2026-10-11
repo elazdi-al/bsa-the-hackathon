@@ -30,6 +30,7 @@ import {
 import { privateKeyToAccount } from "viem/accounts";
 import * as z from "zod";
 import { getComplianceRuntime } from "@/services/compliance/runtime";
+import type { ComplianceDecision } from "../../compliance/types";
 import type { DappMetadata } from "../../dapps/model";
 import {
   ACCOUNT_GAS,
@@ -300,13 +301,14 @@ export function heldPayments(wallet: Wallet) {
 const usdcAmount = (units: bigint) => new Intl.NumberFormat("en-US").format(Number(formatUnits(units, 6)));
 
 /**
- * Swissquote refuses to pay for a payment of 0, or for any payment once its paymaster paid for SPONSORED_PER_HOUR of the
- * wallet's operations in the last hour, counted on-chain. Cancelling a recovery and releasing a held payment are never refused.
+ * Swissquote refuses to pay for a payment of 0, or for any operation, a dApp call too, once its paymaster paid for
+ * SPONSORED_PER_HOUR of the wallet's operations in the last hour, counted on-chain. Cancelling a recovery and releasing
+ * a held payment are never refused.
  */
 export async function requireSponsorable(wallet: Wallet, callData: Hex) {
-  const transfer = transferOf(callData);
-  if (!transfer) return;
-  if (transfer.value === 0n) throw new HttpError(403, "Swissquote doesn't pay for a payment of 0 USDC.");
+  const [to] = decodeFunctionData({ abi: accountAbi, data: callData }).args as readonly [Address, bigint, Hex];
+  if (isAddressEqual(to, wallet.address)) return;
+  if (transferOf(callData)?.value === 0n) throw new HttpError(403, "Swissquote doesn't pay for a payment of 0 USDC.");
   const latest = await publicClient.getBlockNumber();
   const paid = await publicClient.getLogs({
     address: addresses.entryPoint,
@@ -326,13 +328,18 @@ export async function requireSponsorable(wallet: Wallet, callData: Hex) {
   );
 }
 
-/** Money a held payment will take when it leaves is not available to a new one. */
-export async function requireAvailable(wallet: Wallet, callData: Hex) {
+/** Money a held payment will take when it leaves is not available to a new payment, or to a dApp deposit. */
+export async function requireAvailable(wallet: Wallet, review?: ComplianceDecision) {
   const held = heldPayments(wallet).filter((p) => !p.stopped).reduce((sum, p) => sum + BigInt(p.value), 0n);
-  const transfer = held ? transferOf(callData) : undefined;
-  if (!transfer) return;
+  if (!held || !review) return;
+  // What the call takes out of the wallet's USDC: a payment's amount, or a vault deposit's.
+  const value = review.decodedActions.reduce(
+    (sum, { debit }) => (debit && debit.asset !== "native" && isAddressEqual(debit.asset, addresses.usdc) ? sum + BigInt(debit.amount) : sum),
+    0n,
+  );
+  if (!value) return;
   const balance = await publicClient.readContract({ address: addresses.usdc, abi: erc20Abi, functionName: "balanceOf", args: [wallet.address] });
-  if (transfer.value > balance - held) {
+  if (value > balance - held) {
     throw new HttpError(403, `Only ${usdcAmount(balance - held)} USDC is available. ${usdcAmount(held)} USDC is set aside for payments that haven't left yet.`);
   }
 }

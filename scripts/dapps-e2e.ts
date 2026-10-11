@@ -10,7 +10,7 @@ assert.equal(chain.id, 31337, "Run this mutation test only against the isolated 
 const phone = newPhone();
 await phone.splitKey(await phone.createPasskey());
 const recovery = phone.createRecoveryKey();
-const wallet = await phone.register(recovery.address);
+const wallet = await phone.register(recovery.address, await phone.signIn());
 await mintUsdc(wallet, "3000");
 const catalog = await phone.dapps();
 const vault = catalog.vaults.find((item) => item.available)!;
@@ -26,7 +26,9 @@ async function execute(step: "approve" | "deposit" | "withdraw" | "revoke", amou
   const prepared = await phone.prepare(buildVaultCall(vault, wallet, step, amount), metadata);
   assert.equal(prepared.review?.status, "ALLOW");
   assert.ok(prepared.expiresAt);
-  const hash = await phone.approve(prepared);
+  const sent = await phone.approve(prepared);
+  assert.ok("transactionHash" in sent, "Swissquote holds only payments, never a reviewed dApp call");
+  const hash = sent.transactionHash;
   assert.equal((await publicClient.getTransactionReceipt({ hash })).status, "success");
   console.log(`   ${step}: ${hash}`);
   return hash;
@@ -78,4 +80,8 @@ await execute("revoke", 0n);
 assert.equal((await phone.vaultSnapshot(vault.address)).allowance, "0");
 assert.equal(await publicClient.getBalance({ address: wallet }), 0n, "wallet never acquired native gas tokens");
 assert.equal(await publicClient.readContract({ address: vault.address, abi: vaultReadAbi, functionName: "balanceOf", args: [wallet] }), 15_000_000n);
+
+console.log("5. Money a held payment will take is not available to a deposit");
+assert.ok("releaseAt" in (await phone.sendUsdc("0x000000000000000000000000000000000000dEaD", "2500")));
+await assert.rejects(phone.prepare(buildVaultCall(vault, wallet, "deposit", 600_000_000n), metadata), /^Error: Only 485 USDC is available\. 2,500 USDC is set aside/);
 console.log("dApp API end-to-end checks passed.");

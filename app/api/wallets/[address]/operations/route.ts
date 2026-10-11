@@ -14,6 +14,6 @@ export const POST = route(async (request: Request, ctx: RouteContext<"/api/walle
   const { callData, dapp } = await parse(request, z.object({ callData: hex, dapp: requestSchema.shape.dapp }).strict());
   const { summary, hold, demo, review } = await assist(wallet, callData, dapp);
   await requireSponsorable(wallet, callData);
-  await requireAvailable(wallet, callData);
+  await requireAvailable(wallet, review);
   return Response.json({ ...(await prepare(wallet, "normal", callData, hold, review?.expiresAt)), summary, demo, review }, { headers: { "cache-control": "no-store" } });
 });

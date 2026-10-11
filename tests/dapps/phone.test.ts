@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { encodeFunctionData, type Hex } from "viem";
 import { entryPoint07Address, formatUserOperationRequest, getUserOperationHash, type UserOperation } from "viem/account-abstraction";
-import { accountAbi } from "../../lib/wallet/account";
+import { accountAbi, encodeSponsorship } from "../../lib/wallet/account";
 import { createPhone, type Prepared } from "../../lib/wallet/phone";
 import { buildVaultCall } from "../../lib/dapps/model";
 import { selectVaults } from "../../lib/dapps/registry";
@@ -53,7 +53,7 @@ test("phone forwards dApp metadata but rejects altered wallet calldata before si
         sender: DEMO.account, nonce: 0n, callData: tamper ? "0x1234" : expected, callGasLimit: 300_000n,
         verificationGasLimit: 1_000_000n, preVerificationGas: 50_000n, maxFeePerGas: 1n, maxPriorityFeePerGas: 1n,
         paymaster: DEMO.recipient, paymasterVerificationGasLimit: 100_000n, paymasterPostOpGasLimit: 0n,
-        paymasterData: "0x", signature: "0x",
+        paymasterData: encodeSponsorship(0, 0, "0x"), signature: "0x",
       };
       return Response.json({ hash: getUserOperationHash({ chainId: DEMO.chainId, entryPointAddress: entryPoint07Address, entryPointVersion: "0.7", userOperation: op }), userOp: formatUserOperationRequest(op) });
     };

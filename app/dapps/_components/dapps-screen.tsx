@@ -142,7 +142,10 @@ function VaultPanel({ vault, wallet, onBusyChange }: { vault: VaultDapp; wallet:
     if (!canSign || !prepared || deadline <= Date.now() || !decisionAllowsSigning(review)) return;
     setPhase("signing"); setError("");
     try {
-      const hash = await phone.approve(prepared);
+      const sent = await phone.approve(prepared);
+      // Swissquote holds only payments. A reviewed dApp call goes on-chain at once or is refused.
+      if (!("transactionHash" in sent)) throw new Error("Swissquote held this call instead of sending it.");
+      const hash = sent.transactionHash;
       setReceipts((previous) => [...previous, { step, hash }]);
       setPrepared(undefined); setReview(undefined); setQuote(undefined);
       await Promise.all([refresh(hash), refreshWallet()]);

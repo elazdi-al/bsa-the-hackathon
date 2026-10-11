@@ -33,6 +33,7 @@ try {
   await page.getByRole("button", { name: "Create Passkey" }).click(slow);
   await page.getByRole("button", { name: "Split Wallet Key" }).click(slow);
   await page.getByRole("button", { name: "Save Recovery Key" }).click(slow);
+  await page.getByRole("button", { name: "I saved it off this phone" }).click(slow);
   await page.waitForURL("**/home", slow);
   const wallet = await page.evaluate(() => JSON.parse(localStorage.getItem("swissquote.wallet.device")!).address as Address);
   await mintUsdc(wallet, "3000");
