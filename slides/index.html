@@ -386,10 +386,6 @@
   .ledger li { font-size: 29px; line-height: 1.25; font-weight: 500; letter-spacing: -0.015em; }
   .ledger li span { color: var(--secondary); }
 
-  /* AI tools, under real and mocked. */
-  .credits { position: absolute; left: 128px; right: 128px; bottom: 72px; display: grid; gap: 6px; font-size: 26px; line-height: 1.3; font-weight: 500; letter-spacing: -0.015em; color: var(--secondary); }
-  .credits b { font-weight: 600; color: var(--ink); }
-
   /* Speaker notes: hidden until N, never printed. */
   .notes { display: none; }
   #notes {
@@ -1073,11 +1069,7 @@
       </ul>
     </section>
   </div>
-  <div class="credits visual">
-    <p><b>Claude Code</b>, on Claude Opus and Fable models, co-wrote about half of the commits with the team, across the contracts, API, app, tests, docs and this deck. Each of those commits names it.</p>
-    <p><b>OpenAI Codex</b> helped revise the early project proposal and check its references.</p>
-  </div>
-  <aside class="notes">Everything in the protocol runs for real: the key split, the passkey checked on chain, the smart account, the paymaster, the 48-hour delay, the held payment, the phone lock, exit mode, and the independent service as its own process and database, with a stand-in for the company behind it. What needs a real bank or real hardware is mocked and labelled: the Swissquote sign-in and KYC record behind the optional account link, the ID check that only a linked wallet gets, the HSMs, and the sanctions and simulation data. The production path is the native Swissquote app with the secure chip, real HSMs, a contracted independent service and Base mainnet. As for AI tools: Claude Code, running Claude Opus and Fable models, co-wrote about half of the commits with the team, across the contracts, API, app, tests, docs and this deck, and each of those commits names it. OpenAI Codex helped revise the early project proposal and check its references.</aside>
+  <aside class="notes">Everything in the protocol runs for real: the key split, the passkey checked on chain, the smart account, the paymaster, the 48-hour delay, the held payment, the phone lock, exit mode, and the independent service as its own process and database, with a stand-in for the company behind it. What needs a real bank or real hardware is mocked and labelled: the Swissquote sign-in and KYC record behind the optional account link, the ID check that only a linked wallet gets, the HSMs, and the sanctions and simulation data. The production path is the native Swissquote app with the secure chip, real HSMs, a contracted independent service and Base mainnet.</aside>
 </section>
 
 <!-- 21. Closing -->
