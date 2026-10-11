@@ -14,7 +14,7 @@ A Swissquote client who wants their own keys today withdraws to an external wall
 
 ## How Swissquote Wallet works
 
-The client creates the wallet inside the signed-in Swissquote app, which links it to their Swissquote identity. The phone creates a passkey behind Face ID and a separate Recovery Key, which the client saves as a file and keeps at home. Each payment needs the passkey. Before Face ID, the client reads Swissquote's check of the payment in plain words, such as "Send 20 USDC to 0x1bA5...Cf4c." Swissquote screens the payment and pays its fee through its paymaster, so the client never needs a separate gas token.
+The client creates the wallet in the app, with no Swissquote account needed. The phone creates a passkey behind Face ID and a separate Recovery Key, which the client saves as a file and keeps at home. Each payment needs the passkey. Before Face ID, the client reads Swissquote's check of the payment in plain words, such as "Send 20 USDC to 0x1bA5...Cf4c." Swissquote screens the payment and pays its fee through its paymaster, so the client never needs a separate gas token.
 
 Behind the interface, Swissquote Wallet uses an ERC-4337 smart account and 2-of-3 Shamir secret sharing. The phone splits the wallet key into three shares:
 
@@ -32,6 +32,14 @@ This is the central protection. Even if Swissquote and the independent service c
 
 The prototype rebuilds the complete key on the phone and then signs. It uses Shamir sharing, not a threshold signing protocol where the complete key never exists on one device.
 
+## Linking a Swissquote account
+
+Later, the client can link the wallet to their Swissquote account from Settings, with one Face ID. The wallet key signs that the wallet belongs to their client number, and Swissquote keeps that statement. Linking adds three things:
+
+1. Money moves between the Swissquote account and the wallet with no extra checks. The signed statement is the ownership proof the Travel Rule asks for. An unlinked wallet goes through Swissquote's usual procedure for an external wallet.
+2. Before anyone recovers the wallet, Swissquote also checks the client's ID.
+3. Swissquote can lock a lost or stolen phone.
+
 ## Small and large payments
 
 A payment up to 1,000 USDC goes with one Face ID. A larger payment also takes one Face ID, then leaves 24 hours later, and the client can cancel it until then. The money it will take is set aside, so the client cannot spend it twice. Swissquote refuses a payment above 10,000 USDC, or one that takes the day's total above 5,000 USDC.
@@ -41,7 +49,7 @@ A payment up to 1,000 USDC goes with one Face ID. A larger payment also takes on
 The client has lost Share A and the old passkey. Swissquote Wallet recovers the same wallet by replacing those keys:
 
 1. The client opens the app on a new phone and loads the Recovery Key file.
-2. The client enters their ID card number, which Swissquote matches to their KYC record when the recovery starts. In the demo this check is mocked.
+2. If the wallet is linked, the client enters their ID card number, which Swissquote matches to their KYC record when the recovery starts. In the demo this check is mocked. An unlinked wallet skips this step.
 3. The new phone creates a new passkey and a new wallet key, split into new shares A, B and C.
 4. Swissquote prepares the recovery, naming the new key and passkey. The Recovery Key signs that exact recovery.
 5. Swissquote and the independent service each check the Recovery Key's signature before releasing their old shares B and C to the new phone. The independent service also checks Swissquote's signed approval, and that the operation can only start a recovery.
@@ -50,13 +58,15 @@ The client has lost Share A and the old passkey. Swissquote Wallet recovers the 
 
 The smart account enforces the delay in blockchain time, not a timer in the app. The wallet keeps its address and its funds. Recovery moves no funds. The old keys keep working until someone finalizes the recovery after the delay, so the wait is a chance to step in, not a freeze.
 
-If a thief may be using the old phone, the client locks it from the new phone or by calling Swissquote. Swissquote then refuses to help that phone pay, and stops its large payments before they leave.
+If a thief may be using the old phone of a linked wallet, the client locks it from the new phone or by calling Swissquote. Swissquote then refuses to help that phone pay, and stops its large payments before they leave. An unlinked wallet has no lock, because Swissquote has no ID to check the report against.
 
 The Recovery Key is a separate key, not a fourth share. Neither Swissquote nor the independent service can start a recovery without it.
 
 ## An attacker with the stolen phone and email
 
-A thief who holds the client's phone and email inbox gets nowhere. Without the client's Face ID, the phone signs nothing. There is no email reset to abuse. A forged Recovery Key matches no wallet, and the thief's own ID does not match the client's KYC record. A thief who can unlock the phone is stopped once the client reports it and Swissquote locks it. If a thief with the real Recovery Key and a forged ID did start a recovery, the client would have 48 hours to cancel it through Swissquote. The demo plays this attacker with `npm run attack <account>`, and every attempt fails.
+A thief who holds the client's phone and email inbox gets nowhere, whether the wallet is linked or not. Without the client's Face ID, the phone signs nothing. There is no email reset to abuse. The Recovery Key is not on the phone, and a forged one matches no wallet. On a linked wallet the thief's own ID does not match the client's KYC record either. If a thief with the real Recovery Key did start a recovery, the client would have 48 hours to cancel it, from the old phone or through Swissquote. On a linked wallet that thief would also need a forged ID. The demo plays this attacker with `npm run attack <account>`, and every attempt fails.
+
+A thief who can unlock the phone is harder. On a linked wallet, they are stopped once the client reports the phone and Swissquote locks it. An unlinked wallet has no lock, so they can pay within Swissquote's limits for as long as they hold the phone.
 
 ## If Swissquote's services are gone
 
@@ -70,9 +80,9 @@ The independent service splits recovery help between two companies. The passkey 
 
 ## What the prototype shows
 
-The build includes verified Shamir shares, passkeys checked by the smart account, gas sponsorship with abuse limits, the compliance checks, the 24-hour hold on large payments, the lock on a lost phone, the 48-hour recovery and cancel rules, and the exit without Swissquote. Swissquote and the independent service run separate share vaults, in separate processes. The code runs on a local chain and supports Base Sepolia.
+The build includes verified Shamir shares, passkeys checked by the smart account, gas sponsorship with abuse limits, the compliance checks, the 24-hour hold on large payments, the optional link to a Swissquote account, the lock on a lost phone, the 48-hour recovery and cancel rules, and the exit without Swissquote. Swissquote and the independent service run separate share vaults, in separate processes. The code runs on a local chain and supports Base Sepolia.
 
-The Swissquote session, the KYC record and the ID check are mocked. The share vaults use software encryption, not production HSMs. The key split is our own short code on an established library and needs an audit. Production work includes real identity checks, recovery alerts, stronger storage on the phone and a security review. Recovery needs both share holders to be available. Swissquote can withhold its share, lock a phone and cancel a pending recovery. Those are availability powers. They do not give Swissquote the power to spend.
+The Swissquote sign-in that links a wallet, the KYC record and the ID check are mocked. The share vaults use software encryption, not production HSMs. The key split is our own short code on an established library and needs an audit. Production work includes real identity checks, recovery alerts, stronger storage on the phone and a security review. Recovery needs both share holders to be available. Swissquote can withhold its share, lock a phone and cancel a pending recovery. Those are availability powers. They do not give Swissquote the power to spend.
 
 ## Closing line
 

@@ -93,20 +93,29 @@ It does not implement a distributed threshold ECDSA protocol in which participan
 
 ## Creating a wallet
 
-1. The app signs in to Swissquote. The session and the client's KYC record are mocked. Each phone signs in as a made-up client.
-2. The phone creates a passkey. The account will store its P-256 public key, and the authenticator keeps the signing credential.
-3. The phone generates the Wallet Key, its three Shamir shares and the commitments.
-4. The phone sends only Share B, the commitments and the passkey public key to Swissquote's `POST /api/shares`.
-5. Swissquote validates B, stores it and returns a signed share-registration ticket, valid for 5 minutes.
-6. The phone sends Share C and that ticket directly to the independent service. The partner checks Swissquote's signature, the ticket's expiry, the signer and C's commitment before storing C.
-7. The phone retains Share A and caches the Wallet Key in memory.
-8. The phone generates a separate Recovery Key and offers its secret as a file to download or share. The user confirms **I saved it off this phone**.
-9. The Wallet Key signs a message naming the Recovery Key's address. The partner and Swissquote both verify this binding before accepting that Recovery Key for future share release.
-10. `GET /api/wallets?signer=&recoveryKey=` returns the address the wallet will have. The Wallet Key signs "Wallet 0x… belongs to Swissquote client *number*." `POST /api/wallets` checks the session and that statement, registers the smart account configuration and keeps the statement as the owner record. Deployment occurs when a first operation needs the account on chain.
+Creating a wallet needs no Swissquote account and no sign-in.
+
+1. The phone creates a passkey. The account will store its P-256 public key, and the authenticator keeps the signing credential.
+2. The phone generates the Wallet Key, its three Shamir shares and the commitments.
+3. The phone sends only Share B, the commitments and the passkey public key to Swissquote's `POST /api/shares`.
+4. Swissquote validates B, stores it and returns a signed share-registration ticket, valid for 5 minutes.
+5. The phone sends Share C and that ticket directly to the independent service. The partner checks Swissquote's signature, the ticket's expiry, the signer and C's commitment before storing C.
+6. The phone retains Share A and caches the Wallet Key in memory.
+7. The phone generates a separate Recovery Key and offers its secret as a file to download or share. The user confirms **I saved it off this phone**.
+8. The Wallet Key signs a message naming the Recovery Key's address. The partner and Swissquote both verify this binding before accepting that Recovery Key for future share release.
+9. `POST /api/wallets` checks that binding and registers the smart account configuration. Deployment occurs when a first operation needs the account on chain.
 
 The partner URL is pinned in the app build through `NEXT_PUBLIC_PARTNER_URL`. The phone does not take it from Swissquote's API response. In the intended flow, Swissquote receives B and never receives C during creation.
 
 The Recovery Key binding matters because a share holder must not be able to substitute its own recovery address. It accepts the initial binding only when the Wallet Key signs it, and the vault refuses to rebind that share to a different Recovery Key.
+
+### Linking a Swissquote account
+
+Later, from Settings, the user can link the wallet to their Swissquote account. Linking adds Swissquote's Travel Rule ownership proof, an ID check before recovery and the lock on a lost phone. It changes nothing in the shares or on chain.
+
+1. Face ID unlocks the Wallet Key as for a payment, from the cache or from A and B. Swissquote releases B only for an operation the passkey approved, so the phone has Swissquote prepare one that changes nothing, the wallet allowing itself 0 USDC, and never sends it.
+2. The phone signs in to Swissquote. The session and the client's KYC record are mocked. A phone without a session Swissquote knows signs in as a new made-up client.
+3. The Wallet Key signs "Wallet 0x… belongs to Swissquote client *number*." `POST /api/wallets/:address/link` checks the session and that signature against the wallet's live signer, and keeps the statement as the owner record. A wallet linked to one client cannot be linked to another, and there is no unlink.
 
 ## Sending a payment
 
@@ -150,19 +159,19 @@ The protocol also requires clearing the key when the app closes. In this browser
 
 Losing the phone means losing access to both Share A and the old passkey. The user does not recover by rebuilding the old passkey. Recovery installs a new Wallet Key and a new passkey on the existing smart account.
 
-The required inputs are the Recovery Key kept at home, Swissquote's assistance, the independent service's assistance, and a new device.
+The required inputs are the Recovery Key kept at home, Swissquote's assistance, the independent service's assistance, and a new device. A wallet linked to a Swissquote account also needs the owner's ID. For an unlinked wallet that is all, with the 48-hour delay and the cancel, exactly as [protocol.md](../protocol.md) describes.
 
 ### 1. Prepare the new device
 
-The user loads or pastes the saved Recovery Key file into `/recover`. The Recovery Key signs a timestamped lookup, valid for 300 seconds. `GET /api/recovery` returns the wallet's address, any pending recovery and whether a Swissquote client owns it. It returns nothing about that client, so the key alone does not tell its holder whose ID to forge.
+The user loads or pastes the saved Recovery Key file into `/recover`. The Recovery Key signs a timestamped lookup, valid for 300 seconds. `GET /api/recovery` returns the wallet's address, any pending recovery and whether it is linked to a Swissquote client. It returns nothing about that client, so the key alone does not tell its holder whose ID to forge.
 
 The new device creates a new passkey and splits a fresh Wallet Key into A', B' and C'. The new shares are stored with their respective holders, and the new Wallet Key binds them to the existing Recovery Key's address.
 
-The user also types the number on their ID card. Swissquote compares it, ignoring case, with the ID number in the wallet owner's KYC record. Five wrong numbers, each within an hour of the last, stop ID checks on that wallet for an hour. The check is mocked. There is no document scan or liveness check, so an ID that carries the owner's number passes.
+For a linked wallet, `/recover` asks for the number on the user's ID card on **Confirm it's you**, before **Secure this phone**. Swissquote compares it, ignoring case, with the ID number in the wallet owner's KYC record. Five wrong numbers, each within an hour of the last, stop ID checks on that wallet for an hour. The check is mocked. There is no document scan or liveness check, so an ID that carries the owner's number passes. An unlinked wallet has no ID step. `/recover` goes from the Recovery Key to **Secure this phone**.
 
 ### 2. Prepare the recovery operation
 
-The new phone calls `POST /api/recovery`. Swissquote finds the registered wallet by Recovery Key address, runs the ID check and verifies the binding of the new signer and shares. It prepares:
+The new phone calls `POST /api/recovery`. Swissquote finds the registered wallet by Recovery Key address, runs the ID check if the wallet is linked, and verifies the binding of the new signer and shares. Passing the ID check signs the new phone in to Swissquote as the owner. Swissquote then prepares:
 
 ```text
 initiateRecovery(newSigner, newPasskey)
@@ -220,7 +229,7 @@ On successful initiation, the account records the proposed signer, passkey, and 
 
 The 48-hour delay is enforced by the contract's constant `RECOVERY_DELAY`, using blockchain time. A browser countdown does not determine whether finalization is allowed, and changing the browser clock cannot bypass the contract check.
 
-While the recovery remains pending, the old signer and passkey still control normal operations. The old phone can cancel through a normal signed operation calling `execute(account, 0, cancelRecovery())`. That cancel needs Swissquote's sponsorship. If the user locked the old phone, Swissquote refuses it, and the user cancels with the Recovery Key instead.
+While the recovery remains pending, the old signer and passkey still control normal operations. The old phone can cancel through a normal signed operation calling `execute(account, 0, cancelRecovery())`. That cancel needs Swissquote's sponsorship. If the user locked the old phone of a linked wallet, Swissquote refuses it, and the user cancels with the Recovery Key instead.
 
 Swissquote can also call `cancelRecovery` directly as guardian. The app's guardian-cancellation endpoint requires a Recovery Key signature bound to the wallet and the pending deadline. That API authorization is separate from the guardian permission enforced on-chain.
 
@@ -249,14 +258,14 @@ The recovered phone uses A' plus B' for subsequent payments. Old shares may stil
 | A alone, B alone, or C alone | Insufficient to reconstruct the Wallet Key |
 | Any two valid shares | Can reconstruct the Wallet Key. Ordinary payments still require the registered passkey. |
 | B and C held by colluding services | Can reconstruct the Wallet Key. Cannot make normal payments without the passkey or start recovery without the Recovery Key. |
-| Recovery Key alone | Cannot directly transfer funds or satisfy the Wallet Key signature. Can request the assisted recovery flow, which also needs the owner's ID number. |
+| Recovery Key alone | Cannot directly transfer funds or satisfy the Wallet Key signature. Can request the assisted recovery flow, which needs the owner's ID number on a linked wallet. On an unlinked wallet it can start a recovery, which the old phone or Swissquote, asked with the Recovery Key, can cancel during the 48 hours. |
 | Old phone with usable passkey and shares or cached key | Can make normal payments and cancel pending recovery until replacement credentials take effect |
 | Swissquote guardian | Can cancel a pending recovery. This guardian permission does not grant normal spending authority. |
-| Swissquote's lock | Refuses a reported phone's payments, its Share B requests and its cancels of a recovery. Nothing changes on chain. |
+| Swissquote's lock | On a linked wallet only, refuses a reported phone's payments, its Share B requests and its cancels of a recovery. Nothing changes on chain. |
 | Any finalizer after the deadline | Can install the already-authorized pending credentials. Cannot choose new ones. |
 | The partner in exit mode, after Swissquote is gone for `EXIT_AFTER` (30 days by default) | Releases C only for a normal operation the account's passkey approved. The phone still needs A and the passkey to sign. |
 
-Availability is a separate issue from signing authority. Swissquote can refuse B, sponsorship or submission, lock a phone, and prevent recovery by cancelling as guardian. The partner can refuse C. The contract does not freeze assets when a service refuses assistance. The one path around an unavailable holder is exit mode. Once Swissquote's services have been gone for `EXIT_AFTER`, the partner releases C for a normal operation approved by the account's current passkey, read on chain or, for an undeployed wallet, from the deployment config the operation carries. The phone rebuilds the key from A and C and submits to the EntryPoint itself, paying its own gas. In this build the exit runs from the command line (`npm run exit`). Exit mode does not cover a running Swissquote that refuses one client, or a phone lost while Swissquote is gone.
+Availability is a separate issue from signing authority. Swissquote can refuse B, sponsorship or submission, lock the phone of a linked wallet, and prevent recovery by cancelling as guardian. The partner can refuse C. The contract does not freeze assets when a service refuses assistance. The one path around an unavailable holder is exit mode. Once Swissquote's services have been gone for `EXIT_AFTER`, the partner releases C for a normal operation approved by the account's current passkey, read on chain or, for an undeployed wallet, from the deployment config the operation carries. The phone rebuilds the key from A and C and submits to the EntryPoint itself, paying its own gas. In this build the exit runs from the command line (`npm run exit`). Exit mode does not cover a running Swissquote that refuses one client, or a phone lost while Swissquote is gone.
 
 ## Storage and current implementation limits
 
@@ -264,8 +273,8 @@ Availability is a separate issue from signing authority. Swissquote can refuse B
 - Swissquote and the partner store their shares in separate SQLite vaults, AES-GCM sealed under separate keys. `npm run local` gives each process only its own key. These are software vaults, not HSMs.
 - `lib/wallet/shamir.ts` is our own code, about 30 lines of logic on @noble/curves. It needs an audit, or a swap for an audited library.
 - The saved Recovery Key file contains a private signing key. The app sends its public address and signatures to the holders, rather than deliberately uploading the private key. Recovery temporarily loads that secret on the new device to sign.
-- The identity step is a demonstration, not a real identity check. It compares a typed number with a mocked KYC record, so it shows the gate, not identity assurance. The second signature and the 48-hour contract delay still apply.
-- A stolen, usable passkey and signing material can authorize normal payments while the old credentials remain active, including during a pending recovery. Recovery is not a freeze. Swissquote's lock stops its own help to a reported phone, but not a key still cached on it, for up to 3 hours, submitted through a public bundler with the thief's own ETH.
+- The identity step runs only for a linked wallet, and it is a demonstration, not a real identity check. It compares a typed number with a mocked KYC record, so it shows the gate, not identity assurance. The second signature and the 48-hour contract delay still apply, and they are all an unlinked wallet has.
+- A stolen, usable passkey and signing material can authorize normal payments while the old credentials remain active, including during a pending recovery. Recovery is not a freeze. On a linked wallet, Swissquote's lock stops its own help to a reported phone, but not a key still cached on it, for up to 3 hours, submitted through a public bundler with the thief's own ETH. An unlinked wallet has no lock.
 - If A is lost and B or C is unavailable, the implemented recovery path cannot reconstruct the old Wallet Key. Losing the Recovery Key as well also removes the implemented authorization path.
 - A malicious app or compromised new device can access reconstructed keys or the loaded Recovery Key. Share distribution does not protect secrets from the runtime that reconstructs and uses them.
 - The code exposes on-chain recovery events and pending state. The protocol's cancellation window should not be interpreted as proof that production alert delivery or bank identity verification is implemented.
@@ -280,8 +289,9 @@ Availability is a separate issue from signing authority. Swissquote can refuse B
 | [vault.ts](../lib/wallet/vault.ts) | Holder storage and Recovery Key binding |
 | [tickets.ts](../lib/wallet/tickets.ts) | Signed share-registration and recovery-approval tickets |
 | [operations.ts](../lib/wallet/api/operations.ts) | Sponsorship, limits, binding checks, operation preparation, held payments and submission |
-| [clients.ts](../lib/wallet/api/clients.ts) | The mocked Swissquote session, KYC record and recovery ID check |
-| [locks.ts](../lib/wallet/api/locks.ts) | The lock on a reported phone |
+| [clients.ts](../lib/wallet/api/clients.ts) | The mocked Swissquote sign-in for linking, the KYC record and the ID check of a linked wallet |
+| [link route](../app/api/wallets/[address]/link/route.ts) | The owner record a linked wallet's key signs |
+| [locks.ts](../lib/wallet/api/locks.ts) | The lock on a reported phone of a linked wallet |
 | [partner/server.ts](../services/partner/server.ts) | Independent validation and release of Share C |
 | [SwissquoteAccount.sol](../contracts/src/SwissquoteAccount.sol) | Both signature modes, 48-hour delay, cancellation, and finalization |
 | [wallet recovery route](../app/api/wallets/[address]/recovery/route.ts) | Share B release, guardian cancellation, and assisted finalization |
