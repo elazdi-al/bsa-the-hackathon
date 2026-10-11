@@ -92,6 +92,10 @@ function open() {
     removeOperation(hash: Hex) {
       db.prepare("delete from operations where hash = ?").run(hash);
     },
+    /** Forgets operations prepared before `before`, in ms: their sponsorship expired unsubmitted. */
+    pruneOperations(before: number) {
+      db.prepare("delete from operations where created_at < ?").run(before);
+    },
     hold(hash: Hex, wallet: Address, userOp: RpcUserOperation<"0.7">, releaseAt: number) {
       db.prepare("insert into held values (?, ?, ?, ?, null)").run(hash, wallet, JSON.stringify(userOp), releaseAt);
     },

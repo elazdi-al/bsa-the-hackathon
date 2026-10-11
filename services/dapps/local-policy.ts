@@ -7,7 +7,8 @@ export function localDappPolicy(usdcAddress: string, vaultAddress?: string) {
   const vault = vaultAddress?.toLowerCase();
   const limits = { maxTransactionAmount: "10000000000", stepUpAmount: "1000000000", dailyLimitAmount: "5000000000" };
   return parsePolicy({
-    version: vault ? "local-dapps-1" : "local-1", decisionTtlSeconds: 120, screeningMaxAgeSeconds: 120,
+    // Ten minutes, the most the schema allows. Swissquote's sponsorship lasts as long, so the review can stay open before Face ID.
+    version: vault ? "local-dapps-1" : "local-1", decisionTtlSeconds: 600, screeningMaxAgeSeconds: 600,
     supportedChainIds: [31337], nativeTransfers: [],
     tokens: [
       { chainId: 31337, address: usdc, symbol: "USDC", decimals: 6, approvedSpenders: vault ? [vault] : [], ...limits },
