@@ -41,7 +41,7 @@ export const addresses = {
 
 /**
  * Swissquote Plus: what one period costs, in USDC base units paid to Swissquote's address, and how long it lasts, in
- * chain seconds, so a warped local chain ages it like a hold.
+ * chain seconds, so a warped local chain ages it.
  */
 export const plus = { price: 10_000_000n, period: 30 * 24 * 60 * 60 };
 

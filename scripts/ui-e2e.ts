@@ -255,7 +255,7 @@ assert.equal(await publicClient.getBalance({ address: wallet3 }), 0n, "Swissquot
 await phone4.getByRole("button", { name: "Cancel recovery" }).click();
 await phone4.getByText("Recover your wallet").waitFor(SLOW);
 
-console.log("14. Swissquote Plus is bought, not given: Home and Settings offer it, an unlinked wallet's /plus sends the client to link first, and the linked wallet buys it with Face ID");
+console.log("13. Swissquote Plus is bought, not given: Home and Settings offer it, an unlinked wallet's /plus sends the client to link first, and the linked wallet buys it with Face ID");
 await phone3.goto(`${APP}/plus`);
 await phone3.getByRole("button", { name: "Link your Swissquote account" }).click(SLOW);
 await phone3.waitForURL("**/settings", SLOW);
