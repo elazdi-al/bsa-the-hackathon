@@ -17,6 +17,7 @@
     "status": "node --env-file-if-exists=.env.local --disable-warning=ExperimentalWarning scripts/cli.ts status",
     "fund": "node --env-file-if-exists=.env.local --disable-warning=ExperimentalWarning scripts/cli.ts fund",
     "account": "node --env-file-if-exists=.env.local --disable-warning=ExperimentalWarning scripts/cli.ts account",
+    "link": "node --env-file-if-exists=.env.local --disable-warning=ExperimentalWarning scripts/cli.ts link",
     "send": "node --env-file-if-exists=.env.local --disable-warning=ExperimentalWarning scripts/cli.ts send",
     "recover": "node --env-file-if-exists=.env.local --disable-warning=ExperimentalWarning scripts/cli.ts recover",
     "finish": "node --env-file-if-exists=.env.local --disable-warning=ExperimentalWarning scripts/cli.ts finish",

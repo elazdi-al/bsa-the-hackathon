@@ -198,10 +198,11 @@ Swissquote Wallet is running. Open ${APP_URL}/onboarding-welcome
 
   npm run status                     chain, contracts, wallets and accounts
   npm run fund [wallet] [amount]     mint test USDC (default: the newest wallet, 100)
-  npm run account <name>             create a wallet with a software passkey
+  npm run account <name>             create a wallet with a software passkey, not linked to Swissquote
+  npm run link <account>             link the wallet to a Swissquote client (mock): ID check, phone lock
   npm run send <from> <to> <amount>  send USDC from an account; over 1,000 USDC, Swissquote holds it 24 hours
   npm run cancel-payment <account>   cancel held payments with the Recovery Key
-  npm run recover <account|file>     start a recovery onto a new phone
+  npm run recover <account|file>     start a recovery onto a new phone; a linked wallet also needs the ID
   npm run finish <account>           finish a recovery after the 48 hours
   npm run cancel <account>           cancel a recovery with the Recovery Key
   npm run lock <account>             report the phone lost: Swissquote locks it

@@ -24,12 +24,14 @@ const authenticator = {
 
 const browser = await chromium.launch();
 const errors = [];
+let signIns = 0;
 
 async function open(options = authenticator.options) {
   const context = await browser.newContext({ viewport: { width: 393, height: 852 }, hasTouch: true });
   const page = await context.newPage();
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+  page.on("request", (r) => new URL(r.url()).pathname === "/api/session" && signIns++);
   const cdp = await context.newCDPSession(page);
   await cdp.send("WebAuthn.enable");
   const { authenticatorId } = await cdp.send("WebAuthn.addVirtualAuthenticator", { options });
@@ -121,11 +123,9 @@ const secretOf = async (download) => (await readFile(await download.path(), "utf
   assert.equal(wallet.signer, signer, "the wallet is controlled by the key this phone split");
   assert.deepEqual(wallet.passkey, passkey, "the wallet checks this phone's passkey");
   assert.equal(wallet.recoveryKey, privateKeyToAddress(secret), "the wallet recovers with the saved key");
-  assert.equal("owner" in wallet, false, "Swissquote names no owner to a caller without the owner's session");
-  const { session, client } = await page.evaluate(() => JSON.parse(localStorage.getItem("swissquote.session")));
-  await page.getByText(`Signed in to Swissquote as ${client.name} · Mock`).waitFor();
-  const own = await (await fetch(new URL(`/api/wallets/${address}`, base), { headers: { "x-swissquote-session": session } })).json();
-  assert.equal(own.owner?.client, client.number, "Swissquote recorded the signed-in client against the wallet, and tells them so");
+  assert.equal("owner" in wallet, false, "a new wallet is linked to no Swissquote client");
+  assert.equal(signIns, 0, "creating a wallet never signs in to Swissquote");
+  assert.equal(await page.evaluate(() => localStorage.getItem("swissquote.session")), null, "the phone keeps no Swissquote session");
   console.log(`registered ${address}: signer ${signer}, recovery key ${wallet.recoveryKey}`);
   await page.context().close();
 }
