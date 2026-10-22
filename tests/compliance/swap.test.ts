@@ -72,9 +72,15 @@ test("revoking the pool's permission and approving a vault without depositing ke
   assert.equal((await evaluate([approve(DEMO.usdc, 100n, DEMO.vault)])).status, "ALLOW");
 });
 
-test("no swap is capped or held: 2,000 USDC and 0.5 WETH swap at once", async () => {
-  for (const calls of [pair(DEMO.usdc, usdc("2000"), weth("0.79")), pair(DEMO.weth, weth("0.5"), usdc("1240"))]) {
-    assert.equal((await evaluate(calls)).status, "ALLOW");
+test("no swap is capped or held: 2,000 USDC and 0.5 WETH swap at once, each as one outflow to the pool", async () => {
+  for (const [calls, out] of [
+    [pair(DEMO.usdc, usdc("2000"), weth("0.79")), { asset: DEMO.usdc, from: DEMO.account, to: DEMO.pool, amount: "2000000000" }],
+    [pair(DEMO.weth, weth("0.5"), usdc("1240")), { asset: DEMO.weth, from: DEMO.account, to: DEMO.pool, amount: "500000000000000000" }],
+  ] as const) {
+    const decision = await evaluate(calls);
+    assert.equal(decision.status, "ALLOW");
+    // The pool's transferFrom is the only thing that leaves the account, so a usage ledger would count the swap once.
+    assert.deepEqual(decision.simulation.transfers.filter((transfer) => transfer.from === DEMO.account), [out]);
   }
 });
 

@@ -37,10 +37,10 @@ export function newPhone({
 /** Mints the deployment's test USDC, which anyone may mint, on any chain Deploy.s.sol deployed it to. */
 export const mintUsdc = (to: Address, amount: string) => mint("usdc", to, amount);
 
-/** Mints test USDC, or the test WETH a local chain's pool trades. `amount` is in whole tokens, like "100" or "0.5". */
+/** Mints test USDC, or the test WETH the deployment's pool trades. `amount` is in whole tokens, like "100" or "0.5". */
 export async function mint(token: PoolToken, to: Address, amount: string) {
   const address = addresses[token];
-  if (!address) throw new Error("This chain has no WETH: only a local chain gets the swap pool.");
+  if (!address) throw new Error("This deployment has no WETH or pool. A fresh deploy (npm run local, or npm run live fresh) gets them.");
   const swissquote = createWalletClient({ account: privateKeyToAccount(process.env.SWISSQUOTE_KEY as Hex), chain, transport: http(rpcUrl) });
   const hash = await swissquote.writeContract({
     address,

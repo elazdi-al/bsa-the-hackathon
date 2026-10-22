@@ -1,5 +1,5 @@
-// The local chain's USDC/WETH test pool (contracts/script/TestPool.sol): its ABI and its exact pricing,
-// shared by the phone, the app's swap sheet, the Wallet API and the scripts. Base Sepolia has no pool.
+// The deployment's USDC/WETH test pool (contracts/script/TestPool.sol): its ABI and its exact pricing, shared by
+// the phone, the app's swap sheet, the Wallet API and the scripts. A deployment made before the pool has none.
 import { formatUnits, parseAbi } from "viem";
 
 export const poolAbi = parseAbi([

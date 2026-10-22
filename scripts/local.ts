@@ -204,8 +204,8 @@ function deployContracts() {
   return Object.fromEntries([...deploy.stdout.matchAll(/([A-Z_]+_ADDRESS)=(0x[0-9a-fA-F]{40})/g)].map((m) => [m[1], m[2]]));
 }
 
-// New chains include the deployed test vault and, on anvil, the test pool Swissquote reviews swaps through, each
-// approval exactly the swap's input. Never silently expand a resumed chain's policy.
+// New chains include the deployed test vault and the test pool Swissquote reviews swaps through, each approval
+// exactly the swap's input. Never silently expand a resumed chain's policy.
 const swap = deployed.WETH_ADDRESS && deployed.POOL_ADDRESS ? { weth: deployed.WETH_ADDRESS, pool: deployed.POOL_ADDRESS } : undefined;
 if (!resume || !existsSync(POLICY_FILE)) writeFileSync(POLICY_FILE, JSON.stringify(localDappPolicy(deployed.USDC_ADDRESS, deployed.VAULT_ADDRESS, (sepolia ? baseSepolia : foundry).id, swap)));
 if (resume && !deployed.VAULT_ADDRESS) console.log("This older chain has no test vault. Its wallets and policy are preserved; deploy and review a vault explicitly to enable dApps.");

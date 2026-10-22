@@ -418,7 +418,7 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
       const tokenIn = tokenOf(tokenArg);
       const amountIn = baseUnits(amountArg, tokenIn);
       const { pool } = addresses;
-      if (!pool) throw new Error("This chain has no swap pool. npm run local deploys one on anvil.");
+      if (!pool) throw new Error("This deployment has no swap pool. A fresh deploy (npm run local, or npm run live fresh) gets one.");
       const { phone } = loadAccount(name);
       const wallet = walletOf(name);
       const held = await balanceOf(addresses[tokenIn]!, wallet);

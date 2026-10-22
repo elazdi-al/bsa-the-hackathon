@@ -62,8 +62,8 @@ export function BottomBar() {
   const wallet = useWallet();
   // Swap is a Swissquote service: grey, and inert, until the wallet is linked.
   const swapLocked = isUnlinked(wallet);
-  // Only a chain with a pool can swap: the local one, not Base Sepolia.
-  const shown = wallet.status === "ready" && !wallet.wallet.pool ? actions.filter((a) => a.sheet !== "swap") : actions;
+  // Only a deployment with a pool can swap; one made before the pool, like a resumed live demo, has none.
+  const shown = wallet.status === "ready" && wallet.wallet.pool ? actions : actions.filter((a) => a.sheet !== "swap");
 
   const close = () => {
     setOpen(false);

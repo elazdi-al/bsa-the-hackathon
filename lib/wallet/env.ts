@@ -33,7 +33,7 @@ export const addresses = {
   get usdc() {
     return required("USDC_ADDRESS");
   },
-  /** The local chain's WETH and USDC/WETH test pool; null where there is no pool, as on Base Sepolia. */
+  /** The deployment's test WETH and USDC/WETH pool; null on a deployment made before the pool existed, like a resumed one. */
   get weth() {
     return (process.env.WETH_ADDRESS || null) as Address | null;
   },

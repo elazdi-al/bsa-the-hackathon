@@ -112,11 +112,12 @@ export async function bindShares(signer: Address, recoveryKey: Address, signatur
 
 type Call = { target: Address; value: bigint; data: Hex };
 
-/** The calls an operation makes: one through `execute`, several through `executeBatch`, none for anything else. */
+/** The calls an operation makes: one through `execute`, several through `executeBatch`. Anything else is refused. */
 function callsOf(callData: Hex): readonly Call[] {
   const call = decodeFunctionData({ abi: accountAbi, data: callData });
   if (call.functionName === "execute") return [{ target: call.args[0], value: call.args[1], data: call.args[2] }];
-  return call.functionName === "executeBatch" ? call.args[0] : [];
+  if (call.functionName === "executeBatch" && call.args[0].length) return call.args[0];
+  throw new HttpError(403, "The app can't make this call.");
 }
 
 /**
@@ -127,7 +128,6 @@ function callsOf(callData: Hex): readonly Call[] {
 export async function assist(wallet: Wallet, callData: Hex, dapp?: DappMetadata) {
   await refuseLocked(wallet);
   const calls = callsOf(callData);
-  if (!calls.length) throw new HttpError(403, "The app can't make this call.");
   if (calls.some(({ target }) => isAddressEqual(target, wallet.address))) {
     if (!dapp && calls.length === 1 && calls[0].data === encodeFunctionData({ abi: accountAbi, functionName: "cancelRecovery" })) {
       return { summary: ["You cancel the pending recovery of your wallet."], demo: false };

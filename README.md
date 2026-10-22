@@ -23,7 +23,7 @@ A self-custody crypto wallet Swissquote could offer its clients. The client hold
 - **Recovery.** A Recovery Key file kept off the phone restores the wallet on a new phone after a 48-hour on-chain delay, which the old phone can cancel.
 - **Exit.** If Swissquote is gone for 30 days, the independent service releases its share and the wallet pays its own gas.
 - **Optional link.** A wallet linked to a Swissquote account gets sponsored gas, transfers with no extra checks, a lock for a stolen phone and Swissquote Plus.
-- **Swap.** On the local chain, one Face ID swaps USDC and ETH through an on-chain pool in a single sponsored operation, after Swissquote reviews the swap and its exact approval.
+- **Swap.** One Face ID swaps USDC and ETH through an on-chain test pool in a single sponsored operation, after Swissquote reviews the swap and its exact approval.
 
 This is a hackathon build. The protocol runs for real, on a local chain or Base Sepolia. The Swissquote sign-in, the HSMs and demo-mode sanctions screening are [mocked](docs/REFERENCE.md#what-is-real-and-what-is-mocked).
 
