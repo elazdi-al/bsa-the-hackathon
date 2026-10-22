@@ -131,7 +131,7 @@ struct Pulse {
     t0: f32,
     t1: f32,
     edge: usize,
-    col: Rgb,
+    col: Color,
     rev: bool,
     stop: f32,
 }
@@ -141,7 +141,6 @@ struct Timer {
     t0: f32,
     t1: f32,
     stop: Option<f32>,
-    col: Rgb,
 }
 
 #[derive(Debug)]
@@ -151,8 +150,8 @@ struct Typed {
     y: i32,
     lines: Vec<String>,
     lead: usize,
-    lcol: Rgb,
-    col: Rgb,
+    lcol: Color,
+    col: Color,
     cps: f32,
     until: Option<f32>,
 }
@@ -208,11 +207,11 @@ static GRID_PATH: LazyLock<String> = LazyLock::new(|| {
     d
 });
 
-pub fn outcome_col(good: Option<bool>) -> Rgb {
+pub fn outcome_col(good: Option<bool>) -> Color {
     match good {
-        Some(true) => CYAN,
-        Some(false) => MAG,
-        None => WHITE,
+        Some(true) => OK,
+        Some(false) => BAD,
+        None => WAIT_INK,
     }
 }
 
@@ -232,7 +231,7 @@ pub fn shake_at(shakes: &[(f32, f32, f32)], t: f32) -> (i32, i32) {
 pub fn fade_out(svg: &mut Svg, t: f32, dur: f32) {
     let p = (t - (dur - DISS)) / DISS;
     if p > 0. {
-        svg.path(&Svg::blocks_path(6, |n| n < p), BLACK);
+        svg.path(&Svg::blocks_path(6, |n| n < p), BG);
     }
 }
 
@@ -255,18 +254,18 @@ pub struct Board {
     act: [Track<Option<&'static str>>; 6],
     hl: [Track<bool>; 9],
     ghl: [Track<bool>; 4],
-    lit: [Track<Option<(f32, f32, Rgb)>>; 8],
+    lit: [Track<Option<(f32, f32, Color)>>; 8],
     pulses: Vec<Pulse>,
-    comb: Track<(&'static str, Rgb)>,
-    gates: [Track<(G, &'static str, Rgb)>; 4],
+    comb: Track<(&'static str, Color)>,
+    gates: [Track<(G, &'static str, Color)>; 4],
     rule: Track<&'static str>,
     cred: Track<&'static str>,
     frozen: Track<bool>,
-    req: Track<Option<(&'static str, Rgb)>>,
+    req: Track<Option<(&'static str, Color)>>,
     timer: Track<Option<Timer>>,
     out: Track<Option<Out>>,
     who: Track<Option<Who>>,
-    wflash: Track<Rgb>,
+    wflash: Track<Color>,
     badge: Track<&'static str>,
     failing: Track<Vec<String>>,
     typed: Vec<Typed>,
@@ -342,9 +341,9 @@ impl Board {
         self.cues.push(cue(t, name, x));
     }
 
-    fn pulse(&mut self, t0: f32, t1: f32, edge: usize, col: Rgb) {
+    fn pulse(&mut self, t0: f32, t1: f32, edge: usize, col: Color) {
         self.pulses.push(Pulse { t0, t1, edge, col, rev: false, stop: 1. });
-        self.lit[edge].set(t0, Some((t0, t1, mix(col, EDGE, 0.5))));
+        self.lit[edge].set(t0, Some((t0, t1, mix(col, LINE, 0.5))));
     }
 
     fn shake(&mut self, t: f32, dur: f32, amp: f32) {
@@ -352,7 +351,7 @@ impl Board {
     }
 
     /// Types `lead` + `body` into the info panel; returns when the last character lands.
-    fn type_block(&mut self, t0: f32, y: i32, lead: &str, body: &str, lcol: Rgb, hold: Option<f32>) -> f32 {
+    fn type_block(&mut self, t0: f32, y: i32, lead: &str, body: &str, lcol: Color, hold: Option<f32>) -> f32 {
         let full = format!("{lead}{body}");
         assert!(full.is_ascii());
         assert_glyphs(&full);
@@ -369,7 +368,7 @@ impl Board {
         }
         let end = t0 + i as f32 / cps;
         let until = hold.map(|h| end + h);
-        self.typed.push(Typed { t0, x: 10, y, lines, lead: lead.len(), lcol, col: ICE, cps, until });
+        self.typed.push(Typed { t0, x: 10, y, lines, lead: lead.len(), lcol, col: TEXT, cps, until });
         end
     }
 
@@ -411,7 +410,7 @@ impl Board {
     /// scenario's last attempt.
     fn run(&mut self, mut t: f32, who: Who, act: Act, cancel_at: Option<f32>, fin: Option<Out>) -> f32 {
         let atk = who == Who::Atk;
-        let col = if atk { MAG } else { CYAN };
+        let col = if atk { BAD } else { OK };
         let spend = act == Act::Spend;
         for h in 0..6 {
             self.act[h].set(t, None);
@@ -448,7 +447,7 @@ impl Board {
         }
         for (i, &h) in dead.iter().enumerate() {
             let t0 = t + 0.1 + i as f32 * 0.12;
-            self.pulses.push(Pulse { t0, t1: t0 + 0.45, edge: h, col: MAG, rev: true, stop: 0.8 });
+            self.pulses.push(Pulse { t0, t1: t0 + 0.45, edge: h, col: BAD, rev: true, stop: 0.8 });
             self.cue(t0 + 0.38, "deny", HX);
         }
         t += 0.55 + 0.15 * signers.len().max(1) as f32 + 0.15;
@@ -459,8 +458,8 @@ impl Board {
             self.gates[0].set(t + 0.35, (G::Pass, "✓", col));
             self.cue(t + 0.35, "pass", GX);
         } else {
-            self.comb.set(t, (COUNT[signers.len()], MAG));
-            self.gates[0].set(t, (G::Fail, COUNT[signers.len()], MAG));
+            self.comb.set(t, (COUNT[signers.len()], BAD));
+            self.gates[0].set(t, (G::Fail, COUNT[signers.len()], BAD));
             self.cue(t, "fail", CX);
             self.shake(t, 0.2, 1.);
         }
@@ -477,7 +476,7 @@ impl Board {
             self.cue(t + 0.45, "pass", GX);
         } else {
             self.gates[gi].set(t, (G::Check, "...", col));
-            self.gates[gi].set(t + 0.35, (G::Fail, "✗", MAG));
+            self.gates[gi].set(t + 0.35, (G::Fail, "✗", BAD));
             self.cue(t + 0.35, "fail", GX);
         }
         t += 0.7;
@@ -500,11 +499,11 @@ impl Board {
         const T: f32 = 2.6;
         self.gates[3].set(t, (G::Check, "...", col));
         self.frozen.set(t, true);
-        self.req.set(t, Some(("REQUEST PENDING", col)));
+        self.req.set(t, Some(("REQUEST PENDING", WAIT_INK)));
         self.wflash.set(t, col);
         self.cue(t, "register", GX);
         self.out.set(t, Some(Out { icon: "hourglass", label: "PENDING", good: None }));
-        self.timer.set(t, Some(Timer { t0: t, t1: t + T, stop: cancel_at, col }));
+        self.timer.set(t, Some(Timer { t0: t, t1: t + T, stop: cancel_at }));
         let stop_h = cancel_at.unwrap_or(48.);
         for k in 1..=(stop_h / 4.) as usize {
             self.cue(t + T * (k * 4) as f32 / 48., if k % 2 == 0 { "tick0" } else { "tick1" }, GX);
@@ -512,12 +511,12 @@ impl Board {
         if let Some(ch) = cancel_at {
             let tc = t + T * ch / 48.;
             self.act[A].set(tc - 0.45, Some("VETO"));
-            self.pulse(tc - 0.45, tc, A, CYAN);
+            self.pulse(tc - 0.45, tc, A, OK);
             self.cue(tc - 0.45, "pulse", HX);
-            self.gates[1].set(tc, (G::Pass, "VETO", CYAN));
-            self.gates[3].set(tc, (G::Fail, "✗", MAG));
+            self.gates[1].set(tc, (G::Pass, "VETO", OK));
+            self.gates[3].set(tc, (G::Fail, "✗", BAD));
             self.cue(tc, "cancel", GX);
-            self.req.set(tc, Some(("REQUEST CANCELLED", CYAN)));
+            self.req.set(tc, Some(("REQUEST CANCELLED", OK)));
             self.frozen.set(tc + 0.3, false);
             self.stamp(tc + 0.5, fin.unwrap_or(Out { icon: "shield", label: "CANCELLED", good: Some(true) }));
             return tc + 1.3;
@@ -528,7 +527,7 @@ impl Board {
         for h in 0..6 {
             self.act[h].set(te, None);
         }
-        self.req.set(te + 0.3, Some(("FINALIZED", CYAN)));
+        self.req.set(te + 0.3, Some(("FINALIZED", OK)));
         self.cred.set(te + 0.3, "V2");
         self.frozen.set(te + 0.3, false);
         self.cue(te + 0.3, "new", HX);
@@ -568,7 +567,7 @@ impl Board {
         b.badge.set(t, if sp.pass { "PASS" } else { "LIMIT" });
         b.cue(t, "select", 460);
         let lead = sp.lead.unwrap_or(if sp.pass { "RESOLVED BY: " } else { "KNOWN LIMIT: " });
-        let end = b.type_block(t + 0.2, 223, lead, sp.fix, if sp.pass { CYAN } else { MAG }, None);
+        let end = b.type_block(t + 0.2, 223, lead, sp.fix, if sp.pass { OK } else { BAD }, None);
         b.dur = end + 1.2 + sp.fix.len() as f32 / 32. + DISS;
         b
     }
@@ -588,15 +587,15 @@ impl Board {
             212,
             "P S B: ",
             "THREE MPC SHARES: ON THE PHONE, AT SWISSQUOTE, AT A BACKUP SERVICE. ANY 2 OF 3 PRODUCE THE MPC SIGNATURE.",
-            CYAN,
+            OK,
             hold,
         );
         for (i, h) in [P, S].into_iter().enumerate() {
             let t0 = t + 0.6 + i as f32 * 0.15;
             b.act[h].set(t0, Some("SIGNING"));
-            b.pulse(t0, t0 + 0.55, h, CYAN);
+            b.pulse(t0, t0 + 0.55, h, OK);
             b.cue(t0, "pulse", HX);
-            b.comb.set(t0 + 0.55, (COUNT[i + 1], CYAN));
+            b.comb.set(t0 + 0.55, (COUNT[i + 1], OK));
             b.cue(t0 + 0.55, BLIP[i], CX);
         }
         t = end + 2.6;
@@ -611,23 +610,23 @@ impl Board {
         b.rule.set(t, "SPEND = MPC + A");
         b.who.set(t, Some(Who::User));
         for (i, g) in b.gates.iter_mut().enumerate() {
-            g.set(t, if i < 2 { (G::Req, "", CYAN) } else { (G::Na, "--", CYAN) });
+            g.set(t, if i < 2 { (G::Req, "", OK) } else { (G::Na, "--", OK) });
         }
         let end = b.type_block(
             t,
             212,
             "A: ",
             "THE USER'S PASSKEY. EVERY ORDINARY SPEND NEEDS MPC + A, BOTH BOUND TO THE EXACT OPERATION.",
-            CYAN,
+            OK,
             hold,
         );
-        b.pulse(t + 0.5, t + 0.85, EM, CYAN);
-        b.gates[0].set(t + 0.85, (G::Pass, "✓", CYAN));
+        b.pulse(t + 0.5, t + 0.85, EM, OK);
+        b.gates[0].set(t + 0.85, (G::Pass, "✓", OK));
         b.cue(t + 0.85, "pass", GX);
         b.act[A].set(t + 0.8, Some("APPROVED"));
-        b.pulse(t + 0.8, t + 1.25, A, CYAN);
+        b.pulse(t + 0.8, t + 1.25, A, OK);
         b.cue(t + 0.8, "pulse", HX);
-        b.gates[1].set(t + 1.25, (G::Pass, "✓", CYAN));
+        b.gates[1].set(t + 1.25, (G::Pass, "✓", OK));
         b.cue(t + 1.25, "pass", GX);
         b.stamp(t + 1.9, Out { icon: "check", label: "TX EXECUTED", good: Some(true) });
         t = end + 2.6;
@@ -646,23 +645,23 @@ impl Board {
         }
         b.lit[A].set(t, None);
         b.lit[EO].set(t, None);
-        b.gates[1].set(t, (G::Na, "--", CYAN));
-        b.gates[2].set(t, (G::Req, "", CYAN));
-        b.gates[3].set(t, (G::Req, "", CYAN));
+        b.gates[1].set(t, (G::Na, "--", OK));
+        b.gates[2].set(t, (G::Req, "", OK));
+        b.gates[3].set(t, (G::Req, "", OK));
         let end = b.type_block(
             t,
             212,
             "R: ",
             "A SEPARATE RECOVERY KEY, KEPT OFF THE PHONE. RECOVERY NEEDS MPC + R, THEN A CANCELLABLE 48H ON-CHAIN DELAY.",
-            CYAN,
+            OK,
             hold,
         );
         b.act[R].set(t + 0.6, Some("SIGNED"));
-        b.pulse(t + 0.6, t + 1.05, R, CYAN);
+        b.pulse(t + 0.6, t + 1.05, R, OK);
         b.cue(t + 0.6, "pulse", HX);
-        b.gates[2].set(t + 1.05, (G::Pass, "✓", CYAN));
+        b.gates[2].set(t + 1.05, (G::Pass, "✓", OK));
         b.cue(t + 1.05, "pass", GX);
-        b.gates[3].set(t + 1.4, (G::Check, "48H", CYAN));
+        b.gates[3].set(t + 1.4, (G::Check, "48H", OK));
         b.cue(t + 1.4, "register", GX);
         t = end + 2.6;
         b.hl[R].set(t, false);
@@ -688,7 +687,7 @@ impl Board {
             212,
             "W: ",
             "AN ERC-4337 SMART WALLET HOLDS THE FUNDS AND ENFORCES BOTH RULES. NO PROVIDER OVERRIDE: NO ADMIN, UPGRADE OR MODULE BYPASS.",
-            CYAN,
+            OK,
             hold,
         );
         t = end + 2.6;
@@ -700,7 +699,7 @@ impl Board {
             212,
             ">> ",
             "11 SCENARIOS. WATCH WHICH PIECES FAIL, AND WHAT RESOLVES EACH ONE.",
-            WHITE,
+            INK,
             None,
         );
         b.cue(end, "start", 240);
@@ -719,7 +718,7 @@ impl Board {
                 self.draw_board(t, svg);
                 let clip = Svg::blocks_path(6, |n| n >= p);
                 svg.raw(&format!(r#"<clipPath id="card"><path d="{clip}"/></clipPath><g clip-path="url(#card)">"#));
-                svg.rect(0, 0, W, H, BLACK);
+                svg.rect(0, 0, W, H, BG);
                 self.draw_card(t, svg);
                 svg.raw("</g>");
             }
@@ -743,9 +742,9 @@ impl Board {
         ] {
             svg.rect(x, y, w, h, NODE);
         }
-        svg.ctext(240, 72, &format!("SCENARIO {:02}", self.num.unwrap_or(0)), BLUE, 2);
+        svg.ctext(240, 72, &format!("SCENARIO {:02}", self.num.unwrap_or(0)), DIM, 2);
         let n = (((t - 0.2) * 60.).max(0.) as usize).min(self.title.len());
-        svg.text(240 - tw(self.title, 2) / 2, 98, &self.title[..n], WHITE, 2);
+        svg.text(240 - tw(self.title, 2) / 2, 98, &self.title[..n], INK, 2);
         let sub_at = 0.3 + self.title.len() as f32 / 60.;
         let m = (((t - sub_at) * 110.).max(0.) as usize).min(self.sub.len());
         svg.text(240 - tw(self.sub, 1) / 2, 134, &self.sub[..m], TEXT, 1);
@@ -754,6 +753,7 @@ impl Board {
     fn draw_board(&self, t: f32, svg: &mut Svg) {
         svg.path(&GRID_PATH, GRID);
         self.draw_header(t, svg);
+        self.draw_wallet_card(t, svg);
         for e in 0..8 {
             self.draw_edge(e, t, svg);
         }
@@ -772,23 +772,23 @@ impl Board {
     fn draw_header(&self, t: f32, svg: &mut Svg) {
         match self.num {
             Some(n) => {
-                svg.text(8, 6, &format!("{n:02}/{:02}", SPECS.len()), BLUE, 1);
-                svg.text(44, 6, self.title, WHITE, 1);
+                svg.text(8, 6, &format!("{n:02}/{:02}", SPECS.len()), DIM, 1);
+                svg.text(44, 6, self.title, INK, 1);
             }
-            None => svg.text(8, 6, self.title, WHITE, 1),
+            None => svg.text(8, 6, self.title, INK, 1),
         }
         if let Some((ts, &b)) = self.badge.at(t) {
-            let col = if b == "PASS" { CYAN } else { MAG };
+            let col = if b == "PASS" { OK } else { BAD };
             let w = tw(b, 1);
             if t - ts < 0.1 {
                 svg.rect(466 - w, 3, w + 8, 13, col);
-                svg.rtext(470, 6, b, BLACK, 1);
+                svg.rtext(470, 6, b, CARD, 1);
             } else {
                 svg.border(466 - w, 3, 473, 15, col);
                 svg.rtext(470, 6, b, col, 1);
             }
         }
-        svg.rect(4, 19, 472, 1, EDGE);
+        svg.rect(4, 19, 472, 1, LINE);
     }
 
     fn holder_state(&self, h: usize, t: f32) -> (f32, St, &'static str) {
@@ -810,7 +810,7 @@ impl Board {
         }
         let pts = &EDGES[e];
         let dotted = matches!(st, St::Off | St::Lost | St::NoCopy);
-        let base = if matches!(st, St::Off | St::Lost) { MAG_DIM } else { EDGE };
+        let base = if matches!(st, St::Off | St::Lost) { BAD_SOFT } else { LINE };
         svg.pixels(pts.iter().enumerate().filter(|(i, _)| !dotted || i % 3 == 0).map(|(_, &p)| p), base);
         if let Some(&Some((t0, t1, c))) = self.lit[e].get(t) {
             let n = (((t - t0) / (t1 - t0)).clamp(0., 1.) * pts.len() as f32) as usize;
@@ -824,18 +824,18 @@ impl Board {
         }
         let &(txt, col) = self.comb.get(t).unwrap_or(&("--", NODE));
         let hl = self.hl[COMB].get(t).copied().unwrap_or(false) && blink(t, 6.);
-        let ring = if hl || t - self.vis[COMB] < 0.08 { WHITE } else { col };
-        svg.ring(CX, CY, CR, 2, ring, FILL);
-        svg.ctext(CX + 1, CY - 3, txt, if col == NODE { DIM } else { WHITE }, 1);
+        let ring = if hl || t - self.vis[COMB] < 0.08 { INK } else { col };
+        svg.ring(CX, CY, CR, 2, ring, CARD);
+        svg.ctext(CX + 1, CY - 3, txt, if col == NODE { DIM } else { INK }, 1);
         svg.ctext(CX + 1, CY - CR - 11, "MPC", DIM, 1);
     }
 
-    fn draw_wallet(&self, t: f32, svg: &mut Svg) {
+    fn draw_wallet_card(&self, t: f32, svg: &mut Svg) {
         if t < self.vis[WALLET] {
             return;
         }
         let (x0, y0, x1, y1) = WB;
-        let mut oc = NODE;
+        let mut oc = LINE;
         if let Some((ts, &c)) = self.wflash.at(t)
             && t - ts < 0.3
             && blink(t - ts, 20.)
@@ -843,23 +843,30 @@ impl Board {
             oc = c;
         }
         if self.hl[WALLET].get(t).copied().unwrap_or(false) && blink(t, 6.) || t - self.vis[WALLET] < 0.08 {
-            oc = WHITE;
+            oc = INK;
         }
-        svg.border(x0, y0, x1, y1, oc);
-        svg.sprite("vault", x0 + 12, y0 + 11, BLUE, 1);
-        svg.text(x0 + 24, y0 + 5, "W SMART WALLET", WHITE, 1);
+        svg.card(x0, y0, x1, y1, CARD, oc);
+    }
+
+    fn draw_wallet(&self, t: f32, svg: &mut Svg) {
+        if t < self.vis[WALLET] {
+            return;
+        }
+        let (x0, y0, x1, _) = WB;
+        svg.sprite("vault", x0 + 12, y0 + 11, TEXT, 1);
+        svg.text(x0 + 24, y0 + 5, "W SMART WALLET", INK, 1);
         svg.text(x0 + 24, y0 + 14, "ERC-4337", DIM, 1);
         svg.text(x0 + 6, y0 + 27, self.rule.get(t).copied().unwrap_or("IDLE"), TEXT, 1);
-        svg.rect(x0 + 4, y0 + 37, x1 - x0 - 7, 1, EDGE);
+        svg.rect(x0 + 4, y0 + 37, x1 - x0 - 7, 1, LINE);
         for i in 0..4 {
             self.draw_gate(i, t, svg);
         }
-        svg.rect(x0 + 4, 158, x1 - x0 - 7, 1, EDGE);
+        svg.rect(x0 + 4, 158, x1 - x0 - 7, 1, LINE);
         svg.text(x0 + 6, 164, "CRED", DIM, 1);
-        svg.text(x0 + 36, 164, self.cred.get(t).copied().unwrap_or("V1"), WHITE, 1);
+        svg.text(x0 + 36, 164, self.cred.get(t).copied().unwrap_or("V1"), INK, 1);
         let frozen = self.frozen.get(t).copied().unwrap_or(false);
         if frozen {
-            svg.rtext(x1 - 5, 164, "SPEND FROZEN", MAG, 1);
+            svg.rtext(x1 - 5, 164, "SPEND LOCK", WAIT_INK, 1);
         } else {
             svg.rtext(x1 - 5, 164, "SPEND OPEN", DIM, 1);
         }
@@ -873,11 +880,13 @@ impl Board {
                 hrs = hrs.min(stop);
             }
             let (bx0, bx1) = (x0 + 6, x1 - 30);
-            svg.border(bx0, 188, bx1, 194, EDGE);
+            svg.border(bx0, 188, bx1, 194, LINE);
             let fw = ((bx1 - bx0 - 1) as f32 * hrs / 48.) as i32;
             let stopped = tm.stop.is_some_and(|s| hrs >= s);
-            svg.rect(bx0 + 1, 189, fw, 5, if stopped { DIM } else { tm.col });
-            svg.rtext(x1 - 5, 188, &format!("{:02}H", hrs as i32), if stopped { CYAN } else { WHITE }, 1);
+            let done = hrs >= 48.;
+            let bar = if stopped { FAINT } else if done { OK } else { WAIT };
+            svg.rect(bx0 + 1, 189, fw, 5, bar);
+            svg.rtext(x1 - 5, 188, &format!("{:02}H", hrs as i32), if stopped || done { OK } else { INK }, 1);
         }
     }
 
@@ -885,18 +894,18 @@ impl Board {
         let gy = GY[i];
         let (ts, &(g, mark, col)) = self.gates[i].at(t).unwrap_or((-1., &(G::Idle, "", NODE)));
         let (mut oc, mut fc, lc, mc) = match g {
-            G::Na => (EDGE, FILL, FAINT, FAINT),
-            G::Idle => (NODE, FILL, DIM, DIM),
-            G::Req => (NODE, FILL, TEXT, DIM),
-            G::Check => (if blink(t, 12.) { WHITE } else { NODE }, FILL, WHITE, WHITE),
-            G::Pass => (col, col, ICE, col),
-            G::Fail => (MAG, MAG_DIM, MAG, MAG),
+            G::Na => (LINE, CARD, FAINT, FAINT),
+            G::Idle => (NODE, CARD, DIM, DIM),
+            G::Req => (NODE, CARD, TEXT, DIM),
+            G::Check => (if blink(t, 12.) { WAIT } else { NODE }, CARD, INK, WAIT_INK),
+            G::Pass => (col, col, INK, col),
+            G::Fail => (BAD, BAD, BAD, BAD),
         };
         if matches!(g, G::Pass | G::Fail) && t - ts < 0.08 {
-            fc = WHITE;
+            fc = CARD;
         }
         if self.ghl[i].get(t).copied().unwrap_or(false) && blink(t, 6.) {
-            oc = WHITE;
+            oc = INK;
         }
         svg.ring(GX, gy, 5, 1, oc, fc);
         svg.text(GX + 10, gy - 3, GATES[i], lc, 1);
@@ -909,8 +918,8 @@ impl Board {
         }
         if let Some(&Some(w)) = self.who.get(t) {
             let (spr, lab, c) = match w {
-                Who::User => ("user", "USER", CYAN),
-                Who::Atk => ("skull", "ATTACKER", MAG),
+                Who::User => ("user", "USER", OK),
+                Who::Atk => ("skull", "ATTACKER", BAD),
             };
             svg.sprite(spr, 410, 44, c, 1);
             svg.text(420, 41, lab, c, 1);
@@ -920,21 +929,23 @@ impl Board {
         match self.out.at(t) {
             Some((ts, Some(o))) => {
                 let col = outcome_col(o.good);
+                let tint = match o.good {
+                    Some(true) => OK_TINT,
+                    Some(false) => BAD_TINT,
+                    None => CARD,
+                };
                 let age = t - ts;
-                svg.rect(x0, y0, x1 - x0 + 1, y1 - y0 + 1, if age < 0.06 { col } else { FILL });
-                svg.border(x0, y0, x1, y1, col);
+                svg.card(x0, y0, x1, y1, if age < 0.06 { mix(col, CARD, 0.6) } else { tint }, col);
                 svg.sprite(o.icon, mx, my, col, if age < 0.08 { 4 } else { 3 });
                 for (i, ln) in wrap(o.label, 12).iter().enumerate() {
                     svg.ctext(mx, y1 + 7 + i as i32 * 10, ln, col, 1);
                 }
             }
             _ => {
-                svg.rect(x0, y0, x1 - x0 + 1, y1 - y0 + 1, FILL);
-                svg.border(x0, y0, x1, y1, if t - self.vis[OUT] < 0.08 { WHITE } else { NODE });
+                svg.card(x0, y0, x1, y1, CARD, if t - self.vis[OUT] < 0.08 { INK } else { LINE });
                 svg.ctext(mx, my - 3, "?", FAINT, 1);
             }
         }
-        svg.pixels([(x0, y0), (x1, y0), (x0, y1), (x1, y1)], BLACK);
     }
 
     fn draw_holder(&self, h: usize, t: f32, svg: &mut Svg) {
@@ -958,37 +969,35 @@ impl Board {
             for k in 0..3 {
                 let gx = HX - 22 + (r(10 + k) * 30.) as i32;
                 let gy = cy - 12 + (r(20 + k) * 24.) as i32;
-                svg.rect(gx, gy, 4 + (r(30 + k) * 12.) as i32, 1, MAG);
+                svg.rect(gx, gy, 4 + (r(30 + k) * 12.) as i32, 1, BAD);
             }
         }
         let act = self.act[h].get(t).copied().flatten();
         let atk = matches!(st, St::Evil | St::Stolen);
-        let (mut oc, mut ic, mut tc, mut fc, mut dashed, mut show) = (NODE, BLUE, DIM, FILL, false, true);
+        let (mut oc, mut ic, mut tc, mut fc, mut dashed, mut show) = (NODE, TEXT, DIM, CARD, false, true);
         match st {
-            St::Off => (oc, ic, tc, dashed) = (MAG_DIM, MAG_DIM, MAG, true),
-            St::Lost => (oc, tc, show) = (MAG, MAG, false),
-            St::Evil => (oc, ic, tc, fc) = (MAG, MAG, MAG, EVIL),
-            St::Stolen => (oc, ic, tc) = (MAG, MAG, MAG),
-            St::NoCopy => (oc, tc, dashed, show) = (EDGE, DIM, true, false),
-            St::New => (oc, ic, tc) = (CYAN, CYAN, CYAN),
+            St::Off => (oc, ic, tc, fc, dashed) = (BAD_SOFT, BAD_SOFT, BAD, BG, true),
+            St::Lost => (oc, tc, fc, show) = (BAD, BAD, BAD_TINT, false),
+            St::Evil => (oc, ic, tc, fc) = (BAD, BAD, BAD, BAD_TINT),
+            St::Stolen => (oc, ic, tc, fc) = (BAD, BAD, BAD, BAD_TINT),
+            St::NoCopy => (oc, tc, fc, dashed, show) = (LINE, DIM, BG, true, false),
+            St::New => (oc, ic, tc, fc) = (OK, OK, OK, OK_TINT),
             St::Ok | St::Hidden => {}
         }
         let mut tag = tag;
         if let Some(a) = act {
-            oc = if atk { MAG } else { CYAN };
-            ic = if atk { PINK } else { ICE };
-            tc = oc;
+            (oc, ic, tc, fc) = if atk { (BAD, BAD, BAD, BAD_TINT) } else { (OK, OK, OK, OK_TINT) };
             tag = a;
         }
         if self.hl[h].get(t).copied().unwrap_or(false) && blink(t, 6.) || t - vt < 0.08 {
-            oc = WHITE;
+            oc = INK;
         }
         if ts >= 0. && age < 0.08 {
-            fc = WHITE;
+            fc = if st == St::New { OK_SOFT } else { BAD_SOFT };
         }
         let (x0, y0, x1, y1) = (cx - HB, cy - HB, cx + HB, cy + HB);
-        svg.rect(x0, y0, 2 * HB + 1, 2 * HB + 1, fc);
         if dashed {
+            svg.rect(x0, y0, 2 * HB + 1, 2 * HB + 1, fc);
             let mut pts = vec![];
             for x in (x0..=x1).step_by(2) {
                 pts.extend([(x, y0), (x, y1)]);
@@ -998,34 +1007,35 @@ impl Board {
             }
             svg.pixels(pts, oc);
         } else {
-            svg.border(x0, y0, x1, y1, oc);
+            svg.card(x0, y0, x1, y1, fc, oc);
         }
-        svg.pixels([(x0, y0), (x1, y0), (x0, y1), (x1, y1)], BLACK);
         if show {
             svg.sprite(icon, cx, cy, ic, 1);
         } else if st == St::Lost {
-            svg.sprite("cross", cx, cy, MAG, 1);
+            svg.sprite("cross", cx, cy, BAD, 1);
         }
         if atk {
-            svg.rect(x1 - 4, y0 - 4, 9, 9, BLACK);
-            svg.sprite("skull_s", x1, y0, MAG, 1);
+            svg.rect(x1 - 4, y0 - 4, 9, 9, BG);
+            svg.sprite("skull_s", x1, y0, BAD, 1);
         }
-        let letter = if st == St::New { format!("{letter}'") } else { letter.to_string() };
-        svg.text(8, cy - 8, &letter, WHITE, 1);
-        svg.text(8 + 6 * (letter.len() as i32 + 1), cy - 8, name, TEXT, 1);
+        svg.text(8, cy - 8, letter, INK, 1);
+        if st == St::New {
+            svg.text(13, cy - 8, "'", OK, 1);
+        }
+        svg.text(20, cy - 8, name, TEXT, 1);
         svg.text(8, cy + 2, tag, tc, 1);
     }
 
     fn draw_panel(&self, t: f32, svg: &mut Svg) {
-        svg.border(4, 204, 475, 267, EDGE);
+        svg.card(4, 204, 475, 267, CARD, LINE);
         if let Some(f) = self.failing.get(t) {
             svg.text(10, 210, "FAILING:", DIM, 1);
             if f.is_empty() {
-                svg.text(64, 210, "NOTHING", CYAN, 1);
+                svg.text(64, 210, "NOTHING", OK, 1);
             }
             let mut x = 64;
             for c in f {
-                svg.text(x, 210, c, MAG, 1);
+                svg.text(x, 210, c, BAD, 1);
                 x += tw(c, 1) + 14;
             }
         }
@@ -1044,7 +1054,7 @@ impl Board {
                 i += line.len();
                 if take < line.len() {
                     if blink(t, 8.) {
-                        svg.rect(ty.x + 6 * take as i32, y, 5, 7, ICE);
+                        svg.rect(ty.x + 6 * take as i32, y, 5, 7, ty.lcol);
                     }
                     break;
                 }
@@ -1071,13 +1081,9 @@ fn draw_pulse(p: &Pulse, t: f32, svg: &mut Svg) {
             continue;
         }
         let (x, y) = pts[if p.rev { n - 1 - i } else { i } as usize];
-        let c = match j {
-            0 => WHITE,
-            1 | 2 => mix(ICE, p.col, 0.4),
-            _ => mix(p.col, EDGE, j as f32 / 16.),
-        };
+        let c = if j < 3 { p.col } else { mix(p.col, LINE, j as f32 / 16.) };
         if j == 0 {
-            svg.pixels([(x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)], p.col);
+            svg.pixels([(x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)], mix(p.col, CARD, 0.45));
         }
         svg.rect(x, y, 1, 1, c);
     }

@@ -44,14 +44,14 @@ impl Intro {
     }
 
     pub fn draw(&self, t: f32, svg: &mut Svg) {
-        for (s, c, y, base) in [(L1, WHITE, 56, 0), (L2, CYAN, 94, L1.len())] {
+        for (s, c, y, base) in [(L1, INK, 56, 0), (L2, OK, 94, L1.len())] {
             let x0 = 240 - tw(s, 4) / 2;
             for (i, ch) in s.chars().enumerate() {
                 let at = letter_at(base + i);
                 if t >= at {
                     let fresh = t - at < 0.06;
                     let y = if fresh { y - 2 } else { y };
-                    svg.text(x0 + i as i32 * 24, y, &ch.to_string(), if fresh { ICE } else { c }, 4);
+                    svg.text(x0 + i as i32 * 24, y, &ch.to_string(), if fresh { OK_SOFT } else { c }, 4);
                 }
             }
         }
@@ -60,14 +60,14 @@ impl Intro {
         for (i, (spr, letter)) in ICONS.iter().enumerate() {
             if t >= ICONS_AT + i as f32 * 0.1 {
                 let x = 130 + i as i32 * 44;
-                svg.sprite(spr, x, 172, BLUE, 1);
+                svg.sprite(spr, x, 172, TEXT, 1);
                 svg.ctext(x + 1, 184, letter, DIM, 1);
             }
         }
         if t >= ICONS_AT + 0.8 {
             let on = if t < START_AT { blink(t, 2.) } else { blink(t, 14.) };
             if on {
-                svg.ctext(240, 218, "PRESS START", if t < START_AT { DIM } else { WHITE }, 1);
+                svg.ctext(240, 218, "PRESS START", if t < START_AT { DIM } else { INK }, 1);
             }
         }
         fade_out(svg, t, self.dur);
@@ -110,7 +110,7 @@ impl Outro {
     }
 
     pub fn draw(&self, t: f32, svg: &mut Svg) {
-        svg.ctext(240, 10, "RESULTS", WHITE, 2);
+        svg.ctext(240, 10, "RESULTS", INK, 2);
         for (i, sp) in SPECS.iter().enumerate() {
             if t < row_at(i) {
                 break;
@@ -118,28 +118,28 @@ impl Outro {
             let y = 34 + i as i32 * 13;
             let col = crate::board::outcome_col(sp.out.good);
             let fresh = t - row_at(i) < 0.08;
-            svg.text(22, y, &format!("{:02}", i + 1), BLUE, 1);
-            svg.text(40, y, sp.title, if fresh { WHITE } else { TEXT }, 1);
+            svg.text(22, y, &format!("{:02}", i + 1), DIM, 1);
+            svg.text(40, y, sp.title, if fresh { INK } else { TEXT }, 1);
             let dots: Vec<_> = (40 + tw(sp.title, 1) + 6..294).step_by(4).map(|x| (x, y + 6)).collect();
-            svg.pixels(dots, FAINT);
+            svg.pixels(dots, LINE);
             svg.text(300, y, sp.out.label, col, 1);
             let badge = if sp.pass { "PASS" } else { "LIMIT" };
-            svg.rtext(462, y, badge, if sp.pass { CYAN } else { MAG }, 1);
+            svg.rtext(462, y, badge, if sp.pass { OK } else { BAD }, 1);
         }
         if t >= self.summary_at {
             let pass = SPECS.iter().filter(|s| s.pass).count();
             let a = format!("{pass} HANDLED");
             let b = format!("{} KNOWN LIMITS", SPECS.len() - pass);
             let x0 = 240 - tw(&format!("{a}  /  {b}"), 1) / 2;
-            svg.text(x0, 186, &a, CYAN, 1);
+            svg.text(x0, 186, &a, OK, 1);
             svg.text(x0 + 6 * a.len() as i32, 186, "  /  ", DIM, 1);
-            svg.text(x0 + 6 * (a.len() as i32 + 5), 186, &b, MAG, 1);
+            svg.text(x0 + 6 * (a.len() as i32 + 5), 186, &b, BAD, 1);
         }
         if t >= self.rules_at {
             svg.ctext(240, 202, "SPEND = MPC + A        RECOVER = MPC + R + 48H", TEXT, 1);
         }
         let n = (((t - self.final_at) * 40.).max(0.) as usize).min(FINAL.len());
-        svg.text(240 - tw(FINAL, 2) / 2, 226, &FINAL[..n], WHITE, 2);
+        svg.text(240 - tw(FINAL, 2) / 2, 226, &FINAL[..n], INK, 2);
         fade_out(svg, t, self.dur);
     }
 }

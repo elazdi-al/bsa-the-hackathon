@@ -100,7 +100,7 @@ pub static SPECS: [Spec; 11] = [
         out: Out { icon: "shield", label: "RECOVERY CANCELLED", good: Some(true) },
         pass: true,
         lead: None,
-        fix: "THE 48H WINDOW. SPENDING FREEZES WHILE PENDING; PASSKEY A VETOES WITH NO MPC, NO PROVIDER, FROM ANY CLIENT, BEFORE THE DEADLINE.",
+        fix: "THE 48H WINDOW. SPENDING LOCKS WHILE PENDING; PASSKEY A VETOES WITH NO MPC, NO PROVIDER, FROM ANY CLIENT, BEFORE THE DEADLINE.",
     },
     Spec {
         title: "PROVIDERS REFUSE, HOME COPY",
