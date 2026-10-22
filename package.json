@@ -20,6 +20,7 @@
     "link": "node --env-file-if-exists=.env.local --disable-warning=ExperimentalWarning scripts/cli.ts link",
     "plus": "node --env-file-if-exists=.env.local --disable-warning=ExperimentalWarning scripts/cli.ts plus",
     "send": "node --env-file-if-exists=.env.local --disable-warning=ExperimentalWarning scripts/cli.ts send",
+    "swap": "node --env-file-if-exists=.env.local --disable-warning=ExperimentalWarning scripts/cli.ts swap",
     "recover": "node --env-file-if-exists=.env.local --disable-warning=ExperimentalWarning scripts/cli.ts recover",
     "finish": "node --env-file-if-exists=.env.local --disable-warning=ExperimentalWarning scripts/cli.ts finish",
     "cancel": "node --env-file-if-exists=.env.local --disable-warning=ExperimentalWarning scripts/cli.ts cancel",

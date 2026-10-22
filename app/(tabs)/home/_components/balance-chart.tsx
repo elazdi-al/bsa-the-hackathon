@@ -6,7 +6,7 @@ import { TrendUpIcon } from "@/components/icons";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { BARS, defaultRange, historyFor, ranges, totalOf, type Range } from "../data";
 import { usd } from "../../_components/money";
-import { transferToTx } from "../../history/live";
+import { signedUsd } from "../../history/live";
 import { onPhoneClock, useWallet } from "../../_components/wallet";
 import { useTiles } from "./accounts";
 import { IntroMoney, markIntroDone, wasIntroDone } from "./blur-money";
@@ -35,11 +35,10 @@ export function BalanceChart() {
   const history = useMemo(() => {
     if (total === undefined) return undefined;
     if (!live) return historyFor(total, Date.now(), () => total);
-    // A live wallet's balance at a moment: today's, less every transfer since. Until its transfers are read, today's.
-    const transfers = (live.activity ?? []).map((t) => ({ ...transferToTx(t, live), at: onPhoneClock(live, t.timestamp).getTime() }));
-    return historyFor(total, Date.now(), (time) =>
-      transfers.reduce((balance, t) => (t.at > time ? balance - (t.flow === "in" ? t.usd : -t.usd) : balance), total),
-    );
+    // A live wallet's total at a moment: today's, less every transfer since, a swap's two legs included. Until its
+    // transfers are read, today's.
+    const transfers = (live.activity ?? []).map((t) => ({ usd: signedUsd(t, live), at: onPhoneClock(live, t.timestamp).getTime() }));
+    return historyFor(total, Date.now(), (time) => transfers.reduce((balance, t) => (t.at > time ? balance - t.usd : balance), total));
   }, [total, live]);
   // Done once Home's numbers are known, not at mount: the wallet's Cash arrives after.
   useEffect(() => {

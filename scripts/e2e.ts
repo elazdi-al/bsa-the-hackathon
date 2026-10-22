@@ -14,10 +14,11 @@ import { P256 } from "ox";
 import { encodeFunctionData, erc20Abi, formatEther, formatUnits, keccak256, numberToHex, parseUnits, toHex, type Address, type Hex } from "viem";
 import { entryPoint07Abi, formatUserOperation, getUserOperationHash } from "viem/account-abstraction";
 import { generatePrivateKey, privateKeyToAccount, privateKeyToAddress } from "viem/accounts";
-import { bindRecoveryKeyMessage, ownershipChallenge, ownershipMessage } from "../lib/wallet/account.ts";
+import { accountAbi, bindRecoveryKeyMessage, ownershipChallenge, ownershipMessage } from "../lib/wallet/account.ts";
 import { verifyAssertion } from "../lib/wallet/api/http.ts";
 import { addresses, chain, isDeployed, partnerUrl, publicClient } from "../lib/wallet/env.ts";
 import { ApiError, softwareAuthenticator } from "../lib/wallet/phone.ts";
+import { DECIMALS, minOut, other, poolAbi, quoteOut, type PoolToken } from "../lib/wallet/pool.ts";
 import { setSunset } from "../lib/wallet/sunset.ts";
 import { attack } from "./attack.ts";
 import { APP, mintUsdc, newPhone, sendEth } from "./software-phone.ts";
@@ -135,27 +136,64 @@ assert.equal(await ethOf(wallet), 0n, "the linked wallet holds no ETH");
 assert.ok((await depositOf(addresses.paymaster)) < depositBefore, "Swissquote's paymaster paid the gas");
 assert.equal(shareRequests.length, 0, "the key made at the split is still cached");
 
-console.log("4. Cache expired or app reopened: one Face ID unlocks Share B, then the key is cached again");
+console.log("4. Swap 50 USDC for WETH through the test pool, then half of it back: one sponsored operation approves the pool for exactly the amount and swaps; the pool refuses a swap under its minimum, and Swissquote refuses a batch that calls the account");
+const { weth, pool } = addresses;
+assert.ok(weth && pool, "npm run local deploys WETH and the test pool on anvil");
+const tokens: Record<PoolToken, Address> = { usdc: addresses.usdc, weth };
+const balanceOf = (token: Address, owner: Address) => publicClient.readContract({ address: token, abi: erc20Abi, functionName: "balanceOf", args: [owner] });
+const holdings = async (): Promise<Record<PoolToken, bigint>> => ({ usdc: await usdcOf(wallet), weth: await balanceOf(weth, wallet) });
+const quote = async (tokenIn: PoolToken, amountIn: bigint) => {
+  const blockNumber = await publicClient.getBlockNumber();
+  const [usdcReserve, wethReserve] = await publicClient.readContract({ address: pool, abi: poolAbi, functionName: "reserves", blockNumber });
+  const quoted = quoteOut({ usdc: usdcReserve, weth: wethReserve }, tokenIn, amountIn);
+  const onChain = await publicClient.readContract({ address: pool, abi: poolAbi, functionName: "quote", args: [tokens[tokenIn], amountIn], blockNumber });
+  assert.equal(quoted, onChain, "the phone quotes exactly what the pool's own quote() says");
+  return quoted;
+};
+const swapExactly = async (tokenIn: PoolToken, amountIn: bigint) => {
+  const expected = await quote(tokenIn, amountIn);
+  const before = await holdings();
+  await phone.swap(tokenIn, amountIn, minOut(expected));
+  const after = await holdings();
+  assert.equal(before[tokenIn] - after[tokenIn], amountIn, `the wallet paid exactly ${amountIn} ${tokenIn}`);
+  assert.equal(after[other(tokenIn)] - before[other(tokenIn)], expected, `the wallet got exactly the quoted ${expected} ${other(tokenIn)}`);
+  console.log(`   paid ${formatUnits(amountIn, DECIMALS[tokenIn])} ${tokenIn.toUpperCase()}, got ${formatUnits(expected, DECIMALS[other(tokenIn)])} ${other(tokenIn).toUpperCase()}`);
+};
+await swapExactly("usdc", parseUnits("50", 6));
+await swapExactly("weth", (await holdings()).weth / 2n);
+assert.equal(await ethOf(wallet), 0n, "a swap costs the linked wallet no ETH: Swissquote's paymaster paid its gas");
+const held = await holdings();
+const ten = parseUnits("10", 6);
+const slipped = (await refused(phone.swap("usdc", ten, (await quote("usdc", ten)) + 1n), 422)) as { detail: string };
+assert.match(slipped.detail, /^Slippage\(/, "the pool reverts with Slippage when it would pay less than the minimum");
+assert.deepEqual(await holdings(), held, "a reverted swap moves no funds");
+console.log(`   minimum above the quote: ${slipped.detail}`);
+const cancel = encodeFunctionData({ abi: accountAbi, functionName: "cancelRecovery" });
+const batchRefusal = (await refused(phone.prepare([transfer(ANNA, "1"), { to: wallet, data: cancel }]), 403)) as { error: string };
+assert.equal(batchRefusal.error, "The app can't change the account itself.", "Swissquote refuses any batch that calls the account itself, before compliance");
+console.log("   a batch that calls the account itself: refused");
+
+console.log("5. Cache expired or app reopened: one Face ID unlocks Share B, then the key is cached again");
 phone.forgetKey();
 await phone.sendUsdc(ANNA, "1");
 await phone.sendUsdc(ANNA, "1");
 assert.equal(shareRequests.length, 1, "B is fetched once, then the rebuilt key is reused");
 
-console.log("5. Swissquote refuses to sponsor a sanctioned recipient");
+console.log("6. Swissquote refuses to sponsor a sanctioned recipient");
 const sanctioned = (await refused(phone.sendUsdc(SANCTIONED, "1"), 403)) as { decision: { status: string; reasons: string[] } };
 assert.equal(sanctioned.decision.status, "DENY_ASSISTANCE");
 console.log(`   1 USDC: ${sanctioned.decision.status}, ${sanctioned.decision.reasons.join(" ")}`);
 
-console.log("6. No payment waits and none is capped: 15,000 USDC leaves at once, with one Face ID");
+console.log("7. No payment waits and none is capped: 15,000 USDC leaves at once, with one Face ID");
 await mintUsdc(wallet, "15000");
 const annaBefore = await usdcOf(ANNA);
 assert.match((await phone.sendUsdc(ANNA, "15000")).transactionHash, /^0x[0-9a-f]{64}$/);
 assert.equal(await usdcOf(ANNA), annaBefore + parseUnits("15000", 6));
 
-console.log("7. An attacker with the stolen phone and the email inbox is stopped at every step, with the Recovery Key by the 48-hour hold, and with Face ID once the owner has Swissquote lock the phone");
+console.log("8. An attacker with the stolen phone and the email inbox is stopped at every step, with the Recovery Key by the 48-hour hold, and with Face ID once the owner has Swissquote lock the phone");
 await attack({ phone: structuredClone(phone.device()!), homeKey: recoveryKey.secret, unlocked: phone, linked: true });
 
-console.log("8. A wallet never linked pays its own gas in ETH, whatever the amount. Swissquote can't lock its phone, the attacker is stopped all the same, and the Recovery Key starts its recovery, on Swissquote's gas, even with no ETH");
+console.log("9. A wallet never linked pays its own gas in ETH, whatever the amount. Swissquote can't lock its phone, the attacker is stopped all the same, and the Recovery Key starts its recovery, on Swissquote's gas, even with no ETH");
 const plain = newPhone();
 await plain.splitKey(await plain.createPasskey());
 const plainKey = plain.createRecoveryKey();
@@ -203,7 +241,7 @@ assert.equal((await broke.state()).pendingRecovery, null, "the old phone's cance
 await brokeNew.startRecovery(brokeKey.secret);
 assert.equal(await ethOf(brokeWallet), 0n, "a wallet with no ETH starts and cancels a recovery all the same");
 
-console.log("9. Lose the phone. New phone: the Recovery Key alone, as for a wallet never linked, a new passkey and split; the recovery key signs, B and C rebuild the old key on the new phone");
+console.log("10. Lose the phone. New phone: the Recovery Key alone, as for a wallet never linked, a new passkey and split; the recovery key signs, B and C rebuild the old key on the new phone");
 let newSession: string | undefined;
 const newOne = newPhone({ session: () => newSession });
 const found = await newOne.findRecovery(recoveryKey.secret);
@@ -216,11 +254,11 @@ const now = Number((await publicClient.getBlock()).timestamp);
 assert.ok(started.executeAfter >= now + 48 * 3600 - 5, "the delay is 48 hours");
 console.log(`   recovery pending until ${new Date(started.executeAfter * 1000).toISOString()}`);
 
-console.log("10. The old phone cancels it from the app (passkey + key)");
+console.log("11. The old phone cancels it from the app (passkey + key)");
 await phone.cancelRecovery();
 assert.equal((await phone.state()).pendingRecovery, null);
 
-console.log("11. The client reports the old phone stolen with the Recovery Key: Swissquote locks its credentials");
+console.log("12. The client reports the old phone stolen with the Recovery Key: Swissquote locks its credentials");
 const setLock = (locked: boolean) => newPhone().lockPhone(recoveryKey.secret, locked, wallet);
 assert.equal((await refused(newPhone().lockPhone(generatePrivateKey(), true, wallet), 403)).error, "The recovery key did not ask for this.");
 const prepared = await phone.prepare({ to: addresses.usdc, data: encodeFunctionData({ abi: erc20Abi, functionName: "transfer", args: [ANNA, parseUnits("1", 6)] }) });
@@ -238,13 +276,13 @@ assert.equal((await phone.state()).locked, false, "unlocked");
 await phone.sendUsdc(ANNA, "1");
 await setLock(true);
 
-console.log("12. Started again: the locked phone can't cancel it, Swissquote still cancels it as guardian");
+console.log("13. Started again: the locked phone can't cancel it, Swissquote still cancels it as guardian");
 await newOne.startRecovery(recoveryKey.secret);
 await refused(phone.cancelRecovery(), 423);
 await newOne.cancelRecoveryWithSwissquote(recoveryKey.secret);
 assert.equal((await newOne.state()).pendingRecovery, null);
 
-console.log("13. Started again: finalizing before 48 hours fails, after it succeeds");
+console.log("14. Started again: finalizing before 48 hours fails, after it succeeds");
 await newOne.startRecovery(recoveryKey.secret);
 await refused(newOne.finalizeRecovery(), 409);
 await warp(48);
@@ -253,7 +291,7 @@ const state = await newOne.state();
 assert.equal(state.signer, newOne.device()!.signer);
 assert.equal(state.address, wallet);
 
-console.log("14. The new phone sends 5 USDC with no unlock; the old credentials stay dead. It links back to the owner, signed in as them");
+console.log("15. The new phone sends 5 USDC with no unlock; the old credentials stay dead. It links back to the owner, signed in as them");
 await newOne.sendUsdc(ANNA, "5");
 await refused(phone.sendUsdc(ANNA, "1"), 422);
 phone.forgetKey();
@@ -268,7 +306,7 @@ assert.equal((await newOne.state()).owner?.createdAt, owner.createdAt, "the link
 console.log(`   Anna has ${formatUnits(await usdcOf(ANNA), 6)} USDC, the wallet ${formatUnits(await usdcOf(wallet), 6)} USDC`);
 assert.equal(await usdcOf(ANNA), parseUnits("15028", 6));
 
-console.log("15. The never-linked wallets' recoveries, started at step 8, finish too, the one with no ETH included, and the new phone sends 5 USDC from its ETH");
+console.log("16. The never-linked wallets' recoveries, started at step 8, finish too, the one with no ETH included, and the new phone sends 5 USDC from its ETH");
 await plainNew.finalizeRecovery();
 assert.equal((await plainNew.state()).signer, plainNew.device()!.signer);
 await plainNew.sendUsdc(CARL, "5");
@@ -278,7 +316,7 @@ assert.equal((await brokeNew.state()).signer, brokeNew.device()!.signer);
 assert.equal(await ethOf(brokeWallet), 0n, "Swissquote paid for the whole recovery");
 assert.equal((await refused(brokeNew.sendUsdc(DORA, "1"), 403)).refused, "gas", "a payment still needs ETH");
 
-console.log("16. Swissquote's free gas can't be farmed: it refuses a payment of 0, and a linked wallet's 21st operation within an hour of chain time");
+console.log("17. Swissquote's free gas can't be farmed: it refuses a payment of 0, and a linked wallet's 21st operation within an hour of chain time");
 const farmer = newPhone();
 await farmer.splitKey(await farmer.createPasskey());
 const farm = await farmer.register(farmer.createRecoveryKey().address);
@@ -294,7 +332,7 @@ await warp(1);
 await farmer.sendUsdc(BOB, "0.01");
 assert.equal(await usdcOf(BOB), parseUnits("0.21", 6), "the hour passed, so Swissquote pays again");
 
-console.log("17. Swissquote Plus is bought, not given: 10 USDC from a linked wallet to Swissquote buys its client 30 days, told only to their session, once per payment");
+console.log("18. Swissquote Plus is bought, not given: 10 USDC from a linked wallet to Swissquote buys its client 30 days, told only to their session, once per payment");
 let memberSession: string | undefined;
 const member = newPhone({ session: () => memberSession });
 await member.splitKey(await member.createPasskey());
@@ -331,7 +369,7 @@ assert.equal(await claim(memberWallet, memberSession, await pay(BOB, "10")), "40
 assert.deepEqual((await member.state()).plus, { until: until + plus.period });
 console.log(`   client ${memberClient.client.number} has Plus until ${new Date((until + plus.period) * 1000).toISOString()}`);
 
-console.log("18. Swissquote's services are closed for good. The client leaves with the money: Face ID, Share A and Share C, gas from the wallet's own ETH");
+console.log("19. Swissquote's services are closed for good. The client leaves with the money: Face ID, Share A and Share C, gas from the wallet's own ETH");
 assert.match(await exitRefusal({}), /running/, "no exit while Swissquote's services run");
 const fresh = newPhone();
 await fresh.splitKey(await fresh.createPasskey());

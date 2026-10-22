@@ -2,7 +2,7 @@
 // passkey authenticator: create a wallet without a Swissquote account, scan a friend's QR code with a fake
 // camera to pay them, send USDC under Swissquote's reading of each payment, its fee paid from the wallet's ETH, a
 // large one at once like any other; link the wallet to a Swissquote account in Settings, and Swissquote pays its fees
-// from then on; lose the phone and recover with the Recovery Key file alone, once a key no wallet uses is refused;
+// from then on; swap USDC for ETH through the local pool in one sponsored operation; lose the phone and recover with the Recovery Key file alone, once a key no wallet uses is refused;
 // Swissquote cancels once, the old phone cancels once from Home, the new phone locks the old one from its countdown
 // with the Recovery Key, then the 48-hour delay passes, the new phone sends and links back to the same client.
 // Then an unlinked wallet with no ETH is recovered on Swissquote's gas, with no lock offered. Last, Swissquote Plus is
@@ -174,7 +174,25 @@ const owner = await clientOf(phone1);
 await phone1.getByText(`Client ${owner.number}`, { exact: true }).waitFor(SLOW);
 assert.equal(await phone1.getByRole("button", { name: "Link your Swissquote account" }).count(), 0, "a linked wallet isn't offered the link again");
 
-console.log("5. New phone: a pasted Recovery Key no wallet uses is refused; the owner's file goes straight to Face ID, though the wallet is linked");
+console.log("5. Swap 50 USDC for ETH from the quick actions: Swissquote checks and sponsors one operation, the pool pays real WETH, and History shows one swap row");
+const usdcBefore = await usdcOf(wallet);
+await phone1.goto(`${APP}/home`);
+await phone1.getByRole("button", { name: "Quick actions" }).click();
+await phone1.getByRole("button", { name: "Swap" }).click();
+const keypad = phone1.getByRole("group", { name: "Keypad" });
+await keypad.getByRole("button", { name: "5", exact: true }).click();
+await keypad.getByRole("button", { name: "0", exact: true }).click();
+await phone1.getByRole("button", { name: "Continue" }).click(SLOW);
+await phone1.getByRole("button", { name: "Swap", exact: true }).click(SLOW);
+await phone1.getByRole("dialog").waitFor({ state: "detached", ...SLOW });
+assert.equal(usdcBefore - (await usdcOf(wallet)), parseUnits("50", 6));
+const weth = await publicClient.readContract({ address: addresses.weth!, abi: erc20Abi, functionName: "balanceOf", args: [wallet] });
+assert.ok(weth > 0n, "the wallet holds the WETH it bought");
+console.log(`   got ${formatUnits(weth, 18)} ETH`);
+await phone1.goto(`${APP}/history`);
+await phone1.getByText("USDC to ETH").waitFor(SLOW);
+
+console.log("6. New phone: a pasted Recovery Key no wallet uses is refused; the owner's file goes straight to Face ID, though the wallet is linked");
 const phone2 = await newPhone();
 await phone2.goto(`${APP}/recover`);
 await phone2.getByRole("button", { name: "Paste it instead" }).click();
@@ -189,14 +207,14 @@ console.log("   Swissquote cancels it for the user");
 await phone2.getByRole("button", { name: "Cancel recovery" }).click();
 await phone2.getByText("Recover your wallet").waitFor(SLOW);
 
-console.log("6. Again; the old phone sees it on Home and cancels it with Face ID");
+console.log("7. Again; the old phone sees it on Home and cancels it with Face ID");
 await recover(phone2, kit);
 await phone1.goto(`${APP}/home`);
 await phone1.getByText("Someone started recovering your wallet").waitFor(SLOW);
 await phone1.getByRole("button", { name: "Cancel recovery" }).click(SLOW);
 await phone1.getByText("Someone started recovering your wallet").waitFor({ state: "detached", ...SLOW });
 
-console.log("7. Again; on the countdown the client locks the old phone with the Recovery Key: its Home says so, and how to stop the recovery if it isn't theirs; Send refuses");
+console.log("8. Again; on the countdown the client locks the old phone with the Recovery Key: its Home says so, and how to stop the recovery if it isn't theirs; Send refuses");
 await recover(phone2, kit);
 await phone2.getByRole("button", { name: "Lock your old phone" }).click();
 await phone2.getByText("Your old phone is locked").waitFor(SLOW);
@@ -209,21 +227,21 @@ await phone1.getByText("Swissquote locked this phone after it was reported lost.
 await phone1.getByLabel("Amount in USDC").fill("5");
 assert.ok(await phone1.getByRole("button", { name: "Continue" }).isDisabled());
 
-console.log("8. The 48-hour delay passes on the chain, the countdown follows it, then finish");
+console.log("9. The 48-hour delay passes on the chain, the countdown follows it, then finish");
 await warp(48 * 3600 + 10);
 await phone2.getByRole("button", { name: "Finish recovery" }).click(SLOW);
 await phone2.waitForURL("**/home", SLOW);
 
-console.log("9. The new phone sends 5 USDC: same address, same balance");
+console.log("10. The new phone sends 5 USDC: same address, same balance");
 await send(phone2, FRIEND, "5");
 assert.equal(await walletOf(phone2), wallet);
 console.log(`   friend has ${formatUnits(await usdcOf(FRIEND), 6)} USDC, the wallet ${formatUnits(await usdcOf(wallet), 6)} USDC`);
 
-console.log("10. The old phone's Home says the wallet moved: the lock was on its old keys, so there's nothing to unlock");
+console.log("11. The old phone's Home says the wallet moved: the lock was on its old keys, so there's nothing to unlock");
 await phone1.goto(`${APP}/home`);
 await phone1.getByText("Your wallet moved to another phone").waitFor(SLOW);
 
-console.log("11. The recovery signed the new phone in to nothing; Settings offers the link, and Face ID links it back to the same client");
+console.log("12. The recovery signed the new phone in to nothing; Settings offers the link, and Face ID links it back to the same client");
 assert.equal(await clientOf(phone2), undefined, "a recovery signs in to nothing");
 await phone2.goto(`${APP}/settings`);
 await phone2.getByRole("button", { name: "Link your Swissquote account" }).click(SLOW);
@@ -232,7 +250,7 @@ await phone2.getByRole("button", { name: "Done" }).click(SLOW);
 await phone2.getByText(`Client ${owner.number}`, { exact: true }).waitFor(SLOW);
 assert.deepEqual(await clientOf(phone2), owner, "signed in as the client who linked the wallet");
 
-console.log("12. An unlinked wallet with no ETH: its recovery goes from the Recovery Key to Face ID the same way, on Swissquote's gas, and offers no lock; the new phone cancels it");
+console.log("13. An unlinked wallet with no ETH: its recovery goes from the Recovery Key to Face ID the same way, on Swissquote's gas, and offers no lock; the new phone cancels it");
 const phone3 = await newPhone();
 const kit3 = await create(phone3);
 const wallet3 = (await walletOf(phone3)) as Address;
@@ -247,7 +265,7 @@ assert.equal(await publicClient.getBalance({ address: wallet3 }), 0n, "Swissquot
 await phone4.getByRole("button", { name: "Cancel recovery" }).click();
 await phone4.getByText("Recover your wallet").waitFor(SLOW);
 
-console.log("13. Swissquote Plus is bought, not given: Home and Settings offer it, an unlinked wallet's /plus sends the client to link first, and the linked wallet buys it with Face ID");
+console.log("14. Swissquote Plus is bought, not given: Home and Settings offer it, an unlinked wallet's /plus sends the client to link first, and the linked wallet buys it with Face ID");
 await phone3.goto(`${APP}/plus`);
 await phone3.getByRole("button", { name: "Link your Swissquote account" }).click(SLOW);
 await phone3.waitForURL("**/settings", SLOW);

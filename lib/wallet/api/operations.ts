@@ -6,12 +6,14 @@ import {
   BaseError,
   ContractFunctionRevertedError,
   createWalletClient,
+  decodeErrorResult,
   decodeFunctionData,
   encodeFunctionData,
   erc20Abi,
   getAbiItem,
   http,
   isAddressEqual,
+  parseAbi,
   parseEventLogs,
   recoverMessageAddress,
   type Address,
@@ -41,7 +43,8 @@ import {
   type Config,
   type Passkey,
 } from "../account.ts";
-import { addresses, chain, chainNow, credentials, partnerUrl, publicClient, rpcUrl } from "../env.ts";
+import { addresses, chain, chainNow, credentials, isDeployed, partnerUrl, publicClient, rpcUrl } from "../env.ts";
+import { poolAbi } from "../pool.ts";
 import { address, passkey } from "../schema.ts";
 import { store, type Kind, type Wallet } from "./db.ts";
 import { HttpError } from "./http.ts";
@@ -107,24 +110,40 @@ export async function bindShares(signer: Address, recoveryKey: Address, signatur
   return b;
 }
 
+type Call = { target: Address; value: bigint; data: Hex };
+
+/** The calls an operation makes: one through `execute`, several through `executeBatch`, none for anything else. */
+function callsOf(callData: Hex): readonly Call[] {
+  const call = decodeFunctionData({ abi: accountAbi, data: callData });
+  if (call.functionName === "execute") return [{ target: call.args[0], value: call.args[1], data: call.args[2] }];
+  return call.functionName === "executeBatch" ? call.args[0] : [];
+}
+
 /**
- * Swissquote assists only operations its compliance policy allows; refusing never freezes the wallet itself.
+ * Swissquote assists only operations its compliance policy allows, every call of a batch included; refusing never
+ * freezes the wallet itself. Of calls to the account itself, only a lone cancelRecovery passes.
  * `demo`: test providers did the screening and simulation.
  */
 export async function assist(wallet: Wallet, callData: Hex, dapp?: DappMetadata) {
-  const call = decodeFunctionData({ abi: accountAbi, data: callData });
   await refuseLocked(wallet);
-  if (call.functionName !== "execute") throw new HttpError(403, "The app can't make this call.");
-  const [to, value, data] = call.args;
-  if (isAddressEqual(to, wallet.address)) {
-    if (!dapp && data === encodeFunctionData({ abi: accountAbi, functionName: "cancelRecovery" })) {
+  const calls = callsOf(callData);
+  if (!calls.length) throw new HttpError(403, "The app can't make this call.");
+  if (calls.some(({ target }) => isAddressEqual(target, wallet.address))) {
+    if (!dapp && calls.length === 1 && calls[0].data === encodeFunctionData({ abi: accountAbi, functionName: "cancelRecovery" })) {
       return { summary: ["You cancel the pending recovery of your wallet."], demo: false };
     }
     throw new HttpError(403, "The app can't change the account itself.");
   }
   const requestId = randomUUID();
   const { decision } = await getComplianceRuntime().engine.evaluate(
-    { requestId, nonce: requestId, chainId: chain.id, account: wallet.address, calls: [{ to, value: value.toString(), data, operation: "CALL" }], ...(dapp ? { dapp } : {}) },
+    {
+      requestId,
+      nonce: requestId,
+      chainId: chain.id,
+      account: wallet.address,
+      calls: calls.map(({ target, value, data }) => ({ to: target, value: value.toString(), data, operation: "CALL" as const })),
+      ...(dapp ? { dapp } : {}),
+    },
     { subject: wallet.address.toLowerCase() },
   );
   if (decision.status !== "ALLOW") {
@@ -146,8 +165,7 @@ const nonceOf = (sender: Address, key: bigint) =>
  */
 function sponsors(wallet: Wallet, kind: Kind, callData: Hex) {
   if (kind === "recovery" || store().owner(wallet.address)) return true;
-  const [to] = decodeFunctionData({ abi: accountAbi, data: callData }).args as readonly [Address, bigint, Hex];
-  return isAddressEqual(to, wallet.address);
+  return callsOf(callData).every(({ target }) => isAddressEqual(target, wallet.address));
 }
 
 /** Fills in nonce, gas, fees and, if Swissquote pays the gas, its sponsorship, and keeps the operation for submission. */
@@ -256,21 +274,34 @@ function simulate(userOp: UserOperation<"0.7">) {
 /** Simulates, then submits through the EntryPoint. Resolves once the operation succeeded on-chain. */
 export function submit(userOp: UserOperation<"0.7">, signature: Hex): Promise<Hex> {
   return serialize(async () => {
+    // handleOps succeeds even when the account's own call reverts, and Swissquote's paymaster would pay for the
+    // failure. A deployed account's call is tried first, as the EntryPoint makes it, so a moved price fails here.
+    if (await isDeployed(userOp.sender)) {
+      await publicClient.call({ account: addresses.entryPoint, to: userOp.sender, data: userOp.callData }).catch((error: unknown) => {
+        const data = error instanceof BaseError ? (error.walk((e) => typeof (e as { data?: unknown }).data === "string") as { data?: Hex } | null)?.data : undefined;
+        throw new HttpError(422, "The operation would fail.", { detail: data ? callError(data) : revertReason(error) });
+      });
+    }
     const { request } = await simulate({ ...userOp, signature });
     const transactionHash = await operator().writeContract(request);
     const receipt = await publicClient.waitForTransactionReceipt({ hash: transactionHash });
     const [event] = parseEventLogs({ abi: entryPoint07Abi, eventName: "UserOperationEvent", logs: receipt.logs });
-    if (!event?.args.success) throw new HttpError(422, "The operation reverted.", { transactionHash });
+    if (!event?.args.success) {
+      // The account bubbles up the failing call's revert, like a swap's Slippage when the price moved.
+      const [reverted] = parseEventLogs({ abi: entryPoint07Abi, eventName: "UserOperationRevertReason", logs: receipt.logs });
+      throw new HttpError(422, "The operation reverted.", { transactionHash, detail: reverted && callError(reverted.args.revertReason) });
+    }
     return transactionHash;
   });
 }
 
-/** The USDC transfer an `execute` carries, if that is what it is. */
-function transferOf(callData: Hex) {
-  const [to, , data] = decodeFunctionData({ abi: accountAbi, data: callData }).args as readonly [Address, bigint, Hex];
-  if (!isAddressEqual(to, addresses.usdc)) return;
-  const call = decodeFunctionData({ abi: erc20Abi, data });
-  return call.functionName === "transfer" ? { to: call.args[0], value: call.args[1] } : undefined;
+/** The USDC transfers an operation carries, if any of its calls is one. */
+function transfersOf(callData: Hex) {
+  return callsOf(callData).flatMap(({ target, data }) => {
+    if (!isAddressEqual(target, addresses.usdc)) return [];
+    const call = decodeFunctionData({ abi: erc20Abi, data });
+    return call.functionName === "transfer" ? [{ to: call.args[0], value: call.args[1] }] : [];
+  });
 }
 
 /**
@@ -278,9 +309,8 @@ function transferOf(callData: Hex) {
  * SPONSORED_PER_HOUR of the wallet's operations in the last hour, counted on-chain. Cancelling a recovery is never refused.
  */
 export async function requireSponsorable(wallet: Wallet, callData: Hex) {
-  const [to] = decodeFunctionData({ abi: accountAbi, data: callData }).args as readonly [Address, bigint, Hex];
-  if (isAddressEqual(to, wallet.address)) return;
-  if (transferOf(callData)?.value === 0n) throw new HttpError(403, "Swissquote doesn't pay for a payment of 0 USDC.");
+  if (callsOf(callData).every(({ target }) => isAddressEqual(target, wallet.address))) return;
+  if (transfersOf(callData).some(({ value }) => value === 0n)) throw new HttpError(403, "Swissquote doesn't pay for a payment of 0 USDC.");
   const latest = await publicClient.getBlockNumber();
   const paid = await publicClient.getLogs({
     address: addresses.entryPoint,
@@ -315,6 +345,23 @@ export function callAccount(wallet: Address, functionName: "cancelRecovery" | "f
     await publicClient.waitForTransactionReceipt({ hash: transactionHash });
     return transactionHash;
   });
+}
+
+const callErrors = [
+  ...poolAbi,
+  ...parseAbi([
+    "error ERC20InsufficientBalance(address sender, uint256 balance, uint256 needed)",
+    "error ERC20InsufficientAllowance(address spender, uint256 allowance, uint256 needed)",
+  ]),
+];
+
+function callError(data: Hex) {
+  try {
+    const { errorName, args } = decodeErrorResult({ abi: callErrors, data });
+    return `${errorName}(${args?.join(", ") ?? ""})`;
+  } catch {
+    return data;
+  }
 }
 
 function revertReason(error: unknown) {

@@ -1,5 +1,6 @@
 import { isAddress, zeroAddress } from "viem";
 import { z } from "zod";
+import { reviewedAbis } from "./decode";
 import type { CompliancePolicy, ComplianceRequest } from "./types";
 
 export const addressSchema = z.string().refine(
@@ -35,8 +36,9 @@ const tokenSchema = z.object({
 }).strict();
 const contractSchema = z.object({
   chainId: z.number().int().positive(), address: addressSchema, name: z.string().min(1).max(128),
-  kind: z.enum(["ERC20", "ERC4626"]), allowedFunctions: z.array(z.string().min(1)).min(1),
-  asset: addressSchema.optional(), shareToken: addressSchema.optional(), origins: z.array(originSchema),
+  kind: z.enum(["ERC20", "ERC4626", "SWAP"]), allowedFunctions: z.array(z.string().min(1)).min(1),
+  asset: addressSchema.optional(), shareToken: addressSchema.optional(),
+  tokens: z.tuple([addressSchema, addressSchema]).optional(), origins: z.array(originSchema),
 }).strict();
 export const policySchema = z.object({
   version: z.string().min(1).max(128), decisionTtlSeconds: z.number().int().min(1).max(600),
@@ -56,11 +58,13 @@ export function parsePolicy(input: unknown): CompliancePolicy {
   }
   for (const contract of policy.contracts) {
     const hasToken = (address: string | undefined) => policy.tokens.some((token) => token.chainId === contract.chainId && token.address === address);
-    const functions = contract.kind === "ERC20" ? ["transfer", "approve"] : ["deposit", "withdraw", "redeem"];
-    if (contract.allowedFunctions.some((name) => !functions.includes(name))) throw new Error(`Unsupported function for ${contract.name}`);
+    if (contract.allowedFunctions.some((name) => !reviewedAbis[contract.kind].some((item) => item.name === name))) throw new Error(`Unsupported function for ${contract.name}`);
     if (contract.kind === "ERC20" && !hasToken(contract.address)) throw new Error("ERC20 token is not registered");
     if (contract.kind === "ERC4626" && (!hasToken(contract.asset) || !hasToken(contract.shareToken) || contract.shareToken !== contract.address)) {
       throw new Error("Vault must declare its registered underlying and share tokens");
+    }
+    if (contract.kind === "SWAP" && (!contract.tokens || !contract.tokens.every(hasToken) || contract.tokens[0] === contract.tokens[1])) {
+      throw new Error("Swap pool must declare two distinct registered tokens");
     }
   }
   return policy;

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { investmentsValue, portfolio } from "@/app/coin-breakdown/data";
 import { FaceIdIcon, LockIcon, PhoneIcon, RestoreIcon, WarningIcon, type Icon } from "@/components/icons";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { DemoTag } from "@/components/ui/demo-tag";
@@ -11,7 +12,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { phone } from "@/lib/wallet/phone";
 import { RowBody } from "../../history/_components/tx-row";
 import { dayLabel, type Tx } from "../../history/data";
-import { transferToTx } from "../../history/live";
+import { toTxs } from "../../history/live";
 import { sectionLabel } from "../../_components/list";
 import { Money } from "../../_components/money";
 import { forgetWallet, isUnlinked, phoneDate, refreshWallet, useActivity, useWallet, type WalletSnapshot } from "../../_components/wallet";
@@ -28,9 +29,21 @@ import { PromoStack } from "./promo-stack";
  */
 export function useTiles(): Tile[] {
   const wallet = useWallet();
+  const live = wallet.status === "ready" ? wallet.wallet : undefined;
   // Cash is the wallet's USDC; until it's read every tile holds its place. A forgotten network's wallet holds nothing.
-  const cash = wallet.status === "ready" ? wallet.wallet.usdc : wallet.status === "missing" ? 0 : undefined;
-  return useMemo(() => tiles.map((t) => ({ ...t, value: cash === undefined ? undefined : t.id === "cash" ? cash : 0 })), [cash]);
+  const cash = live ? live.usdc : wallet.status === "missing" ? 0 : undefined;
+  // Investments holds the wallet's ETH where there is a pool, and is no demo then; every other account holds nothing.
+  const investments = investmentsValue(portfolio(live));
+  const invested = !!live?.pool;
+  return useMemo(
+    () =>
+      tiles.map((t) => ({
+        ...t,
+        ...(t.id === "investments" && invested ? { demo: undefined } : {}),
+        value: cash === undefined ? undefined : t.id === "cash" ? cash : t.id === "investments" ? investments : 0,
+      })),
+    [cash, investments, invested],
+  );
 }
 
 /** The Home grid. Tiles without a screen of their own, and the Earn promo, open an account sheet in place. */
@@ -200,7 +213,8 @@ function WalletAlert({ alert: { kind, Icon, tone, title, line, note } }: { alert
 function recentActivity(id: TileId, wallet: WalletSnapshot): Tx[] | undefined {
   if (id !== "cash" || wallet.status === "missing" || wallet.status === "none") return [];
   if (wallet.status !== "ready") return undefined;
-  return wallet.wallet.activity?.slice(0, 4).map((t) => transferToTx(t, wallet.wallet));
+  const activity = wallet.wallet.activity;
+  return activity && toTxs(activity, wallet.wallet).filter((t) => t.account === "cash").slice(0, 4);
 }
 
 function AccountSheet({ tile, wallet, locked }: { tile: Tile; wallet: WalletSnapshot; locked: boolean }) {

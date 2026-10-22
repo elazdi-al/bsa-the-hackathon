@@ -14,6 +14,8 @@ import {
   isAddressEqual,
   numberToHex,
   parseEther,
+  parseEventLogs,
+  parseUnits,
   type Address,
   type Hex,
 } from "viem";
@@ -24,9 +26,10 @@ import { ownershipChallenge, type Config as AccountConfig, type Passkey } from "
 import { verifyAssertion } from "../lib/wallet/api/http.ts";
 import { addresses, chain, credentials, partnerUrl, pendingRecovery, plus, publicClient } from "../lib/wallet/env.ts";
 import { ApiError, readRecoveryKey, RECOVERY_FILE, type Device, type SignedIn } from "../lib/wallet/phone.ts";
+import { DECIMALS, ethPrice, minOut, other, poolAbi, quoteOut, type PoolToken, type Reserves } from "../lib/wallet/pool.ts";
 import { setSunset } from "../lib/wallet/sunset.ts";
 import { attack } from "./attack.ts";
-import { APP, mintUsdc, newPhone, sendEth } from "./software-phone.ts";
+import { APP, mint, mintUsdc, newPhone, sendEth } from "./software-phone.ts";
 
 /** `signedIn`: the Swissquote client the account's wallet is linked to (mocked). None until npm run link. */
 type AccountFile = { passkey: Hex; recoveryKey: Hex; device: Device | null; signedIn?: SignedIn };
@@ -119,9 +122,39 @@ function usdcAmount(text: string) {
   if (!/^\d+(\.\d{1,6})?$/.test(text)) throw new Error(`${text} is not a USDC amount, like 25 or 0.5.`);
 }
 
-const usdcOf = (owner: Address) => publicClient.readContract({ address: addresses.usdc, abi: erc20Abi, functionName: "balanceOf", args: [owner] });
+const balanceOf = (token: Address, owner: Address) => publicClient.readContract({ address: token, abi: erc20Abi, functionName: "balanceOf", args: [owner] });
+const usdcOf = (owner: Address) => balanceOf(addresses.usdc, owner);
 const usdc = (amount: bigint) => `${Number(formatUnits(amount, 6)).toFixed(2)} USDC`;
 const eth = (wei: bigint) => `${Number(formatEther(wei)).toFixed(4)} ETH`;
+
+// The pool's tokens. The app shows WETH as ETH; the CLI says WETH, since it also prints the ETH a wallet pays gas with.
+const TOKENS = { usdc: "usdc", weth: "weth", eth: "weth" } as const satisfies Record<string, PoolToken>;
+const show: Record<PoolToken, (amount: bigint) => string> = { usdc, weth: (amount) => `${Number(formatUnits(amount, 18)).toFixed(6)} WETH` };
+
+function tokenOf(arg: string): PoolToken {
+  const name = arg.toLowerCase();
+  if (!Object.hasOwn(TOKENS, name)) throw new Error(`${arg} is not a token. Use usdc or weth.`);
+  return TOKENS[name as keyof typeof TOKENS];
+}
+
+function baseUnits(text: string, token: PoolToken) {
+  if (!new RegExp(`^\\d+(\\.\\d{1,${DECIMALS[token]}})?$`).test(text)) {
+    throw new Error(`${text} is not ${token === "usdc" ? "a USDC amount, like 25 or 0.5" : "a WETH amount, like 1 or 0.05"}.`);
+  }
+  return parseUnits(text, DECIMALS[token]);
+}
+
+/** A wallet's USDC, the ETH it pays gas with, and on a chain with a pool its WETH. */
+async function balances(owner: Address) {
+  const { weth } = addresses;
+  const [usdcHeld, ethHeld, wethHeld] = await Promise.all([usdcOf(owner), publicClient.getBalance({ address: owner }), weth && balanceOf(weth, owner)]);
+  return [usdc(usdcHeld), eth(ethHeld), ...(wethHeld === null ? [] : [show.weth(wethHeld)])].join(", ");
+}
+
+async function reservesOf(pool: Address): Promise<Reserves> {
+  const [usdcReserve, wethReserve] = await publicClient.readContract({ address: pool, abi: poolAbi, functionName: "reserves" });
+  return { usdc: usdcReserve, weth: wethReserve };
+}
 
 /** Test USDC, and the ETH an unlinked wallet pays its network fees with: Swissquote pays only a linked wallet's. */
 async function fundWallet(to: Address, amount: string) {
@@ -162,7 +195,7 @@ function roleOf(device: Device, live: { signer: Address; pendingRecovery: { sign
 const commands: Record<string, { usage: string; about: string; run(args: string[]): Promise<void> }> = {
   status: {
     usage: "status",
-    about: "Show the chain, the contracts, Swissquote's gas funds, every wallet and the CLI accounts.",
+    about: "Show the chain, the contracts, Swissquote's gas funds, the swap pool, every wallet and the CLI accounts.",
     async run() {
       const rows = walletRows();
       const accounts = (existsSync(ACCOUNTS) ? readdirSync(ACCOUNTS) : [])
@@ -170,27 +203,32 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
         .map((file) => file.slice(0, -".json".length))
         .sort()
         .map((name) => ({ name, ...(JSON.parse(readFileSync(accountFile(name), "utf8")) as AccountFile) }));
-      const [clock, gas, deposit, wallets] = await Promise.all([
+      const { weth, pool } = addresses;
+      const [clock, gas, deposit, reserves, wallets] = await Promise.all([
         chainClock(),
         publicClient.getBalance({ address: addresses.swissquote }),
         publicClient.readContract({ address: addresses.entryPoint, abi: entryPoint07Abi, functionName: "balanceOf", args: [addresses.paymaster] }),
+        pool && reservesOf(pool),
         Promise.all(
           rows.map(async ({ address, config, client, assertion, plusUntil }) => {
             const created = JSON.parse(config) as AccountConfig;
-            const [balance, code, live, pending] = await Promise.all([
+            const [balance, wethBalance, code, live, pending] = await Promise.all([
               usdcOf(address),
+              weth && balanceOf(weth, address),
               publicClient.getCode({ address }),
               credentials(address, () => created),
               pendingRecovery(address),
             ]);
             const owner = client && assertion && ownerLine(address, [created.passkey, live.passkey], client, assertion);
-            return { address, balance, deployed: !!code, signer: live.signer, pendingRecovery: pending, owner, plusUntil };
+            return { address, balance, wethBalance, deployed: !!code, signer: live.signer, pendingRecovery: pending, owner, plusUntil };
           }),
         ),
       ]);
       const owners = (address: Address) =>
         accounts.filter(({ device }) => device?.address?.toLowerCase() === address.toLowerCase()).map(({ name }) => name).join(", ");
-      const walletLines = table(wallets.map((w) => [w.address, usdc(w.balance), w.deployed ? "deployed" : "not deployed", owners(w.address)])).split("\n");
+      const walletLines = table(
+        wallets.map((w) => [w.address, usdc(w.balance), ...(w.wethBalance === null ? [] : [show.weth(w.wethBalance)]), w.deployed ? "deployed" : "not deployed", owners(w.address)]),
+      ).split("\n");
       const byAddress = new Map(wallets.map((w) => [w.address.toLowerCase(), w]));
 
       console.log(
@@ -209,6 +247,8 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
         table([
           ["EntryPoint", addresses.entryPoint],
           ["USDC", addresses.usdc],
+          ...(weth ? [["WETH", weth]] : []),
+          ...(pool ? [["Pool", pool]] : []),
           ["Factory", addresses.factory],
           ["Paymaster", addresses.paymaster],
         ]),
@@ -221,6 +261,15 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
           ["Paymaster deposit", eth(deposit)],
         ]),
       );
+      if (reserves) {
+        console.log("\nPool");
+        console.log(
+          table([
+            ["Reserves", `${show.usdc(reserves.usdc)}, ${show.weth(reserves.weth)}`],
+            ["ETH price", `1 ETH = ${ethPrice(reserves).toFixed(2)} USDC`],
+          ]),
+        );
+      }
       console.log("\nWallets");
       if (!wallets.length) console.log("  No wallets yet.");
       wallets.forEach((wallet, i) => {
@@ -247,18 +296,21 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
   },
 
   fund: {
-    usage: "fund [wallet] [amount=100]",
-    about: "Mint test USDC to an account or address, by default the newest wallet, and send it 0.01 ETH for network fees.",
-    async run([target, amount = "100"]) {
-      usdcAmount(amount);
+    usage: "fund [wallet] [amount] [usdc|weth]",
+    about: "Mint test USDC (100 by default) to an account or address, by default the newest wallet, and send it 0.01 ETH for network fees; or mint test WETH (1 by default), which the app shows as ETH, on a chain with the pool.",
+    async run([target, amountArg, tokenArg = "usdc"]) {
+      const token = tokenOf(tokenArg);
+      const amount = amountArg ?? { usdc: "100", weth: "1" }[token];
+      baseUnits(amount, token);
       const to = target ? walletOf(target) : walletRows().at(-1)?.address;
       if (!to) throw new Error("No wallets yet. Create one in the browser or with npm run account <account>.");
-      await fundWallet(to, amount);
+      if (token === "usdc") await fundWallet(to, amount);
+      else await mint(token, to, amount);
       console.log(
         table(
           [
             ["Wallet", to],
-            ["Balance", `${usdc(await usdcOf(to))}, ${eth(await publicClient.getBalance({ address: to }))}`],
+            ["Balance", await balances(to)],
           ],
           "",
         ),
@@ -352,6 +404,39 @@ const commands: Record<string, { usage: string; about: string; run(args: string[
             ["Transaction", sent.transactionHash],
             [fromName, usdc(fromBalance)],
             [toArg, usdc(toBalance)],
+          ],
+          "",
+        ),
+      );
+    },
+  },
+
+  swap: {
+    usage: "swap <account> <amount> <usdc|weth>",
+    about: "Swap USDC for WETH, which the app shows as ETH, or WETH for USDC through the test pool. The amount is what the account pays; the swap takes no less than 0.5% under the quote.",
+    async run([name, amountArg, tokenArg]) {
+      const tokenIn = tokenOf(tokenArg);
+      const amountIn = baseUnits(amountArg, tokenIn);
+      const { pool } = addresses;
+      if (!pool) throw new Error("This chain has no swap pool. npm run local deploys one on anvil.");
+      const { phone } = loadAccount(name);
+      const wallet = walletOf(name);
+      const held = await balanceOf(addresses[tokenIn]!, wallet);
+      if (held < amountIn) throw new Error(`${name} has ${show[tokenIn](held)}, not the ${show[tokenIn](amountIn)} to swap.`);
+      const quote = quoteOut(await reservesOf(pool), tokenIn, amountIn);
+      const { transactionHash } = await phone.swap(tokenIn, amountIn, minOut(quote));
+      const { logs } = await publicClient.getTransactionReceipt({ hash: transactionHash });
+      const [swapped] = parseEventLogs({ abi: poolAbi, eventName: "Swap", logs, args: { account: wallet } });
+      const { amountOut } = swapped.args;
+      const legs = tokenIn === "usdc" ? { usdc: amountIn, weth: amountOut } : { usdc: amountOut, weth: amountIn };
+      console.log(
+        table(
+          [
+            ["Transaction", transactionHash],
+            ["Paid", show[tokenIn](amountIn)],
+            ["Got", show[other(tokenIn)](amountOut)],
+            ["Rate", `1 ETH = ${ethPrice(legs).toFixed(2)} USDC`],
+            ["Balance", await balances(wallet)],
           ],
           "",
         ),
@@ -567,6 +652,9 @@ function explain(error: unknown): string {
     }
   }
   if (error instanceof ApiError) {
+    if (String(error.body.detail).startsWith("Slippage(")) {
+      return "The price moved before the swap went through, so the pool would have paid less than the swap's minimum. Nothing was swapped. Run it again for a fresh quote.";
+    }
     const decision = error.body.decision as { status: string; reasons: string[] } | undefined;
     if (!decision) return `Swissquote refused: ${error.message}`;
     return `Swissquote refused: ${error.message}\n${table([["Decision", decision.status], ...decision.reasons.map((reason) => ["Reason", reason])])}`;

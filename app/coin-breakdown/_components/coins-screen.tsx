@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { GridIcon, ImagesIcon, type Icon } from "@/components/icons";
 import { Tabs, TabsContent, TabsIndicator, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useWallet } from "@/app/(tabs)/_components/wallet";
-import { coins, type CoinId } from "../data";
+import { portfolio, type CoinId } from "../data";
 import { CoinRow } from "./coin-row";
 import { Recede } from "./motion";
 import { WalletHeader } from "./wallet-header";
@@ -23,8 +23,7 @@ export function CoinsScreen() {
   const [focused, setFocused] = useState<CoinId | null>(null);
   const snapshot = useWallet();
   const live = snapshot.status === "ready" ? snapshot.wallet : undefined;
-  // The wallet holds only its USDC.
-  const shown = live ? [{ ...coins.find((c) => c.id === "usdc")!, amount: live.usdc, value: live.usdc, stake: undefined }] : [];
+  const shown = portfolio(live);
 
   useEffect(() => {
     if (!focused) return;

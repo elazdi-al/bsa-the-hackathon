@@ -46,6 +46,7 @@ import {
   type PasskeyAssertion,
 } from "./account.ts";
 import type * as z from "zod";
+import { poolAbi, type PoolToken } from "./pool.ts";
 import type { assertion } from "./schema.ts";
 import { combine, split, type Share } from "./shamir.ts";
 import type { ComplianceDecision } from "../compliance/types";
@@ -87,6 +88,10 @@ export type WalletState = {
   usdc: string;
   /** In wei. */
   eth: string;
+  /** WETH, which the app shows and swaps as the wallet's ETH. Base units, like `usdc`; 0 on a chain without a pool. */
+  weth: string;
+  /** The swap pool's reserves in base units; null on a chain without one. */
+  pool: { usdc: string; weth: string } | null;
   pendingRecovery: { signer: Address; executeAfter: number } | null;
   /** The chain's time when read, in seconds. A local chain can run ahead of this phone's clock. */
   chainTime: number;
@@ -105,12 +110,16 @@ export type SignedIn = { session: string; client: { number: string } };
 /** The statement that the wallet belongs to `client`, and the passkey's assertion over it: Swissquote's ownership proof. */
 export type Owner = { client: string; createdAt: number; statement: string; assertion: z.infer<typeof assertion> };
 
-/** A USDC transfer in or out of the wallet. `value` is in base units. `sponsored`: Swissquote's paymaster paid its gas. */
-export type Transfer = { hash: Hex; from: Address; to: Address; value: string; timestamp: number; sponsored: boolean };
+/** A USDC or WETH transfer in or out of the wallet. `value` is in base units. `sponsored`: Swissquote's paymaster paid its gas. */
+export type Transfer = { hash: Hex; token: PoolToken; from: Address; to: Address; value: string; timestamp: number; sponsored: boolean };
 
 type Storage = Pick<globalThis.Storage, "getItem" | "setItem" | "removeItem">;
-/** `plus`: what Swissquote Plus costs, in USDC base units paid to Swissquote's address `to`, for `period` chain seconds. */
-type Config = { chainId: number; entryPoint: Address; usdc: Address; plus: { to: Address; price: string; period: number } };
+/**
+ * `plus`: what Swissquote Plus costs, in USDC base units paid to Swissquote's address `to`, for `period` chain seconds.
+ * `weth`: the token the swap pool trades against USDC; null on a chain without a pool.
+ */
+type Config = { chainId: number; entryPoint: Address; usdc: Address; weth: Address | null; plus: { to: Address; price: string; period: number } };
+export type Call = { to: Address; value?: bigint; data: Hex };
 /**
  * `summary`: Swissquote's plain reading of a payment it checked; `demo` when test providers did the checks.
  * `fee`: for an operation Swissquote doesn't sponsor, the most its gas can cost the wallet, in wei, worked out by this phone.
@@ -145,13 +154,15 @@ const DEVICE = "swissquote.wallet.device";
 export const SESSION = "swissquote.session";
 
 /**
- * `partner` is pinned in the app build, never taken from Swissquote, so Swissquote cannot redirect
- * Share C to itself during the split. `session` is the Swissquote session this phone linked the wallet with
- * (MOCKED), if any, which Swissquote's API gets on every call, so it answers as to its own client.
+ * `partner` and `pool` are pinned in the app build, never taken from Swissquote, so Swissquote cannot redirect
+ * Share C to itself during the split, nor have the wallet approve a contract of its choosing as the swap pool.
+ * `session` is the Swissquote session this phone linked the wallet with (MOCKED), if any, which Swissquote's API
+ * gets on every call, so it answers as to its own client.
  */
 export function createPhone({
   api = "",
   partner,
+  pool,
   authenticator,
   storage,
   exit,
@@ -159,6 +170,7 @@ export function createPhone({
 }: {
   api?: string;
   partner: string;
+  pool?: Address;
   authenticator: Authenticator;
   storage: Storage;
   exit?: ExitRoute;
@@ -243,10 +255,15 @@ export function createPhone({
     return signature;
   }
 
-  /** Swissquote prepares a call this phone built, sponsored if the wallet is linked; the summary is its compliance reading of it. */
-  async function prepare(call_: { to: Address; value?: bigint; data: Hex }, dapp?: DappMetadata): Promise<Prepared> {
+  /**
+   * Swissquote prepares the call, or the batch of calls, this phone built, sponsored if the wallet is linked; the
+   * summary is its compliance reading of it.
+   */
+  async function prepare(calls: Call | Call[], dapp?: DappMetadata): Promise<Prepared> {
     const wallet = requireWallet();
-    const callData = encodeFunctionData({ abi: accountAbi, functionName: "execute", args: [call_.to, call_.value ?? 0n, call_.data] });
+    const callData = Array.isArray(calls)
+      ? encodeFunctionData({ abi: accountAbi, functionName: "executeBatch", args: [calls.map(({ to, value = 0n, data }) => ({ target: to, value, data }))] })
+      : encodeFunctionData({ abi: accountAbi, functionName: "execute", args: [calls.to, calls.value ?? 0n, calls.data] });
     const prepared = await call<Prepared>(`/api/wallets/${wallet.address}/operations`, { callData, ...(dapp ? { dapp } : {}) });
     const { fee } = await verify(prepared, wallet.address, callData);
     return { ...prepared, fee };
@@ -268,10 +285,22 @@ export function createPhone({
     return call<Sent>(`/api/wallets/${wallet.address}/operations/${prepared.hash}`, { signature });
   }
 
+  /** One operation that approves the pool for exactly `amountIn` and swaps it, so no allowance outlives it. */
+  async function prepareSwap(tokenIn: PoolToken, amountIn: bigint, minAmountOut: bigint): Promise<Prepared> {
+    const config = await getConfig();
+    if (!pool || !config.weth) throw new Error("This network has no swap pool.");
+    const token = config[tokenIn]!;
+    return prepare([
+      { to: token, data: encodeFunctionData({ abi: erc20Abi, functionName: "approve", args: [pool, amountIn] }) },
+      { to: pool, data: encodeFunctionData({ abi: poolAbi, functionName: "swap", args: [token, amountIn, minAmountOut] }) },
+    ]);
+  }
+
   return {
     device,
     forgetKey,
     prepare,
+    prepareSwap,
     approve,
     config: getConfig,
     dapps: () => call<DappCatalog>("/api/dapps"),
@@ -368,6 +397,9 @@ export function createPhone({
       const { usdc } = await getConfig();
       return approve(await prepare({ to: usdc, data: encodeFunctionData({ abi: erc20Abi, functionName: "transfer", args: [to, parseUnits(amount, 6)] }) }));
     },
+
+    /** Swaps `amountIn` of `tokenIn` for the other token, reverting if it would get less than `minAmountOut`. */
+    swap: async (tokenIn: PoolToken, amountIn: bigint, minAmountOut: bigint): Promise<Sent> => approve(await prepareSwap(tokenIn, amountIn, minAmountOut)),
 
     /** Whether the partner has opened the exit: Swissquote unreachable or closed for long enough. */
     exitStatus: () => call<ExitStatus>(`${partner}/exit`),
@@ -572,6 +604,7 @@ const simulatorAuthenticator: Authenticator = {
 export const phone = createPhone({
   api: process.env.NEXT_PUBLIC_API_URL ?? "",
   partner: process.env.NEXT_PUBLIC_PARTNER_URL ?? "http://localhost:4002",
+  pool: (process.env.NEXT_PUBLIC_POOL_ADDRESS || undefined) as Address | undefined,
   authenticator: process.env.NEXT_PUBLIC_SOFTWARE_PASSKEY === "1" ? simulatorAuthenticator : browserAuthenticator,
   storage: {
     getItem: (key) => localStorage.getItem(key),

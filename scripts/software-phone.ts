@@ -5,6 +5,7 @@ import { entryPoint07Abi, toPackedUserOperation, type UserOperation } from "viem
 import { privateKeyToAccount } from "viem/accounts";
 import { addresses, chain, partnerUrl, publicClient, rpcUrl } from "../lib/wallet/env.ts";
 import { createPhone, softwareAuthenticator } from "../lib/wallet/phone.ts";
+import { DECIMALS, type PoolToken } from "../lib/wallet/pool.ts";
 
 export const APP = process.env.APP_URL ?? "http://localhost:3000";
 
@@ -25,6 +26,7 @@ export function newPhone({
   return createPhone({
     api: APP,
     partner: partnerUrl,
+    pool: addresses.pool ?? undefined,
     authenticator: softwareAuthenticator(passkey, APP),
     storage: storage ?? { getItem: (k) => items.get(k) ?? null, setItem: (k, v) => void items.set(k, v), removeItem: (k) => void items.delete(k) },
     exit: { rpc: rpcUrl, entryPoint: addresses.entryPoint, factory: addresses.factory, usdc: addresses.usdc, submit: bundle },
@@ -33,13 +35,18 @@ export function newPhone({
 }
 
 /** Mints the deployment's test USDC, which anyone may mint, on any chain Deploy.s.sol deployed it to. */
-export async function mintUsdc(to: Address, amount: string) {
+export const mintUsdc = (to: Address, amount: string) => mint("usdc", to, amount);
+
+/** Mints test USDC, or the test WETH a local chain's pool trades. `amount` is in whole tokens, like "100" or "0.5". */
+export async function mint(token: PoolToken, to: Address, amount: string) {
+  const address = addresses[token];
+  if (!address) throw new Error("This chain has no WETH: only a local chain gets the swap pool.");
   const swissquote = createWalletClient({ account: privateKeyToAccount(process.env.SWISSQUOTE_KEY as Hex), chain, transport: http(rpcUrl) });
   const hash = await swissquote.writeContract({
-    address: addresses.usdc,
+    address,
     abi: parseAbi(["function mint(address, uint256)"]),
     functionName: "mint",
-    args: [to, parseUnits(amount, 6)],
+    args: [to, parseUnits(amount, DECIMALS[token])],
   });
   await publicClient.waitForTransactionReceipt({ hash });
 }

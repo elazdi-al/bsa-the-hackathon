@@ -130,13 +130,18 @@ export class ComplianceEngine {
           add("VAULT_OUTPUT_NOT_CONFIRMED", "Swissquote couldn't confirm this withdrawal reaches the right wallet.", "REVIEW");
         }
       }
+      if (action.type === "SWAP") {
+        const received = result.transfers.filter((transfer) => transfer.asset === action.creditAsset && transfer.from === action.contract && transfer.to === request.account)
+          .reduce((sum, transfer) => sum + BigInt(transfer.amount), 0n);
+        if (received < BigInt(action.minCreditAmount!)) add("SWAP_OUTPUT_NOT_CONFIRMED", "Simulation does not confirm the swap's minimum output reaching the account.", "REVIEW");
+      }
     }
     // Net balance changes can conceal a transfer to the wrong recipient. Check gross events too.
     const observed = new Map<string, bigint>();
     const permitted = new Map<string, bigint>();
     for (const action of actions) {
       if (!action.debit) continue;
-      const recipient = action.type === "DEPOSIT" ? action.contract : action.type === "REDEEM" ? zeroAddress : action.recipient;
+      const recipient = action.type === "DEPOSIT" || action.type === "SWAP" ? action.contract : action.type === "REDEEM" ? zeroAddress : action.recipient;
       const key = `${action.debit.asset}:${recipient}`;
       permitted.set(key, (permitted.get(key) ?? 0n) + BigInt(action.debit.amount));
     }
@@ -155,6 +160,8 @@ export class ComplianceEngine {
     const approvals = actions.flatMap((action) => action.approval ? [action.approval] : []);
     for (const approval of result.approvalChanges) {
       if (approval.owner !== request.account) continue;
+      // A swap's transferFrom may report the reviewed allowance it spent ending at zero.
+      if (approval.amount === "0" && actions.some((action) => action.type === "SWAP" && action.contract === approval.spender && action.debit?.asset === approval.token)) continue;
       if (!approvals.some((expected) => expected.token === approval.token && expected.spender === approval.spender && expected.amount === approval.amount)) {
         add("UNEXPECTED_APPROVAL", "This payment would also let someone else spend from your wallet.", "DENY_ASSISTANCE");
       }

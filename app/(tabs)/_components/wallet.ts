@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
 import { formatUnits, isAddressEqual, type Address } from "viem";
 import { ApiError, phone, type Transfer } from "@/lib/wallet/phone";
+import { ethPrice, type Reserves } from "@/lib/wallet/pool";
 
 export type Wallet = {
   address: Address;
@@ -11,6 +12,14 @@ export type Wallet = {
   usdc: number;
   /** ETH. Swissquote pays a linked wallet's gas; an unlinked wallet pays its own from this, as an exit without Swissquote does. */
   eth: number;
+  /** WETH, in ETH: what the app shows and swaps as the wallet's ETH. 0 on a chain without a pool. */
+  weth: number;
+  /** The exact USDC and WETH balances in base units, for amounts that must be exact, like swapping everything. */
+  units: Reserves;
+  /** The swap pool's reserves in base units; null on a chain without a pool, like Base Sepolia. */
+  pool: Reserves | null;
+  /** Dollars per ETH at the pool's mid price; null without a pool. */
+  ethPrice: number | null;
   /** This phone's key is the wallet key. False on a new phone mid-recovery, and on an old phone once a recovery finished elsewhere. */
   controls: boolean;
   /** Swissquote locked this phone after it was reported lost. Only ever true on the phone that controls the wallet. */
@@ -28,7 +37,7 @@ export type Wallet = {
   owner: string | null;
   /** When the client's Swissquote Plus runs out, in chain seconds; null when it isn't running, or this phone isn't signed in as the owner. */
   plus: number | null;
-  /** USDC in and out, newest first, once a screen asked for it with `useActivity`. */
+  /** USDC and WETH in and out, newest first, once a screen asked for it with `useActivity`. */
   activity?: Transfer[];
 };
 
@@ -48,8 +57,11 @@ let wantsActivity = 0;
 let forgotten = false;
 const getSnapshot = () => (forgotten && !listeners.size ? LOADING : snapshot);
 
+// Balances are bigints, which JSON.stringify can't write by itself.
+const json = (s: WalletSnapshot) => JSON.stringify(s, (_, v) => (typeof v === "bigint" ? `${v}` : v));
+
 function publish(next: WalletSnapshot) {
-  if (JSON.stringify(next) === JSON.stringify(snapshot)) return;
+  if (json(next) === json(snapshot)) return;
   snapshot = next;
   for (const listener of listeners) listener();
 }
@@ -63,12 +75,18 @@ async function load() {
     const controls = isAddressEqual(mine, state.signer);
     const last = snapshot.status === "ready" ? snapshot.wallet : undefined;
     const skew = Math.round(state.chainTime - Date.now() / 1000);
+    const units = { usdc: BigInt(state.usdc), weth: BigInt(state.weth) };
+    const pool = state.pool && { usdc: BigInt(state.pool.usdc), weth: BigInt(state.pool.weth) };
     publish({
       status: "ready",
       wallet: {
         address: state.address,
-        usdc: Number(formatUnits(BigInt(state.usdc), 6)),
+        usdc: Number(formatUnits(units.usdc, 6)),
         eth: Number(formatUnits(BigInt(state.eth), 18)),
+        weth: Number(formatUnits(units.weth, 18)),
+        units,
+        pool,
+        ethPrice: pool && ethPrice(pool),
         controls,
         locked: controls && state.locked,
         recovery: state.pendingRecovery && {
@@ -139,7 +157,7 @@ export function useWallet(): WalletSnapshot {
   return useSyncExternalStore(subscribe, getSnapshot, () => LOADING);
 }
 
-/** The wallet's USDC transfers; undefined until read, or with no live wallet. */
+/** The wallet's USDC and WETH transfers; undefined until read, or with no live wallet. */
 export function useActivity(): Transfer[] | undefined {
   useEffect(() => {
     wantsActivity++;

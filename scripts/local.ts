@@ -204,8 +204,10 @@ function deployContracts() {
   return Object.fromEntries([...deploy.stdout.matchAll(/([A-Z_]+_ADDRESS)=(0x[0-9a-fA-F]{40})/g)].map((m) => [m[1], m[2]]));
 }
 
-// New chains include the deployed test vault. Never silently expand a resumed chain's policy.
-if (!resume || !existsSync(POLICY_FILE)) writeFileSync(POLICY_FILE, JSON.stringify(localDappPolicy(deployed.USDC_ADDRESS, deployed.VAULT_ADDRESS, (sepolia ? baseSepolia : foundry).id)));
+// New chains include the deployed test vault and, on anvil, the test pool Swissquote reviews swaps through, each
+// approval exactly the swap's input. Never silently expand a resumed chain's policy.
+const swap = deployed.WETH_ADDRESS && deployed.POOL_ADDRESS ? { weth: deployed.WETH_ADDRESS, pool: deployed.POOL_ADDRESS } : undefined;
+if (!resume || !existsSync(POLICY_FILE)) writeFileSync(POLICY_FILE, JSON.stringify(localDappPolicy(deployed.USDC_ADDRESS, deployed.VAULT_ADDRESS, (sepolia ? baseSepolia : foundry).id, swap)));
 if (resume && !deployed.VAULT_ADDRESS) console.log("This older chain has no test vault. Its wallets and policy are preserved; deploy and review a vault explicitly to enable dApps.");
 
 const env = {
@@ -217,6 +219,8 @@ const env = {
   SWISSQUOTE_SHARE_KEY: previous.SWISSQUOTE_SHARE_KEY ?? randomBytes(32).toString("hex"),
   PARTNER_URL,
   NEXT_PUBLIC_PARTNER_URL: process.env.PUBLIC_PARTNER_URL ?? PARTNER_URL,
+  // The pool is pinned in the app build like the partner, so Swissquote can't have the wallet approve another contract.
+  ...(swap ? { NEXT_PUBLIC_POOL_ADDRESS: swap.pool } : {}),
   APP_URL,
   // Seconds Swissquote must stay closed before the partner opens the exit. Production waits 30 days; the
   // public demo waits long enough that a redeploy never opens it. EXIT_AFTER=5 lets npm run e2e prove a --prod stack.
@@ -257,21 +261,22 @@ await Promise.all(routes.map((route) => fetch(APP_URL + route).catch(() => undef
 console.log(`
 Swissquote Wallet is running. Open ${APP_URL}/onboarding-welcome
 
-  npm run status                     chain, contracts, wallets and accounts
-  npm run fund [wallet] [amount]     mint test USDC (default: the newest wallet, 100)
-  npm run account <account>          create a wallet with a software passkey, not linked to Swissquote
-  npm run link <account>             link the wallet to a Swissquote client (mock): Swissquote pays its gas, can lock its phone
-  npm run plus <account>             buy 30 days of Swissquote Plus for a linked account: 10 USDC to Swissquote
-  npm run send <from> <to> <amount>  send USDC from an account
-  npm run recover <account|file>     start a recovery onto a new phone with the Recovery Key
-  npm run finish <account>           finish a recovery after the 48 hours
-  npm run cancel <account>           cancel a recovery with the Recovery Key
-  npm run lock <account>             report the phone lost: Swissquote locks it
-  npm run unlock <account>           Swissquote unlocks the phone
-  npm run warp [hours]               move chain time ahead (default 48)
-  npm run sunset [on|off]            close Swissquote's services, or run them again (default on)
-  npm run exit <from> <to> [amount]  send USDC without Swissquote once it is closed (default all)
-  npm run attack <account>           an attacker with the phone and email is stopped at every step
+  npm run status                              chain, contracts, the pool, wallets and accounts
+  npm run fund [wallet] [amount] [usdc|eth]   mint test USDC, or test WETH with eth (default: the newest wallet, 100 USDC)
+  npm run account <account>                   create a wallet with a software passkey, not linked to Swissquote
+  npm run link <account>                      link the wallet to a Swissquote client (mock): Swissquote pays its gas, can lock its phone
+  npm run plus <account>                      buy 30 days of Swissquote Plus for a linked account: 10 USDC to Swissquote
+  npm run send <from> <to> <amount>           send USDC from an account
+  npm run swap <account> <amount> <usdc|eth>  swap that much USDC or ETH for the other through the test pool
+  npm run recover <account|file>              start a recovery onto a new phone with the Recovery Key
+  npm run finish <account>                    finish a recovery after the 48 hours
+  npm run cancel <account>                    cancel a recovery with the Recovery Key
+  npm run lock <account>                      report the phone lost: Swissquote locks it
+  npm run unlock <account>                    Swissquote unlocks the phone
+  npm run warp [hours]                        move chain time ahead (default 48)
+  npm run sunset [on|off]                     close Swissquote's services, or run them again (default on)
+  npm run exit <from> <to> [amount]           send USDC without Swissquote once it is closed (default all)
+  npm run attack <account>                    an attacker with the phone and email is stopped at every step
 
 Ctrl-C stops everything.
 `);
