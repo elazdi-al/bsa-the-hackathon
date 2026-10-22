@@ -159,8 +159,11 @@ const swapExactly = async (tokenIn: PoolToken, amountIn: bigint) => {
   assert.equal(after[other(tokenIn)] - before[other(tokenIn)], expected, `the wallet got exactly the quoted ${expected} ${other(tokenIn)}`);
   console.log(`   paid ${formatUnits(amountIn, DECIMALS[tokenIn])} ${tokenIn.toUpperCase()}, got ${formatUnits(expected, DECIMALS[other(tokenIn)])} ${other(tokenIn).toUpperCase()}`);
 };
+const usdcBeforeSwaps = await usdcOf(wallet);
 await swapExactly("usdc", parseUnits("50", 6));
 await swapExactly("weth", (await holdings()).weth / 2n);
+// What the two swaps turned into WETH, with the pool's fees: Anna's totals at the exit are short by it.
+const swappedAway = usdcBeforeSwaps - (await usdcOf(wallet));
 assert.equal(await ethOf(wallet), 0n, "a swap costs the linked wallet no ETH: Swissquote's paymaster paid its gas");
 const held = await holdings();
 const ten = parseUnits("10", 6);
@@ -406,14 +409,14 @@ const apiBefore = apiRequests.length;
 newOne.forgetKey();
 await newOne.exitUsdc(ANNA, formatUnits(await usdcOf(wallet), 6));
 assert.equal(await usdcOf(wallet), 0n, "the whole balance left the wallet");
-assert.equal(await usdcOf(ANNA), parseUnits("15100", 6), "everything the wallet was ever given reached Anna");
+assert.equal(await usdcOf(ANNA), parseUnits("15100", 6) - swappedAway, "everything the wallet was ever given reached Anna, less the USDC its swaps turned into WETH");
 assert.equal(exitRequests.length, exitsBefore + 1, "one Face ID, one request for Share C");
 assert.equal(await isDeployed(freshWallet), false, "a wallet that never paid has no account on-chain yet");
 await sendEth(freshWallet, "0.01");
 fresh.forgetKey();
 await fresh.exitUsdc(ANNA, "10");
 assert.ok(await isDeployed(freshWallet), "the exit deploys the account on the way out");
-assert.equal(await usdcOf(ANNA), parseUnits("15110", 6));
+assert.equal(await usdcOf(ANNA), parseUnits("15110", 6) - swappedAway);
 assert.equal(exitRequests.length, exitsBefore + 2, "the partner checked the deploying operation's config before releasing C");
 assert.deepEqual(apiRequests.slice(apiBefore), [], "neither exit called Swissquote's API");
 setSunset(false);
