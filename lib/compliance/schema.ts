@@ -1,6 +1,6 @@
 import { isAddress, zeroAddress } from "viem";
 import { z } from "zod";
-import { reviewedAbis } from "./decode";
+import { reviewedAbis } from "./decode.ts";
 import type { CompliancePolicy, ComplianceRequest } from "./types";
 
 export const addressSchema = z.string().refine(
