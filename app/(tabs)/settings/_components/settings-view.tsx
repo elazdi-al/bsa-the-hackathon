@@ -160,8 +160,9 @@ function LinkView({ done }: { done: () => void }) {
     } catch {
       setError("Your wallet wasn't linked. Try again.");
       signIn();
+      // Only a failure frees the button: after a link the tray closes, and a tap during its exit must not link again.
+      setBusy(false);
     }
-    setBusy(false);
   }
 
   return (
