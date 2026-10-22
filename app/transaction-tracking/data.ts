@@ -49,12 +49,3 @@ export const sendSteps: Step[] = [
 ];
 
 /** The blurred History list behind the sheet: icon tint, label widths, and whether the amount is incoming (green). */
-export const walletRows: { coin: string; name: number; amount: number; change: "up" | "down" | null }[] = [
-  { coin: "#e8e0f7", name: 96, amount: 64, change: null },
-  { coin: "#dbe3fb", name: 72, amount: 104, change: null },
-  { coin: "#e6e6e8", name: 88, amount: 80, change: null },
-  { coin: "#f9ddd1", name: 104, amount: 92, change: "up" },
-  { coin: "#e8e0f7", name: 120, amount: 96, change: null },
-  { coin: "#e6e6e8", name: 80, amount: 84, change: "up" },
-  { coin: "#dbe3fb", name: 92, amount: 76, change: null },
-];
